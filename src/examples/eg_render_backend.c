@@ -10,7 +10,7 @@
 #include <GL/glext.h>
 
 #define M_DEG_TO_RAD(x) ((x) * 3.14159 / 180.f)
-#ifdef NDEBUG
+#ifndef NDEBUG
   #define CALL(f) assert(f == 0)
 #else
   #define CALL(f) f
@@ -383,6 +383,6 @@ main(int argc, char* argv[])
     wm_free_device(device);
   }
 
-	return 0;
+  return 0;
 }
 

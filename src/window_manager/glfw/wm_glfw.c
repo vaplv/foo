@@ -23,6 +23,9 @@ wm_create_device(struct wm_device** out_device)
   if(glfwInit() == GL_FALSE)
     goto error;
 
+  glfwOpenWindowHint(GLFW_VERSION_MAJOR, 3);
+  glfwOpenWindowHint(GLFW_VERSION_MINOR, 3);
+
   *out_device = device;
 
 exit:
