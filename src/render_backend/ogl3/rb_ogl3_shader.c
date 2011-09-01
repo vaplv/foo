@@ -1,8 +1,9 @@
 #include "render_backend/ogl3/rb_ogl3.h"
+#include "render_backend/rb.h"
 #include "sys/sys.h"
 #include <stdlib.h>
 
-static GLenum rb_to_ogl3_shader_type[] = {
+static const GLenum rb_to_ogl3_shader_type[] = {
   [RB_VERTEX_SHADER] = GL_VERTEX_SHADER,
   [RB_GEOMETRY_SHADER] = GL_GEOMETRY_SHADER,
   [RB_FRAGMENT_SHADER] = GL_FRAGMENT_SHADER
@@ -17,7 +18,6 @@ rb_create_shader
    struct rb_shader** out_shader)
 {
   int err = 0;
-  GLenum status = GL_FALSE;
   struct rb_shader* shader = NULL;
 
   if(!ctxt || !out_shader)
@@ -34,8 +34,7 @@ rb_create_shader
   if(shader->name == 0)
     goto error;
 
-  err =  rb_shader_source(ctxt, shader, source, length);
-
+  err = rb_shader_source(ctxt, shader, source, length);
   *out_shader = shader;
 
 exit:
@@ -61,7 +60,7 @@ rb_shader_source
    int length)
 {
   int err = 0;
-  GLenum status = GL_TRUE;
+  GLint status = GL_TRUE;
 
   if(!ctxt || !shader || (length > 0 && !source))
     goto error;
@@ -107,12 +106,27 @@ rb_free_shader(struct rb_context* ctxt, struct rb_shader* shader)
 
 EXPORT_SYM int
 rb_get_shader_log
-  (struct rb_context* ctxt, struct rb_shader* shader, char** out_log)
+  (struct rb_context* ctxt,
+   struct rb_shader* shader,
+   const char** out_log)
 {
   if(!ctxt || !shader || !out_log)
     return -1;
 
   *out_log = shader->log;
+  return 0;
+}
+
+EXPORT_SYM int
+rb_is_shader_attached
+  (struct rb_context* ctxt,
+   struct rb_shader* shader,
+   int* out_is_attached)
+{
+  if(!ctxt || !shader || !out_is_attached)
+    return -1;
+
+  *out_is_attached = shader->is_attached;
   return 0;
 }
 

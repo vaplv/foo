@@ -1,0 +1,13 @@
+#ifndef SL_ERROR_H
+#define SL_ERROR_H
+
+enum sl_error {
+  SL_ALIGNMENT_ERROR,
+  SL_INVALID_ARGUMENT,
+  SL_MEMORY_ERROR,
+  SL_OVERFLOW_ERROR,
+  SL_NO_ERROR
+};
+
+#endif /* SL_ERROR_H */
+

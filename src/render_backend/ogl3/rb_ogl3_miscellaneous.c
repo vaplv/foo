@@ -1,13 +1,14 @@
 #include "render_backend/ogl3/rb_ogl3.h"
+#include "render_backend/rb.h"
 #include "sys/sys.h"
 #include <stdlib.h>
 
-static GLenum rb_to_ogl3_primitive_type[] = {
+static const GLenum rb_to_ogl3_primitive_type[] = {
   [RB_TRIANGLE_LIST] = GL_TRIANGLES,
   [RB_TRIANGLE_STRIP] = GL_TRIANGLE_STRIP
 };
 
-static GLenum rb_to_ogl3_blend_func[] = {
+static const GLenum rb_to_ogl3_blend_func[] = {
   [RB_BLEND_ZERO] = GL_ZERO,
   [RB_BLEND_ONE] = GL_ONE,
   [RB_BLEND_SRC_COLOR] = GL_SRC_COLOR,
@@ -21,7 +22,7 @@ static GLenum rb_to_ogl3_blend_func[] = {
   [RB_BLEND_CONSTANT] = GL_CONSTANT_COLOR
 };
 
-static GLenum rb_to_ogl3_blend_op[] = {
+static const GLenum rb_to_ogl3_blend_op[] = {
   [RB_BLEND_OP_ADD] = GL_FUNC_ADD,
   [RB_BLEND_OP_SUB] = GL_FUNC_SUBTRACT,
   [RB_BLEND_OP_REVERSE_SUB] = GL_FUNC_REVERSE_SUBTRACT,
@@ -29,7 +30,7 @@ static GLenum rb_to_ogl3_blend_op[] = {
   [RB_BLEND_OP_MAX] = GL_MAX
 };
 
-static GLenum rb_to_ogl3_comparison[] = {
+static const GLenum rb_to_ogl3_comparison[] = {
   [RB_COMPARISON_NEVER] = GL_NEVER,
   [RB_COMPARISON_ALWAYS] = GL_ALWAYS,
   [RB_COMPARISON_LESS] = GL_LESS,
@@ -40,7 +41,7 @@ static GLenum rb_to_ogl3_comparison[] = {
   [RB_COMPARISON_GREATER_EQUAL] = GL_GEQUAL
 };
 
-static GLenum rb_to_ogl3_stencil_op[] = {
+static const GLenum rb_to_ogl3_stencil_op[] = {
   [RB_STENCIL_OP_KEEP] = GL_KEEP,
   [RB_STENCIL_OP_ZERO] = GL_ZERO,
   [RB_STENCIL_OP_REPLACE] = GL_REPLACE,
@@ -51,19 +52,19 @@ static GLenum rb_to_ogl3_stencil_op[] = {
   [RB_STENCIL_OP_INVERT] = GL_INVERT
 };
 
-static GLenum rb_to_ogl3_fill_mode[] = {
+static const GLenum rb_to_ogl3_fill_mode[] = {
   [RB_FILL_WIREFRAME] = GL_LINE,
   [RB_FILL_SOLID] = GL_FILL
 };
 
-static GLenum rb_to_ogl3_cull_mode[] = {
+static const GLenum rb_to_ogl3_cull_mode[] = {
   [RB_CULL_FRONT] = GL_FRONT,
   [RB_CULL_BACK] = GL_BACK,
   /* Invalid mode. Set a value only to be consistent. May be never used. */
   [RB_CULL_NONE] = GL_NONE
 };
 
-static GLenum rb_to_ogl3_face_orientation[] = {
+static const GLenum rb_to_ogl3_face_orientation[] = {
   [RB_ORIENTATION_CW] = GL_CW,
   [RB_ORIENTATION_CCW] = GL_CCW
 };

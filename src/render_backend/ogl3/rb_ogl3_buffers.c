@@ -1,25 +1,26 @@
 #include "render_backend/ogl3/rb_ogl3.h"
+#include "render_backend/rb.h"
 #include "sys/sys.h"
 #include <stdlib.h>
 #include <string.h>
 
 struct ogl3_buffer_target {
   GLenum target;
-  int bind_id;
+  enum rb_buffer_target binding;
 };
 
-static struct ogl3_buffer_target rb_to_ogl3_buffer_target[] = {
+static const struct ogl3_buffer_target rb_to_ogl3_buffer_target[] = {
   [RB_BIND_VERTEX_BUFFER] = {
-    .bind_id = RB_BIND_VERTEX_BUFFER,
+    .binding = RB_BIND_VERTEX_BUFFER,
     .target = GL_ARRAY_BUFFER
   },
   [RB_BIND_INDEX_BUFFER] = {
-    .bind_id = RB_BIND_INDEX_BUFFER,
+    .binding = RB_BIND_INDEX_BUFFER,
     .target = GL_ELEMENT_ARRAY_BUFFER
   }
 };
 
-static GLenum rb_to_ogl3_buffer_usage[] = {
+static const GLenum rb_to_ogl3_buffer_usage[] = {
   [RB_BUFFER_USAGE_DEFAULT] = GL_DYNAMIC_DRAW,
   [RB_BUFFER_USAGE_IMMUTABLE] = GL_STATIC_DRAW,
   [RB_BUFFER_USAGE_DYNAMIC] = GL_STREAM_DRAW
@@ -49,12 +50,12 @@ rb_create_buffer
   buffer->target = rb_to_ogl3_buffer_target[desc->target].target;
   buffer->usage = rb_to_ogl3_buffer_usage[desc->usage];
   buffer->size = (GLsizei)desc->size;
-  buffer->bind_id = rb_to_ogl3_buffer_target[desc->target].bind_id;
+  buffer->binding = rb_to_ogl3_buffer_target[desc->target].binding;
 
   OGL(GenBuffers(1, &buffer->name));
   OGL(BindBuffer(buffer->target, buffer->name));
   OGL(BufferData(buffer->target, buffer->size, init_data, buffer->usage));
-  OGL(BindBuffer(buffer->target, ctxt->buffer_binding[buffer->bind_id]));
+  OGL(BindBuffer(buffer->target, ctxt->buffer_binding[buffer->binding]));
 
   *out_buffer = buffer;
   return 0;
@@ -80,7 +81,7 @@ rb_bind_buffer(struct rb_context* ctxt, struct rb_buffer* buffer)
     return -1;
 
   OGL(BindBuffer(buffer->target, name));
-  ctxt->buffer_binding[buffer->bind_id] = name;
+  ctxt->buffer_binding[buffer->binding] = name;
   return 0;
 }
 
@@ -90,7 +91,7 @@ rb_buffer_data
    struct rb_buffer* buffer,
    int offset,
    int size,
-   void* data)
+   const void* data)
 {
   void* mapped_mem = NULL;
   GLboolean unmap = GL_FALSE;
@@ -115,8 +116,10 @@ rb_buffer_data
     const GLbitfield access = GL_MAP_WRITE_BIT;
     mapped_mem = OGL(MapBufferRange(buffer->target, offset, size, access));
   }
-  memcpy(mapped_mem, data, size); unmap = OGL(UnmapBuffer(buffer->target));
-  OGL(BindBuffer(buffer->target, ctxt->buffer_binding[buffer->bind_id]));
+  assert(mapped_mem != NULL);
+  memcpy(mapped_mem, data, size); 
+  unmap = OGL(UnmapBuffer(buffer->target));
+  OGL(BindBuffer(buffer->target, ctxt->buffer_binding[buffer->binding]));
 
   /* unmap == GL_FALSE must be handled by the application. TODO return a real
    * error code to differentiate this case from the error. */

@@ -13,6 +13,7 @@ endif()
 
 add_definitions(-DGL_GLEXT_PROTOTYPES)
 add_library(rbogl3 SHARED 
+  rb_ogl3_attrib.c
   rb_ogl3_buffers.c
   rb_ogl3_context.c
   rb_ogl3_miscellaneous.c

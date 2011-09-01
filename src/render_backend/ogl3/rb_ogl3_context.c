@@ -1,4 +1,5 @@
 #include "render_backend/ogl3/rb_ogl3.h"
+#include "render_backend/rb.h"
 #include "sys/sys.h"
 #include <stdlib.h>
 #include <string.h>

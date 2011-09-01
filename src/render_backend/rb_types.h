@@ -1,12 +1,24 @@
 #ifndef RB_TYPES
 #define RB_TYPES
 
-/* Render backend constants. */
-#define RB_CLEAR_COLOR_BIT 1<<0
-#define RB_CLEAR_DEPTH_BIT 1<<1
-#define RB_CLEAR_STENCIL_BIT 1<<2
+#include <stddef.h>
 
-/* Public render backend enums. */
+/*******************************************************************************
+ *
+ * Render backend constants.
+ *
+ ******************************************************************************/
+enum {
+  RB_CLEAR_COLOR_BIT = 1<<0,
+  RB_CLEAR_DEPTH_BIT = 1<<1,
+  RB_CLEAR_STENCIL_BIT = 1<<2
+};
+
+/*******************************************************************************
+ *
+ * Public render backend enums.
+ *
+ ******************************************************************************/
 enum rb_tex_format {
   RB_SRGBA,
   RB_RGBA,
@@ -23,11 +35,13 @@ enum rb_buffer_usage {
   RB_BUFFER_USAGE_DYNAMIC
 };
 
-enum rb_attrib_format {
-  RB_ATTRIB_FLOAT,
-  RB_ATTRIB_FLOAT2,
-  RB_ATTRIB_FLOAT3,
-  RB_ATTRIB_FLOAT4
+enum rb_type {
+  RB_UNKNOWN_TYPE,
+  RB_FLOAT,
+  RB_FLOAT2,
+  RB_FLOAT3,
+  RB_FLOAT4,
+  RB_FLOAT4x4
 };
 
 enum rb_primitive_type {
@@ -101,7 +115,11 @@ enum rb_cull_mode {
   RB_CULL_BACK
 };
 
-/* Opaque render backend objects. */
+/*******************************************************************************
+ *
+ * Opaque render backend data structures.
+ *
+ ******************************************************************************/
 struct rb_context;
 struct rb_tex2d;
 struct rb_buffer;
@@ -109,8 +127,13 @@ struct rb_vertex_array;
 struct rb_shader;
 struct rb_program;
 struct rb_uniform;
+struct rb_attrib;
 
-/* Public render backend data structures. */
+/*******************************************************************************
+ *
+ * Public render backend data structures.
+ *
+ ******************************************************************************/
 struct rb_tex2d_desc {
   int width;
   int height;
@@ -127,9 +150,20 @@ struct rb_buffer_desc {
 
 struct rb_buffer_attrib {
   int index;
-  int stride;
-  int offset;
-  enum rb_attrib_format format;
+  size_t stride;
+  size_t offset;
+  enum rb_type type;
+};
+
+struct rb_attrib_desc {
+  const char* name;
+  int index;
+  enum rb_type type;
+};
+
+struct rb_uniform_desc {
+  const char*name;
+  enum rb_type type;
 };
 
 struct rb_viewport_desc {

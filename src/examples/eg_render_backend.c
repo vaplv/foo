@@ -1,5 +1,6 @@
-#include "render_backend/rb.h"
+#include "render_backend/rbi.h"
 #include "window_manager/wm.h"
+#include "sys/sys.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -10,11 +11,11 @@
 #include <GL/glext.h>
 
 #define M_DEG_TO_RAD(x) ((x) * 3.14159 / 180.f)
-#ifndef NDEBUG
-  #define CALL(f) assert(f == 0)
-#else
-  #define CALL(f) f
-#endif
+#define CHECK(func) \
+  if(func != 0) { \
+    fprintf(stderr, "error:%s:%d\n", __FILE__, __LINE__); \
+    exit(-1); \
+  } \
 
 struct render_mesh {
   struct rb_buffer* vertex_buffer;
@@ -83,24 +84,27 @@ compute_view(float angle, float x, float y, float z, float* view)
 }
 
 static int
-free_mesh(struct rb_context* ctxt, struct render_mesh* mesh)
+free_mesh(struct rbi* rbi, struct rb_context* ctxt, struct render_mesh* mesh)
 {
   if(!ctxt || !mesh)
     return -1;
 
   if(mesh->vertex_array)
-    rb_free_vertex_array(ctxt, mesh->vertex_array);
+    rbi->free_vertex_array(ctxt, mesh->vertex_array);
   if(mesh->vertex_buffer)
-    rb_free_buffer(ctxt, mesh->vertex_buffer);
+    rbi->free_buffer(ctxt, mesh->vertex_buffer);
   if(mesh->index_buffer)
-    rb_free_buffer(ctxt, mesh->index_buffer);
+    rbi->free_buffer(ctxt, mesh->index_buffer);
 
   free(mesh);
   return 0;
 }
 
 static int
-create_mesh(struct rb_context* ctxt, struct render_mesh** out_mesh)
+create_mesh
+  (struct rbi* rbi, 
+   struct rb_context* ctxt, 
+   struct render_mesh** out_mesh)
 {
   /* Vertex buffer. Interleaved positions (float3) and colors (float3). */
   const float vertices[] = {
@@ -141,20 +145,20 @@ create_mesh(struct rb_context* ctxt, struct render_mesh** out_mesh)
       .index = 0,
       .stride = sizeof(float) * 6.f,
       .offset = 0,
-      .format = RB_ATTRIB_FLOAT3
+      .type = RB_FLOAT3
     },
     /* Color. */
     {
       .index = 1,
       .stride = sizeof(float) * 6.f,
       .offset = sizeof(float) * 3.f,
-      .format = RB_ATTRIB_FLOAT3
+      .type = RB_FLOAT3
     }
   };
 
   struct render_mesh* mesh = NULL;
 
-  if(!ctxt || !out_mesh)
+  if(!out_mesh)
     return -1;
 
   mesh = malloc(sizeof(struct render_mesh));
@@ -163,12 +167,12 @@ create_mesh(struct rb_context* ctxt, struct render_mesh** out_mesh)
     return -1;
   }
 
-  CALL(rb_create_buffer(ctxt, &vb_desc, vertices, &mesh->vertex_buffer));
-  CALL(rb_create_buffer(ctxt, &ib_desc, indices, &mesh->index_buffer));
-  CALL(rb_create_vertex_array(ctxt, &mesh->vertex_array));
-  CALL(rb_vertex_attrib_array
+  CHECK(rbi->create_buffer(ctxt, &vb_desc, vertices, &mesh->vertex_buffer));
+  CHECK(rbi->create_buffer(ctxt, &ib_desc, indices, &mesh->index_buffer));
+  CHECK(rbi->create_vertex_array(ctxt, &mesh->vertex_array));
+  CHECK(rbi->vertex_attrib_array
        (ctxt, mesh->vertex_array, mesh->vertex_buffer, 2, attribs));
-  CALL(rb_vertex_index_array(ctxt, mesh->vertex_array, mesh->index_buffer));
+  CHECK(rbi->vertex_index_array(ctxt, mesh->vertex_array, mesh->index_buffer));
 
   *out_mesh = mesh;
 
@@ -176,21 +180,24 @@ create_mesh(struct rb_context* ctxt, struct render_mesh** out_mesh)
 }
 
 static int
-free_shader(struct rb_context* ctxt, struct render_shader* shader)
+free_shader
+  (struct rbi* rbi, 
+   struct rb_context* ctxt, 
+   struct render_shader* shader)
 {
   if(!ctxt || !shader)
     return -1;
 
   if(shader->view_uniform)
-    rb_release_uniform(ctxt, shader->view_uniform);
+    rbi->release_uniforms(ctxt, 1, &shader->view_uniform);
   if(shader->proj_uniform)
-    rb_release_uniform(ctxt, shader->proj_uniform);
+    rbi->release_uniforms(ctxt, 1, &shader->proj_uniform);
   if(shader->program)
-    rb_free_program(ctxt, shader->program);
+    rbi->free_program(ctxt, shader->program);
   if(shader->vertex_shader)
-    rb_free_shader(ctxt, shader->vertex_shader);
+    rbi->free_shader(ctxt, shader->vertex_shader);
   if(shader->fragment_shader)
-    rb_free_shader(ctxt, shader->fragment_shader);
+    rbi->free_shader(ctxt, shader->fragment_shader);
 
   free(shader);
 
@@ -198,7 +205,10 @@ free_shader(struct rb_context* ctxt, struct render_shader* shader)
 }
 
 static int
-create_shader(struct rb_context* ctxt, struct render_shader** out_shader)
+create_shader
+  (struct rbi* rbi, 
+   struct rb_context* ctxt, 
+   struct render_shader** out_shader)
 {
   int err = 0;
 
@@ -227,7 +237,7 @@ create_shader(struct rb_context* ctxt, struct render_shader** out_shader)
   struct render_shader* shader = NULL;
   size_t length = 0;
 
-  if(!ctxt || !out_shader) {
+  if(!out_shader) {
     err = -1;
     goto error;
   }
@@ -240,12 +250,12 @@ create_shader(struct rb_context* ctxt, struct render_shader** out_shader)
   }
 
   length = strlen(vs_source);
-  err = rb_create_shader
+  err = rbi->create_shader
     (ctxt, RB_VERTEX_SHADER, vs_source, length, &shader->vertex_shader);
   if(err != 0) {
     if(shader->vertex_shader) {
       const char* log = NULL;
-      CALL(rb_get_shader_log(ctxt, shader->vertex_shader, &log));
+      CHECK(rbi->get_shader_log(ctxt, shader->vertex_shader, &log));
       if(log)
         fprintf(stderr, "error: vertex shader\n%s", log);
     }
@@ -253,33 +263,35 @@ create_shader(struct rb_context* ctxt, struct render_shader** out_shader)
   }
 
   length = strlen(fs_source);
-  err = rb_create_shader
+  err = rbi->create_shader
     (ctxt, RB_FRAGMENT_SHADER, fs_source, length, &shader->fragment_shader);
   if(err != 0) {
     if(shader->fragment_shader) {
       const char* log = NULL;
-      CALL(rb_get_shader_log(ctxt, shader->fragment_shader, &log));
+      CHECK(rbi->get_shader_log(ctxt, shader->fragment_shader, &log));
       if(log)
         fprintf(stderr, "error: pixel shader\n%s", log);
     }
     goto error;
   }
 
-  CALL(rb_create_program(ctxt, &shader->program));
-  CALL(rb_attach_shader(ctxt, shader->program, shader->vertex_shader));
-  CALL(rb_attach_shader(ctxt, shader->program, shader->fragment_shader));
+  CHECK(rbi->create_program(ctxt, &shader->program));
+  CHECK(rbi->attach_shader(ctxt, shader->program, shader->vertex_shader));
+  CHECK(rbi->attach_shader(ctxt, shader->program, shader->fragment_shader));
 
-  err = rb_link_program(ctxt, shader->program);
+  err = rbi->link_program(ctxt, shader->program);
   if(err != 0) {
     const char* log = NULL;
-    CALL(rb_get_program_log(ctxt, shader->program, &log));
+    CHECK(rbi->get_program_log(ctxt, shader->program, &log));
     if(log)
       fprintf(stderr, "error: program link\n%s", log);
     goto error;
   }
 
-  CALL(rb_get_uniform(ctxt, shader->program, "view", &shader->view_uniform));
-  CALL(rb_get_uniform(ctxt, shader->program, "proj", &shader->proj_uniform));
+  CHECK(rbi->get_named_uniform
+        (ctxt, shader->program, "view", &shader->view_uniform));
+  CHECK(rbi->get_named_uniform
+        (ctxt, shader->program, "proj", &shader->proj_uniform));
 
   *out_shader = shader;
 
@@ -288,15 +300,17 @@ exit:
 
 error:
   if(shader)
-    free_shader(ctxt, shader);
+    free_shader(rbi, ctxt, shader);
 
   goto exit;
 }
 
 int
-main(int argc, char* argv[])
+main(int argc UNUSED, char* argv[] UNUSED)
 {
-  /* Window manaher data structures. */
+  struct rbi rbi;
+
+  /* Window manager data structures. */
   struct wm_device* device = NULL;
   struct wm_window* window = NULL;
   struct wm_window_desc win_desc = {
@@ -343,39 +357,42 @@ main(int argc, char* argv[])
   const float proj_ratio = (float)win_desc.width / (float)win_desc.height;
   float angle = 0.f;
 
-  CALL(wm_create_device(&device));
-  CALL(wm_create_window(device, &window, &win_desc));
-  CALL(rb_create_context(&ctxt));
+  CHECK(wm_create_device(&device));
+  CHECK(wm_create_window(device, &win_desc, &window));
 
-  CALL(create_mesh(ctxt, &mesh));
-  CALL(create_shader(ctxt, &shader));
+  CHECK(rbi_init("../lib/librbogl3.so", &rbi));
+  CHECK(rbi.create_context(&ctxt));
+
+  CHECK(create_mesh(&rbi, ctxt, &mesh));
+  CHECK(create_shader(&rbi, ctxt, &shader));
 
   while(1) {
-    CALL(rb_viewport(ctxt, &viewport));
-    CALL(rb_rasterizer(ctxt, &rasterizer));
-    CALL(rb_depth_stencil(ctxt, &depth_stencil));
+    CHECK(rbi.viewport(ctxt, &viewport));
+    CHECK(rbi.rasterizer(ctxt, &rasterizer));
+    CHECK(rbi.depth_stencil(ctxt, &depth_stencil));
 
     compute_proj(M_DEG_TO_RAD(70.f), proj_ratio, 1.f, 500.f, proj_matrix);
     compute_view(angle, 0.f, -2.f, -6.f, view_matrix);
-    CALL(rb_uniform_data(ctxt, shader->view_uniform, 1, view_matrix));
-    CALL(rb_uniform_data(ctxt, shader->proj_uniform, 1, proj_matrix));
+    CHECK(rbi.uniform_data(ctxt, shader->view_uniform, 1, view_matrix));
+    CHECK(rbi.uniform_data(ctxt, shader->proj_uniform, 1, proj_matrix));
 
-    CALL(rb_clear
+    CHECK(rbi.clear
          (ctxt, RB_CLEAR_COLOR_BIT|RB_CLEAR_DEPTH_BIT, clear_color, 1.f, 0));
-    CALL(rb_bind_program(ctxt, shader->program));
-    CALL(rb_bind_vertex_array(ctxt, mesh->vertex_array));
-    CALL(rb_draw_indexed(ctxt, RB_TRIANGLE_LIST, 36));
+    CHECK(rbi.bind_program(ctxt, shader->program));
+    CHECK(rbi.bind_vertex_array(ctxt, mesh->vertex_array));
+    CHECK(rbi.draw_indexed(ctxt, RB_TRIANGLE_LIST, 36));
 
-    CALL(rb_flush(ctxt));
-    CALL(wm_swap(device, window));
+    CHECK(rbi.flush(ctxt));
+    CHECK(wm_swap(device, window));
 
     angle += M_DEG_TO_RAD(0.01f);
   }
 
   if(ctxt) {
-    free_shader(ctxt, shader);
-    free_mesh(ctxt, mesh);
-    rb_free_context(ctxt);
+    free_shader(&rbi, ctxt, shader);
+    free_mesh(&rbi, ctxt, mesh);
+    rbi.free_context(ctxt);
+    rbi_shutdown(&rbi);
   }
 
   if(device) {

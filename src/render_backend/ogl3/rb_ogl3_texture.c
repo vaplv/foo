@@ -1,24 +1,25 @@
 #include "render_backend/ogl3/rb_ogl3.h"
+#include "render_backend/rb.h"
 #include "sys/sys.h"
 #include <stdlib.h>
 
-static GLenum ogl3_compressed_internal_format[] = {
+static const GLenum ogl3_compressed_internal_format[] = {
   [RB_SRGBA] = GL_COMPRESSED_SRGB_ALPHA,
   [RB_RGBA] = GL_COMPRESSED_RGBA
 };
 
-static GLenum ogl3_internal_format[] = {
+static const GLenum ogl3_internal_format[] = {
   [RB_SRGBA] = GL_SRGB8_ALPHA8,
   [RB_RGBA] = GL_RGBA8
 };
 
-static GLenum ogl3_format[] = {
+static const GLenum ogl3_format[] = {
   [RB_SRGBA] = GL_RGBA,
   [RB_RGBA] = GL_RGBA
 };
 
 EXPORT_SYM int
-rb_create_tex2d(struct rb_context* ctxt, struct rb_tex2d** out_tex)
+rb_create_tex2d(struct rb_context* ctxt UNUSED, struct rb_tex2d** out_tex)
 {
   struct rb_tex2d* tex = NULL;
 

@@ -1,6 +1,8 @@
 #include "render_backend/ogl3/rb_ogl3.h"
+#include "render_backend/rb.h"
 #include "sys/sys.h"
 #include <stdlib.h>
+#include <string.h>
 
 EXPORT_SYM int
 rb_create_program(struct rb_context* ctxt, struct rb_program** out_program)
@@ -11,12 +13,10 @@ rb_create_program(struct rb_context* ctxt, struct rb_program** out_program)
   if(!ctxt || !out_program)
     goto error;
 
-  program = malloc(sizeof(struct rb_program));
+  program = calloc(1, sizeof(struct rb_program));
   if(!program)
     goto error;
 
-  program->log = NULL;
-  program->is_linked = 0;
   program->name = OGL(CreateProgram());
   if(program->name == 0)
     goto error;
@@ -39,6 +39,9 @@ EXPORT_SYM int
 rb_free_program(struct rb_context* ctxt, struct rb_program* program)
 {
   if(!ctxt || !program)
+    return -1;
+
+  if(program->ref_count > 0)
     return -1;
 
   OGL(DeleteProgram(program->name));
@@ -79,9 +82,12 @@ EXPORT_SYM int
 rb_link_program(struct rb_context* ctxt, struct rb_program* program)
 {
   int err = 0;
-  GLenum status = GL_TRUE;
+  GLint status = GL_TRUE;
 
   if(!ctxt || !program)
+    goto error;
+
+  if(program->ref_count > 0)
     goto error;
 
   OGL(LinkProgram(program->name));
@@ -117,7 +123,7 @@ error:
 
 EXPORT_SYM int
 rb_get_program_log
-  (struct rb_context* ctxt, struct rb_program* program, char** out_log)
+  (struct rb_context* ctxt, struct rb_program* program, const char** out_log)
 {
   if(!ctxt || !program || !out_log)
     return -1;

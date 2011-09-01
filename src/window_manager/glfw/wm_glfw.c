@@ -56,8 +56,8 @@ struct wm_window {
 EXPORT_SYM int
 wm_create_window
   (struct wm_device* device,
-   struct wm_window** out_win,
-   struct wm_window_desc* desc)
+   const struct wm_window_desc* desc,
+   struct wm_window** out_win)
 {
   struct wm_window* win = NULL;
 
@@ -90,7 +90,7 @@ wm_free_window(struct wm_device* device, struct wm_window* win)
 }
 
 EXPORT_SYM int
-wm_swap(struct wm_device* device, struct wm_window* win)
+wm_swap(struct wm_device* device UNUSED, struct wm_window* win UNUSED)
 {
   glfwSwapBuffers();
   return 0;

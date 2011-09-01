@@ -1,33 +1,40 @@
 #include "render_backend/ogl3/rb_ogl3.h"
+#include "render_backend/rb.h"
 #include "sys/sys.h"
-#include <stdlib.h>
 #include <assert.h>
+#include <stdlib.h>
+#include <string.h>
 
+/*******************************************************************************
+ *
+ * Helper functions.
+ *
+ ******************************************************************************/
 #define UNIFORM_VALUE(suffix)\
   static void\
-  uniform_##suffix(GLint location, int nb, void* data)\
+  uniform_##suffix(GLint location, int nb, const void* data)\
   {\
     OGL(Uniform##suffix(location, nb, data));\
   }\
 
 #define UNIFORM_MATRIX_VALUE(suffix)\
   static void\
-  uniform_matrix_##suffix(GLint location, int nb, void* data)\
+  uniform_matrix_##suffix(GLint location, int nb, const void* data)\
   {\
     OGL(UniformMatrix##suffix(location, nb, GL_FALSE, data));\
   }\
 
-UNIFORM_VALUE(1fv);
-UNIFORM_VALUE(2fv);
-UNIFORM_VALUE(3fv);
-UNIFORM_VALUE(4fv);
-UNIFORM_VALUE(1iv);
-UNIFORM_MATRIX_VALUE(2fv);
-UNIFORM_MATRIX_VALUE(3fv);
-UNIFORM_MATRIX_VALUE(4fv);
+UNIFORM_VALUE(1fv)
+UNIFORM_VALUE(2fv)
+UNIFORM_VALUE(3fv)
+UNIFORM_VALUE(4fv)
+UNIFORM_VALUE(1iv)
+UNIFORM_MATRIX_VALUE(2fv)
+UNIFORM_MATRIX_VALUE(3fv)
+UNIFORM_MATRIX_VALUE(4fv)
 
 static void
-(*get_uniform_setter(GLenum uniform_type))(GLint, int, void*)
+(*get_uniform_setter(GLenum uniform_type))(GLint, int, const void*)
 {
   switch(uniform_type) {
     case GL_FLOAT: return &uniform_1fv; break;
@@ -47,19 +54,88 @@ static void
   }
 }
 
+static int
+get_active_uniform
+  (struct rb_context* ctxt,
+   struct rb_program* program,
+   GLuint index,
+   GLsizei bufsize,
+   GLchar* buffer,
+   struct rb_uniform** out_uniform)
+{
+  struct rb_uniform* uniform = NULL;
+  GLsizei uniform_namelen = 0;
+  GLint uniform_size = 0;
+  GLenum uniform_type;
+  int err = 0;
+
+  if(!ctxt
+  || !program
+  || !out_uniform
+  || bufsize < 0
+  || (bufsize && !buffer))
+    goto error;
+
+  OGL(GetActiveUniform
+      (program->name,
+       index,
+       bufsize,
+       &uniform_namelen,
+       &uniform_size,
+       &uniform_type,
+       buffer));
+
+  uniform = calloc(1, sizeof(struct rb_uniform));
+  if(!uniform)
+    goto error;
+
+  uniform->index = index;
+  uniform->program = program;
+  uniform->program->ref_count += 1;
+  uniform->type = uniform_type;
+  uniform->set = get_uniform_setter(uniform_type);
+
+  if(buffer) {
+    /* Add 1 to namelen <=> include the null character. */
+    ++uniform_namelen;
+
+    uniform->name = malloc(sizeof(char) * uniform_namelen);
+    if(!uniform->name)
+      goto error;
+
+    uniform->name = strncpy(uniform->name, buffer, uniform_namelen);
+    uniform->location = OGL(GetUniformLocation(program->name, uniform->name));
+  }
+
+exit:
+  *out_uniform = uniform;
+  return err;
+
+error:
+  if(uniform)
+    rb_release_uniforms(ctxt, 1, &uniform);
+
+  uniform = NULL;
+  err = -1;
+  goto exit;
+}
+
+/*******************************************************************************
+ *
+ * Uniform implementation.
+ *
+ ******************************************************************************/
 EXPORT_SYM int
-rb_get_uniform
+rb_get_named_uniform
   (struct rb_context* ctxt,
    struct rb_program* program,
    const char* name,
    struct rb_uniform** out_uniform)
 {
-  int err = 0;
-  GLint uniform_location = -1;
-  GLenum uniform_type = GL_FLOAT;
-  GLuint uniform_index = GL_INVALID_INDEX;
-  void (*uniform_setter)(GLint, int, void*) = NULL;
   struct rb_uniform* uniform = NULL;
+  GLuint uniform_index = GL_INVALID_INDEX;
+  size_t name_len = 0;
+  int err = 0;
 
   if(!ctxt || !program || !name || !out_uniform)
     goto error;
@@ -67,54 +143,131 @@ rb_get_uniform
   if(!program->is_linked)
     goto error;
 
-  uniform_location = OGL(GetUniformLocation(program->name, name));
-  if(uniform_location == -1)
-    goto error;
-
   OGL(GetUniformIndices(program->name, 1, &name, &uniform_index));
   if(uniform_index == GL_INVALID_INDEX)
     goto error;
 
-  OGL(GetActiveUniformsiv
-      (program->name, 1, &uniform_index, GL_UNIFORM_TYPE, &uniform_type));
-  uniform_setter = get_uniform_setter(uniform_type);
-  if(!uniform_setter)
+  err = get_active_uniform(ctxt, program, uniform_index, 0, NULL, &uniform);
+  if(err != 0)
     goto error;
 
-  uniform = malloc(sizeof(struct rb_uniform));
-  if(!uniform)
+  name_len = strlen(name) + 1;
+  uniform->name = malloc(sizeof(char) * name_len);
+  if(!uniform->name)
     goto error;
 
-  uniform->location = uniform_location;
-  uniform->index = uniform_index;
-  uniform->program_name = program->name;
-  uniform->set = uniform_setter;
+  uniform->name = strncpy(uniform->name, name, name_len);
+  uniform->location = OGL(GetUniformLocation(program->name, uniform->name));
 
+exit:
   *out_uniform = uniform;
+  return err;
+
+error:
+  if(uniform)
+    rb_release_uniforms(ctxt, 1, &uniform);
+
+  uniform = NULL;
+  err = -1;
+  goto exit;
+}
+
+EXPORT_SYM int
+rb_get_uniforms
+  (struct rb_context* ctxt,
+   struct rb_program* prog,
+   size_t* out_nb_uniforms,
+   struct rb_uniform* dst_uniform_list[])
+{
+  int nb_uniforms = 0;
+  int uniform_id = 0;
+  int err = 0;
+
+  if(!ctxt || !prog || !out_nb_uniforms)
+    goto error;
+
+  if(!prog->is_linked)
+    goto error;
+
+  OGL(GetProgramiv(prog->name, GL_ACTIVE_UNIFORMS, &nb_uniforms));
+  assert(nb_uniforms >= 0);
+
+  if(dst_uniform_list) {
+    GLchar* uniform_buffer = NULL;
+    int uniform_buflen = 0;
+
+    OGL(GetProgramiv
+        (prog->name, GL_ACTIVE_UNIFORM_MAX_LENGTH, &uniform_buflen));
+    uniform_buffer = malloc(sizeof(GLchar) * uniform_buflen);
+    if(!uniform_buffer)
+      goto error;
+
+    for(uniform_id = 0; uniform_id < nb_uniforms; ++uniform_id) {
+      struct rb_uniform* uniform = NULL;
+
+      err = get_active_uniform
+        (ctxt, prog, uniform_id, uniform_buflen, uniform_buffer, &uniform);
+      if(err != 0)
+        goto error;
+
+      dst_uniform_list[uniform_id] = uniform;
+    }
+  }
+
+exit:
+  *out_nb_uniforms = nb_uniforms;
+  return err;
+
+error:
+  if(dst_uniform_list) {
+    /* NOTE: attr_id <=> nb attribs in dst_attrib_list; */
+    rb_release_uniforms(ctxt, uniform_id, dst_uniform_list);
+  }
+  nb_uniforms = 0;
+  err = -1;
+  goto exit;
+}
+
+EXPORT_SYM int
+rb_release_uniforms
+  (struct rb_context* ctxt,
+   size_t nb_uniforms,
+   struct rb_uniform* uniform_list[])
+{
+  size_t i = 0;
+  int err = 0;
+
+  if(!ctxt || (nb_uniforms && !uniform_list))
+    goto error;
+
+  for(i = 0; i < nb_uniforms; ++i) {
+    struct rb_uniform* uniform = uniform_list[i];
+    if(!uniform) {
+      err = -1;
+    } else {
+      assert(uniform->name);
+      assert(uniform->program->ref_count > 0);
+
+      uniform->program->ref_count -= 1;
+      free(uniform->name);
+      free(uniform);
+    }
+  }
 
 exit:
   return err;
 
 error:
   err = -1;
-  free(uniform);
-
   goto exit;
 }
 
 EXPORT_SYM int
-rb_release_uniform(struct rb_context* ctxt, struct rb_uniform* uniform)
-{
-  if(!ctxt || !uniform)
-    return -1;
-
-  free(uniform);
-  return 0;
-}
-
-EXPORT_SYM int
 rb_uniform_data
-  (struct rb_context* ctxt, struct rb_uniform* uniform, int nb, void* data)
+  (struct rb_context* ctxt,
+   struct rb_uniform* uniform,
+   int nb,
+   const void* data)
 {
   if(!ctxt || !uniform || !data)
     return -1;
@@ -123,9 +276,23 @@ rb_uniform_data
     return -1;
 
   assert(uniform->set != NULL);
-  OGL(UseProgram(uniform->program_name));
+  OGL(UseProgram(uniform->program->name));
   uniform->set(uniform->location, nb, data);
   OGL(UseProgram(ctxt->current_program));
+  return 0;
+}
+
+EXPORT_SYM int
+rb_get_uniform_desc
+  (struct rb_context* ctxt,
+   struct rb_uniform* uniform,
+   struct rb_uniform_desc* out_desc)
+{
+  if(!ctxt || !uniform || !out_desc)
+    return -1;
+
+  out_desc->name = uniform->name;
+  out_desc->type = ogl3_to_rb_type(uniform->type);
   return 0;
 }
 
