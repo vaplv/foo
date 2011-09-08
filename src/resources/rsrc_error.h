@@ -1,0 +1,14 @@
+#ifndef RSRC_ERROR_H
+#define RSRC_ERROR_H
+
+enum rsrc_error {
+  RSRC_INVALID_ARGUMENT,
+  RSRC_PARSING_ERROR,
+  RSRC_MEMORY_ERROR,
+  RSRC_IO_ERROR,
+  RSRC_UNKNOWN_ERROR,
+  RSRC_NO_ERROR,
+};
+
+#endif /* RSRC_ERROR_H */
+
