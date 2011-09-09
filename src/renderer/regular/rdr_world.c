@@ -117,6 +117,21 @@ rdr_free_world(struct rdr_system* sys, struct rdr_world* world)
   }
 
   if(world->model_instance_list) {
+    struct rdr_model_instance** instance_list = NULL;
+    size_t nb_instances = 0;
+    size_t i = 0;
+
+    sl_err = sl_sorted_vector_buffer
+      (sys->sl_ctxt,
+       world->model_instance_list,
+       &nb_instances,
+       NULL,
+       NULL,
+       (void**)&instance_list);
+
+    for(i = 0; i < nb_instances; ++i)
+      RDR_RELEASE_OBJECT(sys, instance_list[i]);
+
     sl_err = sl_free_sorted_vector(sys->sl_ctxt, world->model_instance_list);
     if(sl_err != SL_NO_ERROR) {
       rdr_err = sl_to_rdr_error(sl_err);
@@ -141,6 +156,7 @@ rdr_add_model_instance
   enum rdr_error rdr_err = RDR_NO_ERROR;
   enum sl_error sl_err = SL_NO_ERROR;
   bool is_instance_added = false;
+  bool is_instance_retained = false;
 
   if(!sys || !world || !instance) {
     rdr_err = RDR_INVALID_ARGUMENT;
@@ -155,6 +171,11 @@ rdr_add_model_instance
   }
   is_instance_added = true;
 
+  rdr_err = RDR_RETAIN_OBJECT(sys, instance);
+  if(rdr_err != RDR_NO_ERROR)
+    goto error;
+  is_instance_retained = true;
+
 exit:
   return rdr_err;
 
@@ -165,6 +186,8 @@ error:
       (sys->sl_ctxt, world->model_instance_list, &instance);
     assert(sl_err == SL_NO_ERROR);
   }
+  if(is_instance_retained)
+    RDR_RELEASE_OBJECT(sys, instance);
   goto exit;
 }
 
@@ -177,6 +200,7 @@ rdr_remove_model_instance
   enum rdr_error rdr_err = RDR_NO_ERROR;
   enum sl_error sl_err = SL_NO_ERROR;
   bool is_instance_removed = false;
+  bool is_instance_released = false;
 
   if(!sys || !world || !instance) {
     rdr_err = RDR_INVALID_ARGUMENT;
@@ -191,6 +215,9 @@ rdr_remove_model_instance
   }
   is_instance_removed = true;
 
+  RDR_RELEASE_OBJECT(sys, instance);
+  is_instance_released = true;
+
 exit:
   return rdr_err;
 
@@ -201,6 +228,8 @@ error:
       (sys->sl_ctxt, world->model_instance_list, &instance);
     assert(sl_err == SL_NO_ERROR);
   }
+  if(is_instance_released)
+    RDR_RETAIN_OBJECT(sys, instance);
   goto exit;
 }
 
@@ -286,4 +315,4 @@ rdr_background_color
   memcpy(world->bkg_color, rgb, 3 * sizeof(float));
   return RDR_NO_ERROR;
 }
- 
+

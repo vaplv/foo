@@ -157,7 +157,7 @@ unregister_all_mesh_attribs(struct mesh* mesh)
 
 static enum rdr_error
 register_mesh_attribs
-  (struct rdr_system* sys,
+  (struct rdr_system* sys UNUSED,
    struct mesh* mesh,
    size_t nb_attribs,
    const struct rdr_mesh_attrib* attrib_list)
@@ -371,7 +371,7 @@ exit:
 error:
   if(sys && mesh) {
     if(mesh->data) {
-      int err = sys->rb.free_buffer(sys->ctxt, mesh->data);
+      UNUSED int err = sys->rb.free_buffer(sys->ctxt, mesh->data);
       assert(err == 0);
       mesh->data = NULL;
     }
@@ -528,7 +528,7 @@ rdr_attach_mesh_callback
   }
 
 exit:
-  /* the rdr_mesh_callback is not defined. It simply wrap the sl_node data
+  /* the rdr_mesh_callback is not defined. It simply wraps the sl_node data
    * structure. */
   if(out_cbk)
     *out_cbk = (struct rdr_mesh_callback*)node;

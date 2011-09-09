@@ -13,7 +13,7 @@
 struct rdr_system;
 typedef void (*destructor_t)(struct rdr_system*, void* data);
 
-/* Declares a render object data structure. Its internal data may be considered
+/* Declare a render object data structure. Its internal data may be considered
  * as private data, i.e. they may be acceded only throw the accessor macros. 
  * By default, the render object data are aligned on 16 Bytes. */
 #define RDR_OBJECT(structure) \

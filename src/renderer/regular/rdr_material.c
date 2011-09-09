@@ -93,6 +93,7 @@ build_program
       enum rb_shader_type type = rdr_shader_to_rb_shader_type[i];
 
       err = sys->rb.create_shader(sys->ctxt, type, src, strlen(src), &shader);
+      shader_list[i] = shader;
       if(err != 0) {
         err = sys->rb.get_shader_log(sys->ctxt, shader, &log);
         if(err == 0) {
@@ -116,7 +117,6 @@ build_program
         rdr_err = RDR_DRIVER_ERROR;
         goto error;
       }
-      shader_list[i] = shader;
       ++nb_created_shaders;
     }
   }
@@ -211,7 +211,7 @@ release_attribs
 
   assert(sys);
 
-  if(nb_attribs) {
+  if(attrib_list) {
     assert(attrib_list != NULL);
 
     err = sys->rb.release_attribs
@@ -616,7 +616,7 @@ rdr_attach_material_callback
   }
 
 exit:
-  /* the rdr_material_callback is not defined. It simply wrap the sl_node
+  /* the rdr_material_callback is not defined. It simply wraps the sl_node
    * data structure. */
   if(out_cbk)
     *out_cbk = (struct rdr_material_callback*)node;

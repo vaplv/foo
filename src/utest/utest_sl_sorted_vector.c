@@ -340,6 +340,7 @@ main(int argc UNUSED, char** argv UNUSED)
   CHECK(sl_sorted_vector_insert(ctxt, vec, &array[0]), OK);
   CHECK(sl_sorted_vector_insert(ctxt, vec, &array[1]), BAD_ALIGN);
   CHECK(sl_free_sorted_vector(ctxt, vec), OK);
+  CHECK(sl_free_context(ctxt), OK);
 
   return 0;
 }

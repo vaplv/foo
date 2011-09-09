@@ -17,7 +17,7 @@
 #define M_DEG_TO_RAD(x) ((x) * 3.14159 / 180.f)
 #define RDR(func) \
   do { \
-    const enum rdr_error rdr_err = rdr_##func; \
+    UNUSED const enum rdr_error rdr_err = rdr_##func; \
     assert(rdr_err == RDR_NO_ERROR); \
   } while(0)
 

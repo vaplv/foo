@@ -924,7 +924,7 @@ rdr_attach_model_callback
   }
 
 exit:
-  /* the rdr_model_callback is not defined. It simply wrap the sl_node
+  /* the rdr_model_callback is not defined. It simply wraps the sl_node
    * data structure. */
   if(out_cbk)
     *out_cbk = (struct rdr_model_callback*)node;

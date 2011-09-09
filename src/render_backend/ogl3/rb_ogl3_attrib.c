@@ -111,6 +111,8 @@ rb_get_attribs
    size_t* out_nb_attribs,
    struct rb_attrib* dst_attrib_list[])
 {
+  GLchar* attr_buffer = NULL;
+  int attr_buflen = 0;
   int nb_attribs = 0;
   int attr_id = 0;
   int err = 0;
@@ -125,10 +127,7 @@ rb_get_attribs
   assert(nb_attribs >= 0);
 
   if(dst_attrib_list) {
-    GLchar* attr_buffer = NULL;
-    int attr_buflen = 0;
-
-    OGL(GetProgramiv(prog->name, GL_ACTIVE_ATTRIBUTE_MAX_LENGTH, &attr_buflen));
+       OGL(GetProgramiv(prog->name, GL_ACTIVE_ATTRIBUTE_MAX_LENGTH, &attr_buflen));
     attr_buffer = malloc(sizeof(GLchar) * attr_buflen);
     if(!attr_buffer)
       goto error;
@@ -146,6 +145,8 @@ rb_get_attribs
   }
 
 exit:
+  if(attr_buffer)
+    free(attr_buffer);
   if(out_nb_attribs)
     *out_nb_attribs = nb_attribs;
   return err;

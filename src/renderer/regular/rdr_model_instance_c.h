@@ -2,10 +2,11 @@
 #define RDR_MODEL_INSTANCE_C_H
 
 #include "renderer/rdr_error.h"
+#include "renderer/regular/rdr_object.h"
 #include <stddef.h>
 
 struct rdr_system;
-struct rdr_model_instance;
+RDR_OBJECT(struct rdr_model_instance);
 
 extern enum rdr_error
 rdr_draw_instances

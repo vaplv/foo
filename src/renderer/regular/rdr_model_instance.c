@@ -80,7 +80,7 @@ rdr_to_rb_rasterizer[NB_FILL_MODES][NB_CULL_MODES] = {
   }
 };
 
-struct rdr_model_instance {
+struct model_instance {
   /* The model from which the instance is created. */
   struct rdr_model* model;
   /*  Invoked when the model has updated is descriptor data. */
@@ -340,12 +340,17 @@ error:
 }
 
 static enum rdr_error
-invoke_callbacks(struct rdr_system* sys, struct rdr_model_instance* instance)
+invoke_callbacks
+  (struct rdr_system* sys, 
+   struct rdr_model_instance* instance_obj)
 {
   struct sl_node* node = NULL;
+  struct model_instance* instance = NULL;
   enum rdr_error rdr_err = RDR_NO_ERROR;
 
-  assert(sys&& instance);
+  assert(sys&& instance_obj);
+
+  instance = RDR_GET_OBJECT_DATA(sys, instance_obj);
 
   for(SL(linked_list_head(sys->sl_ctxt, instance->callback_list, &node));
       node != NULL;
@@ -355,7 +360,7 @@ invoke_callbacks(struct rdr_system* sys, struct rdr_model_instance* instance)
 
     SL(node_data(sys->sl_ctxt, node, (void**)&desc));
 
-    last_err = desc->func(sys, instance, desc->data);
+    last_err = desc->func(sys, instance_obj, desc->data);
     if(last_err != RDR_NO_ERROR)
       rdr_err = last_err;
   }
@@ -364,8 +369,8 @@ invoke_callbacks(struct rdr_system* sys, struct rdr_model_instance* instance)
 
 static enum rdr_error
 setup_model_instance_buffers
-  (struct rdr_system* sys,
-   struct rdr_model_instance* instance,
+  (struct rdr_system* sys UNUSED,
+   struct model_instance* instance,
    const struct rdr_model_desc* model_desc)
 {
   enum rdr_error rdr_err = RDR_NO_ERROR;
@@ -412,13 +417,14 @@ model_callback_func
    void* data)
 {
   struct rdr_model_desc model_desc;
-  struct rdr_model_instance* instance = NULL;;
+  struct rdr_model_instance* instance_obj = data;
+  struct model_instance* instance = NULL;;
   enum rdr_error rdr_err = RDR_NO_ERROR;
   enum rdr_error tmp_err = RDR_NO_ERROR;
 
-  assert(data);
+  assert(instance_obj);
 
-  instance = data;
+  instance = RDR_GET_OBJECT_DATA(sys, instance_obj);
 
   rdr_err = rdr_get_model_desc(sys, model, &model_desc);
   if(rdr_err != RDR_NO_ERROR)
@@ -439,7 +445,7 @@ model_callback_func
     goto error;
 
 exit:
-  tmp_err = invoke_callbacks(sys, instance);
+  tmp_err = invoke_callbacks(sys, instance_obj);
   if(tmp_err != RDR_NO_ERROR)
     rdr_err = tmp_err;
 
@@ -450,10 +456,9 @@ error:
 }
 
 static void
-free_model_instance
-  (struct rdr_system* sys,
-   struct rdr_model_instance* instance)
+free_model_instance(struct rdr_system* sys, void* data)
 {
+  struct model_instance* instance = data;
   enum rdr_error rdr_err = RDR_NO_ERROR;
 
   assert(sys && instance && instance->model);
@@ -479,8 +484,6 @@ free_model_instance
     free(instance->attrib_buffer);
 
   RDR_RELEASE_OBJECT(sys, instance->model);
-
-  free(instance);
 }
 
 /*******************************************************************************
@@ -492,9 +495,9 @@ EXPORT_SYM enum rdr_error
 rdr_create_model_instance
   (struct rdr_system* sys,
    struct rdr_model* model,
-   struct rdr_model_instance** out_instance)
+   struct rdr_model_instance** out_instance_obj)
 {
-  const struct rdr_rasterizer_desc default_rasterizer = {
+  const struct rdr_rasterizer_desc default_raster = {
     .cull_mode = RDR_CULL_BACK,
     .fill_mode = RDR_SOLID
   };
@@ -506,21 +509,23 @@ rdr_create_model_instance
   };
   struct rdr_model_desc model_desc;
   struct rdr_model_callback_desc model_cbk_desc;
-  struct rdr_model_instance* instance = NULL;
+  struct rdr_model_instance* instance_obj = NULL;
+  struct model_instance* instance = NULL;
   enum sl_error sl_err = SL_NO_ERROR;
   enum rdr_error rdr_err = RDR_NO_ERROR;
   bool is_model_retained = false;
 
-  if(!sys || !model || !out_instance) {
+  if(!sys || !model || !out_instance_obj) {
     rdr_err = RDR_INVALID_ARGUMENT;
     goto error;
   }
 
-  instance = calloc(1.f, sizeof(struct rdr_model_instance));
-  if(!instance) {
-    rdr_err = RDR_MEMORY_ERROR;
+  rdr_err = RDR_CREATE_OBJECT
+    (sys, sizeof(struct model_instance), free_model_instance, instance_obj);
+  if(rdr_err != RDR_NO_ERROR)
     goto error;
-  }
+
+  instance = RDR_GET_OBJECT_DATA(sys, instance_obj);
 
   rdr_err = RDR_RETAIN_OBJECT(sys, model);
   if(rdr_err != RDR_NO_ERROR)
@@ -538,7 +543,7 @@ rdr_create_model_instance
     goto error;
   }
 
-  model_cbk_desc.data = instance;
+  model_cbk_desc.data = instance_obj;
   model_cbk_desc.func = model_callback_func;
   rdr_err = rdr_attach_model_callback
     (sys, model, &model_cbk_desc, &instance->model_callback);
@@ -553,27 +558,27 @@ rdr_create_model_instance
   if(rdr_err != RDR_NO_ERROR)
     goto error;
 
-  rdr_err = rdr_model_instance_transform(sys, instance, identity);
+  rdr_err = rdr_model_instance_transform(sys, instance_obj, identity);
   if(rdr_err != RDR_NO_ERROR)
     goto error;
 
-  rdr_err = rdr_model_instance_material_density(sys, instance, RDR_OPAQUE);
+  rdr_err = rdr_model_instance_material_density(sys, instance_obj, RDR_OPAQUE);
   if(rdr_err != RDR_NO_ERROR)
     goto error;
 
-  rdr_err = rdr_model_instance_rasterizer(sys, instance, &default_rasterizer);
+  rdr_err = rdr_model_instance_rasterizer(sys, instance_obj, &default_raster);
   if(rdr_err != RDR_NO_ERROR)
     goto error;
 
 exit:
-  if(out_instance)
-    *out_instance = instance;
+  if(out_instance_obj)
+    *out_instance_obj = instance_obj;
   return rdr_err;
 
 error:
-  if(sys && instance) {
-    free_model_instance(sys, instance);
-    instance = NULL;
+  if(sys && instance_obj) {
+    while(RDR_RELEASE_OBJECT(sys, instance_obj));
+    instance_obj = NULL;
   }
   goto exit;
 }
@@ -581,32 +586,34 @@ error:
 EXPORT_SYM enum rdr_error
 rdr_free_model_instance
   (struct rdr_system* sys,
-   struct rdr_model_instance* instance)
+   struct rdr_model_instance* instance_obj)
 {
-  if(!sys || !instance)
+  if(!sys || !instance_obj)
     return RDR_INVALID_ARGUMENT;
 
-  free_model_instance(sys, instance);
-
+  RDR_RELEASE_OBJECT(sys, instance_obj);
   return RDR_NO_ERROR;
 }
 
 EXPORT_SYM enum rdr_error
 rdr_get_model_instance_uniforms
   (struct rdr_system* sys,
-   struct rdr_model_instance* instance,
+   struct rdr_model_instance* instance_obj,
    size_t* out_nb_uniforms,
    struct rdr_model_instance_data* uniform_data_list)
 {
   struct rdr_model_desc model_desc;
+  struct model_instance* instance = NULL;
   enum rdr_error rdr_err = RDR_NO_ERROR;
 
   memset(&model_desc, 0, sizeof(struct rdr_model_desc));
 
-  if(!sys || !instance || !out_nb_uniforms) {
+  if(!sys || !instance_obj || !out_nb_uniforms) {
     rdr_err = RDR_INVALID_ARGUMENT;
     goto error;
   }
+
+  instance = RDR_GET_OBJECT_DATA(sys, instance_obj);
 
   rdr_err = rdr_get_model_desc(sys, instance->model, &model_desc);
   if(rdr_err != RDR_NO_ERROR)
@@ -632,19 +639,22 @@ error:
 EXPORT_SYM enum rdr_error
 rdr_get_model_instance_attribs
   (struct rdr_system* sys,
-   struct rdr_model_instance* instance,
+   struct rdr_model_instance* instance_obj,
    size_t* out_nb_attribs,
    struct rdr_model_instance_data* attrib_data_list)
 {
   struct rdr_model_desc model_desc;
+  struct model_instance* instance = NULL;
   enum rdr_error rdr_err = RDR_NO_ERROR;
 
   memset(&model_desc, 0, sizeof(struct rdr_model_desc));
 
-  if(!sys || !instance || !out_nb_attribs) {
+  if(!sys || !instance_obj || !out_nb_attribs) {
     rdr_err = RDR_INVALID_ARGUMENT;
     goto error;
   }
+
+  instance = RDR_GET_OBJECT_DATA(sys, instance_obj);
 
   rdr_err = rdr_get_model_desc(sys, instance->model, &model_desc);
   if(rdr_err != RDR_NO_ERROR)
@@ -670,11 +680,15 @@ error:
 EXPORT_SYM enum rdr_error
 rdr_model_instance_transform
   (struct rdr_system* sys,
-   struct rdr_model_instance* instance,
+   struct rdr_model_instance* instance_obj,
    const float transform[16])
 {
-  if(!sys || !instance || !transform)
+  struct model_instance* instance = NULL;
+
+  if(!sys || !instance_obj || !transform)
     return RDR_INVALID_ARGUMENT;
+
+  instance = RDR_GET_OBJECT_DATA(sys, instance_obj);
 
   memcpy(instance->transform, transform, sizeof(float) * 16);
   return RDR_NO_ERROR;
@@ -683,11 +697,15 @@ rdr_model_instance_transform
 EXPORT_SYM enum rdr_error
 rdr_get_model_instance_transform
   (struct rdr_system* sys,
-   const struct rdr_model_instance* instance,
+   const struct rdr_model_instance* instance_obj,
    float transform[16])
 {
-  if(!sys || !instance || !transform)
+  struct model_instance* instance = NULL;
+
+  if(!sys || !instance_obj || !transform)
     return RDR_INVALID_ARGUMENT;
+
+  instance = RDR_GET_OBJECT_DATA(sys, instance_obj);
 
   transform = memcpy(transform, instance->transform, sizeof(float) * 16);
   return RDR_NO_ERROR;
@@ -696,11 +714,15 @@ rdr_get_model_instance_transform
 EXPORT_SYM enum rdr_error
 rdr_model_instance_material_density
   (struct rdr_system* sys,
-   struct rdr_model_instance* instance,
+   struct rdr_model_instance* instance_obj,
    enum rdr_material_density density)
 {
-  if(!sys || !instance)
+  struct model_instance* instance = NULL;
+
+  if(!sys || !instance_obj)
     return RDR_INVALID_ARGUMENT;
+
+  instance = RDR_GET_OBJECT_DATA(sys, instance_obj);
 
   instance->material_density = density;
   return RDR_NO_ERROR;
@@ -709,11 +731,15 @@ rdr_model_instance_material_density
 EXPORT_SYM enum rdr_error
 rdr_get_model_instance_material_density
   (struct rdr_system* sys,
-   const struct rdr_model_instance* instance,
+   const struct rdr_model_instance* instance_obj,
    enum rdr_material_density* out_density)
 {
-  if(!sys || !instance || !out_density)
+  struct model_instance* instance = NULL;
+
+  if(!sys || !instance_obj || !out_density)
     return RDR_INVALID_ARGUMENT;
+
+  instance = RDR_GET_OBJECT_DATA(sys, instance_obj);
 
   *out_density = instance->material_density;
   return RDR_NO_ERROR;
@@ -722,12 +748,15 @@ rdr_get_model_instance_material_density
 EXPORT_SYM enum rdr_error
 rdr_model_instance_rasterizer
   (struct rdr_system* sys,
-   struct rdr_model_instance* instance,
+   struct rdr_model_instance* instance_obj,
    const struct rdr_rasterizer_desc* rasterizer_desc)
 {
-  if(!sys || !instance || !rasterizer_desc)
+  struct model_instance* instance = NULL;
+
+  if(!sys || !instance_obj || !rasterizer_desc)
     return RDR_INVALID_ARGUMENT;
 
+  instance = RDR_GET_OBJECT_DATA(sys, instance_obj);
   memcpy
     (&instance->rasterizer_desc,
      rasterizer_desc,
@@ -739,12 +768,15 @@ rdr_model_instance_rasterizer
 EXPORT_SYM enum rdr_error
 rdr_get_model_instance_rasterizer
   (struct rdr_system* sys,
-   const struct rdr_model_instance* instance,
+   const struct rdr_model_instance* instance_obj,
    struct rdr_rasterizer_desc* out_rasterizer_desc)
 {
-  if(!sys || !instance || !out_rasterizer_desc)
+  struct model_instance* instance = NULL;
+
+  if(!sys || !instance_obj || !out_rasterizer_desc)
     return RDR_INVALID_ARGUMENT;
 
+  instance = RDR_GET_OBJECT_DATA(sys, instance_obj);
   memcpy
     (out_rasterizer_desc,
      &instance->rasterizer_desc,
@@ -754,6 +786,86 @@ rdr_get_model_instance_rasterizer
 }
 
 EXPORT_SYM enum rdr_error
+rdr_attach_model_instance_callback
+  (struct rdr_system* sys,
+   struct rdr_model_instance* instance_obj,
+   const struct rdr_model_instance_callback_desc* cbk_desc,
+   struct rdr_model_instance_callback** out_cbk)
+{
+  struct sl_node* node = NULL;
+  struct model_instance* instance = NULL;
+  enum rdr_error rdr_err = RDR_NO_ERROR;
+  enum sl_error sl_err = SL_NO_ERROR;
+
+  if(!sys || !instance_obj || !cbk_desc|| !out_cbk) {
+    rdr_err = RDR_INVALID_ARGUMENT;
+    goto error;
+  }
+
+  instance = RDR_GET_OBJECT_DATA(sys, instance_obj);
+
+  sl_err = sl_linked_list_add
+    (sys->sl_ctxt, instance->callback_list, cbk_desc, &node);
+
+  if(sl_err != SL_NO_ERROR) {
+    rdr_err = sl_to_rdr_error(sl_err);
+    goto error;
+  }
+
+exit:
+  /* the rdr_model_instance_callback is not defined. It simply wraps the sl_node
+   * data structure. */
+  if(out_cbk)
+    *out_cbk = (struct rdr_model_instance_callback*)node;
+  return rdr_err;
+
+error:
+  if(node) {
+    assert(instance != NULL);
+    SL(linked_list_remove(sys->sl_ctxt, instance->callback_list, node));
+    node = NULL;
+  }
+  goto exit;
+}
+
+EXPORT_SYM enum rdr_error
+rdr_detach_model_instance_callback
+  (struct rdr_system* sys,
+   struct rdr_model_instance* instance_obj,
+   struct rdr_model_instance_callback* cbk)
+{
+  struct sl_node* node = NULL;
+  struct model_instance* instance = NULL;
+  enum rdr_error rdr_err = RDR_NO_ERROR;
+  enum sl_error sl_err = SL_NO_ERROR;
+
+  if(!sys || !instance_obj || !cbk) {
+    rdr_err = RDR_INVALID_ARGUMENT;
+    goto error;
+  }
+
+  instance = RDR_GET_OBJECT_DATA(sys, instance_obj);
+  node = (struct sl_node*)cbk;
+
+  sl_err = sl_linked_list_remove(sys->sl_ctxt, instance->callback_list, node);
+  if(sl_err != SL_NO_ERROR) {
+    rdr_err = sl_to_rdr_error(sl_err);
+    goto error;
+  }
+
+exit:
+  return rdr_err;
+
+error:
+  goto exit;
+}
+
+/*******************************************************************************
+ *
+ * Private functions.
+ *
+ ******************************************************************************/
+enum rdr_error
 rdr_draw_instances
   (struct rdr_system* sys,
    const float view_matrix[16],
@@ -778,7 +890,7 @@ rdr_draw_instances
   }
 
   for(i = 0; i < nb_instances; ++i) {
-    struct rdr_model_instance* instance = instance_list[i];
+    struct model_instance* instance = RDR_GET_OBJECT_DATA(sys,instance_list[i]);
 
     if(instance == NULL) {
       rdr_err = RDR_INVALID_ARGUMENT;
@@ -850,76 +962,6 @@ exit:
     if(tmp_err != RDR_NO_ERROR)
       rdr_err = tmp_err;
   }
-  return rdr_err;
-
-error:
-  goto exit;
-}
-
-EXPORT_SYM enum rdr_error
-rdr_attach_model_instance_callback
-  (struct rdr_system* sys,
-   struct rdr_model_instance* instance,
-   const struct rdr_model_instance_callback_desc* cbk_desc,
-   struct rdr_model_instance_callback** out_cbk)
-{
-  struct sl_node* node = NULL;
-  enum rdr_error rdr_err = RDR_NO_ERROR;
-  enum sl_error sl_err = SL_NO_ERROR;
-
-  if(!sys || !instance || !cbk_desc|| !out_cbk) {
-    rdr_err = RDR_INVALID_ARGUMENT;
-    goto error;
-  }
-
-  sl_err = sl_linked_list_add
-    (sys->sl_ctxt, instance->callback_list, cbk_desc, &node);
-
-  if(sl_err != SL_NO_ERROR) {
-    rdr_err = sl_to_rdr_error(sl_err);
-    goto error;
-  }
-
-exit:
-  /* the rdr_model_instance_callback is not defined. It simply wrap the sl_node
-   * data structure. */
-  if(out_cbk)
-    *out_cbk = (struct rdr_model_instance_callback*)node;
-  return rdr_err;
-
-error:
-  if(node) {
-    assert(instance != NULL);
-    SL(linked_list_remove(sys->sl_ctxt, instance->callback_list, node));
-    node = NULL;
-  }
-  goto exit;
-}
-
-EXPORT_SYM enum rdr_error
-rdr_detach_model_instance_callback
-  (struct rdr_system* sys,
-   struct rdr_model_instance* instance,
-   struct rdr_model_instance_callback* cbk)
-{
-  struct sl_node* node = NULL;
-  enum rdr_error rdr_err = RDR_NO_ERROR;
-  enum sl_error sl_err = SL_NO_ERROR;
-
-  if(!sys || !instance || !cbk) {
-    rdr_err = RDR_INVALID_ARGUMENT;
-    goto error;
-  }
-
-  node = (struct sl_node*)cbk;
-
-  sl_err = sl_linked_list_remove(sys->sl_ctxt, instance->callback_list, node);
-  if(sl_err != SL_NO_ERROR) {
-    rdr_err = sl_to_rdr_error(sl_err);
-    goto error;
-  }
-
-exit:
   return rdr_err;
 
 error:

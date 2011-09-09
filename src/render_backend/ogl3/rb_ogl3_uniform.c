@@ -179,6 +179,8 @@ rb_get_uniforms
    size_t* out_nb_uniforms,
    struct rb_uniform* dst_uniform_list[])
 {
+  GLchar* uniform_buffer = NULL;
+  int uniform_buflen = 0;
   int nb_uniforms = 0;
   int uniform_id = 0;
   int err = 0;
@@ -193,10 +195,7 @@ rb_get_uniforms
   assert(nb_uniforms >= 0);
 
   if(dst_uniform_list) {
-    GLchar* uniform_buffer = NULL;
-    int uniform_buflen = 0;
-
-    OGL(GetProgramiv
+      OGL(GetProgramiv
         (prog->name, GL_ACTIVE_UNIFORM_MAX_LENGTH, &uniform_buflen));
     uniform_buffer = malloc(sizeof(GLchar) * uniform_buflen);
     if(!uniform_buffer)
@@ -215,7 +214,10 @@ rb_get_uniforms
   }
 
 exit:
-  *out_nb_uniforms = nb_uniforms;
+  if(uniform_buffer)
+    free(uniform_buffer);
+  if(out_nb_uniforms)
+    *out_nb_uniforms = nb_uniforms;
   return err;
 
 error:

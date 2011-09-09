@@ -23,6 +23,15 @@ struct sl_linked_list {
  * Helper functions.
  *
  ******************************************************************************/
+static void
+free_node(struct sl_node* node) 
+{
+  assert(node != NULL);
+  if(node->data)
+    free(node->data);
+  free(node);
+}
+
 static enum sl_error
 alloc_node(size_t data_size, size_t data_alignment, struct sl_node** out_node)
 {
@@ -37,7 +46,7 @@ alloc_node(size_t data_size, size_t data_alignment, struct sl_node** out_node)
     goto error;
   }
 
-  node->data = memalign(data_size, data_alignment);
+  node->data = memalign(data_alignment, data_size);
   if(!node->data) {
     err = SL_MEMORY_ERROR;
     goto error;
@@ -49,9 +58,7 @@ exit:
 
 error:
   if(node) {
-    if(node->data)
-      free(node->data);
-    free(node);
+    free_node(node);
     node = NULL;
   }
   goto exit;
@@ -67,7 +74,7 @@ free_all_nodes(struct sl_linked_list* list)
   node = list->head;
   while(node != NULL) {
     struct sl_node* next_node = node->next;
-    free(node);
+    free_node(node);
     node = next_node;
   }
 }
@@ -186,7 +193,7 @@ exit:
 
 error:
   if(node) {
-    free(node);
+    free_node(node);
     node = NULL;
   }
   goto exit;
@@ -227,7 +234,7 @@ sl_linked_list_remove
   else
     list->head = node->next;
 
-  free(node);
+  free_node(node);
 
 exit:
   return err;
