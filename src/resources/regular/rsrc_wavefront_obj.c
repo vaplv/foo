@@ -5,6 +5,7 @@
 
 #include "resources/regular/rsrc_context_c.h"
 #include "resources/regular/rsrc_error_c.h"
+#include "resources/regular/rsrc_wavefront_obj_c.h"
 #include "resources/rsrc_wavefront_obj.h"
 #include "stdlib/sl_vector.h"
 #include "sys/sys.h"
@@ -15,53 +16,12 @@
 #include <stdlib.h>
 #include <string.h>
 
-struct line {
-  size_t v;
-  size_t vt;
-};
-
-struct face {
-  size_t v;
-  size_t vt;
-  size_t vn;
-};
-
-struct range {
-  size_t begin;
-  size_t end;
-};
-
-struct group {
-  struct sl_vector* name_list; /* vector of char*. */
-  struct range point_range;
-  struct range line_range;
-  struct range face_range;
-};
-
-struct smooth_group {
-  struct range face_range;
-  bool is_on;
-};
-
-struct mtl {
-  char* name;
-  struct range point_range;
-  struct range line_range;
-  struct range face_range;
-};
-
-struct rsrc_wavefront_obj {
-  struct sl_vector* position_list; /* vector of float[3]. */
-  struct sl_vector* normal_list; /* vector of float[3]. */
-  struct sl_vector* texcoord_list; /* vector of float[3]. */
-  struct sl_vector* point_list; /* vector of vector of size_t. */
-  struct sl_vector* line_list; /* vector of vector of struct line. */
-  struct sl_vector* face_list; /* vector of vector of struct face. */
-  struct sl_vector* group_list; /* vector of struct group. */
-  struct sl_vector* smooth_group_list; /* vector of struct smooth_group. */
-  struct sl_vector* mtllib_list; /* vector of char*. */
-  struct sl_vector* mtl_list; /* vector of struct mtl. */
-};
+typedef struct rsrc_wavefront_obj_line line_t;
+typedef struct rsrc_wavefront_obj_face face_t;
+typedef struct rsrc_wavefront_obj_range range_t;
+typedef struct rsrc_wavefront_obj_group group_t;
+typedef struct rsrc_wavefront_obj_smooth_group smooth_group_t;
+typedef struct rsrc_wavefront_obj_mtl mtl_t;
 
 /*******************************************************************************
  *
@@ -183,7 +143,7 @@ error:
 static bool
 flush_group(struct rsrc_context* ctxt, struct rsrc_wavefront_obj* wobj)
 {
-  struct group* group = NULL;
+  group_t* group = NULL;
   size_t len = 0;
 
   assert(ctxt && wobj);
@@ -207,7 +167,7 @@ flush_group(struct rsrc_context* ctxt, struct rsrc_wavefront_obj* wobj)
 static bool
 flush_smooth_group(struct rsrc_context* ctxt, struct rsrc_wavefront_obj* wobj)
 {
-  struct smooth_group* sgroup = NULL;
+  smooth_group_t* sgroup = NULL;
   size_t len = 0;
 
   assert(ctxt && wobj);
@@ -227,7 +187,7 @@ flush_smooth_group(struct rsrc_context* ctxt, struct rsrc_wavefront_obj* wobj)
 static bool
 flush_usemtl(struct rsrc_context* ctxt, struct rsrc_wavefront_obj* wobj)
 {
-  struct mtl* mtl = NULL;
+  mtl_t* mtl = NULL;
   size_t len = 0;
 
   assert(ctxt && wobj);
@@ -406,7 +366,7 @@ parse_line_elmt
   assert(ctxt && lex && line_list);
 
   sl_err = sl_create_vector
-    (ctxt->sl_ctxt, sizeof(struct line), ALIGNOF(struct line), &vertices);
+    (ctxt->sl_ctxt, sizeof(line_t), ALIGNOF(line_t), &vertices);
   if(sl_err != SL_NO_ERROR) {
     err = sl_to_rsrc_error(sl_err);
     goto error;
@@ -420,7 +380,7 @@ parse_line_elmt
   }
   /* Parse the line vertices. */
   while((token = lex_next_token(lex)) != NULL) {
-    struct line line;
+    line_t line;
     struct lex tmp_lex = { .delimiters = "/", .string = token };
     char* tmp_tkn;
 
@@ -486,7 +446,7 @@ parse_face_elmt
   assert(ctxt && lex && face_list);
 
   sl_err = sl_create_vector
-    (ctxt->sl_ctxt, sizeof(struct face), ALIGNOF(struct face), &vertices);
+    (ctxt->sl_ctxt, sizeof(face_t), ALIGNOF(face_t), &vertices);
   if(sl_err != SL_NO_ERROR) {
     err = sl_to_rsrc_error(sl_err);
     goto error;
@@ -501,7 +461,7 @@ parse_face_elmt
 
   /*  Parse the face vertices. */
   while((token = lex_next_token(lex)) != NULL) {
-    struct face face;
+    face_t face;
     struct lex tmp_lex = { .delimiters = "/", .string = token };
     const bool no_tex = strstr(token, "//") != NULL;
     char* tmp_tkn;
@@ -569,7 +529,7 @@ parse_group
    struct lex* lex,
    struct rsrc_wavefront_obj* wobj)
 {
-  struct group group;
+  group_t group;
   struct sl_vector* name_list = NULL;
   char* token = NULL;
   char* name = NULL;
@@ -668,7 +628,7 @@ parse_smooth_group
    struct lex* lex,
    struct rsrc_wavefront_obj* wobj)
 {
-  struct smooth_group sgroup;
+  smooth_group_t sgroup;
   char* token = NULL;
   char* ptr = NULL;
   size_t len = 0;
@@ -782,7 +742,7 @@ parse_mtl
    struct lex* lex,
    struct rsrc_wavefront_obj* wobj)
 {
-  struct mtl mtl;
+  mtl_t mtl;
   char* token = NULL;
   size_t len = 0;
   enum rsrc_error err = RSRC_NO_ERROR;
@@ -830,6 +790,118 @@ error:
     SL(vector_pop_back(ctxt->sl_ctxt, wobj->mtl_list));
   if(mtl.name)
     free(mtl.name);
+  goto exit;
+}
+
+static enum rsrc_error
+clear_wavefront_obj(struct rsrc_context* ctxt, struct rsrc_wavefront_obj* wobj)
+{
+  void* buf = NULL;
+  size_t len = 0;
+  size_t i = 0;
+  enum rsrc_error err = RSRC_NO_ERROR;
+  enum sl_error sl_err = SL_NO_ERROR;
+
+  #define CLEAR_VECTOR(v) \
+    do { \
+      sl_err = sl_clear_vector(ctxt->sl_ctxt, v); \
+      if(sl_err != SL_NO_ERROR) { \
+        err = sl_to_rsrc_error(sl_err); \
+        goto error; \
+      } \
+    } while(0)
+
+  #define VECTOR_BUFFER(vec, len, buf) \
+    do { \
+      sl_err = sl_vector_buffer \
+        (ctxt->sl_ctxt, vec, &len, NULL, NULL, (void**)&buf); \
+      if(sl_err != SL_NO_ERROR) { \
+        err = sl_to_rsrc_error(sl_err); \
+        goto error; \
+      } \
+    } while(0)
+
+  #define FREE_VECTOR(v) \
+    do { \
+      sl_err = sl_free_vector(ctxt->sl_ctxt, v); \
+      if(sl_err != SL_NO_ERROR) { \
+        err = sl_to_rsrc_error(sl_err); \
+        goto error; \
+      } \
+    } while(0)
+
+  if(wobj->position_list)
+    CLEAR_VECTOR(wobj->position_list);
+
+  if(wobj->normal_list)
+    CLEAR_VECTOR(wobj->normal_list);
+
+  if(wobj->texcoord_list)
+    CLEAR_VECTOR(wobj->texcoord_list);
+
+  if(wobj->point_list) {
+    VECTOR_BUFFER(wobj->line_list, len, buf);
+    for(i = 0; i < len; ++i)
+      FREE_VECTOR(((struct sl_vector**)buf)[i]);
+    CLEAR_VECTOR(wobj->line_list);
+  }
+
+  if(wobj->line_list) {
+    VECTOR_BUFFER(wobj->line_list, len, buf);
+    for(i = 0; i < len; ++i)
+      FREE_VECTOR(((struct sl_vector**)buf)[i]);
+    CLEAR_VECTOR(wobj->line_list);
+  }
+
+  if(wobj->face_list) {
+    VECTOR_BUFFER(wobj->face_list, len, buf);
+    for(i = 0; i < len; ++i)
+      FREE_VECTOR(((struct sl_vector**)buf)[i]);
+    CLEAR_VECTOR(wobj->face_list);
+  }
+
+  if(wobj->group_list) {
+    VECTOR_BUFFER(wobj->group_list, len, buf);
+    for(i = 0; i < len; ++i) {
+      group_t* grp = (group_t*)buf + i;
+      void* name_list = NULL;
+      size_t nb_names = 0;
+      size_t name_id = 0;
+
+      VECTOR_BUFFER(grp->name_list, nb_names, name_list);
+      for(name_id = 0; name_id < nb_names; ++name_id)
+        free(((char**)name_list)[name_id]);
+
+      FREE_VECTOR(grp->name_list);
+    }
+    CLEAR_VECTOR(wobj->group_list);
+  }
+
+  if(wobj->smooth_group_list)
+    CLEAR_VECTOR(wobj->smooth_group_list);
+
+  if(wobj->mtllib_list) {
+    VECTOR_BUFFER(wobj->mtllib_list, len, buf);
+    for(i = 0; i < len; ++i)
+      free(((char**)buf)[i]);
+    CLEAR_VECTOR(wobj->mtllib_list);
+  }
+
+  if(wobj->mtl_list) {
+    VECTOR_BUFFER(wobj->mtl_list, len, buf);
+    for(i = 0; i < len; ++i)
+      free(((mtl_t*)buf)[i].name);
+    CLEAR_VECTOR(wobj->mtl_list);
+  }
+
+  #undef CLEAR_VECTOR
+  #undef VECTOR_BUFFER
+  #undef FREE_VECTOR
+
+exit:
+  return err;
+
+error:
   goto exit;
 }
 
@@ -923,118 +995,8 @@ exit:
 
 error:
   fprintf(stderr, "%s:%zd: error: parsing failed.\n", path, line_id);
-  goto exit;
-}
-
-static enum rsrc_error
-clear_wavefront_obj(struct rsrc_context* ctxt, struct rsrc_wavefront_obj* wobj)
-{
-  void* buf = NULL;
-  size_t len = 0;
-  size_t i = 0;
-  enum rsrc_error err = RSRC_NO_ERROR;
-  enum sl_error sl_err = SL_NO_ERROR;
-
-  #define CLEAR_VECTOR(v) \
-    do { \
-      sl_err = sl_clear_vector(ctxt->sl_ctxt, v); \
-      if(sl_err != SL_NO_ERROR) { \
-        err = sl_to_rsrc_error(sl_err); \
-        goto error; \
-      } \
-    } while(0)
-
-  #define VECTOR_BUFFER(vec, len, buf) \
-    do { \
-      sl_err = sl_vector_buffer \
-        (ctxt->sl_ctxt, vec, &len, NULL, NULL, (void**)&buf); \
-      if(sl_err != SL_NO_ERROR) { \
-        err = sl_to_rsrc_error(sl_err); \
-        goto error; \
-      } \
-    } while(0)
-
-  #define FREE_VECTOR(v) \
-    do { \
-      sl_err = sl_free_vector(ctxt->sl_ctxt, v); \
-      if(sl_err != SL_NO_ERROR) { \
-        err = sl_to_rsrc_error(sl_err); \
-        goto error; \
-      } \
-    } while(0)
-
-  if(wobj->position_list)
-    CLEAR_VECTOR(wobj->position_list);
-
-  if(wobj->normal_list)
-    CLEAR_VECTOR(wobj->normal_list);
-
-  if(wobj->texcoord_list)
-    CLEAR_VECTOR(wobj->texcoord_list);
-
-  if(wobj->point_list) {
-    VECTOR_BUFFER(wobj->line_list, len, buf);
-    for(i = 0; i < len; ++i)
-      FREE_VECTOR(((struct sl_vector**)buf)[i]);
-    CLEAR_VECTOR(wobj->line_list);
-  }
-
-  if(wobj->line_list) {
-    VECTOR_BUFFER(wobj->line_list, len, buf);
-    for(i = 0; i < len; ++i)
-      FREE_VECTOR(((struct sl_vector**)buf)[i]);
-    CLEAR_VECTOR(wobj->line_list);
-  }
-
-  if(wobj->face_list) {
-    VECTOR_BUFFER(wobj->face_list, len, buf);
-    for(i = 0; i < len; ++i)
-      FREE_VECTOR(((struct sl_vector**)buf)[i]);
-    CLEAR_VECTOR(wobj->face_list);
-  }
-
-  if(wobj->group_list) {
-    VECTOR_BUFFER(wobj->group_list, len, buf);
-    for(i = 0; i < len; ++i) {
-      struct group* grp = (struct group*)buf + i;
-      void* name_list = NULL;
-      size_t nb_names = 0;
-      size_t name_id = 0;
-
-      VECTOR_BUFFER(grp->name_list, nb_names, name_list);
-      for(name_id = 0; name_id < nb_names; ++name_id)
-        free(((char**)name_list)[name_id]);
-
-      FREE_VECTOR(grp->name_list);
-    }
-    CLEAR_VECTOR(wobj->group_list);
-  }
-
-  if(wobj->smooth_group_list)
-    CLEAR_VECTOR(wobj->smooth_group_list);
-
-  if(wobj->mtllib_list) {
-    VECTOR_BUFFER(wobj->mtllib_list, len, buf);
-    for(i = 0; i < len; ++i)
-      free(((char**)buf)[i]);
-    CLEAR_VECTOR(wobj->mtllib_list);
-  }
-
-  if(wobj->mtl_list) {
-    VECTOR_BUFFER(wobj->mtl_list, len, buf);
-    for(i = 0; i < len; ++i)
-      free(((struct mtl*)buf)[i].name);
-    CLEAR_VECTOR(wobj->mtl_list);
-  }
-
-  #undef CLEAR_VECTOR
-  #undef VECTOR_BUFFER
-  #undef FREE_VECTOR
-
-exit:
-  return err;
-
-error:
+  err = clear_wavefront_obj(ctxt, wobj);
+  assert(err == RSRC_NO_ERROR);
   goto exit;
 }
 
@@ -1078,10 +1040,10 @@ rsrc_create_wavefront_obj
   CREATE_VECTOR(wobj->point_list, struct sl_vector*);
   CREATE_VECTOR(wobj->line_list, struct sl_vector*);
   CREATE_VECTOR(wobj->face_list, struct sl_vector*);
-  CREATE_VECTOR(wobj->group_list, struct group);
-  CREATE_VECTOR(wobj->smooth_group_list, struct smooth_group);
+  CREATE_VECTOR(wobj->group_list, group_t);
+  CREATE_VECTOR(wobj->smooth_group_list, smooth_group_t);
   CREATE_VECTOR(wobj->mtllib_list, char*);
-  CREATE_VECTOR(wobj->mtl_list, struct mtl);
+  CREATE_VECTOR(wobj->mtl_list, mtl_t);
 
   #undef CREATE_VECTOR
 

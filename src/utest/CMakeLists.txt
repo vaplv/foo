@@ -6,6 +6,9 @@ target_link_libraries(utest_renderer wmglfw renderer)
 add_executable(utest_rdr_world utest_rdr_world.c)
 target_link_libraries(utest_rdr_world wmglfw renderer)
 
+add_executable(utest_sl_hash_table utest_sl_hash_table.c)
+target_link_libraries(utest_sl_hash_table sl)
+
 add_executable(utest_sl_linked_list utest_sl_linked_list.c)
 target_link_libraries(utest_sl_linked_list sl)
 
@@ -34,6 +37,10 @@ add_test(
   rdr_world_ogl3
   ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/utest_rdr_world
   ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/librbogl3.so)
+
+add_test(
+  sl_hash_table
+  ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/utest_sl_hash_table)
 
 add_test(
   sl_linked_list

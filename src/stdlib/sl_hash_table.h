@@ -4,16 +4,14 @@
 #include "stdlib/sl_error.h"
 #include <stddef.h>
 
-/* TODO */
-#error "The hash table functions are not implemented yet!"
-
 struct sl_context;
 struct sl_hash_table;
 
-extern enum sl_error;
+extern enum sl_error
 sl_create_hash_table
   (struct sl_context* ctxt,
    size_t data_size,
+   size_t data_alignment,
    size_t key_size,
    int (*compare)(const void*, const void*),
    const void* (*get_key)(const void*),
@@ -28,26 +26,33 @@ extern enum sl_error
 sl_hash_table_insert
   (struct sl_context* ctxt,
    struct sl_hash_table* hash_table,
-   const void* elmt);
+   const void* data);
 
 extern enum sl_error
 sl_hash_table_erase
   (struct sl_context* ctxt,
    struct sl_hash_table* hash_table,
-   const void* key);
+   const void* key,
+   size_t* out_nb_erased);
 
 extern enum sl_error
 sl_hash_table_find
   (struct sl_context* ctxt,
    struct sl_hash_table* hash_table,
    const void* key,
-   void** elmt);
+   void** data);
+
+extern enum sl_error
+sl_hash_table_data_count
+  (struct sl_context* ctxt,
+   struct sl_hash_table* hash_table,
+   size_t *nb_data);
 
 extern enum sl_error
 sl_hash_table_resize
   (struct sl_context* ctxt,
    struct sl_hash_table* hash_table,
-   size_t bucket_count);
+   size_t hint_nb_buckets); 
 
 extern enum sl_error
 sl_hash_table_bucket_count

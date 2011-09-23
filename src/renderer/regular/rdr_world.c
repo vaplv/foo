@@ -42,7 +42,7 @@ compute_proj(float fov_x, float ratio, float znear, float zfar, float* proj)
 
   proj[12] = 0.f;
   proj[13] = 0.f;
-  proj[14] = (2.f * zfar *znear) / (znear - zfar);
+  proj[14] = (2.f * zfar * znear) / (znear - zfar);
   proj[15] = 0.f;
 }
 
