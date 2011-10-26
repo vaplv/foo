@@ -1,19 +1,13 @@
 #ifndef RSRC_GEOMETRY_H
 #define RSRC_GEOMETRY_H
 
+#include "resources/rsrc.h"
 #include "resources/rsrc_error.h"
 #include <stddef.h>
 
 struct rsrc_context;
 struct rsrc_geometry;
 struct rsrc_wavefront_obj;
-
-enum rsrc_type {
-  RSRC_FLOAT,
-  RSRC_FLOAT2,
-  RSRC_FLOAT3,
-  RSRC_FLOAT4
-};
 
 enum rsrc_attrib_usage {
   RSRC_ATTRIB_POSITION,
@@ -35,7 +29,7 @@ struct rsrc_attrib {
 struct rsrc_primitive_set {
   struct rsrc_attrib* attrib_list;
   const void* data;
-  const size_t* index_list;
+  const unsigned int* index_list;
   size_t nb_attribs;
   size_t nb_indices;
   size_t sizeof_data;
@@ -49,6 +43,11 @@ rsrc_create_geometry
 
 extern enum rsrc_error
 rsrc_free_geometry
+  (struct rsrc_context* ctxt,
+   struct rsrc_geometry* geom);
+
+extern enum rsrc_error
+rsrc_clear_geometry
   (struct rsrc_context* ctxt,
    struct rsrc_geometry* geom);
 

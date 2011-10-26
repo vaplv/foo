@@ -4,7 +4,8 @@
 #include "renderer/rdr_model_instance.h"
 #include "renderer/rdr_system.h"
 #include "utest/utest.h"
-#include "window_manager/wm.h"
+#include "window_manager/wm_device.h"
+#include "window_manager/wm_window.h"
 #include <assert.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -609,8 +610,8 @@ main(int argc, char** argv)
   }
   fclose(file);
 
-  CHECK(wm_create_device(&device), 0);
-  CHECK(wm_create_window(device, &win_desc, &window), 0);
+  CHECK(wm_create_device(&device), WM_NO_ERROR);
+  CHECK(wm_create_window(device, &win_desc, &window), WM_NO_ERROR);
 
   test_rdr_system(driver_name);
   test_rdr_mesh(driver_name);
@@ -620,9 +621,9 @@ main(int argc, char** argv)
 
 exit:
   if(window)
-    CHECK(wm_free_window(device, window), 0);
+    CHECK(wm_free_window(device, window), WM_NO_ERROR);
   if(device)
-    CHECK(wm_free_device(device), 0);
+    CHECK(wm_free_device(device), WM_NO_ERROR);
 
   return err;
 

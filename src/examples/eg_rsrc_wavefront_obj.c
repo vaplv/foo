@@ -1,7 +1,6 @@
 #include "resources/rsrc_context.h"
 #include "resources/rsrc_geometry.h"
 #include "resources/rsrc_wavefront_obj.h"
-#include "window_manager/wm.h"
 #include "sys/sys.h"
 #include <assert.h>
 #include <stdio.h>

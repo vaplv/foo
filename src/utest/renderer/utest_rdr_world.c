@@ -5,7 +5,8 @@
 #include "renderer/rdr_system.h"
 #include "renderer/rdr_world.h"
 #include "utest/utest.h"
-#include "window_manager/wm.h"
+#include "window_manager/wm_device.h"
+#include "window_manager/wm_window.h"
 #include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -21,7 +22,7 @@ main(int argc, char** argv)
   struct wm_device* device = NULL;
   struct wm_window* window = NULL;
   struct wm_window_desc win_desc = {
-    .width = 800, .height = 600, .fullscreen = 0
+    .width = 800, .height = 600, .fullscreen = false
   };
 
   /* Renderer data structures. */
@@ -81,8 +82,8 @@ main(int argc, char** argv)
   }
   fclose(file);
 
-  CHECK(wm_create_device(&device), 0);
-  CHECK(wm_create_window(device, &win_desc, &window), 0);
+  CHECK(wm_create_device(&device), WM_NO_ERROR);
+  CHECK(wm_create_window(device, &win_desc, &window), WM_NO_ERROR);
 
   CHECK(rdr_create_system(driver_name, &sys), RDR_NO_ERROR);
 
@@ -147,8 +148,8 @@ main(int argc, char** argv)
   CHECK(rdr_free_mesh(sys, mesh), RDR_NO_ERROR);
   CHECK(rdr_free_system(sys), RDR_NO_ERROR);
 
-  CHECK(wm_free_window(device, window), 0);
-  CHECK(wm_free_device(device), 0);
+  CHECK(wm_free_window(device, window), WM_NO_ERROR);
+  CHECK(wm_free_device(device), WM_NO_ERROR);
 
 exit:
   return err;

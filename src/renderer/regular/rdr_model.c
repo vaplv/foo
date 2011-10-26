@@ -25,7 +25,8 @@ static const char*
 builtin_uniform_name_list[] = {
   [RDR_MODELVIEW_UNIFORM] = "rdr_modelview",
   [RDR_PROJECTION_UNIFORM] = "rdr_projection",
-  [RDR_VIEWPROJ_UNIFORM] = "rdr_viewproj"
+  [RDR_VIEWPROJ_UNIFORM] = "rdr_viewproj",
+  [RDR_MODELVIEW_INVTRANS_UNIFORM] = "rdr_modelview_invtrans"
 };
 
 struct model {
@@ -537,7 +538,7 @@ invoke_callbacks(struct rdr_system* sys, struct rdr_model* model_obj)
   return rdr_err;
 }
 
-/* Factorise the code of the material/mesh callbacks. */
+/* Factorize the code of the material/mesh callbacks. */
 static enum rdr_error
 generic_callback_func(struct rdr_system* sys, struct rdr_model* model_obj)
 {
@@ -571,7 +572,6 @@ material_callback_func
    void* data)
 {
   return generic_callback_func(sys, data);
-  return RDR_NO_ERROR;
 }
 
 static enum rdr_error

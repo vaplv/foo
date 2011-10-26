@@ -102,7 +102,7 @@ struct model_instance {
  * Helper functions.
  *
  ******************************************************************************/
- /* TODO Use the simd math when they will be available. */
+/* TODO Use the simd math when they will be available. */
 static void
 mul_mat44
   (const float m0[16],
@@ -130,6 +130,14 @@ mul_mat44
   result[13] = m0[1]*m1[12] + m0[5]*m1[13] + m0[9]*m1[14] + m0[13]*m1[15];
   result[14] = m0[2]*m1[12] + m0[6]*m1[13] + m0[10]*m1[14] + m0[14]*m1[15];
   result[15] = m0[3]*m1[12] + m0[7]*m1[13] + m0[11]*m1[14] + m0[15]*m1[15];
+}
+
+/* TODO Use the simd math when they will be available. */
+static void
+invtrans_mat44(const float* restrict mat UNUSED,  float* restrict result UNUSED)
+{
+  /* TODO. */
+  /*assert(false); */
 }
 
 static enum rdr_error
@@ -278,8 +286,15 @@ dispatch_uniform_data
         mul_mat44(view_matrix, transform, tmp_mat44);
         mul_mat44(proj_matrix, tmp_mat44, data);
         break;
+      case RDR_MODELVIEW_INVTRANS_UNIFORM:
+        mul_mat44(view_matrix, transform, tmp_mat44);
+        invtrans_mat44(tmp_mat44, data);
+        break;
       case RDR_REGULAR_UNIFORM:
         /* nothing */
+        break;
+      default:
+        assert(false);
         break;
     }
 

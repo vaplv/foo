@@ -1167,6 +1167,10 @@ rsrc_load_wavefront_obj
   fclose(fptr);
   fptr = NULL;
 
+  err = clear_wavefront_obj(ctxt, wobj);
+  if(err != RSRC_NO_ERROR)
+    goto error;
+
   err = parse_wavefront_obj(ctxt, wobj, path, file_content);
   if(err != RSRC_NO_ERROR)
     goto error;

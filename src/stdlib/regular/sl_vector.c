@@ -429,17 +429,37 @@ sl_vector_buffer
    size_t* data_alignment,
    void** buffer)
 {
-  if(!ctxt || !vec)
-    return SL_INVALID_ARGUMENT;
-
+  enum sl_error err = SL_NO_ERROR;
+  if(!ctxt || !vec) {
+    err = SL_INVALID_ARGUMENT;
+    goto error;
+  }
   if(length)
     *length = vec->length;
   if(data_size)
     *data_size = vec->data_size;
   if(data_alignment)
     *data_alignment = vec->data_alignment;
-  if(buffer)
+  if(buffer) {
+    if(!IS_ALIGNED(*buffer, vec->data_alignment)) {
+      err = SL_ALIGNMENT_ERROR;
+      goto error;
+    }
     *buffer = vec->length == 0 ? NULL : vec->buffer;
-  return SL_NO_ERROR;
+  }
+
+exit:
+  return err;
+
+error:
+  if(length)
+    *length = 0;
+  if(data_size)
+    *data_size = 0;
+  if(data_alignment)
+    *data_alignment = 0;
+  if(buffer)
+    *buffer = NULL;
+  goto exit;
 }
 

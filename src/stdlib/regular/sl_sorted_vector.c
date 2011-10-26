@@ -16,7 +16,6 @@ struct sl_sorted_vector {
  * Helper functions.
  *
  ******************************************************************************/
-
 /* Let a vector vec, this function finds the index of the data in vec and
  * defines if the data already lies into vec. */
 static enum sl_error
@@ -58,7 +57,7 @@ data_id
     } else {
       if(cmp > 0) {
         begin = at + 1;
-      } else if (cmp < 0) {
+      } else if(cmp < 0) {
         end = at;
       }
     }

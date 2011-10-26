@@ -1,5 +1,6 @@
 #include "render_backend/rbi.h"
-#include "window_manager/wm.h"
+#include "window_manager/wm_device.h"
+#include "window_manager/wm_window.h"
 #include "sys/sys.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -102,8 +103,8 @@ free_mesh(struct rbi* rbi, struct rb_context* ctxt, struct render_mesh* mesh)
 
 static int
 create_mesh
-  (struct rbi* rbi, 
-   struct rb_context* ctxt, 
+  (struct rbi* rbi,
+   struct rb_context* ctxt,
    struct render_mesh** out_mesh)
 {
   /* Vertex buffer. Interleaved positions (float3) and colors (float3). */
@@ -181,8 +182,8 @@ create_mesh
 
 static int
 free_shader
-  (struct rbi* rbi, 
-   struct rb_context* ctxt, 
+  (struct rbi* rbi,
+   struct rb_context* ctxt,
    struct render_shader* shader)
 {
   if(!ctxt || !shader)
@@ -206,8 +207,8 @@ free_shader
 
 static int
 create_shader
-  (struct rbi* rbi, 
-   struct rb_context* ctxt, 
+  (struct rbi* rbi,
+   struct rb_context* ctxt,
    struct render_shader** out_shader)
 {
   int err = 0;
@@ -356,11 +357,20 @@ main(int argc UNUSED, char* argv[] UNUSED)
   };
   const float proj_ratio = (float)win_desc.width / (float)win_desc.height;
   float angle = 0.f;
+  enum wm_error wm_err = WM_NO_ERROR;
 
-  CHECK(wm_create_device(&device));
-  CHECK(wm_create_window(device, &win_desc, &window));
+  if(argc != 2) {
+    printf("usage: %s RB_DRIVER\n", argv[0]);
+    return -1;
+  }
+  const char* driver_name = argv[1];
 
-  CHECK(rbi_init("../lib/librbogl3.so", &rbi));
+  wm_err = wm_create_device(&device);
+  assert(wm_err == WM_NO_ERROR);
+  wm_err = wm_create_window(device, &win_desc, &window);
+  assert(wm_err == WM_NO_ERROR);
+
+  CHECK(rbi_init(driver_name, &rbi));
   CHECK(rbi.create_context(&ctxt));
 
   CHECK(create_mesh(&rbi, ctxt, &mesh));
@@ -383,7 +393,9 @@ main(int argc UNUSED, char* argv[] UNUSED)
     CHECK(rbi.draw_indexed(ctxt, RB_TRIANGLE_LIST, 36));
 
     CHECK(rbi.flush(ctxt));
-    CHECK(wm_swap(device, window));
+
+    wm_err = wm_swap(device, window);
+    assert(wm_err == WM_NO_ERROR);
 
     angle += M_DEG_TO_RAD(0.01f);
   }
@@ -396,8 +408,10 @@ main(int argc UNUSED, char* argv[] UNUSED)
   }
 
   if(device) {
-    wm_free_window(device, window);
-    wm_free_device(device);
+    wm_err = wm_free_window(device, window);
+    assert(wm_err == WM_NO_ERROR);
+    wm_err = wm_free_device(device);
+    assert(wm_err == WM_NO_ERROR);
   }
 
   return 0;

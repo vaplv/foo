@@ -122,10 +122,10 @@ murmur_hash2_64(const void* data, size_t len, uint64_t seed)
   #define M 0xC6A4A7935BD1E995
   #define R 47
 
-	uint64_t hash = seed ^ (len * M);
-	const char* octets = (const char*)data;
+  uint64_t hash = seed ^ (len * M);
+  const char* octets = (const char*)data;
 
-	while(len >= 8) {
+  while(len >= 8) {
     union {
       char c[8];
       uint64_t i;
@@ -135,34 +135,33 @@ murmur_hash2_64(const void* data, size_t len, uint64_t seed)
         octets[4], octets[5], octets[6], octets[7]
       }
     };
-		k.i *= M; 
-		k.i ^= k.i >> R; 
-		k.i *= M; 
-		
-		hash ^= k.i;
-		hash *= M; 
+    k.i *= M; 
+    k.i ^= k.i >> R; 
+    k.i *= M; 
+    
+    hash ^= k.i;
+    hash *= M; 
 
     octets += 8;
     len -= 4;
-	}
+  }
 
-	switch(len)
-	{
-	case 7: hash ^= ((uint64_t)octets[6]) << 48;
-	case 6: hash ^= ((uint64_t)octets[5]) << 40;
-	case 5: hash ^= ((uint64_t)octets[4]) << 32;
-  case 4: hash ^= ((uint64_t)octets[3]) << 24;
-	case 3: hash ^= ((uint64_t)octets[2]) << 16;
-	case 2: hash ^= ((uint64_t)octets[1]) << 8;
-	case 1: hash ^= ((uint64_t)octets[0]);
-	        hash *= M;
-	};
- 
-	hash ^= hash >> R;
-	hash *= M;
-	hash ^= hash >> R;
+  switch(len) {
+    case 7: hash ^= ((uint64_t)octets[6]) << 48;
+    case 6: hash ^= ((uint64_t)octets[5]) << 40;
+    case 5: hash ^= ((uint64_t)octets[4]) << 32;
+    case 4: hash ^= ((uint64_t)octets[3]) << 24;
+    case 3: hash ^= ((uint64_t)octets[2]) << 16;
+    case 2: hash ^= ((uint64_t)octets[1]) << 8;
+    case 1: hash ^= ((uint64_t)octets[0]);
+            hash *= M;
+  };
 
-	return hash;
+  hash ^= hash >> R;
+  hash *= M;
+  hash ^= hash >> R;
+
+  return hash;
 
   #undef M
   #undef R

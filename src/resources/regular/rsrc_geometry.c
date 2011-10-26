@@ -6,12 +6,13 @@
 #include "stdlib/sl_vector.h"
 #include "sys/sys.h"
 #include <assert.h>
+#include <limits.h>
 #include <stdlib.h>
 #include <string.h>
 
 struct primitive_set {
   struct sl_vector* data_list; /* vector of struct face_vertex. */
-  struct sl_vector* index_list; /* vector of size_t. */
+  struct sl_vector* index_list; /* vector of unsigned int. */
   struct sl_vector* attrib_list; /* vector of struct rsrc_attrib. */
   enum rsrc_primitive_type primitive_type;
 };
@@ -32,7 +33,7 @@ struct pair {
     size_t vt;
     size_t vn;
   } key;
-  size_t index;
+  unsigned int index;
 };
 
 static const void*
@@ -77,7 +78,8 @@ build_triangle_list
   struct sl_vector* data = NULL;
   struct sl_vector* indices = NULL;
   struct sl_vector* attribs = NULL;
-  size_t face_id = 0, nb_indices = 0;
+  size_t face_id = 0;
+  unsigned int nb_indices = 0;
   enum rsrc_error err = RSRC_NO_ERROR;
   enum sl_error sl_err = SL_NO_ERROR;
 
@@ -107,7 +109,7 @@ build_triangle_list
     (ctxt->sl_ctxt, tbl, (face_range->end - face_range->begin) / 2));
 
   SL_FUNC(create_vector
-    (ctxt->sl_ctxt, sizeof(size_t), ALIGNOF(size_t), &indices));
+    (ctxt->sl_ctxt, sizeof(unsigned int), ALIGNOF(unsigned int), &indices));
   SL_FUNC(create_vector
     (ctxt->sl_ctxt, sizeof(float[8]), ALIGNOF(float[8]), &data));
   SL_FUNC(create_vector
@@ -182,6 +184,11 @@ build_triangle_list
         SL_FUNC(vector_push_back(ctxt->sl_ctxt, indices, (void*)&nb_indices));
         SL_FUNC(hash_table_insert
           (ctxt->sl_ctxt, tbl, (struct pair[]){{key, nb_indices}}));
+
+        if(nb_indices == UINT_MAX) {
+          err = RSRC_OVERFOW_ERROR;
+          goto error;
+        }
         ++nb_indices;
       }
     }
@@ -207,69 +214,6 @@ error:
     SL(free_vector(ctxt->sl_ctxt, attribs));
     attribs = NULL;
   }
-  goto exit;
-}
-
-static enum rsrc_error
-clear_geometry
-  (struct rsrc_context* ctxt,
-   struct rsrc_geometry* geom)
-{
-  struct primitive_set* prim_set = NULL;
-  size_t len = 0;
-  size_t i = 0;
-  enum rsrc_error err = RSRC_NO_ERROR;
-  enum sl_error sl_err = SL_NO_ERROR;
-
-  assert(ctxt && geom);
-
-  if(geom->primitive_set_list) {
-    sl_err = sl_vector_buffer
-      (ctxt->sl_ctxt,
-       geom->primitive_set_list,
-       &len,
-       NULL,
-       NULL,
-       (void**)&prim_set);
-    if(sl_err != SL_NO_ERROR) {
-      err = sl_to_rsrc_error(sl_err);
-      goto error;
-    }
-
-    for(i = 0; i < len; ++i) {
-      assert(prim_set[i].data_list != NULL);
-      sl_err = sl_free_vector(ctxt->sl_ctxt, prim_set[i].data_list);
-      if(sl_err != SL_NO_ERROR) {
-        err = sl_to_rsrc_error(sl_err);
-        goto error;
-      }
-
-      assert(prim_set[i].index_list != NULL);
-      sl_err = sl_free_vector(ctxt->sl_ctxt, prim_set[i].index_list);
-      if(sl_err != SL_NO_ERROR) {
-        err = sl_to_rsrc_error(sl_err);
-        goto error;
-      }
-
-      assert(prim_set[i].attrib_list != NULL);
-      sl_err = sl_free_vector(ctxt->sl_ctxt, prim_set[i].attrib_list);
-      if(sl_err != SL_NO_ERROR) {
-        err = sl_to_rsrc_error(sl_err);
-        goto error;
-      }
-    }
-
-    sl_err = sl_clear_vector(ctxt->sl_ctxt, geom->primitive_set_list);
-    if(sl_err != SL_NO_ERROR) {
-      err = sl_to_rsrc_error(sl_err);
-      goto error;
-    }
-  }
-
-exit:
-  return err;
-
-error:
   goto exit;
 }
 
@@ -351,7 +295,7 @@ rsrc_free_geometry
     goto error;
   }
 
-  err = clear_geometry(ctxt, geom);
+  err = rsrc_clear_geometry(ctxt, geom);
   if(err != RSRC_NO_ERROR)
     goto error;
 
@@ -370,6 +314,72 @@ rsrc_free_geometry
     }
   }
   free(geom);
+
+exit:
+  return err;
+
+error:
+  goto exit;
+}
+
+EXPORT_SYM enum rsrc_error
+rsrc_clear_geometry
+  (struct rsrc_context* ctxt,
+   struct rsrc_geometry* geom)
+{
+  struct primitive_set* prim_set = NULL;
+  size_t len = 0;
+  size_t i = 0;
+  enum rsrc_error err = RSRC_NO_ERROR;
+  enum sl_error sl_err = SL_NO_ERROR;
+
+  if(!ctxt || !geom) {
+    err = RSRC_INVALID_ARGUMENT;
+    goto error;
+  }
+
+  if(geom->primitive_set_list) {
+    sl_err = sl_vector_buffer
+      (ctxt->sl_ctxt,
+       geom->primitive_set_list,
+       &len,
+       NULL,
+       NULL,
+       (void**)&prim_set);
+    if(sl_err != SL_NO_ERROR) {
+      err = sl_to_rsrc_error(sl_err);
+      goto error;
+    }
+
+    for(i = 0; i < len; ++i) {
+      assert(prim_set[i].data_list != NULL);
+      sl_err = sl_free_vector(ctxt->sl_ctxt, prim_set[i].data_list);
+      if(sl_err != SL_NO_ERROR) {
+        err = sl_to_rsrc_error(sl_err);
+        goto error;
+      }
+
+      assert(prim_set[i].index_list != NULL);
+      sl_err = sl_free_vector(ctxt->sl_ctxt, prim_set[i].index_list);
+      if(sl_err != SL_NO_ERROR) {
+        err = sl_to_rsrc_error(sl_err);
+        goto error;
+      }
+
+      assert(prim_set[i].attrib_list != NULL);
+      sl_err = sl_free_vector(ctxt->sl_ctxt, prim_set[i].attrib_list);
+      if(sl_err != SL_NO_ERROR) {
+        err = sl_to_rsrc_error(sl_err);
+        goto error;
+      }
+    }
+
+    sl_err = sl_clear_vector(ctxt->sl_ctxt, geom->primitive_set_list);
+    if(sl_err != SL_NO_ERROR) {
+      err = sl_to_rsrc_error(sl_err);
+      goto error;
+    }
+  }
 
 exit:
   return err;
@@ -418,6 +428,10 @@ rsrc_geometry_from_wavefront_obj
   VECTOR_BUFFER(wobj->group_list, &nb_groups, &wobj_groups);
   #undef VECTOR_BUFFER
 
+  err = rsrc_clear_geometry(ctxt, geom);
+  if(err != RSRC_NO_ERROR)
+    goto error;
+
   for(group_id = 0; group_id < nb_groups; ++group_id) {
     const struct rsrc_wavefront_obj_range* face_range =
       &wobj_groups[group_id].face_range;
@@ -460,8 +474,8 @@ error:
   if(prim_set.attrib_list)
     SL(free_vector(ctxt->sl_ctxt, prim_set.attrib_list));
   {
-    UNUSED const enum sl_error err = clear_geometry(ctxt, geom);
-    assert(err == RSRC_NO_ERROR);
+    UNUSED const enum rsrc_error tmp_err = rsrc_clear_geometry(ctxt, geom);
+    assert(tmp_err == RSRC_NO_ERROR);
   }
   goto exit;
 }

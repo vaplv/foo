@@ -4,7 +4,8 @@
 #include "renderer/rdr_model_instance.h"
 #include "renderer/rdr_system.h"
 #include "renderer/rdr_world.h"
-#include "window_manager/wm.h"
+#include "window_manager/wm_device.h"
+#include "window_manager/wm_window.h"
 #include "sys/sys.h"
 #include <math.h>
 #include <assert.h>
@@ -209,6 +210,7 @@ main(int argc, char* argv[])
   const char* driver_name = NULL;
   float angle = 0.f;
   float transform_matrix[16];
+  enum wm_error wm_err = WM_NO_ERROR;
   int err = 0;
   int i = 0;
   bool null_driver = false;
@@ -227,14 +229,14 @@ main(int argc, char* argv[])
   }
   null_driver = is_driver_null(driver_name);
 
-  err = wm_create_device(&device);
-  if(err != 0) {
+  wm_err = wm_create_device(&device);
+  if(wm_err != WM_NO_ERROR) {
     fprintf(stderr, "Error creating the window manager device.\n");
     goto error;
   }
 
-  err = wm_create_window(device, &win_desc, &window);
-  if(err != 0) {
+  wm_err = wm_create_window(device, &win_desc, &window);
+  if(wm_err != WM_NO_ERROR) {
     fprintf(stderr, "Error spawning a window.\n");
     goto error;
   }
@@ -304,7 +306,7 @@ main(int argc, char* argv[])
     compute_transform(M_DEG_TO_RAD(angle), 0.f, 0.f, -10.f, view.transform);
     RDR(draw_world(sys, world, &view));
 
-    if(wm_swap(device, window) != 0) {
+    if(wm_swap(device, window) != WM_NO_ERROR) {
       fprintf(stderr, "Error swaping the window.\n");
       goto error;
     }
@@ -328,12 +330,12 @@ exit:
   if(sys)
     RDR(free_system(sys));
   if(window) {
-    err = wm_free_window(device, window);
-    assert(err == 0);
+    wm_err = wm_free_window(device, window);
+    assert(wm_err == WM_NO_ERROR);
   }
   if(device) {
-    err = wm_free_device(device);
-    assert(err == 0);
+    wm_err = wm_free_device(device);
+    assert(wm_err == WM_NO_ERROR);
   }
   return err;
 
