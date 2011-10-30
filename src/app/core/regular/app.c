@@ -30,14 +30,15 @@ static const char* default_shader_sources[] = {
     "#version 330\n"
     "uniform mat4x4 rdr_modelview;\n"
     "uniform mat4x4 rdr_projection;\n"
-    "//uniform mat4x4 rdr_modelview_invtrans;\n"
+    "uniform mat4x4 rdr_modelview_invtrans;\n"
     "in vec3 rdr_position;\n"
     "in vec3 rdr_normal;\n"
-    "out vec3 r_normal;\n"
-    "out vec3 r_posvs;\n"
+    "smooth out vec3 r_normal;\n"
+    "smooth out vec3 r_posvs;\n"
     "void main()\n"
     "{\n"
-    " //r_normal = (rdr_modelview_invtrans * vec4(rdr_normal, 1.f)).xyz;\n"
+    " vec4 normal = (rdr_modelview_invtrans * vec4(rdr_normal, 1.f));\n"
+    " r_normal = normal.xyz;\n"
     " vec4 posvs = (rdr_modelview * vec4(rdr_position, 1.f));\n"
     " r_posvs = posvs.xyz;\n"
     " gl_Position = rdr_projection * posvs;\n"
@@ -45,14 +46,13 @@ static const char* default_shader_sources[] = {
   [RDR_FRAGMENT_SHADER] =
     "#version 330\n"
     "out vec4 color;\n"
-    "in vec3 r_normal;\n"
-    "in vec3 r_posvs;\n"
+    "smooth in vec3 r_posvs;\n"
+    "smooth in vec3 r_normal;\n"
     "void main()\n"
     "{\n"
     " vec3 n = normalize(r_normal);\n"
     " vec3 e = normalize(r_posvs);\n"
-    " //color = vec4(max(dot(n, e), 0.f));\n"
-    " color = vec4(1.f);\n"
+    " color = vec4(dot(-e, n));\n"
     "}\n",
   [RDR_GEOMETRY_SHADER] = NULL
 };
@@ -441,6 +441,15 @@ init_common(struct app* app)
   if(app_err != APP_NO_ERROR)
     goto error;
 
+  app_err = app_look_at
+    (app,
+     app->view,
+     (float[]){10.f, 10.f, 10.f},
+     (float[]){0.f, 0.f, 0.f},
+     (float[]){0.f, 1.f, 0.f});
+  if(app_err != APP_NO_ERROR)
+    goto error;
+
 exit:
   return app_err;
 
@@ -606,7 +615,7 @@ app_run(struct app* app)
     app_err = wm_to_app_error(wm_err);
     goto error;
   }
-                  
+
 exit:
   return app_err;
 
@@ -650,6 +659,9 @@ rsrc_to_rdr_attrib_usage(enum rsrc_attrib_usage usage)
       break;
     case RSRC_ATTRIB_TEXCOORD:
       attr_usage = RDR_ATTRIB_TEXCOORD;
+      break;
+    case RSRC_ATTRIB_COLOR:
+      attr_usage = RDR_ATTRIB_COLOR;
       break;
     default:
       attr_usage = RDR_ATTRIB_UNKNOWN;

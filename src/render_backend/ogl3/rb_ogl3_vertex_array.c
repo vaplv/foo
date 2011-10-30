@@ -148,7 +148,8 @@ rb_vertex_index_array
   OGL(BindVertexArray(array->name));
   OGL(BindBuffer(GL_ELEMENT_ARRAY_BUFFER, buffer ? buffer->name : 0));
   OGL(BindVertexArray(ctxt->vertex_array_binding));
-  OGL(BindBuffer(GL_ELEMENT_ARRAY_BUFFER, ctxt->buffer_binding[RB_BIND_INDEX_BUFFER]));
+  OGL(BindBuffer
+      (GL_ELEMENT_ARRAY_BUFFER, ctxt->buffer_binding[RB_BIND_INDEX_BUFFER]));
 
   return 0;
 }

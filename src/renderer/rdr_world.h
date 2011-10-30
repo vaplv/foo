@@ -2,9 +2,10 @@
 #define RDR_WORLD_H
 
 #include "renderer/rdr_error.h"
+#include "sys/sys.h"
 
 struct rdr_view {
-  float transform[16];
+  ALIGN(16) float transform[16];
   float proj_ratio;
   float fov_x;
   float znear, zfar;

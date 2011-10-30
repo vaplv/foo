@@ -292,9 +292,9 @@ main(int argc, char* argv[])
       for(y = 0; y < 3; ++y) {
         for(x = 0; x < 3; ++x) {
           const float pos[3] = {
-            [0] = (x-1) * 1.5f,
-            [1] = (y-1) * 1.5f,
-            [2] = (z-1) * 1.5f
+            [0] = (x-1) * 3.5f,
+            [1] = (y-1) * 3.5f,
+            [2] = (z-1) * 3.5f
           };
           compute_transform(0.f, pos[0], pos[1], pos[2], transform_matrix);
           RDR(model_instance_transform
@@ -303,7 +303,7 @@ main(int argc, char* argv[])
       }
     }
 
-    compute_transform(M_DEG_TO_RAD(angle), 0.f, 0.f, -10.f, view.transform);
+    compute_transform(M_DEG_TO_RAD(angle), 0.f, 0.f, -20.f, view.transform);
     RDR(draw_world(sys, world, &view));
 
     if(wm_swap(device, window) != WM_NO_ERROR) {

@@ -14,6 +14,9 @@ struct user_command {
   signed char move_right;
   signed char move_up;
   signed char move_forward;
+  signed char pitch;
+  signed char yaw;
+  signed char roll;
   struct {
     unsigned int escape : 1;
   } flag;
@@ -62,11 +65,26 @@ process_user_command
   if(state == WM_PRESS) {
     usr_cmd->move_up += usr_cmd->move_up < SCHAR_MAX;
   }
+  WM(get_key_state(wm, WM_KEY_J, &state));
+  if(state == WM_PRESS) {
+    usr_cmd->pitch += usr_cmd->pitch < SCHAR_MAX;
+  }
+  WM(get_key_state(wm, WM_KEY_K, &state));
+  if(state == WM_PRESS) {
+    usr_cmd->pitch -= usr_cmd->pitch > SCHAR_MIN;
+  }
+  WM(get_key_state(wm, WM_KEY_H, &state));
+  if(state == WM_PRESS) {
+    usr_cmd->yaw += usr_cmd->pitch < SCHAR_MAX;
+  }
+  WM(get_key_state(wm, WM_KEY_L, &state));
+  if(state == WM_PRESS) {
+    usr_cmd->yaw -= usr_cmd->pitch > SCHAR_MIN;
+  }
   WM(get_key_state(wm, WM_KEY_ESC, &state));
   if(state == WM_PRESS) {
     usr_cmd->flag.escape = 1;
   }
-
   return GAME_NO_ERROR;
 }
 
@@ -77,7 +95,8 @@ update_view
    const struct user_command* usr_cmd)
 {
   struct app_view* view = NULL;
-  const float move_scale = 0.01f;
+  const float move_scale = 0.02f;
+  const float rotate_scale = 0.00025f;
 
   assert(game && app && usr_cmd);
 
@@ -88,8 +107,26 @@ update_view
      move_scale * (float)usr_cmd->move_right,
      move_scale * (float)usr_cmd->move_up,
      move_scale * (float)usr_cmd->move_forward));
-
+  APP(view_rotate
+    (app,
+     view,
+     rotate_scale * (float)usr_cmd->pitch,
+     rotate_scale * (float)usr_cmd->yaw,
+     rotate_scale * (float)usr_cmd->roll));
   return GAME_NO_ERROR;
+}
+
+static bool
+user_command_eq(struct user_command* cmd0, struct user_command* cmd1)
+{
+  return
+        cmd0->move_right == cmd1->move_right
+    &&  cmd0->move_up == cmd1->move_up
+    &&  cmd0->move_forward == cmd1->move_forward
+    &&  cmd0->pitch == cmd1->pitch
+    &&  cmd0->yaw == cmd1->yaw
+    &&  cmd0->roll == cmd1->roll
+    &&  cmd0->flag.escape == cmd1->flag.escape;
 }
 
 /*******************************************************************************
@@ -138,25 +175,28 @@ game_free(struct game* game)
 EXPORT_SYM enum game_error
 game_run(struct game* game, struct app* app, bool* keep_running)
 {
-  struct user_command usr_cmd;
+  struct user_command usr_cmd0, usr_cmd1;
   enum game_error game_err = GAME_NO_ERROR;
 
-  memset(&usr_cmd, 0, sizeof(struct user_command));
+  memset(&usr_cmd0, 0, sizeof(struct user_command));
+  memset(&usr_cmd1, 0, sizeof(struct user_command));
 
   if(!game || !app || !keep_running) {
     game_err = GAME_INVALID_ARGUMENT;
     goto error;
   }
 
-  game_err = process_user_command(game, app, &usr_cmd);
+  game_err = process_user_command(game, app, &usr_cmd1);
   if(game_err != GAME_NO_ERROR)
     goto error;
 
-  game_err = update_view(game, app, &usr_cmd);
-  if(game_err != GAME_NO_ERROR)
-    goto error;
+  if(user_command_eq(&usr_cmd0, &usr_cmd1) == false) {
+    game_err = update_view(game, app, &usr_cmd1);
+    if(game_err != GAME_NO_ERROR)
+      goto error;
+  }
 
-  *keep_running = !usr_cmd.flag.escape;
+  *keep_running = !usr_cmd1.flag.escape;
 
 exit:
   return game_err;

@@ -12,7 +12,8 @@ struct rsrc_wavefront_obj;
 enum rsrc_attrib_usage {
   RSRC_ATTRIB_POSITION,
   RSRC_ATTRIB_NORMAL,
-  RSRC_ATTRIB_TEXCOORD
+  RSRC_ATTRIB_TEXCOORD,
+  RSRC_ATTRIB_COLOR
 };
 
 enum rsrc_primitive_type {

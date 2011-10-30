@@ -1,13 +1,8 @@
-/* TODO use the math library when it will be available. */
 #include "app/core/regular/app_view_c.h"
 #include "app/core/app_view.h"
 #include "sys/sys.h"
 #include <math.h>
 #include <stdlib.h>
-
-/* TODO remove me */
-#include <assert.h>
-#include <stdbool.h>
 
 #define DEG2RAD(x) ((x)*0.0174532925199432957692369076848861L)
 
@@ -28,12 +23,9 @@ app_create_view(struct app* app, struct app_view** out_view)
     goto error;
   }
 
-  view->transform[0] = 1.f;
-  view->transform[5] = 1.f;
-  view->transform[10] = 1.f;
-  view->transform[15] = 1.f;
+  aosf44_identity(&view->transform);
   view->ratio = 4.f / 3.f;
-  view->fov_x = DEG2RAD(80.f);
+  view->fov_x = DEG2RAD(90.f);
   view->znear = 1.f;
   view->zfar = 1000.f;
 
@@ -67,55 +59,29 @@ app_look_at
    float target[3],
    float up[3])
 {
-  float f[3] = {0.f, 0.f, 0.f};
-  float s[3] = {0.f, 0.f, 0.f};
-  float u[3] = {0.f, 0.f, 0.f};
-  float rcp_len = 0.f;
+  vf4_t f, s, u;
+  vf4_t aos_target;
+  vf4_t aos_pos;
+  vf4_t aos_up;
 
   if(!app || !view || !pos || !target || !up)
     return APP_INVALID_ARGUMENT;
 
-  f[0] = target[0] - pos[0];
-  f[1] = target[1] - pos[1];
-  f[2] = target[2] - pos[2];
-  rcp_len = 1.f / sqrtf(f[0]*f[0] + f[1]*f[1] + f[2]*f[2]);
-  f[0] *= rcp_len;
-  f[1] *= rcp_len;
-  f[2] *= rcp_len;
+  aos_target = vf4_set(target[0], target[1], target[3], 0.f);
+  aos_pos = vf4_set(pos[0], pos[1], pos[2], 0.f);
+  aos_up = vf4_set(up[0], up[1], up[2], 0.f);
 
-  rcp_len = 1.f / sqrtf(up[0]*up[0] + up[1]*up[1] + up[2]*up[2]);
-  u[0] = up[0] * rcp_len;
-  u[1] = up[1] * rcp_len;
-  u[2] = up[2] * rcp_len;
+  f = vf4_normalize(vf4_sub(aos_target, aos_pos));
+  u = vf4_normalize(aos_up);
+  s = vf4_cross3(f, u);
+  u = vf4_cross3(s, f);
 
-  s[0] = f[1]*u[2] - f[2]*u[1];
-  s[1] = f[2]*u[0] - f[0]*u[2];
-  s[2] = f[0]*u[1] - f[1]*u[0];
+  view->transform.c0 = vf4_xyzd(s, vf4_minus(vf4_dot3(s, aos_pos)));
+  view->transform.c1 = vf4_xyzd(u, vf4_minus(vf4_dot3(u, aos_pos)));
+  view->transform.c2 = vf4_xyzd(vf4_minus(f), vf4_dot3(f, aos_pos));
+  view->transform.c3 = vf4_set(0.f, 0.f, 0.f, 1.f);
 
-  u[0] = s[1]*f[2] - s[2]*f[1];
-  u[1] = s[2]*f[0] - s[0]*f[2];
-  u[2] = s[0]*f[1] - s[1]*f[0];
-
-  view->transform[0] = s[0];
-  view->transform[1] = u[0];
-  view->transform[2] = -f[0];
-  view->transform[3] = 0.f;
-
-  view->transform[4] = s[1];
-  view->transform[5] = u[1];
-  view->transform[6] = -f[1];
-  view->transform[7] = 0.f;
-
-  view->transform[8] = s[2];
-  view->transform[9] = u[2];
-  view->transform[10] = -f[2];
-  view->transform[11] = 0.f;
-
-  view->transform[12] = -(s[0]*pos[0] + s[1]*pos[1] + s[2]*pos[2]);
-  view->transform[13] = -(u[0]*pos[0] + u[1]*pos[1] + u[2]*pos[2]);
-  view->transform[14] =  (f[0]*pos[0] + f[1]*pos[1] + f[2]*pos[2]);
-  view->transform[15] = 1.f;
-
+  aosf44_transpose(&view->transform, &view->transform);
   return APP_NO_ERROR;
 }
 
@@ -148,27 +114,7 @@ app_view_translate
   if(!app || !view)
     return APP_INVALID_ARGUMENT;
 
-  view->transform[12] =
-      view->transform[0] * x
-    + view->transform[4] * y
-    + view->transform[8] * z
-    + view->transform[12];
-  view->transform[13] =
-      view->transform[1] * x
-    + view->transform[5] * y
-    + view->transform[9] * z
-    + view->transform[13];
-  view->transform[14] =
-      view->transform[2] * x
-    + view->transform[6] * y
-    + view->transform[10] * z
-    + view->transform[14];
-  view->transform[15] =
-      view->transform[3] * x
-    + view->transform[7] * y
-    + view->transform[11] * z
-    + view->transform[15];
-
+  view->transform.c3 = vf4_add(view->transform.c3, vf4_set(x, y, z, 0.f));
   return APP_NO_ERROR;
 }
 
@@ -181,80 +127,28 @@ app_view_rotate
    float yaw,
    float roll)
 {
-  float m[9];
-  float transform[16];
+  struct aosf44 f44;
   float c1, c2, c3;
   float s1, s2, s3;
 
   if(!app || !view)
     return APP_INVALID_ARGUMENT;
 
-  c1 = cosf(pitch);
-  c2 = cosf(yaw);
-  c3 = cosf(roll);
+  if(!yaw && !pitch && !roll)
+    return APP_NO_ERROR;
 
-  s1 = cosf(pitch);
-  s2 = cosf(yaw);
-  s3 = cosf(roll);
+  c1 = cos(pitch);
+  c2 = cos(yaw);
+  c3 = cos(roll);
+  s1 = sin(pitch);
+  s2 = sin(yaw);
+  s3 = sin(roll);
 
-  m[0] = c2*c3;
-  m[1] = c1*s3 + c3*s1*s2;
-  m[2] = s1*s3 - c1*c3*s2;
-
-  m[3] = -c2*s3;
-  m[4] = c1*c3 - s1*s2*s3;
-  m[5] = c1*s2*s3 + c3*s1;
-
-  m[6] = s2;
-  m[7] = -c2*s1;
-  m[8] = c1*c2;
-
-  transform[0] =
-      view->transform[0]*m[0]
-    + view->transform[4]*m[1]
-    + view->transform[8]*m[2];
-  transform[4] =
-      view->transform[0]*m[3]
-    + view->transform[4]*m[4]
-    + view->transform[8]*m[5];
-  transform[8] =
-      view->transform[0]*m[6]
-    + view->transform[4]*m[7]
-    + view->transform[8]*m[8];
-
-  transform[1] =
-      view->transform[1]*m[0]
-    + view->transform[5]*m[1]
-    + view->transform[9]*m[2];
-  transform[5] =
-      view->transform[1]*m[3]
-    + view->transform[5]*m[4]
-    + view->transform[9]*m[5];
-  transform[9] =
-      view->transform[1]*m[6]
-    + view->transform[5]*m[7]
-    + view->transform[9]*m[8];
-
-  transform[2] =
-      view->transform[2]*m[0]
-    + view->transform[6]*m[1]
-    + view->transform[10]*m[2];
-  transform[6] =
-      view->transform[2]*m[3]
-    + view->transform[6]*m[4]
-    + view->transform[10]*m[5];
-  transform[10] =
-      view->transform[2]*m[6]
-    + view->transform[6]*m[7]
-    + view->transform[10]*m[8];
-
-  transform[3] = view->transform[3];
-  transform[7] = view->transform[7];
-  transform[11] = view->transform[11];
-  transform[12] = view->transform[12];
-  transform[13] = view->transform[13];
-  transform[14] = view->transform[14];
-  transform[15] = view->transform[15];
+  f44.c0 = vf4_set(c2*c3, c1*s3 + c3*s1*s2, s1*s3 - c1*c3*s2, 0.f);
+  f44.c1 = vf4_set(-c2*s3, c1*c3 - s1*s2*s3, c1*s2*s3 + c3*s1, 0.f);
+  f44.c2 = vf4_set(s2, -c2*s1, c1*c2, 0.f);
+  f44.c3 = vf4_set(0.f, 0.f, 0.f, 1.f);
+  aosf44_mulf44(&view->transform, &f44, &view->transform);
 
   return APP_NO_ERROR;
 }
@@ -268,11 +162,38 @@ app_get_view_space
    float up[3] UNUSED,
    float forward[3] UNUSED)
 {
+  ALIGN(16) float tmp[4];
+  struct aosf44 m;
+  vf4_t v;
+
   if(!app || !view)
     return APP_INVALID_ARGUMENT;
 
-  /* TODO */
-  assert(false);
+  v = vf4_normalize(vf4_minus(aosf44_row0(&view->transform)));
+  vf4_store(tmp, v);
+  right[0] = tmp[0];
+  right[1] = tmp[1];
+  right[2] = tmp[2];
+
+  v = vf4_normalize(vf4_minus(aosf44_row1(&view->transform)));
+  vf4_store(tmp, v);
+  up[0] = tmp[0];
+  up[1] = tmp[1];
+  up[2] = tmp[2];
+
+  v = vf4_normalize(aosf44_row1(&view->transform));
+  vf4_store(tmp, v);
+  forward[0] = tmp[0];
+  forward[1] = tmp[1];
+  forward[2] = tmp[2];
+
+  v = aosf44_inverse(&m, &view->transform);
+  v = vf4_sel(view->transform.c3, vf4_zero(), vf4_eq(v, vf4_zero()));
+  vf4_store(tmp, v);
+  pos[0] = tmp[0];
+  pos[1] = tmp[1];
+  pos[2] = tmp[2];
+
   return APP_NO_ERROR;
 }
 

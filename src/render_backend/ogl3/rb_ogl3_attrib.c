@@ -68,7 +68,6 @@ get_active_attrib
   if(!attr)
     goto error;
 
-  attr->index = index;
   attr->program = program;
   attr->program->ref_count += 1;
   attr->type = attr_type;
@@ -83,6 +82,7 @@ get_active_attrib
       goto error;
 
     attr->name = strncpy(attr->name, buffer, attr_namelen);
+    attr->index = OGL(GetAttribLocation(program->name, attr->name));
   }
 
 exit:
@@ -127,7 +127,7 @@ rb_get_attribs
   assert(nb_attribs >= 0);
 
   if(dst_attrib_list) {
-       OGL(GetProgramiv(prog->name, GL_ACTIVE_ATTRIBUTE_MAX_LENGTH, &attr_buflen));
+    OGL(GetProgramiv(prog->name, GL_ACTIVE_ATTRIBUTE_MAX_LENGTH, &attr_buflen));
     attr_buffer = malloc(sizeof(GLchar) * attr_buflen);
     if(!attr_buffer)
       goto error;
@@ -193,6 +193,7 @@ rb_get_named_attrib
     goto error;
 
   attr->name = strncpy(attr->name, name, name_len);
+  attr->index = OGL(GetAttribLocation(prog->name, attr->name));
 
 exit:
   *out_attrib = attr;

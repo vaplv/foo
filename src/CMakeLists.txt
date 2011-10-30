@@ -8,7 +8,7 @@ set(CMAKE_VERBOSE_MAKEFILE false)
 
 set(CMAKE_BUILD_TYPE "Debug")
 set(CMAKE_C_FLAGS 
-  "-pedantic -std=c99 -Wall -Wcast-align -Wextra -Wmissing-declarations -Wmissing-prototypes -ffast-math -fvisibility=hidden")
+  "-pedantic -std=c99 -Wall -Wcast-align -Wextra -Wmissing-declarations -Wmissing-prototypes -ffast-math -fvisibility=hidden -msse3")
 set(CMAKE_C_FLAGS_DEBUG "-g -DDEBUG")
 set(CMAKE_C_FLAGS_RELEASE "-O3 -DNDEBUG")
  
@@ -17,6 +17,7 @@ link_directories(/usr/lib /usr/local/lib ${CMAKE_LIBRARY_OUTPUT_DIRECTORY})
 
 add_subdirectory(app)
 add_subdirectory(examples)
+add_subdirectory(maths)
 add_subdirectory(render_backend)
 add_subdirectory(renderer)
 add_subdirectory(resources)

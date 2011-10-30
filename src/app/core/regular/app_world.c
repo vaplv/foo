@@ -4,6 +4,7 @@
 #include "app/core/regular/app_view_c.h"
 #include "app/core/regular/app_world_c.h"
 #include "app/core/app_world.h"
+#include "maths/simd/aosf44.h"
 #include "renderer/rdr_error.h"
 #include "renderer/rdr_world.h"
 #include "stdlib/sl_vector.h"
@@ -238,7 +239,8 @@ app_draw_world
   WM(get_window_desc(app->wm, app->window, &win_desc));
 
   assert(sizeof(view->transform) == sizeof(render_view.transform));
-  memcpy(render_view.transform, view->transform, sizeof(view->transform));
+
+  aosf44_store(render_view.transform, &view->transform);
   render_view.proj_ratio = view->ratio;
   render_view.fov_x = view->fov_x;
   render_view.znear = view->znear;

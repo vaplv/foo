@@ -11,7 +11,7 @@
 #include <string.h>
 
 struct primitive_set {
-  struct sl_vector* data_list; /* vector of struct face_vertex. */
+  struct sl_vector* data_list; /* vector of float. */
   struct sl_vector* index_list; /* vector of unsigned int. */
   struct sl_vector* attrib_list; /* vector of struct rsrc_attrib. */
   enum rsrc_primitive_type primitive_type;

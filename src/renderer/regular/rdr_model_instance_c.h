@@ -5,14 +5,15 @@
 #include "renderer/regular/rdr_object.h"
 #include <stddef.h>
 
+struct aosf44;
 struct rdr_system;
 RDR_OBJECT(struct rdr_model_instance);
 
 extern enum rdr_error
 rdr_draw_instances
   (struct rdr_system* sys,
-   const float view_matrix[16],
-   const float proj_matrix[16],
+   const struct aosf44* view_matrix,
+   const struct aosf44* proj_matrix,
    size_t nb_instances,
    struct rdr_model_instance** instance_list);
 

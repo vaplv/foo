@@ -1,7 +1,8 @@
+#include "maths/simd/aosf44.h"
 #include "renderer/regular/rdr_attrib_c.h"
 #include "renderer/regular/rdr_error_c.h"
 #include "renderer/regular/rdr_model_c.h"
-#include  "renderer/regular/rdr_model_instance_c.h"
+#include "renderer/regular/rdr_model_instance_c.h"
 #include "renderer/regular/rdr_system_c.h"
 #include "renderer/rdr_model.h"
 #include "renderer/rdr_model_instance.h"
@@ -91,7 +92,7 @@ struct model_instance {
   void* uniform_buffer;
   void* attrib_buffer;
   /* Column major transform matrix of the instance. */
-  float transform[16];
+  struct aosf44 transform;
   /* */
   enum rdr_material_density material_density;
   struct rdr_rasterizer_desc rasterizer_desc;
@@ -102,44 +103,6 @@ struct model_instance {
  * Helper functions.
  *
  ******************************************************************************/
-/* TODO Use the simd math when they will be available. */
-static void
-mul_mat44
-  (const float m0[16],
-   const float m1[16],
-   float* restrict result)
-{
-  assert(m0 && m1 && result && result != m0 && result != m1);
-
-  result[0] = m0[0]*m1[0] + m0[4]*m1[1] + m0[8]*m1[2] + m0[12]*m1[3];
-  result[1] = m0[1]*m1[0] + m0[5]*m1[1] + m0[9]*m1[2] + m0[13]*m1[3];
-  result[2] = m0[2]*m1[0] + m0[6]*m1[1] + m0[10]*m1[2] + m0[14]*m1[3];
-  result[3] = m0[3]*m1[0] + m0[7]*m1[1] + m0[11]*m1[2] + m0[15]*m1[3];
-
-  result[4] = m0[0]*m1[4] + m0[4]*m1[5] + m0[8]*m1[6] + m0[12]*m1[7];
-  result[5] = m0[1]*m1[4] + m0[5]*m1[5] + m0[9]*m1[6] + m0[13]*m1[7];
-  result[6] = m0[2]*m1[4] + m0[6]*m1[5] + m0[10]*m1[6] + m0[14]*m1[7];
-  result[7] = m0[3]*m1[4] + m0[7]*m1[5] + m0[11]*m1[6] + m0[15]*m1[7];
-
-  result[8] = m0[0]*m1[8] + m0[4]*m1[9] + m0[8]*m1[10] + m0[12]*m1[11];
-  result[9] = m0[1]*m1[8] + m0[5]*m1[9] + m0[9]*m1[10] + m0[13]*m1[11];
-  result[10] = m0[2]*m1[8] + m0[6]*m1[9] + m0[10]*m1[10] + m0[14]*m1[11];
-  result[11] = m0[3]*m1[8] + m0[7]*m1[9] + m0[11]*m1[10] + m0[15]*m1[11];
-
-  result[12] = m0[0]*m1[12] + m0[4]*m1[13] + m0[8]*m1[14] + m0[12]*m1[15];
-  result[13] = m0[1]*m1[12] + m0[5]*m1[13] + m0[9]*m1[14] + m0[13]*m1[15];
-  result[14] = m0[2]*m1[12] + m0[6]*m1[13] + m0[10]*m1[14] + m0[14]*m1[15];
-  result[15] = m0[3]*m1[12] + m0[7]*m1[13] + m0[11]*m1[14] + m0[15]*m1[15];
-}
-
-/* TODO Use the simd math when they will be available. */
-static void
-invtrans_mat44(const float* restrict mat UNUSED,  float* restrict result UNUSED)
-{
-  /* TODO. */
-  /*assert(false); */
-}
-
 static enum rdr_error
 setup_uniform_data_list
   (struct rdr_system* sys,
@@ -245,16 +208,17 @@ dispatch_uniform_data
    size_t nb_uniforms,
    struct rdr_model_uniform* model_uniform_list,
    void* uniform_data_list,
-   const float transform[16],
-   const float view_matrix[16],
-   const float proj_matrix[16])
+   const struct aosf44* transform,
+   const struct aosf44* view_matrix,
+   const struct aosf44* proj_matrix)
 {
-  float tmp_mat44[16];
-  void* data = NULL;
+  struct aosf44 tmp_mat44;
+  ALIGN(16) float mat[16];
+  void* data;
   size_t i = 0;
   enum rdr_error rdr_err = RDR_NO_ERROR;
 
-  memset(tmp_mat44, 0, sizeof(tmp_mat44));
+  memset(mat, 0, sizeof(mat));
 
   assert(sys
       && (!nb_uniforms || (uniform_data_list && model_uniform_list))
@@ -262,7 +226,7 @@ dispatch_uniform_data
       && view_matrix
       && proj_matrix);
 
-  data = uniform_data_list;
+  data = (float*)uniform_data_list;
   for(i = 0; i < nb_uniforms; ++i) {
     struct rb_uniform_desc uniform_desc;
     int err = 0;
@@ -277,18 +241,25 @@ dispatch_uniform_data
     /* TODO: cache the matrix transformation. */
     switch(model_uniform_list[i].usage) {
       case RDR_MODELVIEW_UNIFORM:
-        mul_mat44(view_matrix, transform, data);
+        aosf44_mulf44(&tmp_mat44, view_matrix, transform);
+        aosf44_store(mat, &tmp_mat44);
+        memcpy(data, mat, sizeof(mat));
         break;
       case RDR_PROJECTION_UNIFORM:
-        memcpy(data, proj_matrix, sizeof(float) * 16);
+        aosf44_store(mat, proj_matrix);
+        memcpy(data, mat, sizeof(mat));
         break;
       case RDR_VIEWPROJ_UNIFORM:
-        mul_mat44(view_matrix, transform, tmp_mat44);
-        mul_mat44(proj_matrix, tmp_mat44, data);
+        aosf44_mulf44(&tmp_mat44, view_matrix, transform);
+        aosf44_mulf44(&tmp_mat44, proj_matrix, &tmp_mat44);
+        aosf44_store(mat, &tmp_mat44);
+        memcpy(data, mat, sizeof(mat));
         break;
       case RDR_MODELVIEW_INVTRANS_UNIFORM:
-        mul_mat44(view_matrix, transform, tmp_mat44);
-        invtrans_mat44(tmp_mat44, data);
+        aosf44_mulf44(&tmp_mat44, view_matrix, transform);
+        aosf44_invtrans(&tmp_mat44, &tmp_mat44);
+        aosf44_store(mat, &tmp_mat44);
+        memcpy(data, mat, sizeof(mat));
         break;
       case RDR_REGULAR_UNIFORM:
         /* nothing */
@@ -696,16 +667,19 @@ EXPORT_SYM enum rdr_error
 rdr_model_instance_transform
   (struct rdr_system* sys,
    struct rdr_model_instance* instance_obj,
-   const float transform[16])
+   const float mat[16])
 {
   struct model_instance* instance = NULL;
 
-  if(!sys || !instance_obj || !transform)
+  if(!sys || !instance_obj || !mat)
     return RDR_INVALID_ARGUMENT;
 
   instance = RDR_GET_OBJECT_DATA(sys, instance_obj);
 
-  memcpy(instance->transform, transform, sizeof(float) * 16);
+  instance->transform.c0 = vf4_set(mat[0], mat[1], mat[2], mat[3]);
+  instance->transform.c1 = vf4_set(mat[4], mat[5], mat[6], mat[7]);
+  instance->transform.c2 = vf4_set(mat[8], mat[9], mat[10], mat[11]);
+  instance->transform.c3 = vf4_set(mat[12], mat[13], mat[14], mat[15]);
   return RDR_NO_ERROR;
 }
 
@@ -716,13 +690,14 @@ rdr_get_model_instance_transform
    float transform[16])
 {
   struct model_instance* instance = NULL;
+  ALIGN(16) float mat[16];
 
   if(!sys || !instance_obj || !transform)
     return RDR_INVALID_ARGUMENT;
 
   instance = RDR_GET_OBJECT_DATA(sys, instance_obj);
-
-  transform = memcpy(transform, instance->transform, sizeof(float) * 16);
+  aosf44_store(mat, &instance->transform);
+  transform = memcpy(transform, mat, sizeof(float) * 16);
   return RDR_NO_ERROR;
 }
 
@@ -883,8 +858,8 @@ error:
 enum rdr_error
 rdr_draw_instances
   (struct rdr_system* sys,
-   const float view_matrix[16],
-   const float proj_matrix[16],
+   const struct aosf44* view_matrix,
+   const struct aosf44* proj_matrix,
    size_t nb_instances,
    struct rdr_model_instance** instance_list)
 {
@@ -928,7 +903,7 @@ rdr_draw_instances
        bound_mdl_desc.nb_uniforms,
        bound_mdl_desc.uniform_list,
        instance->uniform_buffer,
-       instance->transform,
+       &instance->transform,
        view_matrix,
        proj_matrix);
     if(rdr_err != RDR_NO_ERROR)

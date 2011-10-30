@@ -1,3 +1,4 @@
+#include "maths/simd/aosf44.h"
 #include "renderer/regular/rdr_error_c.h"
 #include "renderer/regular/rdr_model_instance_c.h"
 #include "renderer/regular/rdr_system_c.h"
@@ -21,29 +22,22 @@ struct rdr_world {
  *
  ******************************************************************************/
 static void
-compute_proj(float fov_x, float ratio, float znear, float zfar, float* proj)
+compute_proj
+  (float fov_x, 
+   float ratio, 
+   float znear, 
+   float zfar, 
+   struct aosf44* proj)
 {
   const float fov_y = fov_x / ratio;
   const float f = cosf(fov_y*0.5f) / sinf(fov_y*0.5f);
-  proj[0] = f / ratio;
-  proj[1] = 0.f;
-  proj[2] = 0.f;
-  proj[3] = 0.f;
 
-  proj[4] = 0.f;
-  proj[5] = f;
-  proj[6] = 0.f;
-  proj[7] = 0.f;
+  assert(proj);
 
-  proj[8] = 0.f;
-  proj[9] = 0.f;
-  proj[10] = (zfar + znear) / (znear - zfar);
-  proj[11] = -1.f;
-
-  proj[12] = 0.f;
-  proj[13] = 0.f;
-  proj[14] = (2.f * zfar * znear) / (znear - zfar);
-  proj[15] = 0.f;
+  proj->c0 = vf4_set(f / ratio, 0.f, 0.f, 0.f);
+  proj->c1 = vf4_set(0.f, f, 0.f, 0.f);
+  proj->c2 = vf4_set(0.f, 0.f, (zfar + znear) / (znear - zfar), -1.f);
+  proj->c3 = vf4_set(0.f, 0.f, (2.f * zfar * znear) / (znear - zfar), 0.f);
 }
 
 static int
@@ -244,7 +238,8 @@ rdr_draw_world
     .enable_stencil_test = 0,
     .depth_func = RB_COMPARISON_LESS_EQUAL,
   };
-  float proj_matrix[16];
+  struct aosf44 view_matrix;
+  struct aosf44 proj_matrix;
   struct rdr_model_instance** instance_list = NULL;
   enum rdr_error rdr_err = RDR_NO_ERROR;
   enum sl_error sl_err = SL_NO_ERROR;
@@ -287,11 +282,11 @@ rdr_draw_world
 
   assert(instance_list != NULL || nb_instances == 0);
   if(instance_list != NULL) {
+    aosf44_load(&view_matrix, view->transform);
     compute_proj
-      (view->fov_x, view->proj_ratio, view->znear, view->zfar, proj_matrix);
-
+      (view->fov_x, view->proj_ratio, view->znear, view->zfar, &proj_matrix);
     rdr_err = rdr_draw_instances
-      (sys, view->transform, proj_matrix, nb_instances, instance_list);
+      (sys, &view_matrix, &proj_matrix, nb_instances, instance_list);
     if(rdr_err != RDR_NO_ERROR)
       goto error;
   }
