@@ -111,8 +111,8 @@ error:
  * Helper functions.
  *
  ******************************************************************************/
-/* Check that the name parameter is a valid group name. Ony alpha numeric and
- * '_' chars are allowed. */
+/* Check that the name parameter is a valid group name. Ony alpha numeric, ':'
+ * and '_' chars are allowed. */
 static bool
 is_name(const char* name)
 {
@@ -126,7 +126,7 @@ is_name(const char* name)
 
   while(*ptr!='\0' && no_error) {
     const char c = *ptr;
-    no_error = isalpha(c) || isdigit(c) || c=='_';
+    no_error = isalpha(c) || isdigit(c) || c=='_' || c==':';
     ++ptr;
   }
 
@@ -655,8 +655,8 @@ parse_smooth_group
     no_error = (*ptr == '\0');
     is_on = i > 0;
   } else {
-    is_on = strcmp(token, "on");
-    no_error = is_on || strcmp(token, "off");
+    is_on = strcmp(token, "on") == 0;
+    no_error = is_on || strcmp(token, "off") == 0;
   }
 
   if(!no_error || lex_next_token(lex)) {

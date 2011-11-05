@@ -8,4 +8,4 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY
 add_executable(utest_maths utest_maths.c)
 target_link_libraries(utest_maths mathssse)
 
-add_test(utest_maths ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/utest_maths)
+add_test(maths ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/utest_maths)

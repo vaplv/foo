@@ -29,7 +29,7 @@ struct user_command {
  ******************************************************************************/
 static enum game_error
 process_user_command
-  (struct game* game,
+  (struct game* game UNUSED,
    struct app* app,
    struct user_command* usr_cmd)
 {
@@ -90,7 +90,7 @@ process_user_command
 
 static enum game_error
 update_view
-  (struct game* game,
+  (struct game* game UNUSED,
    struct app* app,
    const struct user_command* usr_cmd)
 {

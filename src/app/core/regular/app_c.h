@@ -13,13 +13,25 @@
   #define SL(func) assert(SL_NO_ERROR == sl_##func)
   #define RSRC(func) assert(RSRC_NO_ERROR == rsrc_##func)
   #define RDR(func) assert(RDR_NO_ERROR == rdr_##func)
+  #define SYS(func) assert(SYS_NO_ERROR == sys_##func)
   #define WM(func) assert(WM_NO_ERROR == wm_##func)
 #else
   #define SL(func) sl_##func
   #define RSRC(func) rsrc_##func
   #define RDR(func) rdr_##func
+  #define SYS(func) sys_##func
   #define WM(func) wm_##func
 #endif
+
+#define APP_LOG_MSG(app, ...) \
+  SYS(logger_print((app)->sys, (app)->logger, __VA_ARGS__))
+
+#define APP_ERR_PREFIX "error: "
+#define APP_LOG_ERR(app, ...) \
+  SYS(logger_print \
+      ((app)->sys, \
+       (app)->logger, \
+       "\033[31m" APP_ERR_PREFIX "\033[0m" __VA_ARGS__)) \
 
 struct app_view;
 struct app_world;
@@ -30,6 +42,8 @@ struct rsrc_context;
 struct rsrc_wavefront_obj;
 struct sl_context;
 struct sl_vector;
+struct sys;
+struct sys_logger;
 struct wm_device;
 struct wm_window;
 
@@ -43,6 +57,8 @@ struct app {
   struct sl_context* sl;
   struct sl_vector* model_list; /* vector of app_model*. */
   struct sl_vector* model_instance_list; /* vector of app_model_instance* .*/
+  struct sys* sys;
+  struct sys_logger* logger;
   struct wm_device* wm;
   struct wm_window* window;
 };

@@ -28,6 +28,31 @@ sl_to_app_error(enum sl_error err)
 }
 
 enum app_error
+sys_to_app_error(enum sys_error err)
+{
+  enum app_error app_err = APP_NO_ERROR;
+  switch(err) {
+    case SYS_ALIGNMENT_ERROR:
+      app_err = APP_ALIGNMENT_ERROR;
+      break;
+    case SYS_INVALID_ARGUMENT:
+    case SYS_INTERNAL_ERROR:
+      app_err = APP_INTERNAL_ERROR;
+      break;
+    case SYS_MEMORY_ERROR:
+      app_err = APP_MEMORY_ERROR;
+      break;
+    case SYS_NO_ERROR:
+      app_err = APP_NO_ERROR;
+      break;
+    default:
+      app_err = APP_UNKNOWN_ERROR;
+      break;
+  }
+  return app_err;
+}
+
+enum app_error
 rdr_to_app_error(enum rdr_error err)
 {
   enum app_error app_err = APP_NO_ERROR;

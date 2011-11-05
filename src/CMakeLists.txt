@@ -22,6 +22,7 @@ add_subdirectory(render_backend)
 add_subdirectory(renderer)
 add_subdirectory(resources)
 add_subdirectory(stdlib)
+add_subdirectory(sys)
 add_subdirectory(utest)
 add_subdirectory(window_manager)
 

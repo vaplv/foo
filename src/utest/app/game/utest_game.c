@@ -1,5 +1,6 @@
 #include "app/core/app.h"
 #include "app/game/game.h"
+#include "sys/sys.h"
 #include "utest/utest.h"
 
 int
@@ -8,6 +9,7 @@ main(int argc, char** argv)
   struct app_args args = { NULL, NULL };
   struct app* app = NULL;
   struct game* game = NULL;
+  struct sys* sys = NULL;
   bool b = false;
 
   if(argc != 2) {
@@ -16,7 +18,8 @@ main(int argc, char** argv)
   }
   args.render_driver = argv[1];
 
-  CHECK(app_init(&args, &app), APP_NO_ERROR);
+  CHECK(sys_init(&sys), SYS_NO_ERROR);
+  CHECK(app_init(&args, sys, &app), APP_NO_ERROR);
 
   CHECK(game_create(NULL), GAME_INVALID_ARGUMENT);
   CHECK(game_create(&game), GAME_NO_ERROR);
@@ -34,5 +37,6 @@ main(int argc, char** argv)
   CHECK(game_free(game), GAME_NO_ERROR);
 
   CHECK(app_shutdown(app), APP_NO_ERROR);
+  CHECK(sys_shutdown(sys), SYS_NO_ERROR);
   return 0;
 }

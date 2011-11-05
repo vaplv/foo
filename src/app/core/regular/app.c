@@ -15,6 +15,7 @@
 #include "stdlib/sl_context.h"
 #include "stdlib/sl_vector.h"
 #include "sys/sys.h"
+#include "sys/sys_logger.h"
 #include "window_manager/wm_device.h"
 #include "window_manager/wm_error.h"
 #include "window_manager/wm_window.h"
@@ -24,6 +25,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 
 static const char* default_shader_sources[] = {
   [RDR_VERTEX_SHADER] =
@@ -62,6 +64,16 @@ static const char* default_shader_sources[] = {
  * Helper functions.
  *
  ******************************************************************************/
+static void
+std_log_func(const char* msg, void* data UNUSED)
+{
+  if(strncasecmp(msg, APP_ERR_PREFIX, sizeof(APP_ERR_PREFIX)) == 0) {
+    fprintf(stderr, msg);
+  } else {
+    fprintf(stdout, msg);
+  }
+}
+
 static enum app_error
 shutdown_window_manager(struct app* app)
 {
@@ -253,6 +265,31 @@ error:
 }
 
 static enum app_error
+shutdown_sys(struct app* app)
+{
+  enum sys_error sys_err = SYS_NO_ERROR;
+  enum app_error app_err = APP_NO_ERROR;
+
+  assert(app->sys || app->logger == NULL);
+
+  if(app->sys) {
+    sys_err = sys_free_logger(app->sys, app->logger);
+    if(sys_err != SYS_NO_ERROR) {
+      app_err = sys_to_app_error(sys_err);
+      goto error;
+    }
+    app->logger = NULL;
+
+    RELEASE(app->sys);
+    app->sys = NULL;
+  }
+exit:
+  return app_err;
+error:
+  goto exit;
+}
+
+static enum app_error
 shutdown(struct app* app)
 {
   enum app_error app_err = APP_NO_ERROR;
@@ -271,6 +308,9 @@ shutdown(struct app* app)
     if(app_err != APP_NO_ERROR)
       goto error;
     app_err = shutdown_window_manager(app);
+    if(app_err != APP_NO_ERROR)
+      goto error;
+    app_err = shutdown_sys(app);
     if(app_err != APP_NO_ERROR)
       goto error;
   }
@@ -341,7 +381,7 @@ init_renderer(struct app* app, const char* driver)
     const char* log = NULL;
     RDR(get_material_log(app->rdr, app->default_render_material, &log));
     if(log  != NULL)
-      fprintf(stderr, "Default render material error: \n%s\n", log);
+      APP_LOG_ERR(app, "Default render material error: \n%s\n", log);
 
     app_err = rdr_to_app_error(rdr_err);
     goto error;
@@ -460,30 +500,74 @@ error:
 }
 
 static enum app_error
-init(struct app* app, const char* graphic_driver)
+init_sys(struct app* app, struct sys* sys)
+{
+  struct sys_log_stream log_stream = { NULL, NULL };
+  enum sys_error sys_err = SYS_NO_ERROR;
+  enum app_error app_err = APP_NO_ERROR;
+  enum app_error tmp_err = APP_NO_ERROR;
+
+  assert(app && sys);
+
+  RETAIN(sys);
+  app->sys = sys;
+
+  sys_err = sys_create_logger(app->sys, &app->logger);
+  if(sys_err != SYS_NO_ERROR) {
+    app_err = sys_to_app_error(sys_err);
+    goto error;
+  }
+
+  STATIC_ASSERT(sizeof(void*) >= 4, Unexpected_pointer_size);
+  log_stream.data = (void*)0xDEADBEEF;
+  log_stream.func = std_log_func;
+  sys_err = sys_logger_add_stream(app->sys, app->logger, &log_stream);
+  if(sys_err != SYS_NO_ERROR) {
+    app_err = sys_to_app_error(sys_err);
+    goto error;
+  }
+
+exit:
+  return app_err;
+
+error:
+  tmp_err = shutdown_sys(app);
+  assert(tmp_err == APP_NO_ERROR);
+  goto exit;
+}
+
+static enum app_error
+init(struct app* app, struct sys* sys, const char* graphic_driver)
 {
   enum app_error app_err = APP_NO_ERROR;
   enum app_error tmp_err = APP_NO_ERROR;
   assert(app != NULL);
 
+  RETAIN(sys);
+  app->sys = sys;
+
+  app_err = init_sys(app, sys);
+  if(app_err != APP_NO_ERROR)
+    goto error;
+
   app_err = init_stdlib(app);
   if(app_err != APP_NO_ERROR) {
-    fprintf(stderr, "Error in initializing the standard library\n");
+    APP_LOG_ERR(app, "Error in initializing the standard library\n");
     goto error;
   }
   app_err = init_window_manager(app);
   if(app_err !=  APP_NO_ERROR) {
-    fprintf(stderr, "Error in intializing the window manager\n");
+    APP_LOG_ERR(app, "Error in intializing the window manager\n");
     goto error;
   }
   app_err = init_renderer(app, graphic_driver);
   if(app_err != APP_NO_ERROR) {
-    fprintf(stderr, "Error in initializing the renderer\n");
+    APP_LOG_ERR(app, "Error in initializing the renderer\n");
     goto error;
   }
   app_err = init_resources(app);
   if(app_err != APP_NO_ERROR) {
-    fprintf(stderr, "Error in initializing the resource module\n");
+    APP_LOG_ERR(app, "Error in initializing the resource module\n");
     goto error;
   }
   app_err = init_common(app);
@@ -505,7 +589,7 @@ error:
  *
  ******************************************************************************/
 EXPORT_SYM enum app_error
-app_init(struct app_args* args, struct app** out_app)
+app_init(struct app_args* args, struct sys* sys, struct app** out_app)
 {
   struct app* app = NULL;
   struct app_model* mdl = NULL;
@@ -513,7 +597,7 @@ app_init(struct app_args* args, struct app** out_app)
   enum app_error app_err = APP_NO_ERROR;
   enum sl_error sl_err = SL_NO_ERROR;
 
-  if(!args || !out_app) {
+  if(!args || !sys || !out_app) {
     app_err = APP_INVALID_ARGUMENT;
     goto error;
   }
@@ -529,7 +613,7 @@ app_init(struct app_args* args, struct app** out_app)
     app_err = APP_MEMORY_ERROR;
     goto error;
   }
-  app_err = init(app, args->render_driver);
+  app_err = init(app, sys, args->render_driver);
   if(app_err != APP_NO_ERROR)
     goto error;
 

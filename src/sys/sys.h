@@ -1,6 +1,8 @@
 #ifndef SYS_H
 #define SYS_H
 
+#include "sys/ref_count.h"
+#include "sys/sys_error.h"
 #include <stdint.h>
 
 #ifndef __GNUC__
@@ -36,6 +38,19 @@
 
 #define STATIC_ASSERT(condition, msg) \
   extern char STATIC_ASSERT_##msg[1 -  2*(!(condition))] UNUSED
+
+#define FORMAT_PRINTF(a, b) \
+  __attribute__((format(printf, a, b)))
+
+REF_COUNT(struct sys);
+
+extern enum sys_error 
+sys_init
+  (struct sys** sys);
+
+extern enum sys_error 
+sys_shutdown
+  (struct sys* sys);
 
 #endif /* SYS_H */
 

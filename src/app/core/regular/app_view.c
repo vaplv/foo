@@ -71,8 +71,8 @@ app_look_at
   aos_pos = vf4_set(pos[0], pos[1], pos[2], 0.f);
   aos_up = vf4_set(up[0], up[1], up[2], 0.f);
 
-  f = vf4_normalize(vf4_sub(aos_target, aos_pos));
-  u = vf4_normalize(aos_up);
+  f = vf4_normalize3(vf4_sub(aos_target, aos_pos));
+  u = vf4_normalize3(aos_up);
   s = vf4_cross3(f, u);
   u = vf4_cross3(s, f);
 
@@ -157,10 +157,10 @@ EXPORT_SYM enum app_error
 app_get_view_space
   (struct app* app,
    struct app_view* view,
-   float pos[3] UNUSED,
-   float right[3] UNUSED,
-   float up[3] UNUSED,
-   float forward[3] UNUSED)
+   float pos[3],
+   float right[3],
+   float up[3],
+   float forward[3])
 {
   ALIGN(16) float tmp[4];
   struct aosf44 m;
@@ -169,19 +169,19 @@ app_get_view_space
   if(!app || !view)
     return APP_INVALID_ARGUMENT;
 
-  v = vf4_normalize(vf4_minus(aosf44_row0(&view->transform)));
+  v = vf4_normalize3(vf4_minus(view->transform.c0));
   vf4_store(tmp, v);
   right[0] = tmp[0];
   right[1] = tmp[1];
   right[2] = tmp[2];
 
-  v = vf4_normalize(vf4_minus(aosf44_row1(&view->transform)));
+  v = vf4_normalize3(vf4_minus(view->transform.c1));
   vf4_store(tmp, v);
   up[0] = tmp[0];
   up[1] = tmp[1];
   up[2] = tmp[2];
 
-  v = vf4_normalize(aosf44_row1(&view->transform));
+  v = vf4_normalize3(view->transform.c2);
   vf4_store(tmp, v);
   forward[0] = tmp[0];
   forward[1] = tmp[1];
