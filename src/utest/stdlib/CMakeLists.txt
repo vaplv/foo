@@ -9,6 +9,9 @@ target_link_libraries(utest_sl_hash_table sl)
 add_executable(utest_sl_linked_list utest_sl_linked_list.c)
 target_link_libraries(utest_sl_linked_list sl)
 
+add_executable(utest_sl_logger utest_sl_logger.c)
+target_link_libraries(utest_sl_logger sl)
+
 add_executable(utest_sl_sorted_vector utest_sl_sorted_vector.c)
 target_link_libraries(utest_sl_sorted_vector sl)
 
@@ -22,6 +25,10 @@ add_test(
 add_test(
   sl_linked_list
   ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/utest_sl_linked_list)
+
+add_test(
+  sl_logger
+  ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/utest_sl_logger)
 
 add_test(
   sl_vector

@@ -12,10 +12,9 @@
 #include "resources/rsrc_context.h"
 #include "resources/rsrc_geometry.h"
 #include "resources/rsrc_wavefront_obj.h"
-#include "stdlib/sl_context.h"
 #include "stdlib/sl_vector.h"
+#include "stdlib/sl_logger.h"
 #include "sys/sys.h"
-#include "sys/sys_logger.h"
 #include "window_manager/wm_device.h"
 #include "window_manager/wm_error.h"
 #include "window_manager/wm_window.h"
@@ -67,8 +66,9 @@ static const char* default_shader_sources[] = {
 static void
 std_log_func(const char* msg, void* data UNUSED)
 {
-  if(strncasecmp(msg, APP_ERR_PREFIX, sizeof(APP_ERR_PREFIX)) == 0) {
-    fprintf(stderr, msg);
+  /* -1 <=> NULL terminated character. */
+  if(strncasecmp(msg, APP_ERR_PREFIX, sizeof(APP_ERR_PREFIX)-1) == 0) {
+    fprintf(stdout, "\033[31m%s\033[0m", msg);
   } else {
     fprintf(stdout, msg);
   }
@@ -169,29 +169,6 @@ error:
 }
 
 static enum app_error
-shutdown_stdlib(struct app* app)
-{
-  enum app_error app_err = APP_NO_ERROR;
-  enum sl_error sl_err = SL_NO_ERROR;
-  assert(app != NULL);
-
-  if(app->sl) {
-    sl_err = sl_free_context(app->sl);
-    if(sl_err != SL_NO_ERROR) {
-      app_err = sl_to_app_error(sl_err);
-      goto error;
-    }
-    app->sl = NULL;
-  }
-
-exit:
-  return app_err;
-
-error:
-  goto exit;
-}
-
-static enum app_error
 shutdown_common(struct app* app)
 {
   void* buffer = NULL;
@@ -203,7 +180,7 @@ shutdown_common(struct app* app)
 
   if(app->model_instance_list) {
     sl_err = sl_vector_buffer
-      (app->sl, app->model_instance_list, &len, NULL, NULL, &buffer);
+      (app->model_instance_list, &len, NULL, NULL, &buffer);
     if(sl_err != SL_NO_ERROR) {
       app_err = sl_to_app_error(sl_err);
       goto error;
@@ -216,7 +193,7 @@ shutdown_common(struct app* app)
         goto error;
       }
     }
-    sl_err = sl_free_vector(app->sl, app->model_instance_list);
+    sl_err = sl_free_vector(app->model_instance_list);
     if(sl_err != SL_NO_ERROR) {
       app_err = sl_to_app_error(sl_err);
       goto error;
@@ -224,8 +201,7 @@ shutdown_common(struct app* app)
     app->model_instance_list = NULL;
   }
   if(app->model_list) {
-    sl_err = sl_vector_buffer
-      (app->sl, app->model_list, &len, NULL, NULL, &buffer);
+    sl_err = sl_vector_buffer(app->model_list, &len, NULL, NULL, &buffer);
     if(sl_err != SL_NO_ERROR) {
       app_err = sl_to_app_error(sl_err);
       goto error;
@@ -237,7 +213,7 @@ shutdown_common(struct app* app)
         goto error;
       }
     }
-    sl_err = sl_free_vector(app->sl, app->model_list);
+    sl_err = sl_free_vector(app->model_list);
     if(sl_err != SL_NO_ERROR) {
       app_err = sl_to_app_error(sl_err);
       goto error;
@@ -267,22 +243,20 @@ error:
 static enum app_error
 shutdown_sys(struct app* app)
 {
-  enum sys_error sys_err = SYS_NO_ERROR;
   enum app_error app_err = APP_NO_ERROR;
+  enum sl_error sl_err = SL_NO_ERROR;
 
-  assert(app->sys || app->logger == NULL);
+  assert(app);
 
-  if(app->sys) {
-    sys_err = sys_free_logger(app->sys, app->logger);
-    if(sys_err != SYS_NO_ERROR) {
-      app_err = sys_to_app_error(sys_err);
+  if(app->logger) {
+    sl_err = sl_free_logger(app->logger);
+    if(sl_err != SL_NO_ERROR) {
+      app_err = sl_to_app_error(sl_err);
       goto error;
     }
     app->logger = NULL;
-
-    RELEASE(app->sys);
-    app->sys = NULL;
   }
+
 exit:
   return app_err;
 error:
@@ -299,9 +273,6 @@ shutdown(struct app* app)
     if(app_err != APP_NO_ERROR)
       goto error;
     app_err = shutdown_resources(app);
-    if(app_err != APP_NO_ERROR)
-      goto error;
-    app_err = shutdown_stdlib(app);
     if(app_err != APP_NO_ERROR)
       goto error;
     app_err = shutdown_renderer(app);
@@ -381,7 +352,7 @@ init_renderer(struct app* app, const char* driver)
     const char* log = NULL;
     RDR(get_material_log(app->rdr, app->default_render_material, &log));
     if(log  != NULL)
-      APP_LOG_ERR(app, "Default render material error: \n%s\n", log);
+      APP_LOG_ERR(app, "Default render material error: \n%s", log);
 
     app_err = rdr_to_app_error(rdr_err);
     goto error;
@@ -425,29 +396,6 @@ error:
 }
 
 static enum app_error
-init_stdlib(struct app* app)
-{
-  enum app_error app_err = APP_NO_ERROR;
-  enum app_error tmp_err = APP_NO_ERROR;
-  enum sl_error sl_err = SL_NO_ERROR;
-  assert(app != NULL);
-
-  sl_err = sl_create_context(&app->sl);
-  if(sl_err != SL_NO_ERROR) {
-    app_err = sl_to_app_error(sl_err);
-    goto error;
-  }
-
-exit:
-  return app_err;
-
-error:
-  tmp_err = shutdown_stdlib(app);
-  assert(tmp_err == APP_NO_ERROR);
-  goto exit;
-}
-
-static enum app_error
 init_common(struct app* app)
 {
   enum app_error app_err = APP_NO_ERROR;
@@ -456,8 +404,7 @@ init_common(struct app* app)
   assert(app != NULL);
 
   sl_err = sl_create_vector
-    (app->sl,
-     sizeof(struct app_model*),
+    (sizeof(struct app_model*),
      ALIGNOF(struct app_model*),
      &app->model_list);
   if(sl_err != SL_NO_ERROR) {
@@ -465,8 +412,7 @@ init_common(struct app* app)
     goto error;
   }
   sl_err = sl_create_vector
-    (app->sl,
-     sizeof(struct app_model_instance*),
+    (sizeof(struct app_model_instance*),
      ALIGNOF(struct app_model_instance*),
      &app->model_instance_list);
   if(sl_err != SL_NO_ERROR) {
@@ -500,30 +446,27 @@ error:
 }
 
 static enum app_error
-init_sys(struct app* app, struct sys* sys)
+init_sys(struct app* app)
 {
-  struct sys_log_stream log_stream = { NULL, NULL };
-  enum sys_error sys_err = SYS_NO_ERROR;
+  struct sl_log_stream log_stream = { NULL, NULL };
+  enum sl_error sl_err = SL_NO_ERROR;
   enum app_error app_err = APP_NO_ERROR;
   enum app_error tmp_err = APP_NO_ERROR;
 
-  assert(app && sys);
+  assert(app);
 
-  RETAIN(sys);
-  app->sys = sys;
-
-  sys_err = sys_create_logger(app->sys, &app->logger);
-  if(sys_err != SYS_NO_ERROR) {
-    app_err = sys_to_app_error(sys_err);
+  sl_err = sl_create_logger(&app->logger);
+  if(sl_err != SL_NO_ERROR) {
+    app_err = sl_to_app_error(sl_err);
     goto error;
   }
 
   STATIC_ASSERT(sizeof(void*) >= 4, Unexpected_pointer_size);
   log_stream.data = (void*)0xDEADBEEF;
   log_stream.func = std_log_func;
-  sys_err = sys_logger_add_stream(app->sys, app->logger, &log_stream);
-  if(sys_err != SYS_NO_ERROR) {
-    app_err = sys_to_app_error(sys_err);
+  sl_err = sl_logger_add_stream(app->logger, &log_stream);
+  if(sl_err != SL_NO_ERROR) {
+    app_err = sl_to_app_error(sl_err);
     goto error;
   }
 
@@ -537,24 +480,16 @@ error:
 }
 
 static enum app_error
-init(struct app* app, struct sys* sys, const char* graphic_driver)
+init(struct app* app, const char* graphic_driver)
 {
   enum app_error app_err = APP_NO_ERROR;
   enum app_error tmp_err = APP_NO_ERROR;
   assert(app != NULL);
 
-  RETAIN(sys);
-  app->sys = sys;
-
-  app_err = init_sys(app, sys);
+  app_err = init_sys(app);
   if(app_err != APP_NO_ERROR)
     goto error;
 
-  app_err = init_stdlib(app);
-  if(app_err != APP_NO_ERROR) {
-    APP_LOG_ERR(app, "Error in initializing the standard library\n");
-    goto error;
-  }
   app_err = init_window_manager(app);
   if(app_err !=  APP_NO_ERROR) {
     APP_LOG_ERR(app, "Error in intializing the window manager\n");
@@ -589,7 +524,7 @@ error:
  *
  ******************************************************************************/
 EXPORT_SYM enum app_error
-app_init(struct app_args* args, struct sys* sys, struct app** out_app)
+app_init(struct app_args* args, struct app** out_app)
 {
   struct app* app = NULL;
   struct app_model* mdl = NULL;
@@ -597,7 +532,7 @@ app_init(struct app_args* args, struct sys* sys, struct app** out_app)
   enum app_error app_err = APP_NO_ERROR;
   enum sl_error sl_err = SL_NO_ERROR;
 
-  if(!args || !sys || !out_app) {
+  if(!args || !out_app) {
     app_err = APP_INVALID_ARGUMENT;
     goto error;
   }
@@ -613,7 +548,7 @@ app_init(struct app_args* args, struct sys* sys, struct app** out_app)
     app_err = APP_MEMORY_ERROR;
     goto error;
   }
-  app_err = init(app, sys, args->render_driver);
+  app_err = init(app, args->render_driver);
   if(app_err != APP_NO_ERROR)
     goto error;
 
@@ -630,13 +565,13 @@ app_init(struct app_args* args, struct sys* sys, struct app** out_app)
       goto error;
 
     /* Save the created model as well as its instance. */
-    sl_err = sl_vector_push_back(app->sl, app->model_list, &mdl);
+    sl_err = sl_vector_push_back(app->model_list, &mdl);
     if(sl_err != SL_NO_ERROR) {
       app_err = sl_to_app_error(sl_err);
       goto error;
     }
     sl_err = sl_vector_push_back
-      (app->sl, app->model_instance_list, &mdl_instance);
+      (app->model_instance_list, &mdl_instance);
     if(sl_err != SL_NO_ERROR) {
       app_err = sl_to_app_error(sl_err);
       goto error;

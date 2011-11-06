@@ -4,7 +4,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY
   ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/utest/app/game)
 
 add_executable(utest_game utest_game.c)
-target_link_libraries(utest_game game appcore sys)
+target_link_libraries(utest_game game appcore)
 
 add_test(
   game_null

@@ -10,14 +10,11 @@
 #endif
 
 struct rb_context;
-struct sl_context;
 
 struct rdr_system {
   /* The render backend and its context. */
   struct rbi rb; 
   struct rb_context* ctxt;
-  /* The context of the standard library. */
-  struct sl_context* sl_ctxt;
 };
 
 #endif /* RDR_SYSTEM_C_H. */

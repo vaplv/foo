@@ -1,4 +1,4 @@
-#include "stdlib/regular/sl_context_c.h"
+#include "stdlib/regular/sl.h"
 #include "stdlib/sl_hash_table.h"
 #include "sys/sys.h"
 #include <assert.h>
@@ -240,8 +240,7 @@ rehash
  ******************************************************************************/
 EXPORT_SYM enum sl_error
 sl_create_hash_table
-  (struct sl_context* ctxt,
-   size_t data_size,
+  (size_t data_size,
    size_t data_alignment,
    size_t key_size,
    int (*compare)(const void*, const void*),
@@ -251,8 +250,7 @@ sl_create_hash_table
   struct sl_hash_table* table = NULL;
   enum sl_error err = SL_NO_ERROR;
 
-  if(!ctxt
-  || !data_size
+  if(!data_size
   || !key_size
   || !compare
   || !get_key
@@ -291,17 +289,16 @@ error:
 
 EXPORT_SYM enum sl_error
 sl_free_hash_table
-  (struct sl_context* ctxt,
-   struct sl_hash_table* table)
+  (struct sl_hash_table* table)
 {
   enum sl_error err = SL_NO_ERROR;
 
-  if(!ctxt || !table) {
+  if(!table) {
     err = SL_INVALID_ARGUMENT;
     goto error;
   }
 
-  err = sl_hash_table_clear(ctxt, table);
+  err = sl_hash_table_clear(table);
   if(err != SL_NO_ERROR)
     goto error;
 
@@ -317,8 +314,7 @@ error:
 
 EXPORT_SYM enum sl_error
 sl_hash_table_insert
-  (struct sl_context* ctxt,
-   struct sl_hash_table* table,
+  (struct sl_hash_table* table,
    const void* data)
 {
   #define HASH_TABLE_BASE_SIZE 32
@@ -330,7 +326,7 @@ sl_hash_table_insert
   enum sl_error err = SL_NO_ERROR;
   bool is_inserted = false;
 
-  if(!ctxt || !table || !data) {
+  if(!table || !data) {
     err = SL_INVALID_ARGUMENT;
     goto error;
   }
@@ -343,9 +339,9 @@ sl_hash_table_insert
 
   if(table->nb_used_buckets >= (2 * table->nb_buckets) / 3) {
     if(table->nb_buckets == 0)
-      err = sl_hash_table_resize(ctxt, table, HASH_TABLE_BASE_SIZE);
+      err = sl_hash_table_resize(table, HASH_TABLE_BASE_SIZE);
     else
-      err = sl_hash_table_resize(ctxt, table, table->nb_buckets * 2);
+      err = sl_hash_table_resize(table, table->nb_buckets * 2);
     if(err != SL_NO_ERROR)
       goto error;
   }
@@ -393,8 +389,7 @@ error:
 
 EXPORT_SYM enum sl_error
 sl_hash_table_erase
-  (struct sl_context* ctxt,
-   struct sl_hash_table* table,
+  (struct sl_hash_table* table,
    const void* key,
    size_t* out_nb_erased)
 {
@@ -404,7 +399,7 @@ sl_hash_table_erase
   size_t nb_erased = 0;
   enum sl_error err = SL_NO_ERROR;
 
-  if(!ctxt || !table || !key || !out_nb_erased) {
+  if(!table || !key || !out_nb_erased) {
     err = SL_INVALID_ARGUMENT;
     goto error;
   }
@@ -444,8 +439,7 @@ error:
 
 EXPORT_SYM enum sl_error
 sl_hash_table_find
-  (struct sl_context* ctxt,
-   struct sl_hash_table* table,
+  (struct sl_hash_table* table,
    const void* key,
    void** out_data)
 {
@@ -453,7 +447,7 @@ sl_hash_table_find
   size_t hash = 0;
   enum sl_error err = SL_NO_ERROR;
 
-  if(!ctxt || !table || !key || !out_data) {
+  if(!table || !key || !out_data) {
     err = SL_INVALID_ARGUMENT;
     goto error;
   }
@@ -477,11 +471,10 @@ error:
 
 EXPORT_SYM enum sl_error
 sl_hash_table_data_count
-  (struct sl_context* ctxt,
-   struct sl_hash_table* table,
+  (struct sl_hash_table* table,
    size_t* out_nb_data)
 {
-  if(!ctxt || !table || !out_nb_data)
+  if(!table || !out_nb_data)
     return SL_INVALID_ARGUMENT;
 
   *out_nb_data = table->nb_elements;
@@ -490,14 +483,13 @@ sl_hash_table_data_count
 
 EXPORT_SYM enum sl_error
 sl_hash_table_resize
-  (struct sl_context* ctxt,
-   struct sl_hash_table* table,
+  (struct sl_hash_table* table,
    size_t nb_buckets)
 {
   struct entry** new_buffer = NULL;
   enum sl_error err = SL_NO_ERROR;
 
-  if(!ctxt || !table) {
+  if(!table) {
     err = SL_INVALID_ARGUMENT;
     goto error;
   }
@@ -530,11 +522,10 @@ error:
 
 EXPORT_SYM enum sl_error
 sl_hash_table_bucket_count
-  (struct sl_context* ctxt,
-   struct sl_hash_table* table,
+  (struct sl_hash_table* table,
    size_t* nb_buckets)
 {
-  if(!ctxt || !table || !nb_buckets)
+  if(!table || !nb_buckets)
     return SL_INVALID_ARGUMENT;
 
   *nb_buckets = table->nb_buckets;
@@ -543,11 +534,10 @@ sl_hash_table_bucket_count
 
 EXPORT_SYM enum sl_error
 sl_hash_table_used_bucket_count
-  (struct sl_context* ctxt,
-   struct sl_hash_table* table,
+  (struct sl_hash_table* table,
    size_t* nb_used_buckets)
 {
-  if(!ctxt || !table || !nb_used_buckets)
+  if(!table || !nb_used_buckets)
     return SL_INVALID_ARGUMENT;
 
   *nb_used_buckets = table->nb_used_buckets;
@@ -556,12 +546,11 @@ sl_hash_table_used_bucket_count
 
 EXPORT_SYM enum sl_error
 sl_hash_table_clear
-  (struct sl_context* ctxt,
-   struct sl_hash_table* table)
+  (struct sl_hash_table* table)
 {
   size_t i = 0;
 
-  if(!ctxt || !table)
+  if(!table)
     return SL_INVALID_ARGUMENT;
 
   for(i = 0; i < table->nb_buckets; ++i) {

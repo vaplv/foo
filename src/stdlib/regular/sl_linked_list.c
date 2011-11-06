@@ -1,4 +1,4 @@
-#include "stdlib/regular/sl_context_c.h"
+#include "stdlib/regular/sl.h"
 #include "stdlib/sl_linked_list.h"
 #include "sys/sys.h"
 #include <assert.h>
@@ -86,15 +86,14 @@ free_all_nodes(struct sl_linked_list* list)
  ******************************************************************************/
 EXPORT_SYM enum sl_error
 sl_create_linked_list
-  (struct sl_context* ctxt,
-   size_t data_size,
+  (size_t data_size,
    size_t data_alignment,
    struct sl_linked_list** out_list)
 {
   struct sl_linked_list* list = NULL;
   enum sl_error err = SL_NO_ERROR;
 
-  if(!ctxt || !out_list) {
+  if(!out_list) {
     err = SL_INVALID_ARGUMENT;
     goto error;
   
@@ -129,10 +128,9 @@ error:
 
 EXPORT_SYM enum sl_error
 sl_free_linked_list
-  (struct sl_context* ctxt,
-   struct sl_linked_list* list)
+  (struct sl_linked_list* list)
 {
-  if(!ctxt || !list)
+  if(!list)
     return SL_INVALID_ARGUMENT;
 
   free_all_nodes(list);
@@ -143,10 +141,9 @@ sl_free_linked_list
 
 EXPORT_SYM enum sl_error
 sl_clear_linked_list
-  (struct sl_context* ctxt,
-   struct sl_linked_list* list)
+  (struct sl_linked_list* list)
 {
-  if(!ctxt || !list)
+  if(!list)
     return SL_INVALID_ARGUMENT;
 
   free_all_nodes(list);
@@ -157,15 +154,14 @@ sl_clear_linked_list
 
 EXPORT_SYM enum sl_error
 sl_linked_list_add
-  (struct sl_context* ctxt,
-   struct sl_linked_list* list,
+  (struct sl_linked_list* list,
    const void* data,
    struct sl_node** out_node)
 {
   struct sl_node* node = NULL;
   enum sl_error err = SL_NO_ERROR;
 
-  if(!ctxt || !list || (!data && list->data_size > 0)) {
+  if(!list || (!data && list->data_size > 0)) {
     err = SL_INVALID_ARGUMENT;
     goto error;
   }
@@ -201,13 +197,12 @@ error:
 
 EXPORT_SYM enum sl_error
 sl_linked_list_remove
-  (struct sl_context* ctxt,
-   struct sl_linked_list* list,
+  (struct sl_linked_list* list,
    struct sl_node* node)
 {
   enum sl_error err = SL_NO_ERROR;
 
-  if(!ctxt || !list || !node) {
+  if(!list || !node) {
     err = SL_INVALID_ARGUMENT;
     goto error;
   }
@@ -245,15 +240,14 @@ error:
 
 EXPORT_SYM enum sl_error
 sl_linked_list_length
-  (struct sl_context* ctxt,
-   struct sl_linked_list* list,
+  (struct sl_linked_list* list,
    size_t* len)
 {
   struct sl_node* node = NULL;
   size_t i = 0;
   enum sl_error sl_err = SL_NO_ERROR;
 
-  if(!ctxt || !list || !len) {
+  if(!list || !len) {
     sl_err = SL_INVALID_ARGUMENT;
     goto error;
   }
@@ -272,11 +266,10 @@ error:
 
 EXPORT_SYM enum sl_error
 sl_linked_list_head
-  (struct sl_context* ctxt,
-   struct sl_linked_list* list,
+  (struct sl_linked_list* list,
    struct sl_node** out_node)
 {
-  if(!ctxt || !list || !out_node)
+  if(!list || !out_node)
     return SL_INVALID_ARGUMENT;
 
   *out_node = list->head;
@@ -286,11 +279,10 @@ sl_linked_list_head
 
 EXPORT_SYM enum sl_error
 sl_next_node
-  (struct sl_context* ctxt,
-   const struct sl_node* node,
+  (const struct sl_node* node,
    struct sl_node** out_node)
 {
-  if(!ctxt || !node || !out_node)
+  if(!node || !out_node)
     return SL_INVALID_ARGUMENT;
 
   *out_node = node->next;
@@ -300,11 +292,10 @@ sl_next_node
 
 EXPORT_SYM enum sl_error
 sl_previous_node
-  (struct sl_context* ctxt,
-   const struct sl_node* node,
+  (const struct sl_node* node,
    struct sl_node** out_node)
 {
-  if(!ctxt || !node || !out_node)
+  if(!node || !out_node)
     return SL_INVALID_ARGUMENT;
 
   *out_node = node->prev;
@@ -314,11 +305,10 @@ sl_previous_node
 
 EXPORT_SYM enum sl_error
 sl_node_data
-  (struct sl_context* ctxt,
-   const struct sl_node* node,
+  (const struct sl_node* node,
    void** out_data)
 {
-  if(!ctxt || !node || !out_data)
+  if(!node || !out_data)
     return SL_INVALID_ARGUMENT;
 
   *out_data = node->data;

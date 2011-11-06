@@ -20,8 +20,7 @@ struct sl_sorted_vector {
  * defines if the data already lies into vec. */
 static enum sl_error
 data_id
-  (struct sl_context* ctxt,
-   struct sl_sorted_vector* svec,
+  (struct sl_sorted_vector* svec,
    const void* data,
    size_t* out_id,
    bool* out_is_data_found)
@@ -32,9 +31,9 @@ data_id
   enum sl_error err = SL_NO_ERROR;
   bool is_data_found = false;
 
-  assert(ctxt && svec && data && out_id && out_is_data_found);
+  assert(svec && data && out_id && out_is_data_found);
 
-  err = sl_vector_length(ctxt, svec->vector, &len);
+  err = sl_vector_length(svec->vector, &len);
   if(err != SL_NO_ERROR)
     goto error;
 
@@ -46,7 +45,7 @@ data_id
     const size_t at = begin + (end - begin) / 2;
     int cmp = 0;
 
-    err = sl_vector_at(ctxt, svec->vector, at, &tmp_data);
+    err = sl_vector_at(svec->vector, at, &tmp_data);
     if(err != SL_NO_ERROR)
       goto error;
 
@@ -81,8 +80,7 @@ error:
  ******************************************************************************/
 EXPORT_SYM enum sl_error
 sl_create_sorted_vector
-  (struct sl_context* ctxt,
-   size_t data_size,
+  (size_t data_size,
    size_t data_alignment,
    int (*compare)(const void*, const void*),
    struct sl_sorted_vector** out_vector)
@@ -101,7 +99,7 @@ sl_create_sorted_vector
     goto error;
   }
 
-  err = sl_create_vector(ctxt, data_size, data_alignment, &svec->vector);
+  err = sl_create_vector(data_size, data_alignment, &svec->vector);
   if(err != SL_NO_ERROR)
     goto error;
 
@@ -115,7 +113,7 @@ exit:
 error:
   if(svec) {
     if(svec->vector) {
-      err = sl_free_vector(ctxt, svec->vector);
+      err = sl_free_vector(svec->vector);
       assert(err == SL_NO_ERROR);
     }
     free(svec);
@@ -126,17 +124,16 @@ error:
 
 EXPORT_SYM enum sl_error
 sl_free_sorted_vector
-  (struct sl_context* ctxt,
-   struct sl_sorted_vector* svec)
+  (struct sl_sorted_vector* svec)
 {
   enum sl_error err = SL_NO_ERROR;
 
-  if(!ctxt || !svec) {
+  if(!svec) {
     err = SL_INVALID_ARGUMENT;
     goto error;
   }
 
-  err = sl_free_vector(ctxt, svec->vector);
+  err = sl_free_vector(svec->vector);
   if(err != SL_NO_ERROR)
     goto error;
 
@@ -151,36 +148,34 @@ error:
 
 EXPORT_SYM enum sl_error
 sl_clear_sorted_vector
-  (struct sl_context* ctxt,
-   struct sl_sorted_vector* svec)
+  (struct sl_sorted_vector* svec)
 {
   if(!svec)
     return SL_INVALID_ARGUMENT;
 
-  return sl_clear_vector(ctxt, svec->vector);
+  return sl_clear_vector(svec->vector);
 }
 
 EXPORT_SYM enum sl_error
 sl_sorted_vector_insert
-  (struct sl_context* ctxt,
-   struct sl_sorted_vector* svec,
+  (struct sl_sorted_vector* svec,
    const void* data)
 {
   size_t id = 0;
   enum sl_error err = SL_NO_ERROR;
   bool is_data_found = false;
 
-  if(!ctxt || !svec || !data)
+  if(!svec || !data)
     return SL_INVALID_ARGUMENT;
 
-  err = data_id(ctxt, svec, data, &id, &is_data_found);
+  err = data_id(svec, data, &id, &is_data_found);
   if(err != SL_NO_ERROR)
     return err;
 
   if(is_data_found)
     return SL_INVALID_ARGUMENT;
 
-  err = sl_vector_insert(ctxt, svec->vector, id, data);
+  err = sl_vector_insert(svec->vector, id, data);
   if(err != SL_NO_ERROR)
     return err;
 
@@ -189,8 +184,7 @@ sl_sorted_vector_insert
 
 EXPORT_SYM enum sl_error
 sl_sorted_vector_find
-  (struct sl_context* ctxt,
-   struct sl_sorted_vector* svec,
+  (struct sl_sorted_vector* svec,
    const void* data,
    size_t* out_id)
 {
@@ -198,12 +192,12 @@ sl_sorted_vector_find
   enum sl_error err = SL_NO_ERROR;
   bool is_data_found = false;
 
-  if(!ctxt || !svec || !data || !out_id) {
+  if(!svec || !data || !out_id) {
     err = SL_INVALID_ARGUMENT;
     goto error;
   }
 
-  err = data_id(ctxt, svec, data, &id, &is_data_found);
+  err = data_id(svec, data, &id, &is_data_found);
   if(err != SL_NO_ERROR)
     goto error;
 
@@ -211,7 +205,7 @@ sl_sorted_vector_find
     *out_id = id;
   } else {
     size_t len = 0;
-    err = sl_vector_length(ctxt, svec->vector, &len);
+    err = sl_vector_length(svec->vector, &len);
     if(err != SL_NO_ERROR)
       goto error;
 
@@ -227,33 +221,31 @@ error:
 
 EXPORT_SYM enum sl_error
 sl_sorted_vector_at
-  (struct sl_context* ctxt,
-   struct sl_sorted_vector* svec,
+  (struct sl_sorted_vector* svec,
    size_t id,
    void** data)
 {
   if(!svec)
     return SL_INVALID_ARGUMENT;
 
-  return sl_vector_at(ctxt, svec->vector, id, data);
+  return sl_vector_at(svec->vector, id, data);
 }
 
 EXPORT_SYM enum sl_error
 sl_sorted_vector_remove
-  (struct sl_context* ctxt,
-   struct sl_sorted_vector* svec,
+  (struct sl_sorted_vector* svec,
    const void* data)
 {
   size_t id = 0;
   enum sl_error err = SL_NO_ERROR;
   bool is_data_found = false;
 
-  if(!ctxt || !svec || !data) {
+  if(!svec || !data) {
     err = SL_INVALID_ARGUMENT;
     goto error;
   }
 
-  err = data_id(ctxt, svec, data, &id, &is_data_found);
+  err = data_id(svec, data, &id, &is_data_found);
   if(err != SL_NO_ERROR)
     goto error;
 
@@ -262,7 +254,7 @@ sl_sorted_vector_remove
     goto error;
   }
 
-  err = sl_vector_remove(ctxt, svec->vector, id);
+  err = sl_vector_remove(svec->vector, id);
   if(err != SL_NO_ERROR)
     goto error;
 
@@ -275,44 +267,40 @@ error:
 
 EXPORT_SYM enum sl_error
 sl_sorted_vector_reserve
-  (struct sl_context* ctxt,
-   struct sl_sorted_vector* svec,
+  (struct sl_sorted_vector* svec,
    size_t capacity)
 {
   if(!svec)
     return SL_INVALID_ARGUMENT;
 
-  return sl_vector_reserve(ctxt, svec->vector, capacity);
+  return sl_vector_reserve(svec->vector, capacity);
 }
 
 EXPORT_SYM enum sl_error
 sl_sorted_vector_capacity
-  (struct sl_context* ctxt,
-   struct sl_sorted_vector* svec,
+  (struct sl_sorted_vector* svec,
    size_t *out_capacity)
 {
   if(!svec)
     return SL_INVALID_ARGUMENT;
 
-  return sl_vector_capacity(ctxt, svec->vector, out_capacity);
+  return sl_vector_capacity(svec->vector, out_capacity);
 }
 
 EXPORT_SYM enum sl_error
 sl_sorted_vector_length
-  (struct sl_context* ctxt,
-   struct sl_sorted_vector* svec,
+  (struct sl_sorted_vector* svec,
    size_t* out_length)
 {
   if(!svec)
     return SL_INVALID_ARGUMENT;
 
-  return sl_vector_length(ctxt, svec->vector, out_length);
+  return sl_vector_length(svec->vector, out_length);
 }
 
 EXPORT_SYM enum sl_error
 sl_sorted_vector_buffer
-  (struct sl_context* ctxt,
-   struct sl_sorted_vector* svec,
+  (struct sl_sorted_vector* svec,
    size_t* length,
    size_t* data_size,
    size_t* data_alignment,
@@ -322,6 +310,6 @@ sl_sorted_vector_buffer
     return SL_INVALID_ARGUMENT;
 
   return sl_vector_buffer
-    (ctxt, svec->vector, length, data_size, data_alignment, buffer);
+    (svec->vector, length, data_size, data_alignment, buffer);
 }
 

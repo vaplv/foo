@@ -303,13 +303,13 @@ invoke_callbacks(struct rdr_system* sys, struct rdr_material* mtr_obj)
 
   mtr = RDR_GET_OBJECT_DATA(sys, mtr_obj);
 
-  for(SL(linked_list_head(sys->sl_ctxt, mtr->callback_list, &node));
+  for(SL(linked_list_head(mtr->callback_list, &node));
       node != NULL;
-      SL(next_node(sys->sl_ctxt, node, &node))) {
+      SL(next_node(node, &node))) {
     struct rdr_material_callback_desc* desc = NULL;
     enum rdr_error last_err = RDR_NO_ERROR;
 
-    SL(node_data(sys->sl_ctxt, node, (void**)&desc));
+    SL(node_data(node, (void**)&desc));
 
     last_err = desc->func(sys, mtr_obj, desc->data);
     if(last_err != RDR_NO_ERROR)
@@ -330,9 +330,9 @@ free_material(struct rdr_system* sys, void* data)
   if(mtr->callback_list) {
     struct sl_node* node = NULL;
 
-    SL(linked_list_head(sys->sl_ctxt, mtr->callback_list, &node));
+    SL(linked_list_head(mtr->callback_list, &node));
     assert(node == NULL);
-    SL(free_linked_list(sys->sl_ctxt, mtr->callback_list));
+    SL(free_linked_list(mtr->callback_list));
   }
 
   release_attribs(sys, mtr->nb_attribs, mtr->attrib_list);
@@ -384,8 +384,7 @@ rdr_create_material(struct rdr_system* sys, struct rdr_material** out_mtr_obj)
   }
 
   sl_err = sl_create_linked_list
-    (sys->sl_ctxt,
-     sizeof(struct rdr_material_callback_desc),
+    (sizeof(struct rdr_material_callback_desc),
      ALIGNOF(struct rdr_material_callback_desc),
      &mtr->callback_list);
   if(sl_err != SL_NO_ERROR) {
@@ -607,9 +606,7 @@ rdr_attach_material_callback
   }
 
   mtr = RDR_GET_OBJECT_DATA(sys, mtr_obj);
-  sl_err = sl_linked_list_add
-    (sys->sl_ctxt, mtr->callback_list, cbk_desc, &node);
-
+  sl_err = sl_linked_list_add(mtr->callback_list, cbk_desc, &node);
   if(sl_err != SL_NO_ERROR) {
     rdr_err = sl_to_rdr_error(sl_err);
     goto error;
@@ -625,7 +622,7 @@ exit:
 error:
   if(node) {
     assert(mtr != NULL);
-    SL(linked_list_remove(sys->sl_ctxt, mtr->callback_list, node));
+    SL(linked_list_remove(mtr->callback_list, node));
     node = NULL;
   }
   goto exit;
@@ -650,7 +647,7 @@ rdr_detach_material_callback
   mtr = RDR_GET_OBJECT_DATA(sys, mtr_obj);
   node = (struct sl_node*)cbk;
 
-  sl_err = sl_linked_list_remove(sys->sl_ctxt, mtr->callback_list, node);
+  sl_err = sl_linked_list_remove(mtr->callback_list, node);
   if(sl_err != SL_NO_ERROR) {
     rdr_err = sl_to_rdr_error(sl_err);
     goto error;

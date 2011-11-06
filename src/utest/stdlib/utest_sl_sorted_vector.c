@@ -1,5 +1,4 @@
 #include "stdlib/sl_sorted_vector.h"
-#include "stdlib/sl_context.h"
 #include "sys/sys.h"
 #include "utest/utest.h"
 #include <assert.h>
@@ -34,7 +33,6 @@ int
 main(int argc UNUSED, char** argv UNUSED)
 {
   ALIGN(16) int array[4];
-  struct sl_context* ctxt = NULL;
   struct sl_sorted_vector* vec = NULL;
   void* buffer = NULL;
   void* data = NULL;
@@ -45,99 +43,72 @@ main(int argc UNUSED, char** argv UNUSED)
   size_t sz = 0;
   size_t al = 0;
 
-  CHECK(sl_create_context(&ctxt), OK);
+  CHECK(sl_create_sorted_vector(0, 0, NULL, NULL), BAD_ARG);
+  CHECK(sl_create_sorted_vector(SZ(int), 0, NULL, NULL), BAD_ARG);
+  CHECK(sl_create_sorted_vector(0, AL(int), NULL, NULL), BAD_ARG);
+  CHECK(sl_create_sorted_vector(SZ(int), AL(int), NULL, NULL), BAD_ARG);
+  CHECK(sl_create_sorted_vector(0, 0, cmp, NULL), BAD_ARG);
+  CHECK(sl_create_sorted_vector(SZ(int), 0, cmp, NULL), BAD_ARG);
+  CHECK(sl_create_sorted_vector(0, AL(int), cmp, NULL), BAD_ARG);
+  CHECK(sl_create_sorted_vector(SZ(int), AL(int), cmp, NULL), BAD_ARG);
+  CHECK(sl_create_sorted_vector(0, 0, NULL, &vec), BAD_ARG);
+  CHECK(sl_create_sorted_vector(SZ(int), 0, NULL, &vec), BAD_ARG);
+  CHECK(sl_create_sorted_vector(0, AL(int), NULL, &vec), BAD_ARG);
+  CHECK(sl_create_sorted_vector(SZ(int), AL(int), NULL, &vec), BAD_ARG);
+  CHECK(sl_create_sorted_vector(0, 0, cmp, NULL), BAD_ARG);
+  CHECK(sl_create_sorted_vector(SZ(int), 0, cmp, &vec), BAD_ALIGN);
+  CHECK(sl_create_sorted_vector(0, AL(int), cmp, &vec), BAD_ARG);
+  CHECK(sl_create_sorted_vector(SZ(int), AL(int), cmp, &vec), OK);
 
-  CHECK(sl_create_sorted_vector(NULL, 0, 0, NULL, NULL), BAD_ARG);
-  CHECK(sl_create_sorted_vector(ctxt, 0, 0, NULL, NULL), BAD_ARG);
-  CHECK(sl_create_sorted_vector(NULL, SZ(int), 0, NULL, NULL), BAD_ARG);
-  CHECK(sl_create_sorted_vector(ctxt, SZ(int), 0, NULL, NULL), BAD_ARG);
-  CHECK(sl_create_sorted_vector(NULL, 0, AL(int), NULL, NULL), BAD_ARG);
-  CHECK(sl_create_sorted_vector(ctxt, 0, AL(int), NULL, NULL), BAD_ARG);
-  CHECK(sl_create_sorted_vector(NULL, SZ(int), AL(int), NULL, NULL), BAD_ARG);
-  CHECK(sl_create_sorted_vector(ctxt, SZ(int), AL(int), NULL, NULL), BAD_ARG);
-  CHECK(sl_create_sorted_vector(NULL, 0, 0, cmp, NULL), BAD_ARG);
-  CHECK(sl_create_sorted_vector(ctxt, 0, 0, cmp, NULL), BAD_ARG);
-  CHECK(sl_create_sorted_vector(NULL, SZ(int), 0, cmp, NULL), BAD_ARG);
-  CHECK(sl_create_sorted_vector(ctxt, SZ(int), 0, cmp, NULL), BAD_ARG);
-  CHECK(sl_create_sorted_vector(NULL, 0, AL(int), cmp, NULL), BAD_ARG);
-  CHECK(sl_create_sorted_vector(ctxt, 0, AL(int), cmp, NULL), BAD_ARG);
-  CHECK(sl_create_sorted_vector(NULL, SZ(int), AL(int), cmp, NULL), BAD_ARG);
-  CHECK(sl_create_sorted_vector(ctxt, SZ(int), AL(int), cmp, NULL), BAD_ARG);
-  CHECK(sl_create_sorted_vector(NULL, 0, 0, NULL, &vec), BAD_ARG);
-  CHECK(sl_create_sorted_vector(ctxt, 0, 0, NULL, &vec), BAD_ARG);
-  CHECK(sl_create_sorted_vector(NULL, SZ(int), 0, NULL, &vec), BAD_ARG);
-  CHECK(sl_create_sorted_vector(ctxt, SZ(int), 0, NULL, &vec), BAD_ARG);
-  CHECK(sl_create_sorted_vector(NULL, 0, AL(int), NULL, &vec), BAD_ARG);
-  CHECK(sl_create_sorted_vector(ctxt, 0, AL(int), NULL, &vec), BAD_ARG);
-  CHECK(sl_create_sorted_vector(NULL, SZ(int), AL(int), NULL, &vec), BAD_ARG);
-  CHECK(sl_create_sorted_vector(ctxt, SZ(int), AL(int), NULL, &vec), BAD_ARG);
-  CHECK(sl_create_sorted_vector(NULL, 0, 0, cmp, NULL), BAD_ARG);
-  CHECK(sl_create_sorted_vector(ctxt, 0, 0, cmp, NULL), BAD_ARG);
-  CHECK(sl_create_sorted_vector(NULL, SZ(int), 0, cmp, &vec), BAD_ARG);
-  CHECK(sl_create_sorted_vector(ctxt, SZ(int), 0, cmp, &vec), BAD_ALIGN);
-  CHECK(sl_create_sorted_vector(NULL, 0, AL(int), cmp, &vec), BAD_ARG);
-  CHECK(sl_create_sorted_vector(ctxt, 0, AL(int), cmp, &vec), BAD_ARG);
-  CHECK(sl_create_sorted_vector(NULL, SZ(int), AL(int), cmp, &vec), BAD_ARG);
-  CHECK(sl_create_sorted_vector(ctxt, SZ(int), AL(int), cmp, &vec), OK);
+  CHECK(sl_sorted_vector_insert(NULL, NULL), BAD_ARG);
+  CHECK(sl_sorted_vector_insert(vec, NULL), BAD_ARG);
+  CHECK(sl_sorted_vector_insert(NULL, (int[]){9}), BAD_ARG);
+  CHECK(sl_sorted_vector_insert(vec, (int[]){9}), OK);
 
-  CHECK(sl_sorted_vector_insert(NULL, NULL, NULL), BAD_ARG);
-  CHECK(sl_sorted_vector_insert(ctxt, NULL, NULL), BAD_ARG);
-  CHECK(sl_sorted_vector_insert(NULL, vec, NULL), BAD_ARG);
-  CHECK(sl_sorted_vector_insert(ctxt, vec, NULL), BAD_ARG);
-  CHECK(sl_sorted_vector_insert(NULL, NULL, (int[]){9}), BAD_ARG);
-  CHECK(sl_sorted_vector_insert(ctxt, NULL, (int[]){9}), BAD_ARG);
-  CHECK(sl_sorted_vector_insert(NULL, vec, (int[]){9}), BAD_ARG);
-  CHECK(sl_sorted_vector_insert(ctxt, vec, (int[]){9}), OK);
-
-  CHECK(sl_sorted_vector_buffer(NULL, NULL, NULL, NULL, NULL, NULL), BAD_ARG);
-  CHECK(sl_sorted_vector_buffer(ctxt, NULL, NULL, NULL, NULL, NULL), BAD_ARG);
-  CHECK(sl_sorted_vector_buffer(NULL, vec, NULL, NULL, NULL, NULL), BAD_ARG);
-  CHECK(sl_sorted_vector_buffer(ctxt, vec, NULL, NULL, NULL, NULL), OK);
-  CHECK(sl_sorted_vector_buffer(NULL, NULL, &len, NULL, NULL, NULL), BAD_ARG);
-  CHECK(sl_sorted_vector_buffer(ctxt, NULL, &len, NULL, NULL, NULL), BAD_ARG);
-  CHECK(sl_sorted_vector_buffer(ctxt, vec, &len, NULL, NULL, NULL), OK);
+  CHECK(sl_sorted_vector_buffer(NULL, NULL, NULL, NULL, NULL), BAD_ARG);
+  CHECK(sl_sorted_vector_buffer(vec, NULL, NULL, NULL, NULL), OK);
+  CHECK(sl_sorted_vector_buffer(NULL, &len, NULL, NULL, NULL), BAD_ARG);
+  CHECK(sl_sorted_vector_buffer(vec, &len, NULL, NULL, NULL), OK);
   CHECK(len, 1);
-  CHECK(sl_sorted_vector_buffer(NULL, NULL, NULL, &sz, NULL, NULL), BAD_ARG);
-  CHECK(sl_sorted_vector_buffer(ctxt, NULL, NULL, &sz, NULL, NULL), BAD_ARG);
-  CHECK(sl_sorted_vector_buffer(ctxt, vec, &len, &sz, NULL, NULL), OK);
+  CHECK(sl_sorted_vector_buffer(NULL, NULL, &sz, NULL, NULL), BAD_ARG);
+  CHECK(sl_sorted_vector_buffer(vec, &len, &sz, NULL, NULL), OK);
   CHECK(len, 1);
   CHECK(sz, SZ(int));
-  CHECK(sl_sorted_vector_buffer(ctxt, vec, NULL, &sz, NULL, NULL), OK);
+  CHECK(sl_sorted_vector_buffer(vec, NULL, &sz, NULL, NULL), OK);
   CHECK(sz, SZ(int));
-  CHECK(sl_sorted_vector_buffer(NULL, vec, NULL, NULL, &al, NULL), BAD_ARG);
-  CHECK(sl_sorted_vector_buffer(ctxt, NULL, NULL, NULL, &al, NULL), BAD_ARG);
-  CHECK(sl_sorted_vector_buffer(ctxt, vec, NULL, NULL, &al, NULL), OK);
+  CHECK(sl_sorted_vector_buffer(NULL, NULL, NULL, &al, NULL), BAD_ARG);
+  CHECK(sl_sorted_vector_buffer(vec, NULL, NULL, &al, NULL), OK);
   CHECK(al, AL(int));
-  CHECK(sl_sorted_vector_buffer(ctxt, vec, &len, NULL, &al, NULL), OK);
+  CHECK(sl_sorted_vector_buffer(vec, &len, NULL, &al, NULL), OK);
   CHECK(len, 1);
   CHECK(al, AL(int));
-  CHECK(sl_sorted_vector_buffer(ctxt, vec, NULL, &sz, &al, NULL), OK);
+  CHECK(sl_sorted_vector_buffer(vec, NULL, &sz, &al, NULL), OK);
   CHECK(sz, SZ(int));
   CHECK(al, AL(int));
-  CHECK(sl_sorted_vector_buffer(ctxt, vec, &len, &sz, &al, NULL), OK);
+  CHECK(sl_sorted_vector_buffer(vec, &len, &sz, &al, NULL), OK);
   CHECK(len, 1);
   CHECK(sz, SZ(int));
   CHECK(al, AL(int));
-  CHECK(sl_sorted_vector_buffer(ctxt, vec, &len, NULL, NULL, &buffer), OK);
+  CHECK(sl_sorted_vector_buffer(vec, &len, NULL, NULL, &buffer), OK);
   CHECK(len, 1);
   CHECK(((int*)buffer)[0], 9);
 
-  CHECK(sl_sorted_vector_insert(ctxt, vec, (int[]){9}), BAD_ARG);
-  CHECK(sl_sorted_vector_insert(ctxt, vec, (int[]){0}), OK);
-  CHECK(sl_sorted_vector_insert(ctxt, vec, (int[]){-1}), OK);
-  CHECK(sl_sorted_vector_insert(ctxt, vec, (int[]){5}), OK);
-  CHECK(sl_sorted_vector_insert(ctxt, vec, (int[]){3}), OK);
-  CHECK(sl_sorted_vector_insert(ctxt, vec, (int[]){2}), OK);
-  CHECK(sl_sorted_vector_insert(ctxt, vec, (int[]){0}), BAD_ARG);
-  CHECK(sl_sorted_vector_insert(ctxt, vec, (int[]){7}), OK);
-  CHECK(sl_sorted_vector_insert(ctxt, vec, (int[]){5}), BAD_ARG);
-  CHECK(sl_sorted_vector_insert(ctxt, vec, (int[]){1}), OK);
-  CHECK(sl_sorted_vector_insert(ctxt, vec, (int[]){8}), OK);
-  CHECK(sl_sorted_vector_insert(ctxt, vec, (int[]){6}), OK);
-  CHECK(sl_sorted_vector_insert(ctxt, vec, (int[]){8}), BAD_ARG);
-  CHECK(sl_sorted_vector_insert(ctxt, vec, (int[]){-1}), BAD_ARG);
-  CHECK(sl_sorted_vector_insert(ctxt, vec, (int[]){4}), OK);
-  CHECK(sl_sorted_vector_buffer(ctxt, vec, &len, NULL, NULL, &buffer), OK);
+  CHECK(sl_sorted_vector_insert(vec, (int[]){9}), BAD_ARG);
+  CHECK(sl_sorted_vector_insert(vec, (int[]){0}), OK);
+  CHECK(sl_sorted_vector_insert(vec, (int[]){-1}), OK);
+  CHECK(sl_sorted_vector_insert(vec, (int[]){5}), OK);
+  CHECK(sl_sorted_vector_insert(vec, (int[]){3}), OK);
+  CHECK(sl_sorted_vector_insert(vec, (int[]){2}), OK);
+  CHECK(sl_sorted_vector_insert(vec, (int[]){0}), BAD_ARG);
+  CHECK(sl_sorted_vector_insert(vec, (int[]){7}), OK);
+  CHECK(sl_sorted_vector_insert(vec, (int[]){5}), BAD_ARG);
+  CHECK(sl_sorted_vector_insert(vec, (int[]){1}), OK);
+  CHECK(sl_sorted_vector_insert(vec, (int[]){8}), OK);
+  CHECK(sl_sorted_vector_insert(vec, (int[]){6}), OK);
+  CHECK(sl_sorted_vector_insert(vec, (int[]){8}), BAD_ARG);
+  CHECK(sl_sorted_vector_insert(vec, (int[]){-1}), BAD_ARG);
+  CHECK(sl_sorted_vector_insert(vec, (int[]){4}), OK);
+  CHECK(sl_sorted_vector_buffer(vec, &len, NULL, NULL, &buffer), OK);
   CHECK(len, 11);
   CHECK(((int*)buffer)[0], -1);
   CHECK(((int*)buffer)[1], 0);
@@ -151,19 +122,15 @@ main(int argc UNUSED, char** argv UNUSED)
   CHECK(((int*)buffer)[9], 8);
   CHECK(((int*)buffer)[10], 9);
 
-  CHECK(sl_sorted_vector_length(NULL, NULL, NULL), BAD_ARG);
-  CHECK(sl_sorted_vector_length(ctxt, NULL, NULL), BAD_ARG);
-  CHECK(sl_sorted_vector_length(NULL, vec, NULL), BAD_ARG);
-  CHECK(sl_sorted_vector_length(ctxt, vec, NULL), BAD_ARG);
-  CHECK(sl_sorted_vector_length(NULL, NULL, &len), BAD_ARG);
-  CHECK(sl_sorted_vector_length(ctxt, NULL, &len), BAD_ARG);
-  CHECK(sl_sorted_vector_length(NULL, vec, &len), BAD_ARG);
-  CHECK(sl_sorted_vector_length(ctxt, vec, &len), OK);
+  CHECK(sl_sorted_vector_length(NULL, NULL), BAD_ARG);
+  CHECK(sl_sorted_vector_length(vec, NULL), BAD_ARG);
+  CHECK(sl_sorted_vector_length(NULL, &len), BAD_ARG);
+  CHECK(sl_sorted_vector_length(vec, &len), OK);
   CHECK(len, 11);
-  CHECK(sl_sorted_vector_insert(ctxt, vec, (int[]){-5}), OK);
-  CHECK(sl_sorted_vector_length(ctxt, vec, &len), OK);
+  CHECK(sl_sorted_vector_insert(vec, (int[]){-5}), OK);
+  CHECK(sl_sorted_vector_length(vec, &len), OK);
   CHECK(len, 12);
-  CHECK(sl_sorted_vector_buffer(ctxt, vec, &len, NULL, NULL, &buffer), OK);
+  CHECK(sl_sorted_vector_buffer(vec, &len, NULL, NULL, &buffer), OK);
   CHECK(len, 12);
   CHECK(((int*)buffer)[0], -5);
   CHECK(((int*)buffer)[1], -1);
@@ -178,68 +145,48 @@ main(int argc UNUSED, char** argv UNUSED)
   CHECK(((int*)buffer)[10], 8);
   CHECK(((int*)buffer)[11], 9);
 
-  CHECK(sl_sorted_vector_find(NULL, NULL, NULL, NULL), BAD_ARG);
-  CHECK(sl_sorted_vector_find(ctxt, NULL, NULL, NULL), BAD_ARG);
-  CHECK(sl_sorted_vector_find(NULL, vec, NULL, NULL), BAD_ARG);
-  CHECK(sl_sorted_vector_find(ctxt, vec, NULL, NULL), BAD_ARG);
-  CHECK(sl_sorted_vector_find(NULL, NULL, (int[]){-2}, NULL), BAD_ARG);
-  CHECK(sl_sorted_vector_find(ctxt, NULL, (int[]){-2}, NULL), BAD_ARG);
-  CHECK(sl_sorted_vector_find(NULL, vec, (int[]){-2}, NULL), BAD_ARG);
-  CHECK(sl_sorted_vector_find(ctxt, vec, (int[]){-2}, NULL), BAD_ARG);
-  CHECK(sl_sorted_vector_find(NULL, NULL, NULL, &id), BAD_ARG);
-  CHECK(sl_sorted_vector_find(ctxt, NULL, NULL, &id), BAD_ARG);
-  CHECK(sl_sorted_vector_find(NULL, vec, NULL, &id), BAD_ARG);
-  CHECK(sl_sorted_vector_find(ctxt, vec, NULL, &id), BAD_ARG);
-  CHECK(sl_sorted_vector_find(NULL, NULL, (int[]){-2}, &id), BAD_ARG);
-  CHECK(sl_sorted_vector_find(ctxt, NULL, (int[]){-2}, &id), BAD_ARG);
-  CHECK(sl_sorted_vector_find(NULL, vec, (int[]){-2}, &id), BAD_ARG);
-  CHECK(sl_sorted_vector_find(ctxt, vec, (int[]){-2}, &id), OK);
+  CHECK(sl_sorted_vector_find(NULL, NULL, NULL), BAD_ARG);
+  CHECK(sl_sorted_vector_find(vec, NULL, NULL), BAD_ARG);
+  CHECK(sl_sorted_vector_find(NULL, (int[]){-2}, NULL), BAD_ARG);
+  CHECK(sl_sorted_vector_find(vec, (int[]){-2}, NULL), BAD_ARG);
+  CHECK(sl_sorted_vector_find(NULL, NULL, &id), BAD_ARG);
+  CHECK(sl_sorted_vector_find(vec, NULL, &id), BAD_ARG);
+  CHECK(sl_sorted_vector_find(NULL, (int[]){-2}, &id), BAD_ARG);
+  CHECK(sl_sorted_vector_find(vec, (int[]){-2}, &id), OK);
   CHECK(id, len);
-  CHECK(sl_sorted_vector_find(ctxt, vec, (int[]){-1}, &id), OK);
+  CHECK(sl_sorted_vector_find(vec, (int[]){-1}, &id), OK);
   CHECK(id, 1);
-  CHECK(sl_sorted_vector_find(ctxt, vec, (int[]){7}, &id), OK);
+  CHECK(sl_sorted_vector_find(vec, (int[]){7}, &id), OK);
   CHECK(id, 9);
-  CHECK(sl_sorted_vector_find(ctxt, vec, (int[]){-5}, &id), OK);
+  CHECK(sl_sorted_vector_find(vec, (int[]){-5}, &id), OK);
   CHECK(id, 0);
-  CHECK(sl_sorted_vector_find(ctxt, vec, (int[]){9}, &id), OK);
+  CHECK(sl_sorted_vector_find(vec, (int[]){9}, &id), OK);
   CHECK(id, 11);
-  CHECK(sl_sorted_vector_find(ctxt, vec, (int[]){0}, &id), OK);
+  CHECK(sl_sorted_vector_find(vec, (int[]){0}, &id), OK);
   CHECK(id, 2);
-  CHECK(sl_sorted_vector_find(ctxt, vec, (int[]){33}, &id), OK);
+  CHECK(sl_sorted_vector_find(vec, (int[]){33}, &id), OK);
   CHECK(id, len);
 
-  CHECK(sl_sorted_vector_at(NULL, NULL, SIZE_MAX, NULL), BAD_ARG);
-  CHECK(sl_sorted_vector_at(ctxt, NULL, SIZE_MAX, NULL), BAD_ARG);
-  CHECK(sl_sorted_vector_at(NULL, vec, SIZE_MAX, NULL), BAD_ARG);
-  CHECK(sl_sorted_vector_at(ctxt, vec, SIZE_MAX, NULL), BAD_ARG);
-  CHECK(sl_sorted_vector_at(NULL, NULL, 0, NULL), BAD_ARG);
-  CHECK(sl_sorted_vector_at(ctxt, NULL, 0, NULL), BAD_ARG);
-  CHECK(sl_sorted_vector_at(NULL, vec, 0, NULL), BAD_ARG);
-  CHECK(sl_sorted_vector_at(ctxt, vec, 0, NULL), BAD_ARG);
-  CHECK(sl_sorted_vector_at(NULL, NULL, SIZE_MAX, &data), BAD_ARG);
-  CHECK(sl_sorted_vector_at(ctxt, NULL, SIZE_MAX, &data), BAD_ARG);
-  CHECK(sl_sorted_vector_at(NULL, vec, SIZE_MAX, &data), BAD_ARG);
-  CHECK(sl_sorted_vector_at(ctxt, vec, SIZE_MAX, &data), BAD_ARG);
-  CHECK(sl_sorted_vector_at(NULL, NULL, 0, &data), BAD_ARG);
-  CHECK(sl_sorted_vector_at(ctxt, NULL, 0, &data), BAD_ARG);
-  CHECK(sl_sorted_vector_at(NULL, vec, 0, &data), BAD_ARG);
+  CHECK(sl_sorted_vector_at(NULL, SIZE_MAX, NULL), BAD_ARG);
+  CHECK(sl_sorted_vector_at(vec, SIZE_MAX, NULL), BAD_ARG);
+  CHECK(sl_sorted_vector_at(NULL, 0, NULL), BAD_ARG);
+  CHECK(sl_sorted_vector_at(vec, 0, NULL), BAD_ARG);
+  CHECK(sl_sorted_vector_at(NULL, SIZE_MAX, &data), BAD_ARG);
+  CHECK(sl_sorted_vector_at(vec, SIZE_MAX, &data), BAD_ARG);
+  CHECK(sl_sorted_vector_at(NULL, 0, &data), BAD_ARG);
 
   for(id = 0; id < len; ++id) {
-    CHECK(sl_sorted_vector_at(ctxt, vec, id, &data), OK);
+    CHECK(sl_sorted_vector_at(vec, id, &data), OK);
     CHECK(((int*)buffer)[id], *(int*)data);
   }
 
-  CHECK(sl_sorted_vector_remove(NULL, NULL, NULL), BAD_ARG);
-  CHECK(sl_sorted_vector_remove(ctxt, NULL, NULL), BAD_ARG);
-  CHECK(sl_sorted_vector_remove(NULL, vec, NULL), BAD_ARG);
-  CHECK(sl_sorted_vector_remove(ctxt, vec, NULL), BAD_ARG);
-  CHECK(sl_sorted_vector_remove(NULL, NULL, (int[]){-3}), BAD_ARG);
-  CHECK(sl_sorted_vector_remove(ctxt, NULL, (int[]){-3}), BAD_ARG);
-  CHECK(sl_sorted_vector_remove(NULL, vec, (int[]){-3}), BAD_ARG);
-  CHECK(sl_sorted_vector_remove(ctxt, vec, (int[]){-3}), BAD_ARG);
-  CHECK(sl_sorted_vector_remove(ctxt, vec, (int[]){7}), OK);
+  CHECK(sl_sorted_vector_remove(NULL, NULL), BAD_ARG);
+  CHECK(sl_sorted_vector_remove(vec, NULL), BAD_ARG);
+  CHECK(sl_sorted_vector_remove(NULL, (int[]){-3}), BAD_ARG);
+  CHECK(sl_sorted_vector_remove(vec, (int[]){-3}), BAD_ARG);
+  CHECK(sl_sorted_vector_remove(vec, (int[]){7}), OK);
 
-  CHECK(sl_sorted_vector_buffer(ctxt, vec, &len, NULL, NULL, &buffer), OK);
+  CHECK(sl_sorted_vector_buffer(vec, &len, NULL, NULL, &buffer), OK);
   CHECK(len, 11);
   CHECK(((int*)buffer)[0], -5);
   CHECK(((int*)buffer)[1], -1);
@@ -253,13 +200,13 @@ main(int argc UNUSED, char** argv UNUSED)
   CHECK(((int*)buffer)[9], 8);
   CHECK(((int*)buffer)[10], 9);
 
-  CHECK(sl_sorted_vector_remove(ctxt, vec, (int[]){-5}), OK);
-  CHECK(sl_sorted_vector_remove(ctxt, vec, (int[]){-1}), OK);
-  CHECK(sl_sorted_vector_remove(ctxt, vec, (int[]){9}), OK);
-  CHECK(sl_sorted_vector_remove(ctxt, vec, (int[]){3}), OK);
-  CHECK(sl_sorted_vector_remove(ctxt, vec, (int[]){3}), BAD_ARG);
-  CHECK(sl_sorted_vector_remove(ctxt, vec, (int[]){6}), OK);
-  CHECK(sl_sorted_vector_buffer(ctxt, vec, &len, NULL, NULL, &buffer), OK);
+  CHECK(sl_sorted_vector_remove(vec, (int[]){-5}), OK);
+  CHECK(sl_sorted_vector_remove(vec, (int[]){-1}), OK);
+  CHECK(sl_sorted_vector_remove(vec, (int[]){9}), OK);
+  CHECK(sl_sorted_vector_remove(vec, (int[]){3}), OK);
+  CHECK(sl_sorted_vector_remove(vec, (int[]){3}), BAD_ARG);
+  CHECK(sl_sorted_vector_remove(vec, (int[]){6}), OK);
+  CHECK(sl_sorted_vector_buffer(vec, &len, NULL, NULL, &buffer), OK);
   CHECK(len, 6);
   CHECK(((int*)buffer)[0], 0);
   CHECK(((int*)buffer)[1], 1);
@@ -268,26 +215,20 @@ main(int argc UNUSED, char** argv UNUSED)
   CHECK(((int*)buffer)[4], 5);
   CHECK(((int*)buffer)[5], 8);
 
-  CHECK(sl_sorted_vector_capacity(NULL, NULL, NULL), BAD_ARG);
-  CHECK(sl_sorted_vector_capacity(ctxt, NULL, NULL), BAD_ARG);
-  CHECK(sl_sorted_vector_capacity(NULL, vec, NULL), BAD_ARG);
-  CHECK(sl_sorted_vector_capacity(ctxt, vec, NULL), BAD_ARG);
-  CHECK(sl_sorted_vector_capacity(NULL, NULL, &capacity), BAD_ARG);
-  CHECK(sl_sorted_vector_capacity(ctxt, NULL, &capacity), BAD_ARG);
-  CHECK(sl_sorted_vector_capacity(NULL, vec, &capacity), BAD_ARG);
-  CHECK(sl_sorted_vector_capacity(ctxt, vec, &capacity), OK);
+  CHECK(sl_sorted_vector_capacity(NULL, NULL), BAD_ARG);
+  CHECK(sl_sorted_vector_capacity(vec, NULL), BAD_ARG);
+  CHECK(sl_sorted_vector_capacity(NULL, &capacity), BAD_ARG);
+  CHECK(sl_sorted_vector_capacity(vec, &capacity), OK);
   CHECK(capacity >= len, true);
 
-  CHECK(sl_sorted_vector_reserve(NULL, NULL, 0), BAD_ARG);
-  CHECK(sl_sorted_vector_reserve(ctxt, NULL, 0), BAD_ARG);
-  CHECK(sl_sorted_vector_reserve(NULL, vec, 0), BAD_ARG);
-  CHECK(sl_sorted_vector_reserve(ctxt, vec, 0), OK);
-  CHECK(sl_sorted_vector_capacity(ctxt, vec, &capacity), OK);
+  CHECK(sl_sorted_vector_reserve(NULL, 0), BAD_ARG);
+  CHECK(sl_sorted_vector_reserve(vec, 0), OK);
+  CHECK(sl_sorted_vector_capacity(vec, &capacity), OK);
   NCHECK(capacity, 0);
-  CHECK(sl_sorted_vector_reserve(ctxt, vec, 2 * capacity), OK);
-  CHECK(sl_sorted_vector_capacity(ctxt, vec, &capacity2), OK);
+  CHECK(sl_sorted_vector_reserve(vec, 2 * capacity), OK);
+  CHECK(sl_sorted_vector_capacity(vec, &capacity2), OK);
   CHECK(capacity2, 2 * capacity);
-  CHECK(sl_sorted_vector_buffer(ctxt, vec, &len, NULL, NULL, &buffer), OK);
+  CHECK(sl_sorted_vector_buffer(vec, &len, NULL, NULL, &buffer), OK);
   CHECK(len, 6);
   CHECK(((int*)buffer)[0], 0);
   CHECK(((int*)buffer)[1], 1);
@@ -296,51 +237,46 @@ main(int argc UNUSED, char** argv UNUSED)
   CHECK(((int*)buffer)[4], 5);
   CHECK(((int*)buffer)[5], 8);
 
-  CHECK(sl_sorted_vector_capacity(ctxt, vec, &capacity), OK);
+  CHECK(sl_sorted_vector_capacity(vec, &capacity), OK);
   for(id = 9; len != capacity; ++id) {
-    CHECK(sl_sorted_vector_insert(ctxt, vec, &id), OK);
-    CHECK(sl_sorted_vector_length(ctxt, vec, &len), OK);
+    CHECK(sl_sorted_vector_insert(vec, &id), OK);
+    CHECK(sl_sorted_vector_length(vec, &len), OK);
   }
 
-  CHECK(sl_sorted_vector_capacity(ctxt, vec, &capacity2), OK);
+  CHECK(sl_sorted_vector_capacity(vec, &capacity2), OK);
   CHECK(capacity2, capacity);
-  CHECK(sl_sorted_vector_insert(ctxt, vec, &id), OK);
-  CHECK(sl_sorted_vector_capacity(ctxt, vec, &capacity2), OK);
+  CHECK(sl_sorted_vector_insert(vec, &id), OK);
+  CHECK(sl_sorted_vector_capacity(vec, &capacity2), OK);
   CHECK(capacity2, 2 * capacity);
 
-  CHECK(sl_sorted_vector_buffer(ctxt, vec, &len, NULL, NULL, &buffer), OK);
+  CHECK(sl_sorted_vector_buffer(vec, &len, NULL, NULL, &buffer), OK);
   for(id = 1; id < len; ++id) {
     CHECK(((int*)buffer)[id - 1] < ((int*)buffer)[id], true);
   }
 
-  CHECK(sl_sorted_vector_capacity(ctxt, vec, &capacity), OK);
-  CHECK(sl_clear_sorted_vector(NULL, NULL), BAD_ARG);
-  CHECK(sl_clear_sorted_vector(ctxt, NULL), BAD_ARG);
-  CHECK(sl_clear_sorted_vector(NULL, vec), BAD_ARG);
-  CHECK(sl_clear_sorted_vector(ctxt, vec), OK);
-  CHECK(sl_sorted_vector_length(ctxt, vec, &len), OK);
+  CHECK(sl_sorted_vector_capacity(vec, &capacity), OK);
+  CHECK(sl_clear_sorted_vector(NULL), BAD_ARG);
+  CHECK(sl_clear_sorted_vector(vec), OK);
+  CHECK(sl_sorted_vector_length(vec, &len), OK);
   CHECK(len, 0);
-  CHECK(sl_sorted_vector_buffer(ctxt, vec, &len, &sz, &al, &buffer), OK);
+  CHECK(sl_sorted_vector_buffer(vec, &len, &sz, &al, &buffer), OK);
   CHECK(len, 0);
   CHECK(sz, SZ(int));
   CHECK(al, AL(int));
-  CHECK(sl_sorted_vector_capacity(ctxt, vec, &capacity2), OK);
+  CHECK(sl_sorted_vector_capacity(vec, &capacity2), OK);
   CHECK(capacity, capacity2);
 
-  CHECK(sl_free_sorted_vector(NULL, NULL), BAD_ARG);
-  CHECK(sl_free_sorted_vector(ctxt, NULL), BAD_ARG);
-  CHECK(sl_free_sorted_vector(NULL, vec), BAD_ARG);
-  CHECK(sl_free_sorted_vector(ctxt, vec), OK);
+  CHECK(sl_free_sorted_vector(NULL), BAD_ARG);
+  CHECK(sl_free_sorted_vector(vec), OK);
 
-  CHECK(sl_create_sorted_vector(ctxt, SZ(int), 16, cmp, &vec), OK);
+  CHECK(sl_create_sorted_vector(SZ(int), 16, cmp, &vec), OK);
   array[0] = 0;
   array[1] = 1;
   array[2] = 2;
   array[3] = 3;
-  CHECK(sl_sorted_vector_insert(ctxt, vec, &array[0]), OK);
-  CHECK(sl_sorted_vector_insert(ctxt, vec, &array[1]), BAD_ALIGN);
-  CHECK(sl_free_sorted_vector(ctxt, vec), OK);
-  CHECK(sl_free_context(ctxt), OK);
+  CHECK(sl_sorted_vector_insert(vec, &array[0]), OK);
+  CHECK(sl_sorted_vector_insert(vec, &array[1]), BAD_ALIGN);
+  CHECK(sl_free_sorted_vector(vec), OK);
 
   return 0;
 }

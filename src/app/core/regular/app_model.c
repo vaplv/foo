@@ -42,24 +42,24 @@ clear_model_render_data(struct app* app, struct app_model* model)
 
   if(model->mesh_list) {
     SL(vector_buffer
-       (app->sl, model->mesh_list, &len, NULL, NULL, (void**)&mesh_lstbuf));
+       (model->mesh_list, &len, NULL, NULL, (void**)&mesh_lstbuf));
     for(i = 0; i < len; ++i)
       RDR(free_mesh(app->rdr, mesh_lstbuf[i]));
-    SL(clear_vector(app->sl, model->mesh_list));
+    SL(clear_vector(model->mesh_list));
   }
   if(model->material_list) {
     SL(vector_buffer
-       (app->sl, model->material_list, &len, NULL, NULL, (void**)&mtr_lstbuf));
+       (model->material_list, &len, NULL, NULL, (void**)&mtr_lstbuf));
     for(i = 0; i < len; ++i)
       RDR(free_material(app->rdr, mtr_lstbuf[i]));
-    SL(clear_vector(app->sl, model->material_list));
+    SL(clear_vector(model->material_list));
   }
   if(model->model_list) {
     SL(vector_buffer
-       (app->sl, model->model_list, &len, NULL, NULL, (void**)&mdl_lstbuf));
+       (model->model_list, &len, NULL, NULL, (void**)&mdl_lstbuf));
     for(i = 0; i < len; ++i)
       RDR(free_model(app->rdr, mdl_lstbuf[i]));
-    SL(clear_vector(app->sl, model->model_list));
+    SL(clear_vector(model->model_list));
   }
   return APP_NO_ERROR;
 }
@@ -130,13 +130,13 @@ setup_model(struct app* app, struct app_model* model)
     }
 
     /* Register the mesh and the model. */
-    sl_err = sl_vector_push_back(app->sl, model->mesh_list, &mesh);
+    sl_err = sl_vector_push_back(model->mesh_list, &mesh);
     if(sl_err != SL_NO_ERROR) {
       app_err = sl_to_app_error(sl_err);
       goto error;
     }
     mesh = NULL;
-    sl_err = sl_vector_push_back(app->sl, model->model_list, &rmodel);
+    sl_err = sl_vector_push_back(model->model_list, &rmodel);
     if(sl_err != SL_NO_ERROR) {
       app_err = sl_to_app_error(sl_err);
       goto error;
@@ -184,8 +184,7 @@ app_create_model(struct app* app, const char* path, struct app_model** model)
     goto error;
   }
   sl_err = sl_create_vector
-    (app->sl,
-     sizeof(struct rdr_mesh*),
+    (sizeof(struct rdr_mesh*),
      ALIGNOF(struct rdr_mesh*),
      &mdl->mesh_list);
   if(sl_err != SL_NO_ERROR) {
@@ -193,8 +192,7 @@ app_create_model(struct app* app, const char* path, struct app_model** model)
     goto error;
   }
   sl_err = sl_create_vector
-    (app->sl,
-     sizeof(struct rdr_material*),
+    (sizeof(struct rdr_material*),
      ALIGNOF(struct rdr_material*),
      &mdl->material_list);
   if(sl_err != SL_NO_ERROR) {
@@ -202,8 +200,7 @@ app_create_model(struct app* app, const char* path, struct app_model** model)
     goto error;
   }
   sl_err = sl_create_vector
-    (app->sl,
-     sizeof(struct rdr_model*),
+    (sizeof(struct rdr_model*),
      ALIGNOF(struct rdr_model*),
      &mdl->model_list);
   if(sl_err != SL_NO_ERROR) {
@@ -250,17 +247,17 @@ app_free_model(struct app* app, struct app_model* model)
     app_err = rsrc_to_app_error(rsrc_err);
     goto error;
   }
-  sl_err = sl_free_vector(app->sl, model->mesh_list);
+  sl_err = sl_free_vector(model->mesh_list);
   if(sl_err != SL_NO_ERROR) {
     app_err = sl_to_app_error(sl_err);
     goto error;
   }
-  sl_err = sl_free_vector(app->sl, model->material_list);
+  sl_err = sl_free_vector(model->material_list);
   if(sl_err != SL_NO_ERROR) {
     app_err = sl_to_app_error(sl_err);
     goto error;
   }
-  sl_err = sl_free_vector(app->sl, model->model_list);
+  sl_err = sl_free_vector(model->model_list);
   if(sl_err != SL_NO_ERROR) {
     app_err = sl_to_app_error(sl_err);
     goto error;
@@ -364,7 +361,7 @@ app_instantiate_model
     size_t i = 0;
 
     SL(vector_buffer
-       (app->sl, model->model_list, &len, NULL, NULL, (void**)&model_lstbuf));
+       (model->model_list, &len, NULL, NULL, (void**)&model_lstbuf));
     for(i = 0; i < len; ++i) {
       rdr_err = rdr_create_model_instance
         (app->rdr, model_lstbuf[i], &render_instance);
@@ -373,7 +370,7 @@ app_instantiate_model
         goto error;
       }
       sl_err = sl_vector_push_back
-        (app->sl, instance->model_instance_list, &render_instance);
+        (instance->model_instance_list, &render_instance);
       if(sl_err != SL_NO_ERROR) {
         app_err = sl_to_app_error(sl_err);
         goto error;

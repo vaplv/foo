@@ -141,23 +141,23 @@ error:
 /* Set the end id of the element ranges of the last group registered in obj.
  * Return true if a group was flushed and false otherwise. */
 static bool
-flush_group(struct rsrc_context* ctxt, struct rsrc_wavefront_obj* wobj)
+flush_group(struct rsrc_wavefront_obj* wobj)
 {
   group_t* group = NULL;
   size_t len = 0;
 
-  assert(ctxt && wobj);
+  assert(wobj);
 
-  SL(vector_length(ctxt->sl_ctxt, wobj->group_list, &len));
+  SL(vector_length(wobj->group_list, &len));
   if(len == 0)
     return false;
 
-  SL(vector_at(ctxt->sl_ctxt, wobj->group_list, len-1, (void**)&group));
-  SL(vector_length(ctxt->sl_ctxt, wobj->point_list, &len));
+  SL(vector_at(wobj->group_list, len-1, (void**)&group));
+  SL(vector_length(wobj->point_list, &len));
   group->point_range.end = len;
-  SL(vector_length(ctxt->sl_ctxt, wobj->line_list, &len));
+  SL(vector_length(wobj->line_list, &len));
   group->line_range.end = len;
-  SL(vector_length(ctxt->sl_ctxt, wobj->face_list, &len));
+  SL(vector_length(wobj->face_list, &len));
   group->face_range.end = len;
   return true;
 }
@@ -165,19 +165,19 @@ flush_group(struct rsrc_context* ctxt, struct rsrc_wavefront_obj* wobj)
 /* Set the end id of the element ranges of the last group registered in obj.
  * Return true if a group was flushed and false otherwise. */
 static bool
-flush_smooth_group(struct rsrc_context* ctxt, struct rsrc_wavefront_obj* wobj)
+flush_smooth_group(struct rsrc_wavefront_obj* wobj)
 {
   smooth_group_t* sgroup = NULL;
   size_t len = 0;
 
-  assert(ctxt && wobj);
+  assert(wobj);
 
-  SL(vector_length(ctxt->sl_ctxt, wobj->smooth_group_list, &len));
+  SL(vector_length(wobj->smooth_group_list, &len));
   if(len == 0)
     return false;
 
-  SL(vector_at(ctxt->sl_ctxt, wobj->smooth_group_list, len-1, (void**)&sgroup));
-  SL(vector_length(ctxt->sl_ctxt, wobj->face_list, &len));
+  SL(vector_at(wobj->smooth_group_list, len-1, (void**)&sgroup));
+  SL(vector_length(wobj->face_list, &len));
   sgroup->face_range.end = len;
   return true;
 }
@@ -185,30 +185,30 @@ flush_smooth_group(struct rsrc_context* ctxt, struct rsrc_wavefront_obj* wobj)
 /* Set the end id of the element ranges of the last group registered in obj.
  * Return true if a group was flushed and false otherwise. */
 static bool
-flush_usemtl(struct rsrc_context* ctxt, struct rsrc_wavefront_obj* wobj)
+flush_usemtl(struct rsrc_wavefront_obj* wobj)
 {
   mtl_t* mtl = NULL;
   size_t len = 0;
 
-  assert(ctxt && wobj);
+  assert(wobj);
 
-  SL(vector_length(ctxt->sl_ctxt, wobj->mtl_list, &len));
+  SL(vector_length(wobj->mtl_list, &len));
   if(len == 0)
     return false;
 
-  SL(vector_at(ctxt->sl_ctxt, wobj->mtl_list, len-1, (void**)&mtl));
-  SL(vector_length(ctxt->sl_ctxt, wobj->point_list, &len));
+  SL(vector_at(wobj->mtl_list, len-1, (void**)&mtl));
+  SL(vector_length(wobj->point_list, &len));
   mtl->point_range.end = len;
-  SL(vector_length(ctxt->sl_ctxt, wobj->line_list, &len));
+  SL(vector_length(wobj->line_list, &len));
   mtl->line_range.end = len;
-  SL(vector_length(ctxt->sl_ctxt, wobj->face_list, &len));
+  SL(vector_length(wobj->face_list, &len));
   mtl->face_range.end = len;
   return true;
 }
 
 /* Parse 3 floats. Check the eol. */
 static enum rsrc_error
-parse_xyz(struct rsrc_context* ctxt, struct lex* lex, struct sl_vector* vec)
+parse_xyz(struct lex* lex, struct sl_vector* vec)
 {
   float f3[3];
   char* token = NULL;
@@ -217,7 +217,7 @@ parse_xyz(struct rsrc_context* ctxt, struct lex* lex, struct sl_vector* vec)
   bool is_pushed = false;
   bool no_error = false;
 
-  assert(ctxt && vec);
+  assert(vec);
 
   no_error =
     lex_parse_float(lex, f3 + 0, &token) &&
@@ -230,7 +230,7 @@ parse_xyz(struct rsrc_context* ctxt, struct lex* lex, struct sl_vector* vec)
     goto error;
   }
 
-  sl_err = sl_vector_push_back(ctxt->sl_ctxt, vec, f3);
+  sl_err = sl_vector_push_back(vec, f3);
   if(sl_err != SL_NO_ERROR) {
     err = sl_to_rsrc_error(sl_err);
     goto error;
@@ -242,13 +242,13 @@ exit:
 
 error:
   if(is_pushed)
-    SL(vector_pop_back(ctxt->sl_ctxt, vec));
+    SL(vector_pop_back(vec));
   goto exit;
 }
 
 /* Parse 2 or 3 floats. Check the eol. */
 static enum rsrc_error
-parse_uvw(struct rsrc_context* ctxt, struct lex* lex, struct sl_vector* vec)
+parse_uvw(struct lex* lex, struct sl_vector* vec)
 {
   float f3[3];
   char* token = NULL;
@@ -257,7 +257,7 @@ parse_uvw(struct rsrc_context* ctxt, struct lex* lex, struct sl_vector* vec)
   bool is_pushed = false;
   bool no_error = false;
 
-  assert(ctxt && vec);
+  assert(vec);
 
   no_error =
     lex_parse_float(lex, f3 + 0, &token) &&
@@ -274,7 +274,7 @@ parse_uvw(struct rsrc_context* ctxt, struct lex* lex, struct sl_vector* vec)
   if(!token)
     f3[2] = 0.f;
 
-  sl_err = sl_vector_push_back(ctxt->sl_ctxt, vec, f3);
+  sl_err = sl_vector_push_back(vec, f3);
   if(sl_err != SL_NO_ERROR) {
     err = sl_to_rsrc_error(sl_err);
     goto error;
@@ -286,16 +286,13 @@ exit:
 
 error:
   if(is_pushed)
-    SL(vector_pop_back(ctxt->sl_ctxt, vec));
+    SL(vector_pop_back(vec));
   goto exit;
 }
 
 /* Parse the coords ids of a point element. */
 static enum rsrc_error
-parse_point_elmt
-  (struct rsrc_context* ctxt,
-   struct lex* lex,
-   struct sl_vector* point_list)
+parse_point_elmt(struct lex* lex, struct sl_vector* point_list)
 {
   char* token = NULL;
   struct sl_vector* vertices = NULL;
@@ -305,10 +302,9 @@ parse_point_elmt
   long int v = 0;
   bool is_pushed = false;
 
-  assert(ctxt && lex && point_list);
+  assert(lex && point_list);
 
-  sl_err = sl_create_vector
-    (ctxt->sl_ctxt, sizeof(size_t), ALIGNOF(size_t), &vertices);
+  sl_err = sl_create_vector(sizeof(size_t), ALIGNOF(size_t), &vertices);
   if(sl_err != SL_NO_ERROR) {
     err = sl_to_rsrc_error(sl_err);
     goto error;
@@ -316,7 +312,7 @@ parse_point_elmt
 
   /* Parse the point vertices. */
   while(lex_parse_long_int(lex, &v, &token)) {
-    sl_err = sl_vector_push_back(ctxt->sl_ctxt, vertices, &v);
+    sl_err = sl_vector_push_back(vertices, &v);
     if(sl_err != SL_NO_ERROR) {
       err = sl_to_rsrc_error(sl_err);
       goto error;
@@ -331,7 +327,7 @@ parse_point_elmt
   }
 
   /* Add the point to the list of points. */
-  sl_err = sl_vector_push_back(ctxt->sl_ctxt, point_list, &vertices);
+  sl_err = sl_vector_push_back(point_list, &vertices);
   if(sl_err != SL_NO_ERROR) {
     err = sl_to_rsrc_error(sl_err);
     goto error;
@@ -343,17 +339,14 @@ exit:
 
 error:
   if(is_pushed)
-    SL(vector_pop_back(ctxt->sl_ctxt, point_list));
+    SL(vector_pop_back(point_list));
   if(vertices)
-    SL(free_vector(ctxt->sl_ctxt, vertices));
+    SL(free_vector(vertices));
   goto exit;
 }
 
 static enum rsrc_error
-parse_line_elmt
-  (struct rsrc_context* ctxt,
-   struct lex* lex,
-   struct sl_vector* line_list)
+parse_line_elmt(struct lex* lex, struct sl_vector* line_list)
 {
   char* token = NULL;
   struct sl_vector* vertices = NULL;
@@ -363,16 +356,15 @@ parse_line_elmt
   long int v = 0, vt = 0;
   bool is_pushed = false;
 
-  assert(ctxt && lex && line_list);
+  assert(lex && line_list);
 
-  sl_err = sl_create_vector
-    (ctxt->sl_ctxt, sizeof(line_t), ALIGNOF(line_t), &vertices);
+  sl_err = sl_create_vector(sizeof(line_t), ALIGNOF(line_t), &vertices);
   if(sl_err != SL_NO_ERROR) {
     err = sl_to_rsrc_error(sl_err);
     goto error;
   }
 
-  sl_err = sl_vector_reserve(ctxt->sl_ctxt, vertices, 2);
+  sl_err = sl_vector_reserve(vertices, 2);
   if(sl_err != SL_NO_ERROR) {
     err = sl_to_rsrc_error(sl_err);
     goto error;
@@ -396,7 +388,7 @@ parse_line_elmt
     /* Add the vertex to the line element. */
     line.v = (size_t)v;
     line.vt = (size_t)vt;
-    sl_err = sl_vector_push_back(ctxt->sl_ctxt, vertices, &line);
+    sl_err = sl_vector_push_back(vertices, &line);
     if(sl_err != SL_NO_ERROR) {
       err = sl_to_rsrc_error(sl_err);
       goto error;
@@ -411,7 +403,7 @@ parse_line_elmt
   }
 
   /* Add the line to the list of lines. */
-  sl_err = sl_vector_push_back(ctxt->sl_ctxt, line_list, vertices);
+  sl_err = sl_vector_push_back(line_list, vertices);
   if(sl_err != SL_NO_ERROR) {
     err = sl_to_rsrc_error(sl_err);;
     goto error;
@@ -423,17 +415,14 @@ exit:
 
 error:
   if(is_pushed)
-    SL(vector_pop_back(ctxt->sl_ctxt, line_list));
+    SL(vector_pop_back(line_list));
   if(vertices)
-    SL(free_vector(ctxt->sl_ctxt, vertices));
+    SL(free_vector(vertices));
   goto exit;
 }
 
 static enum rsrc_error
-parse_face_elmt
-  (struct rsrc_context* ctxt,
-   struct lex* lex,
-   struct sl_vector* face_list)
+parse_face_elmt(struct lex* lex, struct sl_vector* face_list)
 {
   char* token = NULL;
   struct sl_vector* vertices = NULL;
@@ -443,17 +432,16 @@ parse_face_elmt
   long int v = 0, vt = 0, vn = 0;
   bool is_pushed = false;
 
-  assert(ctxt && lex && face_list);
+  assert(lex && face_list);
 
-  sl_err = sl_create_vector
-    (ctxt->sl_ctxt, sizeof(face_t), ALIGNOF(face_t), &vertices);
+  sl_err = sl_create_vector(sizeof(face_t), ALIGNOF(face_t), &vertices);
   if(sl_err != SL_NO_ERROR) {
     err = sl_to_rsrc_error(sl_err);
     goto error;
   }
 
   /* We assume that the face is a triangle. */
-  sl_err = sl_vector_reserve(ctxt->sl_ctxt, vertices, 3);
+  sl_err = sl_vector_reserve(vertices, 3);
   if(sl_err != SL_NO_ERROR) {
     err = sl_to_rsrc_error(sl_err);
     goto error;
@@ -490,7 +478,7 @@ parse_face_elmt
     face.v = (size_t)v;
     face.vt = (size_t)vt;
     face.vn = (size_t)vn;
-    sl_err = sl_vector_push_back(ctxt->sl_ctxt, vertices, &face);
+    sl_err = sl_vector_push_back(vertices, &face);
     if(sl_err != SL_NO_ERROR) {
       err = sl_to_rsrc_error(sl_err);
       goto error;
@@ -505,7 +493,7 @@ parse_face_elmt
   }
 
   /* Add the face to the list of faces. */
-  sl_err = sl_vector_push_back(ctxt->sl_ctxt, face_list, &vertices);
+  sl_err = sl_vector_push_back(face_list, &vertices);
   if(sl_err != SL_NO_ERROR) {
     err = sl_to_rsrc_error(sl_err);
     goto error;
@@ -517,17 +505,14 @@ exit:
 
 error:
   if(is_pushed)
-    SL(vector_pop_back(ctxt->sl_ctxt, face_list));
+    SL(vector_pop_back(face_list));
   if(vertices)
-    SL(free_vector(ctxt->sl_ctxt, vertices));
+    SL(free_vector(vertices));
   goto exit;
 }
 
 static enum rsrc_error
-parse_group
-  (struct rsrc_context* ctxt,
-   struct lex* lex,
-   struct rsrc_wavefront_obj* wobj)
+parse_group(struct lex* lex, struct rsrc_wavefront_obj* wobj)
 {
   group_t group;
   struct sl_vector* name_list = NULL;
@@ -540,20 +525,19 @@ parse_group
   enum sl_error sl_err = SL_NO_ERROR;
   bool is_pushed = false;
 
-  assert(ctxt && lex && wobj);
+  assert(lex && wobj);
 
   /* flush the previous group. */
-  flush_group(ctxt, wobj);
+  flush_group(wobj);
 
-  sl_err = sl_create_vector
-    (ctxt->sl_ctxt, sizeof(char*), ALIGNOF(char*), &name_list);
+  sl_err = sl_create_vector(sizeof(char*), ALIGNOF(char*), &name_list);
   if(sl_err != SL_NO_ERROR) {
     err = sl_to_rsrc_error(sl_err);
     goto error;
   }
 
   /* We assume that at most 2 group names will be set. */
-  sl_err = sl_vector_reserve(ctxt->sl_ctxt, name_list, 2);
+  sl_err = sl_vector_reserve(name_list, 2);
   if(sl_err != SL_NO_ERROR) {
     err = sl_to_rsrc_error(sl_err);
     goto error;
@@ -575,7 +559,7 @@ parse_group
     }
     name = strncpy(name, token, token_len);
 
-    sl_err = sl_vector_push_back(ctxt->sl_ctxt, name_list, &name);
+    sl_err = sl_vector_push_back(name_list, &name);
     if(sl_err != SL_NO_ERROR) {
       err = sl_to_rsrc_error(sl_err);
       goto error;
@@ -591,13 +575,13 @@ parse_group
   }
 
   group.name_list = name_list;
-  SL(vector_length(ctxt->sl_ctxt, wobj->point_list, &len));
+  SL(vector_length(wobj->point_list, &len));
   group.point_range.begin = len;
-  SL(vector_length(ctxt->sl_ctxt, wobj->line_list, &len));
+  SL(vector_length(wobj->line_list, &len));
   group.line_range.begin = len;
-  SL(vector_length(ctxt->sl_ctxt, wobj->face_list, &len));
+  SL(vector_length(wobj->face_list, &len));
   group.face_range.begin = len;
-  sl_err = sl_vector_push_back(ctxt->sl_ctxt, wobj->group_list, &group);
+  sl_err = sl_vector_push_back(wobj->group_list, &group);
   if(sl_err != SL_NO_ERROR) {
     err = sl_to_rsrc_error(sl_err);
     goto error;
@@ -609,13 +593,13 @@ exit:
 
 error:
   if(is_pushed)
-    SL(vector_pop_back(ctxt->sl_ctxt, wobj->group_list));
+    SL(vector_pop_back(wobj->group_list));
   if(name_list) {
     void* buffer = NULL;
-    SL(vector_buffer(ctxt->sl_ctxt, name_list, &len, NULL, NULL, &buffer));
+    SL(vector_buffer(name_list, &len, NULL, NULL, &buffer));
     for(i = 0; i < len; ++i)
       free(((char**)buffer)[i]);
-    SL(free_vector(ctxt->sl_ctxt, name_list));
+    SL(free_vector(name_list));
   }
   if(name)
     free(name);
@@ -623,10 +607,7 @@ error:
 }
 
 static enum rsrc_error
-parse_smooth_group
-  (struct rsrc_context* ctxt,
-   struct lex* lex,
-   struct rsrc_wavefront_obj* wobj)
+parse_smooth_group(struct lex* lex, struct rsrc_wavefront_obj* wobj)
 {
   smooth_group_t sgroup;
   char* token = NULL;
@@ -639,10 +620,10 @@ parse_smooth_group
   bool is_on = false;
   bool is_pushed = false;
 
-  assert(ctxt && lex && wobj);
+  assert(lex && wobj);
 
   /* Flush the previous smooth group. */
-  flush_smooth_group(ctxt, wobj);
+  flush_smooth_group(wobj);
 
   if((token = lex_next_token(lex)) == NULL) {
     err = RSRC_PARSING_ERROR;
@@ -665,11 +646,11 @@ parse_smooth_group
   }
 
   /* Create the smooth group and register it. */
-  SL(vector_length(ctxt->sl_ctxt, wobj->face_list, &len));
+  SL(vector_length(wobj->face_list, &len));
   sgroup.is_on = is_on;
   sgroup.face_range.begin = len;
   sgroup.face_range.end = 0;
-  sl_err = sl_vector_push_back(ctxt->sl_ctxt, wobj->smooth_group_list, &sgroup);
+  sl_err = sl_vector_push_back(wobj->smooth_group_list, &sgroup);
   if(sl_err != SL_NO_ERROR) {
     err = sl_to_rsrc_error(sl_err);
     goto error;
@@ -681,20 +662,19 @@ exit:
 
 error:
   if(is_pushed)
-    SL(vector_pop_back(ctxt->sl_ctxt, wobj->smooth_group_list));
+    SL(vector_pop_back(wobj->smooth_group_list));
   goto exit;
 }
 
 static enum rsrc_error
-parse_mtllib
-  (struct rsrc_context* ctxt,
-   struct lex* lex,
-   struct sl_vector* mtllib_list)
+parse_mtllib(struct lex* lex, struct sl_vector* mtllib_list)
 {
   char* token = NULL;
   size_t nb_libs = 0;
   enum rsrc_error err = RSRC_NO_ERROR;
   enum sl_error sl_err = SL_NO_ERROR;
+
+  assert(lex && mtllib_list);
 
   while((token = lex_next_token(lex)) != NULL) {
     const size_t token_len = strlen(token) + 1; /* +1 <=> null character. */
@@ -706,7 +686,7 @@ parse_mtllib
     }
     libname = strncpy(libname, token, token_len);
 
-    sl_err = sl_vector_push_back(ctxt->sl_ctxt, mtllib_list, &libname);
+    sl_err = sl_vector_push_back(mtllib_list, &libname);
     if(sl_err != SL_NO_ERROR) {
       err = sl_to_rsrc_error(sl_err);
       goto error;
@@ -727,20 +707,17 @@ error:
   while(nb_libs) {
     size_t len = 0;
     char* libname = NULL;
-    SL(vector_length(ctxt->sl_ctxt, mtllib_list, &len));
-    SL(vector_at(ctxt->sl_ctxt, mtllib_list, len-1, (void**)&libname));
+    SL(vector_length(mtllib_list, &len));
+    SL(vector_at(mtllib_list, len-1, (void**)&libname));
     free(libname);
-    SL(vector_pop_back(ctxt->sl_ctxt, mtllib_list));
+    SL(vector_pop_back(mtllib_list));
     --nb_libs;
   }
   goto exit;
 }
 
 static enum rsrc_error
-parse_mtl
-  (struct rsrc_context* ctxt,
-   struct lex* lex,
-   struct rsrc_wavefront_obj* wobj)
+parse_mtl(struct lex* lex, struct rsrc_wavefront_obj* wobj)
 {
   mtl_t mtl;
   char* token = NULL;
@@ -749,10 +726,10 @@ parse_mtl
   enum sl_error sl_err = SL_NO_ERROR;
   bool is_pushed = false;
 
-  assert(ctxt && lex && wobj);
+  assert(lex && wobj);
 
   /* Flush the previous usemtl. */
-  flush_usemtl(ctxt, wobj);
+  flush_usemtl(wobj);
 
   token = lex_next_token(lex);
   if(!token || lex_next_token(lex)) {
@@ -768,14 +745,14 @@ parse_mtl
   }
   mtl.name = strncpy(mtl.name, token, len);
 
-  SL(vector_length(ctxt->sl_ctxt, wobj->point_list, &len));
+  SL(vector_length(wobj->point_list, &len));
   mtl.point_range.begin = len;
-  SL(vector_length(ctxt->sl_ctxt, wobj->line_list, &len));
+  SL(vector_length(wobj->line_list, &len));
   mtl.line_range.begin = len;
-  SL(vector_length(ctxt->sl_ctxt, wobj->face_list, &len));
+  SL(vector_length(wobj->face_list, &len));
   mtl.face_range.begin = len;
 
-  sl_err = sl_vector_push_back(ctxt->sl_ctxt, wobj->mtl_list, &mtl);
+  sl_err = sl_vector_push_back(wobj->mtl_list, &mtl);
   if(sl_err != SL_NO_ERROR) {
     err = RSRC_MEMORY_ERROR;
     goto error;
@@ -787,14 +764,14 @@ exit:
 
 error:
   if(is_pushed)
-    SL(vector_pop_back(ctxt->sl_ctxt, wobj->mtl_list));
+    SL(vector_pop_back(wobj->mtl_list));
   if(mtl.name)
     free(mtl.name);
   goto exit;
 }
 
 static enum rsrc_error
-clear_wavefront_obj(struct rsrc_context* ctxt, struct rsrc_wavefront_obj* wobj)
+clear_wavefront_obj(struct rsrc_wavefront_obj* wobj)
 {
   void* buf = NULL;
   size_t len = 0;
@@ -802,9 +779,11 @@ clear_wavefront_obj(struct rsrc_context* ctxt, struct rsrc_wavefront_obj* wobj)
   enum rsrc_error err = RSRC_NO_ERROR;
   enum sl_error sl_err = SL_NO_ERROR;
 
+  assert(wobj);
+
   #define CLEAR_VECTOR(v) \
     do { \
-      sl_err = sl_clear_vector(ctxt->sl_ctxt, v); \
+      sl_err = sl_clear_vector(v); \
       if(sl_err != SL_NO_ERROR) { \
         err = sl_to_rsrc_error(sl_err); \
         goto error; \
@@ -813,8 +792,7 @@ clear_wavefront_obj(struct rsrc_context* ctxt, struct rsrc_wavefront_obj* wobj)
 
   #define VECTOR_BUFFER(vec, len, buf) \
     do { \
-      sl_err = sl_vector_buffer \
-        (ctxt->sl_ctxt, vec, &len, NULL, NULL, (void**)&buf); \
+      sl_err = sl_vector_buffer(vec, &len, NULL, NULL, (void**)&buf); \
       if(sl_err != SL_NO_ERROR) { \
         err = sl_to_rsrc_error(sl_err); \
         goto error; \
@@ -823,7 +801,7 @@ clear_wavefront_obj(struct rsrc_context* ctxt, struct rsrc_wavefront_obj* wobj)
 
   #define FREE_VECTOR(v) \
     do { \
-      sl_err = sl_free_vector(ctxt->sl_ctxt, v); \
+      sl_err = sl_free_vector(v); \
       if(sl_err != SL_NO_ERROR) { \
         err = sl_to_rsrc_error(sl_err); \
         goto error; \
@@ -907,8 +885,7 @@ error:
 
 static enum rsrc_error
 parse_wavefront_obj
-  (struct rsrc_context* ctxt,
-   struct rsrc_wavefront_obj* wobj,
+  (struct rsrc_wavefront_obj* wobj,
    const char* path,
    char* filecontent)
 {
@@ -918,7 +895,7 @@ parse_wavefront_obj
   char* end_line = NULL;
   size_t line_id = 0;
 
-  assert(ctxt && wobj && path && filecontent);
+  assert(wobj && path && filecontent);
 
   line = lex_next_token(&lex_eol);
   end_line = line;  /* Pointer toward the eol char of the previous persed line. */
@@ -938,44 +915,44 @@ parse_wavefront_obj
       if(*token == '#') { /* Comment. */
         break;
       } else if(!strcmp(token, "v")) { /* Vertex position. */
-        err = parse_xyz(ctxt, &lex_space, wobj->position_list);
+        err = parse_xyz(&lex_space, wobj->position_list);
         if(err != RSRC_NO_ERROR)
           goto error;
       } else if(!strcmp(token, "vn")) { /* Vertex normal. */
-        err = parse_xyz(ctxt, &lex_space, wobj->normal_list);
+        err = parse_xyz(&lex_space, wobj->normal_list);
         if(err != RSRC_NO_ERROR)
           goto error;
       } else if(!strcmp(token, "vt")) { /* Vertex texture coordinates. */
-        err = parse_uvw(ctxt, &lex_space, wobj->texcoord_list);
+        err = parse_uvw(&lex_space, wobj->texcoord_list);
         if(err != RSRC_NO_ERROR)
           goto error;
       } else if(!strcmp(token, "p")) { /* Point element. */
-        err = parse_point_elmt(ctxt, &lex_space, wobj->point_list);
+        err = parse_point_elmt(&lex_space, wobj->point_list);
         if(err != RSRC_NO_ERROR)
           goto error;
       } else if(!strcmp(token, "l")) { /* Line element. */
-        err = parse_line_elmt(ctxt, &lex_space, wobj->line_list);
+        err = parse_line_elmt(&lex_space, wobj->line_list);
         if(err != RSRC_NO_ERROR)
           goto error;
       } else if(!strcmp(token, "f")
              || !strcmp(token, "fo")) { /* Face element. */
-        err = parse_face_elmt(ctxt, &lex_space, wobj->face_list);
+        err = parse_face_elmt(&lex_space, wobj->face_list);
         if(err != RSRC_NO_ERROR)
           goto error;
       } else if(!strcmp(token, "g")) { /* Grouping. */
-        err = parse_group(ctxt, &lex_space, wobj);
+        err = parse_group(&lex_space, wobj);
         if(err != RSRC_NO_ERROR)
           goto error;
       } else if(!strcmp(token, "s")) { /* Smooth group. */
-        err = parse_smooth_group(ctxt, &lex_space, wobj);
+        err = parse_smooth_group(&lex_space, wobj);
         if(err != RSRC_NO_ERROR)
           goto error;
       } else if(!strcmp(token, "mtllib")) { /* Mtl libraray render attrib. */
-        err = parse_mtllib(ctxt, &lex_space, wobj->mtllib_list);
+        err = parse_mtllib(&lex_space, wobj->mtllib_list);
         if(err != RSRC_NO_ERROR)
           goto error;
       } else if(!strcmp(token, "usemtl")) { /* Use mtl render attrib. */
-        err = parse_mtl(ctxt, &lex_space, wobj);
+        err = parse_mtl(&lex_space, wobj);
         if(err != RSRC_NO_ERROR)
           goto error;
       } else {
@@ -986,16 +963,16 @@ parse_wavefront_obj
     }
     line = lex_next_token(&lex_eol);
   }
-  flush_group(ctxt, wobj);
-  flush_smooth_group(ctxt, wobj);
-  flush_usemtl(ctxt, wobj);
+  flush_group(wobj);
+  flush_smooth_group(wobj);
+  flush_usemtl(wobj);
 
 exit:
   return err;
 
 error:
   fprintf(stderr, "%s:%zd: error: parsing failed.\n", path, line_id);
-  err = clear_wavefront_obj(ctxt, wobj);
+  err = clear_wavefront_obj(wobj);
   assert(err == RSRC_NO_ERROR);
   goto exit;
 }
@@ -1027,7 +1004,7 @@ rsrc_create_wavefront_obj
 
   #define CREATE_VECTOR(v, t) \
     do { \
-      sl_err = sl_create_vector(ctxt->sl_ctxt, sizeof(t), ALIGNOF(t), &v); \
+      sl_err = sl_create_vector(sizeof(t), ALIGNOF(t), &v); \
       if(sl_err != SL_NO_ERROR) { \
         err = sl_to_rsrc_error(sl_err); \
         goto error; \
@@ -1075,14 +1052,14 @@ rsrc_free_wavefront_obj
     goto error;
   }
 
-  err = clear_wavefront_obj(ctxt, wobj);
+  err = clear_wavefront_obj(wobj);
   if(err != RSRC_NO_ERROR)
     goto error;
 
   #define FREE_VECTOR(v) \
     do { \
       if(v) { \
-        sl_err = sl_free_vector(ctxt->sl_ctxt, v); \
+        sl_err = sl_free_vector(v); \
         if(sl_err != SL_NO_ERROR) { \
           err = sl_to_rsrc_error(sl_err); \
           goto error; \
@@ -1167,11 +1144,11 @@ rsrc_load_wavefront_obj
   fclose(fptr);
   fptr = NULL;
 
-  err = clear_wavefront_obj(ctxt, wobj);
+  err = clear_wavefront_obj(wobj);
   if(err != RSRC_NO_ERROR)
     goto error;
 
-  err = parse_wavefront_obj(ctxt, wobj, path, file_content);
+  err = parse_wavefront_obj(wobj, path, file_content);
   if(err != RSRC_NO_ERROR)
     goto error;
 

@@ -2,7 +2,6 @@
 #include "app/core/app_model.h"
 #include "app/core/app_model_instance.h"
 #include "app/core/app_world.h"
-#include "sys/sys.h"
 #include "utest/app/core/cube_obj.h"
 #include "utest/utest.h"
 #include <stdio.h>
@@ -22,7 +21,6 @@ main(int argc, char** argv)
   struct app_model* model = NULL;
   struct app_model_instance* instances[2] = { NULL, NULL };
   struct app_world* world = NULL;
-  struct sys* sys = NULL;
   FILE* fp = NULL;
   size_t i = 0;
 
@@ -39,8 +37,7 @@ main(int argc, char** argv)
   CHECK(strlen(cube_obj) * sizeof(char), i);
   CHECK(fclose(fp), 0);
 
-  CHECK(sys_init(&sys), SYS_NO_ERROR);
-  CHECK(app_init(&args, sys, &app), OK);
+  CHECK(app_init(&args, &app), OK);
   CHECK(app_create_model(app, PATH, &model), OK);
   CHECK(app_instantiate_model(app, model, &instances[0]), OK);
   CHECK(app_instantiate_model(app, model, &instances[1]), OK);
@@ -95,7 +92,6 @@ main(int argc, char** argv)
   CHECK(app_free_model_instance(app, instances[0]), OK);
   CHECK(app_free_model(app, model), OK);
   CHECK(app_shutdown(app), OK);
-  CHECK(sys_shutdown(sys), SYS_NO_ERROR);
 
   return 0;
 }

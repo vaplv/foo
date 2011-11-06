@@ -1,7 +1,6 @@
 #include "app/core/app_error.h"
 #include "app/core/app.h"
 #include "app/game/game.h"
-#include "sys/sys.h"
 #include <assert.h>
 #include <getopt.h>
 #include <stdlib.h>
@@ -59,10 +58,8 @@ main(int argc, char** argv)
   struct app_args args;
   struct app* app = NULL;
   struct game* game = NULL;
-  struct sys* sys = NULL;
   enum app_error app_err = APP_NO_ERROR;
   enum game_error game_err = GAME_NO_ERROR;
-  enum sys_error sys_err = SYS_NO_ERROR;
   int err = 0;
   bool keep_running = true;
 
@@ -76,13 +73,7 @@ main(int argc, char** argv)
     goto error;
   }
 
-  sys_err = sys_init(&sys);
-  if(sys_err != SYS_NO_ERROR) {
-    err = -1;
-    goto error;
-  }
-
-  app_err = app_init(&args, sys, &app);
+  app_err = app_init(&args, &app);
   if(app_err != APP_NO_ERROR) {
     err = -1;
     goto error;
@@ -103,10 +94,6 @@ main(int argc, char** argv)
   }
 
 exit:
-  if(sys) {
-    sys_err = sys_shutdown(sys);
-    assert(sys_err == SYS_NO_ERROR);
-  }
   if(app) {
     app_err = app_shutdown(app);
     assert(app_err == APP_NO_ERROR);

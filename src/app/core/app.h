@@ -17,7 +17,6 @@ struct sys;
 extern enum app_error
 app_init
   (struct app_args* args,
-   struct sys* sys,
    struct app** app);
 
 extern enum app_error

@@ -5,6 +5,7 @@
 #include "renderer/rdr_model_instance.h"
 #include "stdlib/sl_vector.h"
 #include "sys/sys.h"
+#include <assert.h>
 #include <stdlib.h>
 
 /*******************************************************************************
@@ -26,8 +27,7 @@ app_free_model_instance(struct app* app, struct app_model_instance* instance)
   }
   if(instance->model_instance_list) {
     SL(vector_buffer
-       (app->sl,
-        instance->model_instance_list,
+       (instance->model_instance_list,
         &len,
         NULL,
         NULL,
@@ -35,7 +35,7 @@ app_free_model_instance(struct app* app, struct app_model_instance* instance)
     for(i = 0; i < len; ++i)
       RDR(free_model_instance(app->rdr, render_instance_lstbuf[i]));
 
-    SL(free_vector(app->sl, instance->model_instance_list));
+    SL(free_vector(instance->model_instance_list));
   }
   free(instance);
 
@@ -70,8 +70,7 @@ app_create_model_instance
     goto error;
   }
   sl_err = sl_create_vector
-    (app->sl,
-     sizeof(struct app_model_instance*),
+    (sizeof(struct app_model_instance*),
      ALIGNOF(struct app_model_instance*),
      &instance->model_instance_list);
   if(sl_err != SL_NO_ERROR) {

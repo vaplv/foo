@@ -1,5 +1,5 @@
-#ifndef SL_CONTEXT_C_H
-#define SL_CONTEXT_C_H
+#ifndef SL_H
+#define SL_H
 
 #define SL_IS_POWER_OF_2(i) ((i) > 0 && ((i) & ((i)-1)) == 0)
 
@@ -13,10 +13,5 @@
   (sizeof(i) > 8 ? (j) |= (j) >> 32, (void)0 : (void)0), \
   ++(j)
 
-struct sl_context {
-  /* Put the global structures/constants here. */
-  char dummy;
-};
-
-#endif /* SL_CONTEXT_C_H */
+#endif /* SL_H */
 

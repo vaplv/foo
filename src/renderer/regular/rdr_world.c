@@ -72,8 +72,7 @@ rdr_create_world(struct rdr_system* sys, struct rdr_world** out_world)
   }
 
   sl_err = sl_create_sorted_vector
-    (sys->sl_ctxt,
-     sizeof(struct rdr_model_instance*),
+    (sizeof(struct rdr_model_instance*),
      ALIGNOF(struct rdr_model_instance*),
      compare_model_instance,
      &world->model_instance_list);
@@ -90,7 +89,7 @@ exit:
 error:
   if(world) {
     if(world->model_instance_list) {
-      sl_err = sl_free_sorted_vector(sys->sl_ctxt, world->model_instance_list);
+      sl_err = sl_free_sorted_vector(world->model_instance_list);
       assert(sl_err == SL_NO_ERROR);
     }
     free(world);
@@ -116,8 +115,7 @@ rdr_free_world(struct rdr_system* sys, struct rdr_world* world)
     size_t i = 0;
 
     sl_err = sl_sorted_vector_buffer
-      (sys->sl_ctxt,
-       world->model_instance_list,
+      (world->model_instance_list,
        &nb_instances,
        NULL,
        NULL,
@@ -126,7 +124,7 @@ rdr_free_world(struct rdr_system* sys, struct rdr_world* world)
     for(i = 0; i < nb_instances; ++i)
       RDR_RELEASE_OBJECT(sys, instance_list[i]);
 
-    sl_err = sl_free_sorted_vector(sys->sl_ctxt, world->model_instance_list);
+    sl_err = sl_free_sorted_vector(world->model_instance_list);
     if(sl_err != SL_NO_ERROR) {
       rdr_err = sl_to_rdr_error(sl_err);
       goto error;
@@ -158,7 +156,7 @@ rdr_add_model_instance
   }
 
   sl_err = sl_sorted_vector_insert
-    (sys->sl_ctxt, world->model_instance_list, &instance);
+    (world->model_instance_list, &instance);
   if(sl_err != SL_NO_ERROR) {
     rdr_err = sl_to_rdr_error(sl_err);
     goto error;
@@ -176,8 +174,7 @@ exit:
 error:
   if(is_instance_added) {
     assert(world);
-    sl_err = sl_sorted_vector_remove
-      (sys->sl_ctxt, world->model_instance_list, &instance);
+    sl_err = sl_sorted_vector_remove(world->model_instance_list, &instance);
     assert(sl_err == SL_NO_ERROR);
   }
   if(is_instance_retained)
@@ -201,8 +198,7 @@ rdr_remove_model_instance
     goto error;
   }
 
-  sl_err = sl_sorted_vector_remove
-    (sys->sl_ctxt, world->model_instance_list, &instance);
+  sl_err = sl_sorted_vector_remove(world->model_instance_list, &instance);
   if(sl_err != SL_NO_ERROR) {
     rdr_err = sl_to_rdr_error(sl_err);
     goto error;
@@ -218,8 +214,7 @@ exit:
 error:
   if(is_instance_removed) {
     assert(world);
-    sl_err = sl_sorted_vector_insert
-      (sys->sl_ctxt, world->model_instance_list, &instance);
+    sl_err = sl_sorted_vector_insert(world->model_instance_list, &instance);
     assert(sl_err == SL_NO_ERROR);
   }
   if(is_instance_released)
@@ -269,8 +264,7 @@ rdr_draw_world
   }
 
   sl_err = sl_sorted_vector_buffer
-    (sys->sl_ctxt,
-     world->model_instance_list,
+    (world->model_instance_list,
      &nb_instances,
      NULL,
      NULL,

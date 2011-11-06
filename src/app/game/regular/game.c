@@ -5,6 +5,7 @@
 #include "sys/sys.h"
 #include "window_manager/wm_device.h"
 #include "window_manager/wm_input.h"
+#include <assert.h>
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>

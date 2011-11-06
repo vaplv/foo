@@ -215,9 +215,9 @@ free_mesh(struct rdr_system* sys, void* data)
   if(mesh->callback_list) {
     struct sl_node* node = NULL;
 
-    SL(linked_list_head(sys->sl_ctxt, mesh->callback_list, &node));
+    SL(linked_list_head(mesh->callback_list, &node));
     assert(node == NULL);
-    SL(free_linked_list(sys->sl_ctxt, mesh->callback_list));
+    SL(free_linked_list(mesh->callback_list));
   }
 
   if(mesh->data) {
@@ -242,13 +242,13 @@ invoke_callbacks(struct rdr_system* sys, struct rdr_mesh* mesh_obj)
 
   mesh = RDR_GET_OBJECT_DATA(sys, mesh_obj);
 
-  for(SL(linked_list_head(sys->sl_ctxt, mesh->callback_list, &node));
+  for(SL(linked_list_head(mesh->callback_list, &node));
       node != NULL;
-      SL(next_node(sys->sl_ctxt, node, &node))) {
+      SL(next_node(node, &node))) {
     enum rdr_error last_err = RDR_NO_ERROR;
     struct rdr_mesh_callback_desc* desc = NULL;
 
-    SL(node_data(sys->sl_ctxt, node, (void**)&desc));
+    SL(node_data(node, (void**)&desc));
 
     last_err = desc->func(sys, mesh_obj, desc->data);
     if(last_err != RDR_NO_ERROR)
@@ -284,8 +284,7 @@ rdr_create_mesh(struct rdr_system* sys, struct rdr_mesh** out_mesh_obj)
   unregister_all_mesh_attribs(mesh);
 
   sl_err = sl_create_linked_list
-    (sys->sl_ctxt,
-     sizeof(struct rdr_mesh_callback_desc),
+    (sizeof(struct rdr_mesh_callback_desc),
      ALIGNOF(struct rdr_mesh_callback_desc),
      &mesh->callback_list);
   if(sl_err != SL_NO_ERROR) {
@@ -520,7 +519,7 @@ rdr_attach_mesh_callback
 
   mesh = RDR_GET_OBJECT_DATA(sys, mesh_obj);
   sl_err = sl_linked_list_add
-    (sys->sl_ctxt, mesh->callback_list, cbk_desc, &node);
+    (mesh->callback_list, cbk_desc, &node);
 
   if(sl_err != SL_NO_ERROR) {
     rdr_err = sl_to_rdr_error(sl_err);
@@ -537,7 +536,7 @@ exit:
 error:
   if(node) {
     assert(mesh != NULL);
-    SL(linked_list_remove(sys->sl_ctxt, mesh->callback_list, node));
+    SL(linked_list_remove(mesh->callback_list, node));
     node = NULL;
   }
   goto exit;
@@ -562,7 +561,7 @@ rdr_detach_mesh_callback
   mesh = RDR_GET_OBJECT_DATA(sys, mesh_obj);
   node = (struct sl_node*)cbk;
 
-  sl_err = sl_linked_list_remove(sys->sl_ctxt, mesh->callback_list, node);
+  sl_err = sl_linked_list_remove(mesh->callback_list, node);
   if(sl_err != SL_NO_ERROR) {
     rdr_err = sl_to_rdr_error(sl_err);
     goto error;

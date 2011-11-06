@@ -4,13 +4,13 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY
   ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/utest/app/core)
 
 add_executable(utest_app utest_app.c)
-target_link_libraries(utest_app appcore sys)
+target_link_libraries(utest_app appcore)
 
 add_executable(utest_app_model utest_app_model.c)
-target_link_libraries(utest_app_model appcore sys)
+target_link_libraries(utest_app_model appcore)
 
 add_executable(utest_app_world utest_app_world.c)
-target_link_libraries(utest_app_world appcore sys)
+target_link_libraries(utest_app_world appcore)
 
 add_test(
   app_null

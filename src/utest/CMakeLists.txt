@@ -4,5 +4,4 @@ add_subdirectory(app)
 add_subdirectory(maths)
 add_subdirectory(renderer)
 add_subdirectory(stdlib)
-add_subdirectory(sys)
 

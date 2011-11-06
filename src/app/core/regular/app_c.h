@@ -24,14 +24,11 @@
 #endif
 
 #define APP_LOG_MSG(app, ...) \
-  SYS(logger_print((app)->sys, (app)->logger, __VA_ARGS__))
+  SL(logger_print((app)->sys, (app)->logger, __VA_ARGS__))
 
 #define APP_ERR_PREFIX "error: "
 #define APP_LOG_ERR(app, ...) \
-  SYS(logger_print \
-      ((app)->sys, \
-       (app)->logger, \
-       "\033[31m" APP_ERR_PREFIX "\033[0m" __VA_ARGS__)) \
+  SL(logger_print((app)->logger, APP_ERR_PREFIX __VA_ARGS__))
 
 struct app_view;
 struct app_world;
@@ -40,10 +37,8 @@ struct rdr_system;
 struct rdr_world;
 struct rsrc_context;
 struct rsrc_wavefront_obj;
-struct sl_context;
+struct sl_logger;
 struct sl_vector;
-struct sys;
-struct sys_logger;
 struct wm_device;
 struct wm_window;
 
@@ -54,11 +49,9 @@ struct app {
   struct rdr_system* rdr;
   struct rsrc_context* rsrc;
   struct rsrc_wavefront_obj* wavefront_obj;
-  struct sl_context* sl;
+  struct sl_logger* logger;
   struct sl_vector* model_list; /* vector of app_model*. */
   struct sl_vector* model_instance_list; /* vector of app_model_instance* .*/
-  struct sys* sys;
-  struct sys_logger* logger;
   struct wm_device* wm;
   struct wm_window* window;
 };

@@ -11,7 +11,7 @@
 struct sl_context;
 
 struct rsrc_context {
-  struct sl_context* sl_ctxt;
+  char dummy;
 };
 
 #endif /* RSRC_CONTEXT_C_H */

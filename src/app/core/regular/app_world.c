@@ -113,8 +113,7 @@ app_world_add_model_instances
   }
   for(i = 0; i < nb_model_instances; ++i) {
     SL(vector_buffer
-       (app->sl,
-        instance_list[i]->model_instance_list,
+       (instance_list[i]->model_instance_list,
         &len,
         NULL,
         NULL,
@@ -136,8 +135,7 @@ exit:
 error:
   for(i = 0; i < nb_model_instances && nb_added_instances; ++i) {
     SL(vector_buffer
-       (app->sl,
-        instance_list[i]->model_instance_list,
+       (instance_list[i]->model_instance_list,
         &len,
         NULL,
         NULL,
@@ -173,8 +171,7 @@ app_world_remove_model_instances
   }
   for(i = 0; i < nb_model_instances; ++i) {
     sl_err = sl_vector_buffer
-      (app->sl,
-       instance_list[i]->model_instance_list,
+      (instance_list[i]->model_instance_list,
        &len,
        NULL,
        NULL,
@@ -200,8 +197,7 @@ exit:
 error:
   for(i = 0; i < nb_model_instances && nb_removed_instances; ++i) {
     SL(vector_buffer
-       (app->sl,
-        instance_list[i]->model_instance_list,
+       (instance_list[i]->model_instance_list,
         &len,
         NULL,
         NULL,

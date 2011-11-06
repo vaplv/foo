@@ -64,7 +64,7 @@ compare(const void* p0, const void* p1)
  ******************************************************************************/
 static enum rsrc_error
 build_triangle_list
-  (struct rsrc_context* ctxt,
+  (struct rsrc_context* ctxt UNUSED,
    const float (*pos)[3],
    const float (*nor)[3],
    const float (*tex)[3],
@@ -104,33 +104,22 @@ build_triangle_list
       } \
     } while(0)
 
-  SL_FUNC(hash_table_clear(ctxt->sl_ctxt, tbl));
+  SL_FUNC(hash_table_clear(tbl));
   SL_FUNC(hash_table_resize
-    (ctxt->sl_ctxt, tbl, (face_range->end - face_range->begin) / 2));
+    (tbl, (face_range->end - face_range->begin) / 2));
 
+  SL_FUNC(create_vector(sizeof(unsigned int), ALIGNOF(unsigned int), &indices));
+  SL_FUNC(create_vector(sizeof(float[8]), ALIGNOF(float[8]), &data));
   SL_FUNC(create_vector
-    (ctxt->sl_ctxt, sizeof(unsigned int), ALIGNOF(unsigned int), &indices));
-  SL_FUNC(create_vector
-    (ctxt->sl_ctxt, sizeof(float[8]), ALIGNOF(float[8]), &data));
-  SL_FUNC(create_vector
-    (ctxt->sl_ctxt,
-     sizeof(struct rsrc_attrib),
-     ALIGNOF(struct rsrc_attrib),
-     &attribs));
+    (sizeof(struct rsrc_attrib), ALIGNOF(struct rsrc_attrib), &attribs));
 
-  SL_FUNC(vector_reserve(ctxt->sl_ctxt, attribs, 3));
+  SL_FUNC(vector_reserve(attribs, 3));
   SL_FUNC(vector_push_back
-    (ctxt->sl_ctxt,
-     attribs,
-     (struct rsrc_attrib[]) {{RSRC_FLOAT3, RSRC_ATTRIB_POSITION}}));
+    (attribs, (struct rsrc_attrib[]) {{RSRC_FLOAT3, RSRC_ATTRIB_POSITION}}));
   SL_FUNC(vector_push_back
-    (ctxt->sl_ctxt,
-     attribs,
-     (struct rsrc_attrib[]) {{RSRC_FLOAT3, RSRC_ATTRIB_NORMAL}}));
+    (attribs, (struct rsrc_attrib[]) {{RSRC_FLOAT3, RSRC_ATTRIB_NORMAL}}));
   SL_FUNC(vector_push_back
-    (ctxt->sl_ctxt,
-     attribs,
-     (struct rsrc_attrib[]) {{RSRC_FLOAT2, RSRC_ATTRIB_TEXCOORD}}));
+    (attribs, (struct rsrc_attrib[]) {{RSRC_FLOAT2, RSRC_ATTRIB_TEXCOORD}}));
 
   for(face_id = face_range->begin;
       face_id < face_range->end;
@@ -139,7 +128,7 @@ build_triangle_list
     size_t nb_verts = 0, vert_id = 0;
 
     SL_FUNC(vector_buffer
-       (ctxt->sl_ctxt,faces[face_id],
+       (faces[face_id],
         &nb_verts,
         NULL,
         NULL,
@@ -159,10 +148,9 @@ build_triangle_list
         .vn = face_verts[vert_id].vn
       };
 
-      SL_FUNC(hash_table_find
-        (ctxt->sl_ctxt, tbl, (const void*)&key, (void**)&pair));
+      SL_FUNC(hash_table_find(tbl, (const void*)&key, (void**)&pair));
       if(pair != NULL) {
-        SL_FUNC(vector_push_back(ctxt->sl_ctxt, indices, (void*)&pair->index));
+        SL_FUNC(vector_push_back(indices, (void*)&pair->index));
       } else {
         float face_vertex[8];
         memset(&face_vertex, 0, sizeof(face_vertex));
@@ -180,10 +168,9 @@ build_triangle_list
           memcpy(face_vertex + 6, tex[key.vt - 1], sizeof(float[2]));
         }
 
-        SL_FUNC(vector_push_back(ctxt->sl_ctxt, data, (void*)&face_vertex));
-        SL_FUNC(vector_push_back(ctxt->sl_ctxt, indices, (void*)&nb_indices));
-        SL_FUNC(hash_table_insert
-          (ctxt->sl_ctxt, tbl, (struct pair[]){{key, nb_indices}}));
+        SL_FUNC(vector_push_back(data, (void*)&face_vertex));
+        SL_FUNC(vector_push_back(indices, (void*)&nb_indices));
+        SL_FUNC(hash_table_insert(tbl, (struct pair[]){{key, nb_indices}}));
 
         if(nb_indices == UINT_MAX) {
           err = RSRC_OVERFOW_ERROR;
@@ -203,15 +190,15 @@ exit:
 
 error:
   if(data) {
-    SL(free_vector(ctxt->sl_ctxt, data));
+    SL(free_vector(data));
     data = NULL;
   }
   if(indices) {
-    SL(free_vector(ctxt->sl_ctxt, indices));
+    SL(free_vector(indices));
     indices = NULL;
   }
   if(attribs){
-    SL(free_vector(ctxt->sl_ctxt, attribs));
+    SL(free_vector(attribs));
     attribs = NULL;
   }
   goto exit;
@@ -243,8 +230,7 @@ rsrc_create_geometry
   }
 
   sl_err = sl_create_vector
-    (ctxt->sl_ctxt,
-     sizeof(struct primitive_set),
+    (sizeof(struct primitive_set),
      ALIGNOF(struct primitive_set),
      &geom->primitive_set_list);
   if(sl_err != SL_NO_ERROR) {
@@ -253,8 +239,7 @@ rsrc_create_geometry
   }
 
   sl_err = sl_create_hash_table
-    (ctxt->sl_ctxt,
-     sizeof(struct pair),
+    (sizeof(struct pair),
      ALIGNOF(struct pair),
      sizeof(struct vvtvn),
      compare,
@@ -273,9 +258,9 @@ exit:
 error:
   if(geom) {
     if(geom->primitive_set_list)
-      SL(free_vector(ctxt->sl_ctxt, geom->primitive_set_list));
+      SL(free_vector(geom->primitive_set_list));
     if(geom->hash_table)
-      SL(free_hash_table(ctxt->sl_ctxt, geom->hash_table));
+      SL(free_hash_table(geom->hash_table));
     free(geom);
     geom = NULL;
   }
@@ -300,14 +285,14 @@ rsrc_free_geometry
     goto error;
 
   if(geom->primitive_set_list) {
-    sl_err = sl_free_vector(ctxt->sl_ctxt, geom->primitive_set_list);
+    sl_err = sl_free_vector(geom->primitive_set_list);
     if(sl_err != SL_NO_ERROR) {
       err = sl_to_rsrc_error(sl_err);
       goto error;
     }
   }
   if(geom->hash_table) {
-    sl_err = sl_free_hash_table(ctxt->sl_ctxt, geom->hash_table);
+    sl_err = sl_free_hash_table(geom->hash_table);
     if(sl_err != SL_NO_ERROR) {
       err = sl_to_rsrc_error(sl_err);
       goto error;
@@ -340,8 +325,7 @@ rsrc_clear_geometry
 
   if(geom->primitive_set_list) {
     sl_err = sl_vector_buffer
-      (ctxt->sl_ctxt,
-       geom->primitive_set_list,
+      (geom->primitive_set_list,
        &len,
        NULL,
        NULL,
@@ -353,28 +337,28 @@ rsrc_clear_geometry
 
     for(i = 0; i < len; ++i) {
       assert(prim_set[i].data_list != NULL);
-      sl_err = sl_free_vector(ctxt->sl_ctxt, prim_set[i].data_list);
+      sl_err = sl_free_vector(prim_set[i].data_list);
       if(sl_err != SL_NO_ERROR) {
         err = sl_to_rsrc_error(sl_err);
         goto error;
       }
 
       assert(prim_set[i].index_list != NULL);
-      sl_err = sl_free_vector(ctxt->sl_ctxt, prim_set[i].index_list);
+      sl_err = sl_free_vector(prim_set[i].index_list);
       if(sl_err != SL_NO_ERROR) {
         err = sl_to_rsrc_error(sl_err);
         goto error;
       }
 
       assert(prim_set[i].attrib_list != NULL);
-      sl_err = sl_free_vector(ctxt->sl_ctxt, prim_set[i].attrib_list);
+      sl_err = sl_free_vector(prim_set[i].attrib_list);
       if(sl_err != SL_NO_ERROR) {
         err = sl_to_rsrc_error(sl_err);
         goto error;
       }
     }
 
-    sl_err = sl_clear_vector(ctxt->sl_ctxt, geom->primitive_set_list);
+    sl_err = sl_clear_vector(geom->primitive_set_list);
     if(sl_err != SL_NO_ERROR) {
       err = sl_to_rsrc_error(sl_err);
       goto error;
@@ -414,8 +398,7 @@ rsrc_geometry_from_wavefront_obj
 
   #define VECTOR_BUFFER(vec, len, buf) \
     do { \
-      sl_err = sl_vector_buffer \
-        (ctxt->sl_ctxt, vec, (len), NULL, NULL, (void**)buf); \
+      sl_err = sl_vector_buffer(vec, (len), NULL, NULL, (void**)buf); \
       if(sl_err != SL_NO_ERROR) { \
         err = sl_to_rsrc_error(sl_err); \
         goto error; \
@@ -455,8 +438,7 @@ rsrc_geometry_from_wavefront_obj
     if(err != RSRC_NO_ERROR)
       goto error;
 
-    sl_err = sl_vector_push_back
-      (ctxt->sl_ctxt, geom->primitive_set_list, (void*)&prim_set);
+    sl_err = sl_vector_push_back(geom->primitive_set_list, (void*)&prim_set);
     if(sl_err != SL_NO_ERROR) {
       err = sl_to_rsrc_error(sl_err);
       goto error;
@@ -468,11 +450,11 @@ exit:
 
 error:
   if(prim_set.data_list)
-    SL(free_vector(ctxt->sl_ctxt, prim_set.data_list));
+    SL(free_vector(prim_set.data_list));
   if(prim_set.index_list)
-    SL(free_vector(ctxt->sl_ctxt, prim_set.index_list));
+    SL(free_vector(prim_set.index_list));
   if(prim_set.attrib_list)
-    SL(free_vector(ctxt->sl_ctxt, prim_set.attrib_list));
+    SL(free_vector(prim_set.attrib_list));
   {
     UNUSED const enum rsrc_error tmp_err = rsrc_clear_geometry(ctxt, geom);
     assert(tmp_err == RSRC_NO_ERROR);
@@ -491,8 +473,7 @@ rsrc_get_primitive_set_count
   if(!ctxt || !geom || !out_nb_prim_list)
     return RSRC_INVALID_ARGUMENT;
 
-  sl_err = sl_vector_length
-    (ctxt->sl_ctxt, geom->primitive_set_list, out_nb_prim_list);
+  sl_err = sl_vector_length(geom->primitive_set_list, out_nb_prim_list);
   if(sl_err != SL_NO_ERROR)
     return sl_to_rsrc_error(sl_err);
 
@@ -518,8 +499,7 @@ rsrc_get_primitive_set
   }
 
   SL(vector_buffer
-     (ctxt->sl_ctxt,
-      geom->primitive_set_list,
+     (geom->primitive_set_list,
       &len,
       NULL,
       NULL,
@@ -531,18 +511,18 @@ rsrc_get_primitive_set
   }
 
   SL(vector_buffer
-     (ctxt->sl_ctxt, prim_set_lst[id].data_list, &len, &size, NULL, &buffer));
+     (prim_set_lst[id].data_list, &len, &size, NULL, &buffer));
   primitive_set->data = buffer;
   primitive_set->sizeof_data = len * size;
 
   SL(vector_buffer
-     (ctxt->sl_ctxt, prim_set_lst[id].index_list, &len, NULL, NULL, &buffer));
+     (prim_set_lst[id].index_list, &len, NULL, NULL, &buffer));
   assert(primitive_set->data != NULL || len == 0);
   primitive_set->index_list = buffer;
   primitive_set->nb_indices = len;
 
   SL(vector_buffer
-     (ctxt->sl_ctxt, prim_set_lst[id].attrib_list, &len, NULL, NULL, &buffer));
+     (prim_set_lst[id].attrib_list, &len, NULL, NULL, &buffer));
   primitive_set->attrib_list = buffer;
   primitive_set->nb_attribs = len;
 
