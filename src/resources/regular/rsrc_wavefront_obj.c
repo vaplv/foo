@@ -304,7 +304,7 @@ parse_point_elmt(struct lex* lex, struct sl_vector* point_list)
 
   assert(lex && point_list);
 
-  sl_err = sl_create_vector(sizeof(size_t), ALIGNOF(size_t), &vertices);
+  sl_err = sl_create_vector(sizeof(size_t), ALIGNOF(size_t), NULL, &vertices);
   if(sl_err != SL_NO_ERROR) {
     err = sl_to_rsrc_error(sl_err);
     goto error;
@@ -358,7 +358,7 @@ parse_line_elmt(struct lex* lex, struct sl_vector* line_list)
 
   assert(lex && line_list);
 
-  sl_err = sl_create_vector(sizeof(line_t), ALIGNOF(line_t), &vertices);
+  sl_err = sl_create_vector(sizeof(line_t), ALIGNOF(line_t), NULL, &vertices);
   if(sl_err != SL_NO_ERROR) {
     err = sl_to_rsrc_error(sl_err);
     goto error;
@@ -434,7 +434,7 @@ parse_face_elmt(struct lex* lex, struct sl_vector* face_list)
 
   assert(lex && face_list);
 
-  sl_err = sl_create_vector(sizeof(face_t), ALIGNOF(face_t), &vertices);
+  sl_err = sl_create_vector(sizeof(face_t), ALIGNOF(face_t), NULL, &vertices);
   if(sl_err != SL_NO_ERROR) {
     err = sl_to_rsrc_error(sl_err);
     goto error;
@@ -530,7 +530,7 @@ parse_group(struct lex* lex, struct rsrc_wavefront_obj* wobj)
   /* flush the previous group. */
   flush_group(wobj);
 
-  sl_err = sl_create_vector(sizeof(char*), ALIGNOF(char*), &name_list);
+  sl_err = sl_create_vector(sizeof(char*), ALIGNOF(char*), NULL, &name_list);
   if(sl_err != SL_NO_ERROR) {
     err = sl_to_rsrc_error(sl_err);
     goto error;
@@ -1004,7 +1004,7 @@ rsrc_create_wavefront_obj
 
   #define CREATE_VECTOR(v, t) \
     do { \
-      sl_err = sl_create_vector(sizeof(t), ALIGNOF(t), &v); \
+      sl_err = sl_create_vector(sizeof(t), ALIGNOF(t), NULL, &v); \
       if(sl_err != SL_NO_ERROR) { \
         err = sl_to_rsrc_error(sl_err); \
         goto error; \

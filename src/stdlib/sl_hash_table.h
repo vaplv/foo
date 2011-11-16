@@ -4,6 +4,7 @@
 #include "stdlib/sl_error.h"
 #include <stddef.h>
 
+struct mem_allocator;
 struct sl_hash_table;
 
 extern enum sl_error
@@ -13,6 +14,7 @@ sl_create_hash_table
    size_t key_size,
    int (*compare)(const void*, const void*),
    const void* (*get_key)(const void*),
+   struct mem_allocator* allocator, /* May be NULL. */
    struct sl_hash_table** out_hash_table);
 
 extern enum sl_error

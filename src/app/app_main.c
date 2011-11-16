@@ -1,6 +1,7 @@
 #include "app/core/app_error.h"
 #include "app/core/app.h"
 #include "app/game/game.h"
+#include "sys/mem_allocator.h"
 #include <assert.h>
 #include <getopt.h>
 #include <stdlib.h>
@@ -52,6 +53,26 @@ error:
   goto exit;
 }
 
+static void
+app_exit(void)
+{
+  struct mem_sys_info mem_info;
+  mem_sys_info(&mem_info);
+  printf
+    ("Heap summary:\n"
+     "  total heap size: %zu bytes\n"
+     "  in use size at exit: %zu bytes\n",
+     mem_info.total_size,
+     mem_info.used_size);
+
+  if(MEM_ALLOCATED_SIZE() != 0)
+  {
+    char dump[BUFSIZ];
+    MEM_DUMP(dump, BUFSIZ, NULL);
+    fprintf(stderr, "\nLeaks summary:\n%s\n", dump);
+  }
+}
+
 int
 main(int argc, char** argv)
 {
@@ -62,6 +83,8 @@ main(int argc, char** argv)
   enum game_error game_err = GAME_NO_ERROR;
   int err = 0;
   bool keep_running = true;
+
+  atexit(app_exit);
 
   memset(&args, 0, sizeof(struct app_args));
 
@@ -107,3 +130,4 @@ exit:
 error:
   goto exit;
 }
+

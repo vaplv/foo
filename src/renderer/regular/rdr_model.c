@@ -617,6 +617,7 @@ rdr_create_model
   sl_err = sl_create_linked_list
     (sizeof(struct rdr_model_callback_desc),
      ALIGNOF(struct rdr_model_callback_desc),
+     NULL,
      &model->callback_list);
   if(sl_err != SL_NO_ERROR) {
     rdr_err = sl_to_rdr_error(sl_err);

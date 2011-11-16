@@ -1,6 +1,7 @@
 #include "stdlib/regular/sl.h"
 #include "stdlib/sl_logger.h"
 #include "stdlib/sl_sorted_vector.h"
+#include "sys/mem_allocator.h"
 #include "sys/sys.h"
 #include <assert.h>
 #include <stdarg.h>
@@ -11,6 +12,7 @@
 struct sl_logger {
   struct sys* sys;
   struct sl_sorted_vector* stream_list;
+  struct mem_allocator* allocator;
   char* buffer;
   size_t buffer_len;
 };
@@ -40,8 +42,11 @@ compare_log_stream(const void* a, const void* b)
  *
  ******************************************************************************/
 EXPORT_SYM enum sl_error
-sl_create_logger(struct sl_logger** out_logger)
+sl_create_logger
+  (struct mem_allocator* specific_allocator, 
+   struct sl_logger** out_logger)
 {
+  struct mem_allocator* allocator = NULL;
   struct sl_logger* logger = NULL;
   enum sl_error sl_err = SL_NO_ERROR;
   
@@ -49,7 +54,8 @@ sl_create_logger(struct sl_logger** out_logger)
     sl_err = SL_INVALID_ARGUMENT;
     goto error;
   }
-  logger = calloc(1, sizeof(struct sl_logger));
+  allocator = specific_allocator ? specific_allocator : &mem_default_allocator;;
+  logger = MEM_CALLOC_I(allocator, 1, sizeof(struct sl_logger));
   if(!logger) {
     sl_err = SL_MEMORY_ERROR;
     goto error;
@@ -58,12 +64,14 @@ sl_create_logger(struct sl_logger** out_logger)
     (sizeof(struct sl_log_stream),
      ALIGNOF(struct sl_log_stream),
      compare_log_stream,
+     specific_allocator,
      &logger->stream_list);
   if(sl_err != SL_NO_ERROR)
     goto error;
 
+  logger->allocator = allocator;
   logger->buffer_len = BUFSIZ;
-  logger->buffer = malloc(sizeof(char) * BUFSIZ);
+  logger->buffer = MEM_ALLOC_I(allocator, sizeof(char) * BUFSIZ);
   if(!logger->buffer) {
     sl_err = SL_MEMORY_ERROR;
     goto error;
@@ -87,6 +95,7 @@ error:
 EXPORT_SYM enum sl_error
 sl_free_logger(struct sl_logger* logger)
 {
+  struct mem_allocator* allocator = NULL;
   enum sl_error sl_err = SL_NO_ERROR;
 
   if(!logger) {
@@ -98,8 +107,9 @@ sl_free_logger(struct sl_logger* logger)
     if(sl_err != SL_NO_ERROR)
       goto error;
   }
-  free(logger->buffer);
-  free(logger);
+  allocator = logger->allocator;
+  MEM_FREE_I(allocator, logger->buffer);
+  MEM_FREE_I(allocator, logger);
 
 exit:
   return sl_err;;
@@ -194,12 +204,12 @@ sl_logger_print
   assert(i > 0);
   if((size_t)i >= logger->buffer_len) {
     len = i + 1; /* +1 <=> null terminated character. */
-    buffer = malloc(len * sizeof(char));
+    buffer = MEM_ALLOC_I(logger->allocator, len * sizeof(char));
     if(!buffer) {
       sl_err = SL_MEMORY_ERROR;
       goto error;
     }
-    free(logger->buffer);
+    MEM_FREE_I(logger->allocator, logger->buffer);
     logger->buffer = buffer;
     logger->buffer_len = len;
     i = vsnprintf(logger->buffer, logger->buffer_len, fmt, vargs_list);

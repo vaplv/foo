@@ -4,6 +4,7 @@
 #include "stdlib/sl_error.h"
 #include <stddef.h>
 
+struct mem_allocator;
 struct sl_node;
 struct sl_linked_list;
 
@@ -11,6 +12,7 @@ extern enum sl_error
 sl_create_linked_list
   (size_t data_size,
    size_t data_alignment,
+   struct mem_allocator* allocator, /* May be null. */
    struct sl_linked_list** out_list);
 
 extern enum sl_error

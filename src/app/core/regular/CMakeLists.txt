@@ -8,4 +8,4 @@ add_library(appcore SHARED
   app_view.c
   app_world.c)
 
-target_link_libraries(appcore renderer rsrc sl wmglfw)
+target_link_libraries(appcore renderer rsrc sl sys wmglfw)

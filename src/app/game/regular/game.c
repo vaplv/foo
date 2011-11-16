@@ -2,6 +2,7 @@
 #include "app/core/app_view.h"
 #include "app/game/regular/game_c.h"
 #include "app/game/game.h"
+#include "sys/mem_allocator.h"
 #include "sys/sys.h"
 #include "window_manager/wm_device.h"
 #include "window_manager/wm_input.h"
@@ -145,7 +146,8 @@ game_create(struct game** out_game)
     game_err = GAME_INVALID_ARGUMENT;
     goto error;
   }
-  game = calloc(1, sizeof(struct game));
+
+  game = MEM_CALLOC(1, sizeof(struct game));
   if(!game) {
     game_err = GAME_MEMORY_ERROR;
     goto error;
@@ -158,7 +160,7 @@ exit:
 
 error:
   if(game) {
-    free(game);
+    MEM_FREE(game);
     game = NULL;
   }
   goto exit;
@@ -169,7 +171,7 @@ game_free(struct game* game)
 {
   if(!game)
     return GAME_INVALID_ARGUMENT;
-  free(game);
+  MEM_FREE(game);
   return GAME_NO_ERROR;
 }
 

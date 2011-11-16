@@ -4,6 +4,7 @@
 #include "stdlib/sl_error.h"
 #include <stddef.h>
 
+struct mem_allocator* allocator;
 struct sl_sorted_vector;
 
 extern enum sl_error
@@ -11,6 +12,7 @@ sl_create_sorted_vector
   (size_t data_size,
    size_t data_alignment,
    int (*data_comparator)(const void*, const void*),
+   struct mem_allocator* allocator, /* May be NULL. */
    struct sl_sorted_vector** out_vector);
 
 extern enum sl_error

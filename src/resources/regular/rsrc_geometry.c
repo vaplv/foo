@@ -108,10 +108,11 @@ build_triangle_list
   SL_FUNC(hash_table_resize
     (tbl, (face_range->end - face_range->begin) / 2));
 
-  SL_FUNC(create_vector(sizeof(unsigned int), ALIGNOF(unsigned int), &indices));
-  SL_FUNC(create_vector(sizeof(float[8]), ALIGNOF(float[8]), &data));
   SL_FUNC(create_vector
-    (sizeof(struct rsrc_attrib), ALIGNOF(struct rsrc_attrib), &attribs));
+    (sizeof(unsigned int), ALIGNOF(unsigned int), NULL, &indices));
+  SL_FUNC(create_vector(sizeof(float[8]), ALIGNOF(float[8]), NULL, &data));
+  SL_FUNC(create_vector
+    (sizeof(struct rsrc_attrib), ALIGNOF(struct rsrc_attrib), NULL, &attribs));
 
   SL_FUNC(vector_reserve(attribs, 3));
   SL_FUNC(vector_push_back
@@ -232,6 +233,7 @@ rsrc_create_geometry
   sl_err = sl_create_vector
     (sizeof(struct primitive_set),
      ALIGNOF(struct primitive_set),
+     NULL,
      &geom->primitive_set_list);
   if(sl_err != SL_NO_ERROR) {
     err = sl_to_rsrc_error(sl_err);
@@ -244,6 +246,7 @@ rsrc_create_geometry
      sizeof(struct vvtvn),
      compare,
      get_key,
+     NULL,
      &geom->hash_table);
   if(sl_err != SL_NO_ERROR) {
     err = sl_to_rsrc_error(sl_err);

@@ -4,6 +4,7 @@
 #include "app/core/app_model_instance.h"
 #include "renderer/rdr_model_instance.h"
 #include "stdlib/sl_vector.h"
+#include "sys/mem_allocator.h"
 #include "sys/sys.h"
 #include <assert.h>
 #include <stdlib.h>
@@ -37,7 +38,7 @@ app_free_model_instance(struct app* app, struct app_model_instance* instance)
 
     SL(free_vector(instance->model_instance_list));
   }
-  free(instance);
+  MEM_FREE(instance);
 
 exit:
   return app_err;
@@ -64,7 +65,7 @@ app_create_model_instance
     app_err = APP_INVALID_ARGUMENT;
     goto error;
   }
-  instance = calloc(1, sizeof(struct app_model_instance));
+  instance = MEM_CALLOC(1, sizeof(struct app_model_instance));
   if(!instance) {
     app_err = APP_MEMORY_ERROR;
     goto error;
@@ -72,6 +73,7 @@ app_create_model_instance
   sl_err = sl_create_vector
     (sizeof(struct app_model_instance*),
      ALIGNOF(struct app_model_instance*),
+     NULL,
      &instance->model_instance_list);
   if(sl_err != SL_NO_ERROR) {
     app_err = sl_to_app_error(sl_err);

@@ -8,6 +8,7 @@
 #include "renderer/rdr_error.h"
 #include "renderer/rdr_world.h"
 #include "stdlib/sl_vector.h"
+#include "sys/mem_allocator.h"
 #include "sys/sys.h"
 #include "window_manager/wm_window.h"
 #include <assert.h>
@@ -35,7 +36,7 @@ app_create_world(struct app* app, struct app_world** out_world)
     goto error;
   }
 
-  world = calloc(1, sizeof(struct app_world));
+  world = MEM_CALLOC(1, sizeof(struct app_world));
   if(!world) {
     err = APP_MEMORY_ERROR;
     goto error;
@@ -62,7 +63,7 @@ error:
   if(world) {
     if(world->render_world)
       RDR(free_world(app->rdr, world->render_world));
-    free(world);
+    MEM_FREE(world);
     world = NULL;
   }
   goto exit;
@@ -83,7 +84,7 @@ app_free_world(struct app* app, struct app_world* world)
     app_err = rdr_to_app_error(rdr_err);
     goto error;
   }
-  free(world);
+  MEM_FREE(world);
 
 exit:
   return app_err;

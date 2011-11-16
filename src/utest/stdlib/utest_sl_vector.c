@@ -1,4 +1,5 @@
 #include "stdlib/sl_vector.h"
+#include "sys/mem_allocator.h"
 #include "sys/sys.h"
 #include "utest/utest.h"
 #include <stdbool.h>
@@ -18,11 +19,11 @@ main(int argc UNUSED, char** argv UNUSED)
   ALIGN(16) int i[4];
 
 
-  CHECK(sl_create_vector(0, 0, NULL), BAD_ARG);
-  CHECK(sl_create_vector(0, 0, &vec), BAD_ARG);
-  CHECK(sl_create_vector(sizeof(int), 0, NULL), BAD_ARG);
-  CHECK(sl_create_vector(sizeof(int), 3, &vec), SL_ALIGNMENT_ERROR);
-  CHECK(sl_create_vector(sizeof(int), ALIGNOF(int), &vec), OK);
+  CHECK(sl_create_vector(0, 0, NULL, NULL), BAD_ARG);
+  CHECK(sl_create_vector(0, 0, NULL, &vec), BAD_ARG);
+  CHECK(sl_create_vector(sizeof(int), 0, NULL, NULL), BAD_ARG);
+  CHECK(sl_create_vector(sizeof(int), 3, NULL, &vec), SL_ALIGNMENT_ERROR);
+  CHECK(sl_create_vector(sizeof(int), ALIGNOF(int), NULL, &vec), OK);
 
   CHECK(sl_vector_length(NULL, NULL), BAD_ARG);
   CHECK(sl_vector_length(vec, NULL), BAD_ARG);
@@ -327,7 +328,7 @@ main(int argc UNUSED, char** argv UNUSED)
   CHECK(sl_free_vector(NULL), BAD_ARG);
   CHECK(sl_free_vector(vec), OK);
 
-  CHECK(sl_create_vector(sizeof(int), 16, &vec), OK);
+  CHECK(sl_create_vector(sizeof(int), 16, &mem_default_allocator, &vec), OK);
 
   CHECK(sl_vector_capacity(NULL, NULL), BAD_ARG);
   CHECK(sl_vector_capacity(vec, NULL), BAD_ARG);

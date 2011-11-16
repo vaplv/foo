@@ -1,5 +1,6 @@
 #include "stdlib/sl_sorted_vector.h"
 #include "stdlib/sl_vector.h"
+#include "sys/mem_allocator.h"
 #include "sys/sys.h"
 #include <assert.h>
 #include <stdlib.h>
@@ -8,6 +9,7 @@
 
 struct sl_sorted_vector {
   int (*compare)(const void*, const void*);
+  struct mem_allocator* allocator;
   struct sl_vector* vector;
 };
 
@@ -83,8 +85,10 @@ sl_create_sorted_vector
   (size_t data_size,
    size_t data_alignment,
    int (*compare)(const void*, const void*),
+   struct mem_allocator* specific_allocator,
    struct sl_sorted_vector** out_vector)
 {
+  struct mem_allocator* allocator = NULL;
   struct sl_sorted_vector* svec = NULL;
   enum sl_error err = SL_NO_ERROR;
 
@@ -92,18 +96,18 @@ sl_create_sorted_vector
     err = SL_INVALID_ARGUMENT;
     goto error;
   }
-
-  svec = calloc(1, sizeof(struct sl_sorted_vector));
+  allocator = specific_allocator ? specific_allocator : &mem_default_allocator;
+  svec = MEM_CALLOC_I(allocator, 1, sizeof(struct sl_sorted_vector));
   if(!svec) {
     err = SL_MEMORY_ERROR;
     goto error;
   }
-
-  err = sl_create_vector(data_size, data_alignment, &svec->vector);
+  err = sl_create_vector
+    (data_size, data_alignment, specific_allocator, &svec->vector);
   if(err != SL_NO_ERROR)
     goto error;
-
   svec->compare = compare;
+  svec->allocator = allocator;
 
 exit:
   if(out_vector)
@@ -116,7 +120,7 @@ error:
       err = sl_free_vector(svec->vector);
       assert(err == SL_NO_ERROR);
     }
-    free(svec);
+    MEM_FREE_I(allocator, svec);
     svec = NULL;
   }
   goto exit;
@@ -126,22 +130,21 @@ EXPORT_SYM enum sl_error
 sl_free_sorted_vector
   (struct sl_sorted_vector* svec)
 {
+  struct mem_allocator* allocator = NULL;
   enum sl_error err = SL_NO_ERROR;
 
   if(!svec) {
     err = SL_INVALID_ARGUMENT;
     goto error;
   }
-
   err = sl_free_vector(svec->vector);
   if(err != SL_NO_ERROR)
     goto error;
-
-  free(svec);
+  allocator = svec->allocator;
+  MEM_FREE_I(allocator, svec);
 
 exit:
   return err;
-
 error:
   goto exit;
 }

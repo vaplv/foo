@@ -9,11 +9,13 @@ struct sl_log_stream {
   void* data;
 };
 
+struct mem_allocator;
 struct sl_logger;
 
 extern enum sl_error
 sl_create_logger
-  (struct sl_logger** out_logger);
+  (struct mem_allocator* allocator, /* May be NULL. */
+   struct sl_logger** out_logger);
 
 extern enum sl_error
 sl_free_logger

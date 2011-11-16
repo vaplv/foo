@@ -1,8 +1,11 @@
+#include "app/core/regular/app_c.h"
 #include "app/core/regular/app_view_c.h"
 #include "app/core/app_view.h"
+#include "sys/mem_allocator.h"
 #include "sys/sys.h"
 #include <math.h>
 #include <stdlib.h>
+#include <string.h>
 
 #define DEG2RAD(x) ((x)*0.0174532925199432957692369076848861L)
 
@@ -17,11 +20,12 @@ app_create_view(struct app* app, struct app_view** out_view)
     goto error;
   }
 
-  view = calloc(1, sizeof(struct app_view));
+  view = MEM_ALIGNED_ALLOC(sizeof(struct app_view), 16);
   if(!view) {
     app_err = APP_MEMORY_ERROR;
     goto error;
   }
+  view = memset(view, 0, sizeof(struct app_view));
 
   aosf44_identity(&view->transform);
   view->ratio = 4.f / 3.f;
@@ -36,7 +40,7 @@ exit:
 
 error:
   if(view) {
-    free(view);
+    MEM_FREE(view);
     view = NULL;
   }
   goto exit;
@@ -47,7 +51,7 @@ app_free_view(struct app* app, struct app_view* view)
 {
   if(!app || !view)
     return APP_INVALID_ARGUMENT;
-  free(view);
+  MEM_FREE(view);
   return APP_NO_ERROR;
 }
 

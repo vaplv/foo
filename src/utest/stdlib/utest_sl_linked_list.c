@@ -1,4 +1,5 @@
 #include "stdlib/sl_linked_list.h"
+#include "sys/mem_allocator.h"
 #include "sys/sys.h"
 #include "utest/utest.h"
 #include <stdbool.h>
@@ -15,9 +16,11 @@ main(int argc UNUSED, char** argv UNUSED)
   void* data = NULL;
   size_t length = 0;
   int i = 0;
-
-  CHECK(sl_create_linked_list(0, 3, &list), SL_ALIGNMENT_ERROR);
-  CHECK(sl_create_linked_list(0, 4, &list), SL_NO_ERROR);
+  ALIGN(4) char a = 'a';
+  
+  CHECK(sl_create_linked_list(1, 3, NULL, NULL), SL_INVALID_ARGUMENT);
+  CHECK(sl_create_linked_list(1, 3, NULL, &list), SL_ALIGNMENT_ERROR);
+  CHECK(sl_create_linked_list(1, 4, NULL, &list), SL_NO_ERROR);
 
   CHECK(sl_linked_list_length(NULL, NULL), SL_INVALID_ARGUMENT);
   CHECK(sl_linked_list_length(list, NULL), SL_INVALID_ARGUMENT);
@@ -27,7 +30,7 @@ main(int argc UNUSED, char** argv UNUSED)
 
   CHECK(sl_linked_list_add(NULL, NULL, NULL), SL_INVALID_ARGUMENT);
   CHECK(sl_linked_list_add(NULL, NULL, &node0), SL_INVALID_ARGUMENT);
-  CHECK(sl_linked_list_add(list, NULL, &node0), SL_NO_ERROR);
+  CHECK(sl_linked_list_add(list, &a, &node0), SL_NO_ERROR);
   CHECK(sl_linked_list_length(list, &length), SL_NO_ERROR);
   CHECK(length, 1);
 
@@ -37,7 +40,7 @@ main(int argc UNUSED, char** argv UNUSED)
   CHECK(sl_linked_list_head(list, &node1), SL_NO_ERROR);
   CHECK(node0, node1);
 
-  CHECK(sl_linked_list_add(list, NULL, NULL), SL_NO_ERROR);
+  CHECK(sl_linked_list_add(list, &a, NULL), SL_NO_ERROR);
   CHECK(sl_linked_list_length(list, &length), SL_NO_ERROR);
   CHECK(length, 2);
 
@@ -86,8 +89,8 @@ main(int argc UNUSED, char** argv UNUSED)
   CHECK(sl_linked_list_head(list, &node2), SL_NO_ERROR);
   CHECK(node2, NULL);
 
-  CHECK(sl_create_linked_list(sizeof(int), ALIGNOF(int), &list1),
-        SL_NO_ERROR);
+  CHECK(sl_create_linked_list
+        (sizeof(int),ALIGNOF(int), &mem_default_allocator, &list1),SL_NO_ERROR);
   CHECK(sl_linked_list_add(list1, (int[]){0}, NULL), SL_NO_ERROR);
   CHECK(sl_linked_list_add(list1, (int[]){2}, NULL), SL_NO_ERROR);
   CHECK(sl_linked_list_add(list1, (int[]){5}, &node0), SL_NO_ERROR);

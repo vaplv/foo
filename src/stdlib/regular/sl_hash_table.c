@@ -1,8 +1,8 @@
 #include "stdlib/regular/sl.h"
 #include "stdlib/sl_hash_table.h"
+#include "sys/mem_allocator.h"
 #include "sys/sys.h"
 #include <assert.h>
-#include <malloc.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
@@ -16,6 +16,7 @@ struct sl_hash_table {
   struct entry** buffer;
   int (*compare)(const void*, const void*);
   const void* (*get_key)(const void*);
+  struct mem_allocator* allocator;
   size_t data_size;
   size_t data_alignment;
   size_t key_size;
@@ -245,8 +246,10 @@ sl_create_hash_table
    size_t key_size,
    int (*compare)(const void*, const void*),
    const void* (*get_key)(const void*),
+   struct mem_allocator* specific_allocator,
    struct sl_hash_table** out_hash_table)
 {
+  struct mem_allocator* allocator = NULL;
   struct sl_hash_table* table = NULL;
   enum sl_error err = SL_NO_ERROR;
 
@@ -258,13 +261,12 @@ sl_create_hash_table
     err = SL_INVALID_ARGUMENT;
     goto error;
   }
-
   if(!SL_IS_POWER_OF_2(data_alignment)) {
     err = SL_ALIGNMENT_ERROR;
     goto error;
   }
-
-  table = calloc(1, sizeof(struct sl_hash_table));
+  allocator = specific_allocator ? specific_allocator : &mem_default_allocator;
+  table = MEM_CALLOC_I(allocator, 1, sizeof(struct sl_hash_table));
   if(table == NULL) {
     err = SL_MEMORY_ERROR;
     goto error;
@@ -275,6 +277,7 @@ sl_create_hash_table
   table->key_size = key_size;
   table->compare = compare;
   table->get_key = get_key;
+  table->allocator = allocator;
 
 exit:
   if(out_hash_table)
@@ -283,7 +286,7 @@ exit:
 
 error:
   if(table)
-    free(table);
+    MEM_FREE_I(allocator, table);
   goto exit;
 }
 
@@ -291,19 +294,20 @@ EXPORT_SYM enum sl_error
 sl_free_hash_table
   (struct sl_hash_table* table)
 {
+  struct mem_allocator* allocator = NULL;
   enum sl_error err = SL_NO_ERROR;
 
   if(!table) {
     err = SL_INVALID_ARGUMENT;
     goto error;
   }
-
   err = sl_hash_table_clear(table);
   if(err != SL_NO_ERROR)
     goto error;
 
-  free(table->buffer);
-  free(table);
+  allocator = table->allocator;
+  MEM_FREE_I(allocator, table->buffer);
+  MEM_FREE_I(allocator, table);
 
 exit:
   return err;
@@ -346,13 +350,14 @@ sl_hash_table_insert
       goto error;
   }
 
-  entry = malloc(sizeof(struct entry));
+  entry = MEM_ALLOC_I(table->allocator, sizeof(struct entry));
   if(entry == NULL) {
     err = SL_MEMORY_ERROR;
     goto error;
   }
 
-  entry->data = memalign(table->data_alignment, table->data_size);
+  entry->data = MEM_ALIGNED_ALLOC_I
+    (table->allocator, table->data_size, table->data_alignment);
   if(entry->data == NULL) {
     err = SL_MEMORY_ERROR;
     goto error;
@@ -379,8 +384,8 @@ error:
   }
   if(entry) {
     if(entry->data)
-      free(entry->data);
-    free(entry);
+      MEM_FREE_I(table->allocator, entry->data);
+    MEM_FREE_I(table->allocator, entry);
   }
   goto exit;
 
@@ -415,8 +420,8 @@ sl_hash_table_erase
       else
         table->buffer[hash] = entry->next;
 
-      free(entry->data);
-      free(entry);
+      MEM_FREE_I(table->allocator, entry->data);
+      MEM_FREE_I(table->allocator, entry);
 
       entry = next;
       --table->nb_elements;
@@ -497,7 +502,8 @@ sl_hash_table_resize
   SL_NEXT_POWER_OF_2(nb_buckets, nb_buckets);
 
   if(nb_buckets > table->nb_buckets) {
-    new_buffer = calloc(nb_buckets, sizeof(struct entry*));
+    new_buffer = MEM_CALLOC_I
+      (table->allocator, nb_buckets, sizeof(struct entry*));
     if(new_buffer == NULL) {
       err = SL_MEMORY_ERROR;
       goto error;
@@ -506,7 +512,7 @@ sl_hash_table_resize
       (new_buffer, nb_buckets,
        table->buffer, table->nb_buckets,
        table->get_key, table->key_size);
-    free(table->buffer);
+    MEM_FREE_I(table->allocator, table->buffer);
     table->buffer = new_buffer;
     table->nb_buckets = nb_buckets;
   }
@@ -516,7 +522,7 @@ exit:
 
 error:
   if(new_buffer)
-    free(new_buffer);
+    MEM_FREE_I(table->allocator, new_buffer);
   goto exit;
 }
 
@@ -557,8 +563,8 @@ sl_hash_table_clear
     struct entry* entry = table->buffer[i];
     while(entry) {
       struct entry* next_entry = entry->next;
-      free(entry->data);
-      free(entry);
+      MEM_FREE_I(table->allocator, entry->data);
+      MEM_FREE_I(table->allocator, entry);
       entry = next_entry;
     }
     table->buffer[i] = NULL;

@@ -1,4 +1,5 @@
 #include "stdlib/sl_sorted_vector.h"
+#include "sys/mem_allocator.h"
 #include "sys/sys.h"
 #include "utest/utest.h"
 #include <assert.h>
@@ -43,22 +44,22 @@ main(int argc UNUSED, char** argv UNUSED)
   size_t sz = 0;
   size_t al = 0;
 
-  CHECK(sl_create_sorted_vector(0, 0, NULL, NULL), BAD_ARG);
-  CHECK(sl_create_sorted_vector(SZ(int), 0, NULL, NULL), BAD_ARG);
-  CHECK(sl_create_sorted_vector(0, AL(int), NULL, NULL), BAD_ARG);
-  CHECK(sl_create_sorted_vector(SZ(int), AL(int), NULL, NULL), BAD_ARG);
-  CHECK(sl_create_sorted_vector(0, 0, cmp, NULL), BAD_ARG);
-  CHECK(sl_create_sorted_vector(SZ(int), 0, cmp, NULL), BAD_ARG);
-  CHECK(sl_create_sorted_vector(0, AL(int), cmp, NULL), BAD_ARG);
-  CHECK(sl_create_sorted_vector(SZ(int), AL(int), cmp, NULL), BAD_ARG);
-  CHECK(sl_create_sorted_vector(0, 0, NULL, &vec), BAD_ARG);
-  CHECK(sl_create_sorted_vector(SZ(int), 0, NULL, &vec), BAD_ARG);
-  CHECK(sl_create_sorted_vector(0, AL(int), NULL, &vec), BAD_ARG);
-  CHECK(sl_create_sorted_vector(SZ(int), AL(int), NULL, &vec), BAD_ARG);
-  CHECK(sl_create_sorted_vector(0, 0, cmp, NULL), BAD_ARG);
-  CHECK(sl_create_sorted_vector(SZ(int), 0, cmp, &vec), BAD_ALIGN);
-  CHECK(sl_create_sorted_vector(0, AL(int), cmp, &vec), BAD_ARG);
-  CHECK(sl_create_sorted_vector(SZ(int), AL(int), cmp, &vec), OK);
+  CHECK(sl_create_sorted_vector(0, 0, NULL, NULL, NULL), BAD_ARG);
+  CHECK(sl_create_sorted_vector(SZ(int), 0, NULL, NULL, NULL), BAD_ARG);
+  CHECK(sl_create_sorted_vector(0, AL(int), NULL, NULL, NULL), BAD_ARG);
+  CHECK(sl_create_sorted_vector(SZ(int), AL(int), NULL, NULL, NULL), BAD_ARG);
+  CHECK(sl_create_sorted_vector(0, 0, cmp, NULL, NULL), BAD_ARG);
+  CHECK(sl_create_sorted_vector(SZ(int), 0, cmp, NULL, NULL), BAD_ARG);
+  CHECK(sl_create_sorted_vector(0, AL(int), cmp, NULL, NULL), BAD_ARG);
+  CHECK(sl_create_sorted_vector(SZ(int), AL(int), cmp, NULL, NULL), BAD_ARG);
+  CHECK(sl_create_sorted_vector(0, 0, NULL, NULL, &vec), BAD_ARG);
+  CHECK(sl_create_sorted_vector(SZ(int), 0, NULL, NULL, &vec), BAD_ARG);
+  CHECK(sl_create_sorted_vector(0, AL(int), NULL, NULL, &vec), BAD_ARG);
+  CHECK(sl_create_sorted_vector(SZ(int), AL(int), NULL, NULL, &vec), BAD_ARG);
+  CHECK(sl_create_sorted_vector(0, 0, cmp, NULL, NULL), BAD_ARG);
+  CHECK(sl_create_sorted_vector(SZ(int), 0, cmp, NULL, &vec), BAD_ALIGN);
+  CHECK(sl_create_sorted_vector(0, AL(int), cmp, NULL, &vec), BAD_ARG);
+  CHECK(sl_create_sorted_vector(SZ(int), AL(int), cmp, NULL, &vec), OK);
 
   CHECK(sl_sorted_vector_insert(NULL, NULL), BAD_ARG);
   CHECK(sl_sorted_vector_insert(vec, NULL), BAD_ARG);
@@ -269,7 +270,8 @@ main(int argc UNUSED, char** argv UNUSED)
   CHECK(sl_free_sorted_vector(NULL), BAD_ARG);
   CHECK(sl_free_sorted_vector(vec), OK);
 
-  CHECK(sl_create_sorted_vector(SZ(int), 16, cmp, &vec), OK);
+  CHECK(sl_create_sorted_vector
+        (SZ(int), 16, cmp, &mem_default_allocator, &vec), OK);
   array[0] = 0;
   array[1] = 1;
   array[2] = 2;

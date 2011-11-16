@@ -14,6 +14,7 @@
 #include "resources/rsrc_wavefront_obj.h"
 #include "stdlib/sl_vector.h"
 #include "stdlib/sl_logger.h"
+#include "sys/mem_allocator.h"
 #include "sys/sys.h"
 #include "window_manager/wm_device.h"
 #include "window_manager/wm_error.h"
@@ -406,6 +407,7 @@ init_common(struct app* app)
   sl_err = sl_create_vector
     (sizeof(struct app_model*),
      ALIGNOF(struct app_model*),
+     NULL,
      &app->model_list);
   if(sl_err != SL_NO_ERROR) {
     app_err = sl_to_app_error(sl_err);
@@ -414,6 +416,7 @@ init_common(struct app* app)
   sl_err = sl_create_vector
     (sizeof(struct app_model_instance*),
      ALIGNOF(struct app_model_instance*),
+     NULL,
      &app->model_instance_list);
   if(sl_err != SL_NO_ERROR) {
     app_err = sl_to_app_error(sl_err);
@@ -452,10 +455,9 @@ init_sys(struct app* app)
   enum sl_error sl_err = SL_NO_ERROR;
   enum app_error app_err = APP_NO_ERROR;
   enum app_error tmp_err = APP_NO_ERROR;
-
   assert(app);
 
-  sl_err = sl_create_logger(&app->logger);
+  sl_err = sl_create_logger(NULL, &app->logger);
   if(sl_err != SL_NO_ERROR) {
     app_err = sl_to_app_error(sl_err);
     goto error;
@@ -543,11 +545,12 @@ app_init(struct app_args* args, struct app** out_app)
     app_err = APP_RENDER_DRIVER_ERROR;
     goto error;
   }
-  app = calloc(1, sizeof(struct app));
+  app = MEM_CALLOC(1, sizeof(struct app));
   if(app == NULL) {
     app_err = APP_MEMORY_ERROR;
     goto error;
   }
+
   app_err = init(app, args->render_driver);
   if(app_err != APP_NO_ERROR)
     goto error;
@@ -587,7 +590,7 @@ error:
   if(app) {
     app_err = shutdown(app);
     assert(app_err == APP_NO_ERROR);
-    free(app);
+    MEM_FREE(app);
     app = NULL;
   }
   goto exit;
@@ -606,7 +609,7 @@ app_shutdown(struct app* app)
   if(app_err != APP_NO_ERROR)
     goto error;
 
-  free(app);
+  MEM_FREE(app);
 
 exit:
   return app_err;

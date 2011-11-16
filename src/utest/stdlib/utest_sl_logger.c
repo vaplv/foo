@@ -46,8 +46,8 @@ main(int argc UNUSED, char** argv UNUSED)
   struct sl_log_stream stream = { NULL, NULL };
   struct data data = { 0, '\0' };
 
-  CHECK(sl_create_logger(NULL), BAD_ARG);
-  CHECK(sl_create_logger(&logger), OK);
+  CHECK(sl_create_logger(NULL, NULL), BAD_ARG);
+  CHECK(sl_create_logger(NULL, &logger), OK);
 
   stream.data = (int[]){0xDEADBEEF};
   stream.func = stream_func0;

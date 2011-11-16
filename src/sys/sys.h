@@ -2,6 +2,7 @@
 #define SYS_H
 
 #include <stdint.h>
+#include <stdio.h>
 
 #ifndef __GNUC__
   #error "Unsupported compiler."
@@ -25,8 +26,14 @@
 #define ALIGNOF(type) \
   __alignof__(type)
 
+#define ALIGN_SIZE(size, alignment) \
+  (((size) + ((alignment) - 1)) & ~((alignment) - 1))
+
 #define IS_ALIGNED(addr, alignment) \
   (((uintptr_t)(addr) & ((alignment)-1)) == 0)
+
+#define BIGGEST_ALIGNMENT \
+  __BIGGEST_ALIGNMENT__
 
 #define UNUSED \
   __attribute__((unused))
@@ -39,6 +46,9 @@
 
 #define FORMAT_PRINTF(a, b) \
   __attribute__((format(printf, a, b)))
+
+#define IS_POWER_OF_2(i) \
+  ((i) > 0 && ((i) & ((i)-1)) == 0)
 
 #endif /* SYS_H */
 

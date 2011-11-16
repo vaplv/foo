@@ -35,7 +35,10 @@ exit:
   return err;
 
 error:
-  free(device);
+  if(device) {
+    free(device);
+    device = NULL;
+  }
   goto exit;
 }
 

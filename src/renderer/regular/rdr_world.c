@@ -75,6 +75,7 @@ rdr_create_world(struct rdr_system* sys, struct rdr_world** out_world)
     (sizeof(struct rdr_model_instance*),
      ALIGNOF(struct rdr_model_instance*),
      compare_model_instance,
+     NULL,
      &world->model_instance_list);
   if(sl_err != SL_NO_ERROR) {
     rdr_err = sl_to_rdr_error(sl_err);

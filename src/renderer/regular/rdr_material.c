@@ -386,6 +386,7 @@ rdr_create_material(struct rdr_system* sys, struct rdr_material** out_mtr_obj)
   sl_err = sl_create_linked_list
     (sizeof(struct rdr_material_callback_desc),
      ALIGNOF(struct rdr_material_callback_desc),
+     NULL,
      &mtr->callback_list);
   if(sl_err != SL_NO_ERROR) {
     rdr_err = sl_to_rdr_error(sl_err);

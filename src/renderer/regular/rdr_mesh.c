@@ -286,6 +286,7 @@ rdr_create_mesh(struct rdr_system* sys, struct rdr_mesh** out_mesh_obj)
   sl_err = sl_create_linked_list
     (sizeof(struct rdr_mesh_callback_desc),
      ALIGNOF(struct rdr_mesh_callback_desc),
+     NULL,
      &mesh->callback_list);
   if(sl_err != SL_NO_ERROR) {
     rdr_err = sl_to_rdr_error(sl_err);

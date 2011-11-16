@@ -1,4 +1,5 @@
 #include "stdlib/sl_hash_table.h"
+#include "sys/mem_allocator.h"
 #include "sys/sys.h"
 #include "utest/utest.h"
 
@@ -36,70 +37,70 @@ main(int argc UNUSED, char** argv UNUSED)
 
   STATIC_ASSERT(!IS_ALIGNED(array + 1, 16), Unexpected_alignment);
 
-  CHECK(sl_create_hash_table(0, 0, 0, NULL, NULL, NULL), BAD_ARG);
-  CHECK(sl_create_hash_table(SZP, 0, 0, NULL, NULL, NULL), BAD_ARG);
-  CHECK(sl_create_hash_table(0, ALP, 0, NULL, NULL, NULL), BAD_ARG);
-  CHECK(sl_create_hash_table(SZP, ALP, 0, NULL, NULL, NULL), BAD_ARG);
-  CHECK(sl_create_hash_table(0, 0, SZK, NULL, NULL, NULL), BAD_ARG);
-  CHECK(sl_create_hash_table(SZP, 0, SZK, NULL, NULL, NULL), BAD_ARG);
-  CHECK(sl_create_hash_table(0, ALP, SZK, NULL, NULL, NULL), BAD_ARG);
-  CHECK(sl_create_hash_table(SZP, ALP, SZK, NULL, NULL, NULL), BAD_ARG);
-  CHECK(sl_create_hash_table(0, 0, 0, cmp, NULL, NULL), BAD_ARG);
-  CHECK(sl_create_hash_table(SZP, 0, 0, cmp, NULL, NULL), BAD_ARG);
-  CHECK(sl_create_hash_table(0, ALP, 0, cmp, NULL, NULL), BAD_ARG);
-  CHECK(sl_create_hash_table(SZP, ALP, 0, cmp, NULL, NULL), BAD_ARG);
-  CHECK(sl_create_hash_table(0, 0, SZK, cmp, NULL, NULL), BAD_ARG);
-  CHECK(sl_create_hash_table(SZP, 0, SZK, cmp, NULL, NULL), BAD_ARG);
-  CHECK(sl_create_hash_table(0, ALP, SZK, cmp, NULL, NULL), BAD_ARG);
-  CHECK(sl_create_hash_table(SZP, ALP, SZK, cmp, NULL, NULL), BAD_ARG);
-  CHECK(sl_create_hash_table(0, 0, 0, NULL, key, NULL), BAD_ARG);
-  CHECK(sl_create_hash_table(SZP, 0, 0, NULL, key, NULL), BAD_ARG);
-  CHECK(sl_create_hash_table(0, ALP, 0, NULL, key, NULL), BAD_ARG);
-  CHECK(sl_create_hash_table(SZP, ALP, 0, NULL, key, NULL), BAD_ARG);
-  CHECK(sl_create_hash_table(0, 0, SZK, NULL, key, NULL), BAD_ARG);
-  CHECK(sl_create_hash_table(SZP, 0, SZK, NULL, key, NULL), BAD_ARG);
-  CHECK(sl_create_hash_table(0, ALP, SZK, NULL, key, NULL), BAD_ARG);
-  CHECK(sl_create_hash_table(SZP, ALP, SZK, NULL, key, NULL), BAD_ARG);
-  CHECK(sl_create_hash_table(0, 0, 0, cmp, key, NULL), BAD_ARG);
-  CHECK(sl_create_hash_table(SZP, 0, 0, cmp, key, NULL), BAD_ARG);
-  CHECK(sl_create_hash_table(0, ALP, 0, cmp, key, NULL), BAD_ARG);
-  CHECK(sl_create_hash_table(SZP, ALP, 0, cmp, key, NULL), BAD_ARG);
-  CHECK(sl_create_hash_table(0, 0, SZK, cmp, key, NULL), BAD_ARG);
-  CHECK(sl_create_hash_table(SZP, 0, SZK, cmp, key, NULL), BAD_ARG);
-  CHECK(sl_create_hash_table(0, ALP, SZK, cmp, key, NULL), BAD_ARG);
-  CHECK(sl_create_hash_table(SZP, ALP, SZK, cmp, key, NULL), BAD_ARG);
-  CHECK(sl_create_hash_table(0, 0, 0, NULL, NULL, &tbl), BAD_ARG);
-  CHECK(sl_create_hash_table(SZP, 0, 0, NULL, NULL, &tbl), BAD_ARG);
-  CHECK(sl_create_hash_table(0, ALP, 0, NULL, NULL, &tbl), BAD_ARG);
-  CHECK(sl_create_hash_table(SZP, ALP, 0, NULL, NULL, &tbl), BAD_ARG);
-  CHECK(sl_create_hash_table(0, 0, SZK, NULL, NULL, &tbl), BAD_ARG);
-  CHECK(sl_create_hash_table(SZP, 0, SZK, NULL, NULL, &tbl), BAD_ARG);
-  CHECK(sl_create_hash_table(0, ALP, SZK, NULL, NULL, &tbl), BAD_ARG);
-  CHECK(sl_create_hash_table(SZP, ALP, SZK, NULL, NULL, &tbl), BAD_ARG);
-  CHECK(sl_create_hash_table(0, 0, 0, cmp, NULL, &tbl), BAD_ARG);
-  CHECK(sl_create_hash_table(SZP, 0, 0, cmp, NULL, &tbl), BAD_ARG);
-  CHECK(sl_create_hash_table(0, ALP, 0, cmp, NULL, &tbl), BAD_ARG);
-  CHECK(sl_create_hash_table(SZP, ALP, 0, cmp, NULL, &tbl), BAD_ARG);
-  CHECK(sl_create_hash_table(0, 0, SZK, cmp, NULL, &tbl), BAD_ARG);
-  CHECK(sl_create_hash_table(SZP, 0, SZK, cmp, NULL, &tbl), BAD_ARG);
-  CHECK(sl_create_hash_table(0, ALP, SZK, cmp, NULL, &tbl), BAD_ARG);
-  CHECK(sl_create_hash_table(SZP, ALP, SZK, cmp, NULL, &tbl), BAD_ARG);
-  CHECK(sl_create_hash_table(0, 0, 0, NULL, key, &tbl), BAD_ARG);
-  CHECK(sl_create_hash_table(SZP, 0, 0, NULL, key, &tbl), BAD_ARG);
-  CHECK(sl_create_hash_table(0, ALP, 0, NULL, key, &tbl), BAD_ARG);
-  CHECK(sl_create_hash_table(SZP, ALP, 0, NULL, key, &tbl), BAD_ARG);
-  CHECK(sl_create_hash_table(0, 0, SZK, NULL, key, &tbl), BAD_ARG);
-  CHECK(sl_create_hash_table(SZP, 0, SZK, NULL, key, &tbl), BAD_ARG);
-  CHECK(sl_create_hash_table(0, ALP, SZK, NULL, key, &tbl), BAD_ARG);
-  CHECK(sl_create_hash_table(SZP, ALP, SZK, NULL, key, &tbl), BAD_ARG);
-  CHECK(sl_create_hash_table(0, 0, 0, cmp, key, &tbl), BAD_ARG);
-  CHECK(sl_create_hash_table(SZP, 0, 0, cmp, key, &tbl), BAD_ARG);
-  CHECK(sl_create_hash_table(0, ALP, 0, cmp, key, &tbl), BAD_ARG);
-  CHECK(sl_create_hash_table(SZP, ALP, 0, cmp, key, &tbl), BAD_ARG);
-  CHECK(sl_create_hash_table(0, 0, SZK, cmp, key, &tbl), BAD_ARG);
-  CHECK(sl_create_hash_table(SZP, 0, SZK, cmp, key, &tbl), BAD_AL);
-  CHECK(sl_create_hash_table(0, ALP, SZK, cmp, key, &tbl), BAD_ARG);
-  CHECK(sl_create_hash_table(SZP, ALP, SZK, cmp, key, &tbl), OK);
+  CHECK(sl_create_hash_table(0, 0, 0, NULL, NULL, NULL, NULL), BAD_ARG);
+  CHECK(sl_create_hash_table(SZP, 0, 0, NULL, NULL, NULL, NULL), BAD_ARG);
+  CHECK(sl_create_hash_table(0, ALP, 0, NULL, NULL, NULL, NULL), BAD_ARG);
+  CHECK(sl_create_hash_table(SZP, ALP, 0, NULL, NULL, NULL, NULL), BAD_ARG);
+  CHECK(sl_create_hash_table(0, 0, SZK, NULL, NULL, NULL, NULL), BAD_ARG);
+  CHECK(sl_create_hash_table(SZP, 0, SZK, NULL, NULL, NULL, NULL), BAD_ARG);
+  CHECK(sl_create_hash_table(0, ALP, SZK, NULL, NULL, NULL, NULL), BAD_ARG);
+  CHECK(sl_create_hash_table(SZP, ALP, SZK, NULL, NULL, NULL, NULL), BAD_ARG);
+  CHECK(sl_create_hash_table(0, 0, 0, cmp, NULL, NULL, NULL), BAD_ARG);
+  CHECK(sl_create_hash_table(SZP, 0, 0, cmp, NULL, NULL, NULL), BAD_ARG);
+  CHECK(sl_create_hash_table(0, ALP, 0, cmp, NULL, NULL, NULL), BAD_ARG);
+  CHECK(sl_create_hash_table(SZP, ALP, 0, cmp, NULL, NULL, NULL), BAD_ARG);
+  CHECK(sl_create_hash_table(0, 0, SZK, cmp, NULL, NULL, NULL), BAD_ARG);
+  CHECK(sl_create_hash_table(SZP, 0, SZK, cmp, NULL, NULL, NULL), BAD_ARG);
+  CHECK(sl_create_hash_table(0, ALP, SZK, cmp, NULL, NULL, NULL), BAD_ARG);
+  CHECK(sl_create_hash_table(SZP, ALP, SZK, cmp, NULL, NULL, NULL), BAD_ARG);
+  CHECK(sl_create_hash_table(0, 0, 0, NULL, key, NULL, NULL), BAD_ARG);
+  CHECK(sl_create_hash_table(SZP, 0, 0, NULL, key, NULL, NULL), BAD_ARG);
+  CHECK(sl_create_hash_table(0, ALP, 0, NULL, key, NULL, NULL), BAD_ARG);
+  CHECK(sl_create_hash_table(SZP, ALP, 0, NULL, key, NULL, NULL), BAD_ARG);
+  CHECK(sl_create_hash_table(0, 0, SZK, NULL, key, NULL, NULL), BAD_ARG);
+  CHECK(sl_create_hash_table(SZP, 0, SZK, NULL, key, NULL, NULL), BAD_ARG);
+  CHECK(sl_create_hash_table(0, ALP, SZK, NULL, key, NULL, NULL), BAD_ARG);
+  CHECK(sl_create_hash_table(SZP, ALP, SZK, NULL, key, NULL, NULL), BAD_ARG);
+  CHECK(sl_create_hash_table(0, 0, 0, cmp, key, NULL, NULL), BAD_ARG);
+  CHECK(sl_create_hash_table(SZP, 0, 0, cmp, key, NULL, NULL), BAD_ARG);
+  CHECK(sl_create_hash_table(0, ALP, 0, cmp, key, NULL, NULL), BAD_ARG);
+  CHECK(sl_create_hash_table(SZP, ALP, 0, cmp, key, NULL, NULL), BAD_ARG);
+  CHECK(sl_create_hash_table(0, 0, SZK, cmp, key, NULL, NULL), BAD_ARG);
+  CHECK(sl_create_hash_table(SZP, 0, SZK, cmp, key, NULL, NULL), BAD_ARG);
+  CHECK(sl_create_hash_table(0, ALP, SZK, cmp, key, NULL, NULL), BAD_ARG);
+  CHECK(sl_create_hash_table(SZP, ALP, SZK, cmp, key, NULL, NULL), BAD_ARG);
+  CHECK(sl_create_hash_table(0, 0, 0, NULL, NULL, NULL, &tbl), BAD_ARG);
+  CHECK(sl_create_hash_table(SZP, 0, 0, NULL, NULL, NULL, &tbl), BAD_ARG);
+  CHECK(sl_create_hash_table(0, ALP, 0, NULL, NULL, NULL, &tbl), BAD_ARG);
+  CHECK(sl_create_hash_table(SZP, ALP, 0, NULL, NULL, NULL, &tbl), BAD_ARG);
+  CHECK(sl_create_hash_table(0, 0, SZK, NULL, NULL, NULL, &tbl), BAD_ARG);
+  CHECK(sl_create_hash_table(SZP, 0, SZK, NULL, NULL, NULL, &tbl), BAD_ARG);
+  CHECK(sl_create_hash_table(0, ALP, SZK, NULL, NULL, NULL, &tbl), BAD_ARG);
+  CHECK(sl_create_hash_table(SZP, ALP, SZK, NULL, NULL, NULL, &tbl), BAD_ARG);
+  CHECK(sl_create_hash_table(0, 0, 0, cmp, NULL, NULL, &tbl), BAD_ARG);
+  CHECK(sl_create_hash_table(SZP, 0, 0, cmp, NULL, NULL, &tbl), BAD_ARG);
+  CHECK(sl_create_hash_table(0, ALP, 0, cmp, NULL, NULL, &tbl), BAD_ARG);
+  CHECK(sl_create_hash_table(SZP, ALP, 0, cmp, NULL, NULL, &tbl), BAD_ARG);
+  CHECK(sl_create_hash_table(0, 0, SZK, cmp, NULL, NULL, &tbl), BAD_ARG);
+  CHECK(sl_create_hash_table(SZP, 0, SZK, cmp, NULL, NULL, &tbl), BAD_ARG);
+  CHECK(sl_create_hash_table(0, ALP, SZK, cmp, NULL, NULL, &tbl), BAD_ARG);
+  CHECK(sl_create_hash_table(SZP, ALP, SZK, cmp, NULL, NULL, &tbl), BAD_ARG);
+  CHECK(sl_create_hash_table(0, 0, 0, NULL, key, NULL, &tbl), BAD_ARG);
+  CHECK(sl_create_hash_table(SZP, 0, 0, NULL, key, NULL, &tbl), BAD_ARG);
+  CHECK(sl_create_hash_table(0, ALP, 0, NULL, key, NULL, &tbl), BAD_ARG);
+  CHECK(sl_create_hash_table(SZP, ALP, 0, NULL, key, NULL, &tbl), BAD_ARG);
+  CHECK(sl_create_hash_table(0, 0, SZK, NULL, key, NULL, &tbl), BAD_ARG);
+  CHECK(sl_create_hash_table(SZP, 0, SZK, NULL, key, NULL, &tbl), BAD_ARG);
+  CHECK(sl_create_hash_table(0, ALP, SZK, NULL, key, NULL, &tbl), BAD_ARG);
+  CHECK(sl_create_hash_table(SZP, ALP, SZK, NULL, key, NULL, &tbl), BAD_ARG);
+  CHECK(sl_create_hash_table(0, 0, 0, cmp, key, NULL, &tbl), BAD_ARG);
+  CHECK(sl_create_hash_table(SZP, 0, 0, cmp, key, NULL, &tbl), BAD_ARG);
+  CHECK(sl_create_hash_table(0, ALP, 0, cmp, key, NULL, &tbl), BAD_ARG);
+  CHECK(sl_create_hash_table(SZP, ALP, 0, cmp, key, NULL, &tbl), BAD_ARG);
+  CHECK(sl_create_hash_table(0, 0, SZK, cmp, key, NULL, &tbl), BAD_ARG);
+  CHECK(sl_create_hash_table(SZP, 0, SZK, cmp, key, NULL, &tbl), BAD_AL);
+  CHECK(sl_create_hash_table(0, ALP, SZK, cmp, key, NULL, &tbl), BAD_ARG);
+  CHECK(sl_create_hash_table(SZP, ALP, SZK, cmp, key, NULL, &tbl), OK);
 
   CHECK(sl_hash_table_insert(NULL, NULL), BAD_ARG);
   CHECK(sl_hash_table_insert(tbl, NULL), BAD_ARG);
@@ -194,7 +195,8 @@ main(int argc UNUSED, char** argv UNUSED)
   CHECK(sl_free_hash_table(NULL), BAD_ARG);
   CHECK(sl_free_hash_table(tbl), OK);
 
-  CHECK(sl_create_hash_table(SZP, 16, SZK, cmp, key, &tbl), OK);
+  CHECK(sl_create_hash_table
+        (SZP, 16, SZK, cmp, key, &mem_default_allocator, &tbl), OK);
   CHECK(sl_hash_table_find(tbl, (int[]){0}, &ptr), OK);
   CHECK(ptr, NULL);
   CHECK(sl_hash_table_insert(tbl, array + 0), OK);
@@ -205,7 +207,7 @@ main(int argc UNUSED, char** argv UNUSED)
   }
   CHECK(sl_free_hash_table(tbl), OK);
 
-  CHECK(sl_create_hash_table(SZP, ALP, SZK, cmp, key, &tbl), OK);
+  CHECK(sl_create_hash_table(SZP, ALP, SZK, cmp, key, NULL, &tbl), OK);
   CHECK(sl_hash_table_resize(NULL, 0), BAD_ARG);
   CHECK(sl_hash_table_resize(tbl, 0), OK);
   CHECK(sl_hash_table_bucket_count(tbl, &count), OK);
