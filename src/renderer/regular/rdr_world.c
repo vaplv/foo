@@ -23,10 +23,10 @@ struct rdr_world {
  ******************************************************************************/
 static void
 compute_proj
-  (float fov_x, 
-   float ratio, 
-   float znear, 
-   float zfar, 
+  (float fov_x,
+   float ratio,
+   float znear,
+   float zfar,
    struct aosf44* proj)
 {
   const float fov_y = fov_x / ratio;
@@ -65,7 +65,7 @@ rdr_create_world(struct rdr_system* sys, struct rdr_world** out_world)
     goto error;
   }
 
-  world = calloc(1, sizeof(struct rdr_world));
+  world = MEM_CALLOC_I(sys->allocator, 1, sizeof(struct rdr_world));
   if(world == NULL) {
     rdr_err = RDR_MEMORY_ERROR;
     goto error;
@@ -75,7 +75,7 @@ rdr_create_world(struct rdr_system* sys, struct rdr_world** out_world)
     (sizeof(struct rdr_model_instance*),
      ALIGNOF(struct rdr_model_instance*),
      compare_model_instance,
-     NULL,
+     sys->allocator,
      &world->model_instance_list);
   if(sl_err != SL_NO_ERROR) {
     rdr_err = sl_to_rdr_error(sl_err);
@@ -93,7 +93,7 @@ error:
       sl_err = sl_free_sorted_vector(world->model_instance_list);
       assert(sl_err == SL_NO_ERROR);
     }
-    free(world);
+    MEM_FREE_I(sys->allocator, world);
     world = NULL;
   }
   goto exit;
@@ -131,7 +131,7 @@ rdr_free_world(struct rdr_system* sys, struct rdr_world* world)
       goto error;
     }
   }
-  free(world);
+  MEM_FREE_I(sys->allocator, world);
 
 exit:
   return rdr_err;

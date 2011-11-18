@@ -3,6 +3,7 @@
 #include "renderer/rdr_model.h"
 #include "renderer/rdr_model_instance.h"
 #include "renderer/rdr_system.h"
+#include "sys/mem_allocator.h"
 #include "utest/utest.h"
 #include "window_manager/wm_device.h"
 #include "window_manager/wm_window.h"
@@ -37,11 +38,11 @@ test_rdr_system(const char* driver_name)
 {
   struct rdr_system* sys = NULL;
 
-  CHECK(rdr_create_system(NULL, NULL), BAD_ARG);
-  CHECK(rdr_create_system(NULL, &sys), BAD_ARG);
-  CHECK(rdr_create_system("__INVALID_DRIVER__", NULL), BAD_ARG);
-  CHECK(rdr_create_system("__INVALID_DRIVER__", &sys), RDR_DRIVER_ERROR);
-  CHECK(rdr_create_system(driver_name, &sys), OK);
+  CHECK(rdr_create_system(NULL, NULL, NULL), BAD_ARG);
+  CHECK(rdr_create_system(NULL, NULL, &sys), BAD_ARG);
+  CHECK(rdr_create_system("__INVALID_DRIVER__", NULL, NULL), BAD_ARG);
+  CHECK(rdr_create_system("__INVALID_DRIVER__", NULL, &sys), RDR_DRIVER_ERROR);
+  CHECK(rdr_create_system(driver_name, NULL, &sys), OK);
   CHECK(rdr_free_system(NULL), BAD_ARG);
   CHECK(rdr_free_system(sys), OK);
 }
@@ -67,7 +68,7 @@ test_rdr_mesh(const char* driver_name)
     { .usage = RDR_ATTRIB_UNKNOWN, .type = RDR_FLOAT }
   };
 
-  CHECK(rdr_create_system(driver_name, &sys), OK);
+  CHECK(rdr_create_system(driver_name, NULL, &sys), OK);
 
   CHECK(rdr_create_mesh(NULL, NULL), BAD_ARG);
   CHECK(rdr_create_mesh(NULL, &mesh), BAD_ARG);
@@ -128,7 +129,7 @@ test_rdr_material(const char* driver_name)
 
   memset(sources, 0, SZ(const char*) * RDR_NB_SHADER_USAGES);
 
-  CHECK(rdr_create_system(driver_name, &sys), OK);
+  CHECK(rdr_create_system(driver_name, NULL, &sys), OK);
 
   CHECK(rdr_create_material(NULL, NULL), BAD_ARG);
   CHECK(rdr_create_material(sys, NULL), BAD_ARG);
@@ -193,7 +194,7 @@ test_rdr_model(const char* driver_name)
   memset(sources, 0, SZ(const char*) * RDR_NB_SHADER_USAGES);
   sources[RDR_VERTEX_SHADER] = vs_source;
 
-  CHECK(rdr_create_system(driver_name, &sys), OK);
+  CHECK(rdr_create_system(driver_name, NULL, &sys), OK);
   CHECK(rdr_create_mesh(sys, &mesh), OK);
   CHECK(rdr_mesh_data(sys, mesh, 2, attr0, SZ(data), data), OK);
   CHECK(rdr_create_material(sys, &mtr), OK);
@@ -255,13 +256,13 @@ instance_cbk_func
   assert(cbk_data != NULL);
 
   if(cbk_data->uniform_list) {
-    free(cbk_data->uniform_list);
+    MEM_FREE(cbk_data->uniform_list);
     cbk_data->uniform_list = NULL;
     cbk_data->nb_uniforms = 0;
   }
 
   if(cbk_data->attrib_list) {
-    free(cbk_data->attrib_list);
+    MEM_FREE(cbk_data->attrib_list);
     cbk_data->attrib_list = NULL;
     cbk_data->nb_attribs = 0;
   }
@@ -300,8 +301,8 @@ instance_cbk_func
 
   if(cbk_data->nb_uniforms > 0) {
     if(cbk_data->uniform_list)
-      free(cbk_data->uniform_list);
-    cbk_data->uniform_list = calloc
+      MEM_FREE(cbk_data->uniform_list);
+    cbk_data->uniform_list = MEM_CALLOC
       (cbk_data->nb_uniforms, SZ(struct instance_cbk_data));
     assert(NULL != cbk_data->uniform_list);
 
@@ -344,8 +345,8 @@ instance_cbk_func
 
   if(cbk_data->nb_attribs > 0) {
     if(cbk_data->attrib_list)
-      free(cbk_data->attrib_list);
-    cbk_data->attrib_list = calloc
+      MEM_FREE(cbk_data->attrib_list);
+    cbk_data->attrib_list = MEM_CALLOC
       (cbk_data->nb_attribs, SZ(struct instance_cbk_data));
     assert(NULL != cbk_data->attrib_list);
 
@@ -419,7 +420,7 @@ test_rdr_model_instance(const char* driver_name)
   memset(sources, 0, SZ(const char*) * RDR_NB_SHADER_USAGES);
   sources[RDR_VERTEX_SHADER] = vs_source;
 
-  CHECK(rdr_create_system(driver_name, &sys), OK);
+  CHECK(rdr_create_system(driver_name, NULL, &sys), OK);
   CHECK(rdr_create_mesh(sys, &mesh), OK);
   CHECK(rdr_mesh_data(sys, mesh, 2, attr0, SZ(data), data), OK);
   CHECK(rdr_create_material(sys, &mtr), OK);
@@ -570,9 +571,9 @@ test_rdr_model_instance(const char* driver_name)
   CHECK(rdr_detach_model_instance_callback(sys, inst, cbk), OK);
 
   if(instance_cbk_data.uniform_list)
-    free(instance_cbk_data.uniform_list);
+    MEM_FREE(instance_cbk_data.uniform_list);
   if(instance_cbk_data.attrib_list)
-    free(instance_cbk_data.attrib_list);
+    MEM_FREE(instance_cbk_data.attrib_list);
 
   CHECK(rdr_free_model_instance(NULL, NULL), BAD_ARG);
   CHECK(rdr_free_model_instance(sys, NULL), BAD_ARG);

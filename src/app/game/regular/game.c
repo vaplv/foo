@@ -137,8 +137,9 @@ user_command_eq(struct user_command* cmd0, struct user_command* cmd1)
  *
  ******************************************************************************/
 EXPORT_SYM enum game_error
-game_create(struct game** out_game)
+game_create(struct mem_allocator* specific_allocator, struct game** out_game)
 {
+  struct mem_allocator* allocator = NULL;
   struct game* game = NULL;
   enum game_error game_err = GAME_NO_ERROR;
 
@@ -147,11 +148,13 @@ game_create(struct game** out_game)
     goto error;
   }
 
-  game = MEM_CALLOC(1, sizeof(struct game));
+  allocator = specific_allocator ? specific_allocator : &mem_default_allocator;
+  game = MEM_CALLOC_I(allocator, 1, sizeof(struct game));
   if(!game) {
     game_err = GAME_MEMORY_ERROR;
     goto error;
   }
+  game->allocator = allocator;
 
 exit:
   if(out_game)
@@ -160,7 +163,7 @@ exit:
 
 error:
   if(game) {
-    MEM_FREE(game);
+    MEM_FREE_I(allocator, game);
     game = NULL;
   }
   goto exit;
@@ -169,9 +172,11 @@ error:
 EXPORT_SYM enum game_error
 game_free(struct game* game)
 {
+  struct mem_allocator* allocator = NULL;
   if(!game)
     return GAME_INVALID_ARGUMENT;
-  MEM_FREE(game);
+  allocator = game->allocator;
+  MEM_FREE_I(allocator, game);
   return GAME_NO_ERROR;
 }
 

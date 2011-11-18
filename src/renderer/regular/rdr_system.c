@@ -8,8 +8,12 @@
 #include <string.h>
 
 EXPORT_SYM enum rdr_error
-rdr_create_system(const char* graphic_driver, struct rdr_system** out_sys)
+rdr_create_system
+  (const char* graphic_driver, 
+   struct mem_allocator* specific_allocator,
+   struct rdr_system** out_sys)
 {
+  struct mem_allocator* allocator = NULL;
   struct rdr_system* sys = NULL;
   enum rdr_error rdr_err = RDR_NO_ERROR;
   int err = 0;
@@ -18,24 +22,29 @@ rdr_create_system(const char* graphic_driver, struct rdr_system** out_sys)
     rdr_err = RDR_INVALID_ARGUMENT;
     goto error;
   }
-  sys = calloc(1, sizeof(struct rdr_system));
+
+  allocator = specific_allocator ? specific_allocator : &mem_default_allocator;
+  sys = MEM_CALLOC_I(allocator, 1, sizeof(struct rdr_system));
   if(!sys) {
     rdr_err = RDR_MEMORY_ERROR;
   }
+  sys->allocator = allocator;
+
   err = rbi_init(graphic_driver, &sys->rb);
   if(err != 0) {
     rdr_err = RDR_DRIVER_ERROR;
     goto error;
   }
+
   err = sys->rb.create_context(&sys->ctxt);
   if(err != 0) {
     rdr_err = RDR_DRIVER_ERROR;
     goto error;
   }
+
 exit:
   if(out_sys)
     *out_sys = sys;
-
   return rdr_err;
 
 error:
@@ -46,7 +55,7 @@ error:
     }
     err = rbi_shutdown(&sys->rb);
     assert(err == 0);
-    free(sys);
+    MEM_FREE_I(allocator, sys);
     sys = NULL;
   }
   goto exit;
@@ -55,6 +64,7 @@ error:
 EXPORT_SYM enum rdr_error
 rdr_free_system(struct rdr_system* sys)
 {
+  struct mem_allocator* allocator = NULL;
   int err = 0;
 
   if(!sys)
@@ -62,11 +72,11 @@ rdr_free_system(struct rdr_system* sys)
 
   err = sys->rb.free_context(sys->ctxt);
   assert(err == 0);
-
   err = rbi_shutdown(&sys->rb);
   assert(err == 0);
 
-  free(sys);
+  allocator = sys->allocator;
+  MEM_FREE_I(allocator, sys);
   return RDR_NO_ERROR;
 }
 

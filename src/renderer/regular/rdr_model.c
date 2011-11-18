@@ -213,7 +213,8 @@ setup_model_vertex_array
     goto error;
 
   if(nb_mtr_attribs) {
-    instance_attrib_list = malloc(sizeof(struct rb_attrib*) * nb_mtr_attribs);
+    instance_attrib_list = MEM_ALLOC_I
+      (sys->allocator, sizeof(struct rb_attrib*) * nb_mtr_attribs);
     if(!instance_attrib_list) {
       rdr_err = RDR_MEMORY_ERROR;
       goto error;
@@ -246,7 +247,7 @@ setup_model_vertex_array
   }
 
   if(nb_instance_attribs == 0 && instance_attrib_list != NULL) {
-    free(instance_attrib_list);
+    MEM_FREE_I(sys->allocator, instance_attrib_list);
     instance_attrib_list = NULL;
   }
 
@@ -265,7 +266,7 @@ exit:
 
 error:
   if(instance_attrib_list) {
-    free(instance_attrib_list);
+    MEM_FREE_I(sys->allocator, instance_attrib_list);
     instance_attrib_list = NULL;
     nb_instance_attribs = 0;
   }
@@ -313,7 +314,8 @@ setup_model_uniforms
       && !model->sizeof_uniform_data);
 
   if(nb_uniforms) {
-    model_uniform_list = malloc(sizeof(struct rdr_model_uniform) * nb_uniforms);
+    model_uniform_list = MEM_ALLOC_I
+      (sys->allocator, sizeof(struct rdr_model_uniform) * nb_uniforms);
     if(!model_uniform_list) {
       rdr_err = RDR_MEMORY_ERROR;
       goto error;
@@ -343,7 +345,7 @@ exit:
 
 error:
   if(model_uniform_list) {
-    free(model_uniform_list);
+    MEM_FREE_I(sys->allocator, model_uniform_list);
     model_uniform_list = NULL;
     nb_uniforms = 0;
   }
@@ -378,8 +380,8 @@ setup_model(struct rdr_system* sys, struct rdr_model* model_obj)
     goto error;
 
   if(nb_mesh_attribs != 0) {
-    mesh_attrib_list = malloc
-      (sizeof(struct rdr_mesh_attrib_desc) * nb_mesh_attribs);
+    mesh_attrib_list = MEM_ALLOC_I
+      (sys->allocator, sizeof(struct rdr_mesh_attrib_desc) * nb_mesh_attribs);
     if(!mesh_attrib_list) {
       rdr_err = RDR_MEMORY_ERROR;
       goto error;
@@ -417,19 +419,19 @@ setup_model(struct rdr_system* sys, struct rdr_model* model_obj)
 
 exit:
   if(mesh_attrib_list)
-    free(mesh_attrib_list);
+    MEM_FREE_I(sys->allocator, mesh_attrib_list);
 
   return rdr_err;
 
 error:
   if(model->instance_attrib_list) {
-    free(model->instance_attrib_list);
+    MEM_FREE_I(sys->allocator, model->instance_attrib_list);
     model->instance_attrib_list = NULL;
     model->nb_instance_attribs = 0;
     model->sizeof_instance_attrib_data = 0;
   }
   if(model->uniform_list) {
-    free(model->uniform_list);
+    MEM_FREE_I(sys->allocator, model->uniform_list);
     model->uniform_list = NULL;
     model->nb_uniforms = 0;
     model->sizeof_uniform_data = 0;
@@ -450,7 +452,7 @@ reset_model(struct rdr_system* sys, struct model* mdl)
   if(mdl->instance_attrib_list) {
     assert(mdl->nb_instance_attribs > 0);
 
-    free(mdl->instance_attrib_list);
+    MEM_FREE_I(sys->allocator, mdl->instance_attrib_list);
     mdl->instance_attrib_list = NULL;
     mdl->nb_instance_attribs = 0;
     mdl->sizeof_instance_attrib_data = 0;
@@ -459,7 +461,7 @@ reset_model(struct rdr_system* sys, struct model* mdl)
   if(mdl->uniform_list) {
     assert(mdl->nb_uniforms > 0);
 
-    free(mdl->uniform_list);
+    MEM_FREE_I(sys->allocator, mdl->uniform_list);
     mdl->uniform_list = NULL;
     mdl->nb_uniforms = 0;
     mdl->sizeof_uniform_data = 0;
@@ -617,7 +619,7 @@ rdr_create_model
   sl_err = sl_create_linked_list
     (sizeof(struct rdr_model_callback_desc),
      ALIGNOF(struct rdr_model_callback_desc),
-     NULL,
+     sys->allocator,
      &model->callback_list);
   if(sl_err != SL_NO_ERROR) {
     rdr_err = sl_to_rdr_error(sl_err);

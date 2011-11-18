@@ -20,7 +20,7 @@ app_create_view(struct app* app, struct app_view** out_view)
     goto error;
   }
 
-  view = MEM_ALIGNED_ALLOC(sizeof(struct app_view), 16);
+  view = MEM_ALIGNED_ALLOC_I(app->allocator, sizeof(struct app_view), 16);
   if(!view) {
     app_err = APP_MEMORY_ERROR;
     goto error;
@@ -40,7 +40,7 @@ exit:
 
 error:
   if(view) {
-    MEM_FREE(view);
+    MEM_FREE_I(app->allocator, view);
     view = NULL;
   }
   goto exit;
@@ -51,7 +51,7 @@ app_free_view(struct app* app, struct app_view* view)
 {
   if(!app || !view)
     return APP_INVALID_ARGUMENT;
-  MEM_FREE(view);
+  MEM_FREE_I(app->allocator, view);
   return APP_NO_ERROR;
 }
 

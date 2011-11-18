@@ -38,7 +38,7 @@ app_free_model_instance(struct app* app, struct app_model_instance* instance)
 
     SL(free_vector(instance->model_instance_list));
   }
-  MEM_FREE(instance);
+  MEM_FREE_I(app->allocator, instance);
 
 exit:
   return app_err;
@@ -65,7 +65,8 @@ app_create_model_instance
     app_err = APP_INVALID_ARGUMENT;
     goto error;
   }
-  instance = MEM_CALLOC(1, sizeof(struct app_model_instance));
+  instance = MEM_CALLOC_I
+    (app->allocator, 1, sizeof(struct app_model_instance));
   if(!instance) {
     app_err = APP_MEMORY_ERROR;
     goto error;
@@ -73,7 +74,7 @@ app_create_model_instance
   sl_err = sl_create_vector
     (sizeof(struct app_model_instance*),
      ALIGNOF(struct app_model_instance*),
-     NULL,
+     app->allocator,
      &instance->model_instance_list);
   if(sl_err != SL_NO_ERROR) {
     app_err = sl_to_app_error(sl_err);

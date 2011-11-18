@@ -7,6 +7,7 @@
 struct app_args {
   const char* render_driver;
   const char* model;
+  struct mem_allocator* allocator; /* May be NULL. */
 };
 
 struct app;

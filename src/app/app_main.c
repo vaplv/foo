@@ -69,14 +69,17 @@ app_exit(void)
   {
     char dump[BUFSIZ];
     MEM_DUMP(dump, BUFSIZ, NULL);
-    fprintf(stderr, "\nLeaks summary:\n%s\n", dump);
+    fprintf(stderr, "Leaks summary:\n%s\n", dump);
   }
 }
 
 int
 main(int argc, char** argv)
 {
+  char buffer[BUFSIZ];
   struct app_args args;
+  struct mem_allocator engine_allocator;
+  struct mem_allocator game_allocator;
   struct app* app = NULL;
   struct game* game = NULL;
   enum app_error app_err = APP_NO_ERROR;
@@ -84,10 +87,9 @@ main(int argc, char** argv)
   int err = 0;
   bool keep_running = true;
 
-  atexit(app_exit);
-
   memset(&args, 0, sizeof(struct app_args));
 
+  /* Parse the argument list. */
   err = parse_args(argc, argv, &args);
   if(err == 1) {
     err = 0;
@@ -96,16 +98,24 @@ main(int argc, char** argv)
     goto error;
   }
 
+  atexit(app_exit);
+
+  /* Initialize the application modules. */
+  mem_init_proxy_allocator("engine", &engine_allocator, &mem_default_allocator);
+  args.allocator = &engine_allocator;
   app_err = app_init(&args, &app);
   if(app_err != APP_NO_ERROR) {
     err = -1;
     goto error;
   }
-  game_err = game_create(&game);
+  mem_init_proxy_allocator("game", &game_allocator, &mem_default_allocator);
+  game_err = game_create(&game_allocator, &game);
   if(game_err != GAME_NO_ERROR) {
     err = -1;
     goto error;
   }
+
+  /* Run the application. */
   while(keep_running) {
     game_err = game_run(game, app, &keep_running);
     if(game_err != GAME_NO_ERROR)
@@ -120,10 +130,20 @@ exit:
   if(app) {
     app_err = app_shutdown(app);
     assert(app_err == APP_NO_ERROR);
+    if(MEM_ALLOCATED_SIZE_I(&engine_allocator)) {
+      MEM_DUMP_I(&engine_allocator, buffer, sizeof(buffer), NULL);
+      printf("Engine leaks summary:\n%s\n", buffer);
+    }
+    mem_shutdown_proxy_allocator(&engine_allocator);
   }
   if(game) {
     app_err = game_free(game);
     assert(app_err = APP_NO_ERROR);
+    if(MEM_ALLOCATED_SIZE_I(&game_allocator)) {
+      MEM_DUMP_I(&game_allocator, buffer, sizeof(buffer), NULL);
+      printf("Game leaks summary:\n%s\n", buffer);
+    }
+    mem_shutdown_proxy_allocator(&game_allocator);
   }
   return err;
 

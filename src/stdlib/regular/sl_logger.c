@@ -10,7 +10,6 @@
 #include <stdlib.h>
 
 struct sl_logger {
-  struct sys* sys;
   struct sl_sorted_vector* stream_list;
   struct mem_allocator* allocator;
   char* buffer;
@@ -28,8 +27,8 @@ compare_log_stream(const void* a, const void* b)
   struct sl_log_stream* stream0 = (struct sl_log_stream*)a;
   struct sl_log_stream* stream1 = (struct sl_log_stream*)b;
 
-  const uintptr_t p0[2] = {(uintptr_t)stream0->func, (uintptr_t)stream0->func};
-  const uintptr_t p1[2] = {(uintptr_t)stream1->func, (uintptr_t)stream1->func};
+  const uintptr_t p0[2] = {(uintptr_t)stream0->func, (uintptr_t)stream0->data};
+  const uintptr_t p1[2] = {(uintptr_t)stream1->func, (uintptr_t)stream1->data};
 
   const int inf = (p0[0] < p1[0]) | ((p0[0] == p1[0]) & (p0[1] < p1[1]));
   const int sup = (p0[0] > p1[0]) | ((p0[0] == p1[0]) & (p0[1] > p1[1]));
@@ -54,7 +53,7 @@ sl_create_logger
     sl_err = SL_INVALID_ARGUMENT;
     goto error;
   }
-  allocator = specific_allocator ? specific_allocator : &mem_default_allocator;;
+  allocator = specific_allocator ? specific_allocator : &mem_default_allocator;
   logger = MEM_CALLOC_I(allocator, 1, sizeof(struct sl_logger));
   if(!logger) {
     sl_err = SL_MEMORY_ERROR;

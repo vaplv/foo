@@ -1,6 +1,8 @@
 #ifndef GAME_C_H
 #define GAME_C_H
 
+#include "sys/mem_allocator.h"
+
 #ifndef NDEBUG
   #include <assert.h>
   #define APP(func) assert(APP_NO_ERROR == app_##func)
@@ -11,7 +13,7 @@
 #endif
 
 struct game {
-  char dummy;
+  struct mem_allocator* allocator;
 };
 
 #endif /* GAME_C_H */

@@ -5,6 +5,8 @@
 #define BAD_ARG SL_INVALID_ARGUMENT
 #define OK SL_NO_ERROR
 
+STATIC_ASSERT(sizeof(void*) >= 4, Unexpected_pointer_size);
+
 struct data {
   float f;
   char c;
@@ -17,7 +19,7 @@ stream_func0(const char* msg, void* data)
 {
   int* i = data;
   func_mask ^= 1;
-  CHECK(*i, (int)0xDEADBEEF);
+  CHECK((uintptr_t)i, 0xDEADBEEF);
   CHECK(strcmp(msg, "logger 0"), 0);
 }
 
@@ -49,7 +51,7 @@ main(int argc UNUSED, char** argv UNUSED)
   CHECK(sl_create_logger(NULL, NULL), BAD_ARG);
   CHECK(sl_create_logger(NULL, &logger), OK);
 
-  stream.data = (int[]){0xDEADBEEF};
+  stream.data = (void*)0xDEADBEEF;
   stream.func = stream_func0;
   CHECK(sl_logger_add_stream(NULL, NULL), BAD_ARG);
   CHECK(sl_logger_add_stream(logger, NULL), BAD_ARG);
@@ -91,7 +93,7 @@ main(int argc UNUSED, char** argv UNUSED)
   CHECK(sl_logger_remove_stream(logger, &stream), OK);
   CHECK(sl_logger_print(logger, "%s%s 0", "log", "ger"), OK);
   CHECK(func_mask, 2);
-  stream.data = (int[]){0xDEADBEEF};
+  stream.data = (void*)0xDEADBEEF;
   stream.func = stream_func0;
   CHECK(sl_logger_remove_stream(logger, &stream), OK);
   CHECK(sl_logger_print(logger, "pouet"), OK);

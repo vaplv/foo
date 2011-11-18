@@ -8,7 +8,7 @@
 int
 main(int argc, char** argv)
 {
-  struct app_args args = { NULL, NULL };
+  struct app_args args = { NULL, NULL, NULL };
   struct app* app = NULL;
   struct app_view* view = NULL;
   struct wm_device* wm = NULL;

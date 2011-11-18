@@ -355,7 +355,7 @@ invoke_callbacks
 
 static enum rdr_error
 setup_model_instance_buffers
-  (struct rdr_system* sys UNUSED,
+  (struct rdr_system* sys,
    struct model_instance* instance,
    const struct rdr_model_desc* model_desc)
 {
@@ -368,15 +368,16 @@ setup_model_instance_buffers
       && !instance->attrib_buffer);
 
   if(model_desc->sizeof_uniform_data) {
-    instance->uniform_buffer = calloc(1, model_desc->sizeof_uniform_data);
+    instance->uniform_buffer = MEM_CALLOC_I
+      (sys->allocator, 1, model_desc->sizeof_uniform_data);
     if(!instance->uniform_buffer) {
       rdr_err = RDR_MEMORY_ERROR;
       goto error;
     }
   }
-
   if(model_desc->sizeof_attrib_data) {
-    instance->attrib_buffer = calloc(1, model_desc->sizeof_attrib_data);
+    instance->attrib_buffer = MEM_CALLOC_I
+      (sys->allocator, 1, model_desc->sizeof_attrib_data);
     if(!instance->attrib_buffer) {
       rdr_err = RDR_MEMORY_ERROR;
       goto error;
@@ -388,10 +389,9 @@ error:
 
 exit:
   if(instance->uniform_buffer)
-    free(instance->uniform_buffer);
-
+    MEM_FREE_I(sys->allocator, instance->uniform_buffer);
   if(instance->attrib_buffer)
-    free(instance->attrib_buffer);
+    MEM_FREE_I(sys->allocator, instance->attrib_buffer);
 
   goto exit;
 }
@@ -417,12 +417,12 @@ model_callback_func
     goto error;
 
   if(instance->uniform_buffer) {
-    free(instance->uniform_buffer);
+    MEM_FREE_I(sys->allocator, instance->uniform_buffer);
     instance->uniform_buffer = NULL;
   }
 
   if(instance->attrib_buffer) {
-    free(instance->attrib_buffer);
+    MEM_FREE_I(sys->allocator, instance->attrib_buffer);
     instance->attrib_buffer = NULL;
   }
 
@@ -464,10 +464,9 @@ free_model_instance(struct rdr_system* sys, void* data)
   }
 
   if(instance->uniform_buffer)
-    free(instance->uniform_buffer);
-
+    MEM_FREE_I(sys->allocator, instance->uniform_buffer);
   if(instance->attrib_buffer)
-    free(instance->attrib_buffer);
+    MEM_FREE_I(sys->allocator, instance->attrib_buffer);
 
   RDR_RELEASE_OBJECT(sys, instance->model);
 }
@@ -522,7 +521,7 @@ rdr_create_model_instance
   sl_err = sl_create_linked_list
     (sizeof(struct rdr_model_instance_callback_desc),
      ALIGNOF(struct rdr_model_instance_callback_desc),
-     NULL,
+     sys->allocator,
      &instance->callback_list);
   if(sl_err != SL_NO_ERROR) {
     rdr_err = sl_to_rdr_error(sl_err);

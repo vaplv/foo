@@ -48,7 +48,8 @@ typedef void (*destructor_t)(struct rdr_system*, void* data);
   (assert(obj->ref_count != 0), \
   --obj->ref_count, \
   obj->ref_count == 0 \
-    ? obj->destructor(sys, RDR_GET_OBJECT_DATA(sys, obj)), free(obj), 0 \
+    ? obj->destructor(sys, RDR_GET_OBJECT_DATA(sys, obj)), \
+      MEM_FREE_I((sys)->allocator, obj), 0 \
     : obj->ref_count)
 
 /* Create a render object instance.
@@ -57,7 +58,9 @@ typedef void (*destructor_t)(struct rdr_system*, void* data);
  *  - func: destructor of the render object data;
  *  - obj: destination pointer of the created render object. */
 #define RDR_CREATE_OBJECT(sys, data_size, func, obj) \
-  ((obj = calloc(1, sizeof(RDR_OBJECT(struct)) + data_size)),\
+  ((obj = MEM_ALIGNED_ALLOC_I \
+    ((sys)->allocator, sizeof(RDR_OBJECT(struct)) + data_size, 16), \
+    memset(obj, 0, sizeof(RDR_OBJECT(struct)) + data_size)), \
    (obj \
      ? (obj->destructor = func), RDR_RETAIN_OBJECT(sys, obj), RDR_NO_ERROR \
      : RDR_MEMORY_ERROR)) \

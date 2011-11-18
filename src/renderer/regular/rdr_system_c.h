@@ -2,6 +2,7 @@
 #define RDR_SYSTEM_C_H
 
 #include "render_backend/rbi.h"
+#include "sys/mem_allocator.h"
 
 #ifndef NDEBUG
   #define SL(func) assert(SL_NO_ERROR == sl_##func)
@@ -12,6 +13,8 @@
 struct rb_context;
 
 struct rdr_system {
+  struct mem_allocator* allocator;
+
   /* The render backend and its context. */
   struct rbi rb; 
   struct rb_context* ctxt;

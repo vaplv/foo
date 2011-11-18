@@ -5,7 +5,7 @@
 int
 main(int argc, char** argv)
 {
-  struct app_args args = { NULL, NULL };
+  struct app_args args = { NULL, NULL, NULL };
   struct app* app = NULL;
   struct game* game = NULL;
   bool b = false;
@@ -18,8 +18,8 @@ main(int argc, char** argv)
 
   CHECK(app_init(&args, &app), APP_NO_ERROR);
 
-  CHECK(game_create(NULL), GAME_INVALID_ARGUMENT);
-  CHECK(game_create(&game), GAME_NO_ERROR);
+  CHECK(game_create(NULL, NULL), GAME_INVALID_ARGUMENT);
+  CHECK(game_create(NULL, &game), GAME_NO_ERROR);
 
   CHECK(game_run(NULL, NULL, NULL), GAME_INVALID_ARGUMENT);
   CHECK(game_run(game, NULL, NULL), GAME_INVALID_ARGUMENT);

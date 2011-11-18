@@ -16,7 +16,7 @@
 int
 main(int argc, char** argv)
 {
-  struct app_args args = { NULL, NULL };
+  struct app_args args = { NULL, NULL, NULL };
   struct app* app = NULL;
   struct app_model* model = NULL;
   struct app_model_instance* instances[2] = { NULL, NULL };

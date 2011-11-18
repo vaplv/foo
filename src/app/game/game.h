@@ -6,10 +6,12 @@
 
 struct app;
 struct game;
+struct mem_allocator;
 
 extern enum game_error
 game_create
-  (struct game** out_game);
+  (struct mem_allocator* allocator, /* May be NULL. */
+   struct game** out_game);
 
 extern enum game_error
 game_free

@@ -85,7 +85,7 @@ main(int argc, char** argv)
   CHECK(wm_create_device(&device), WM_NO_ERROR);
   CHECK(wm_create_window(device, &win_desc, &window), WM_NO_ERROR);
 
-  CHECK(rdr_create_system(driver_name, &sys), RDR_NO_ERROR);
+  CHECK(rdr_create_system(driver_name, NULL, &sys), RDR_NO_ERROR);
 
   CHECK(rdr_create_mesh(sys, &mesh), RDR_NO_ERROR);
   CHECK(rdr_mesh_data(sys, mesh, 1, attr, sizeof(data), data), RDR_NO_ERROR);

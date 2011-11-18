@@ -113,22 +113,30 @@ shutdown_renderer(struct app* app)
   enum rdr_error rdr_err = RDR_NO_ERROR;
   assert(app != NULL);
 
-  if(app->default_render_material) {
-    rdr_err = rdr_free_material(app->rdr, app->default_render_material);
-    if(rdr_err != RDR_NO_ERROR) {
-      app_err = rdr_to_app_error(rdr_err);
-      goto error;
-    }
-    app->default_render_material = NULL;
-  }
-
   if(app->rdr) {
-    rdr_err = rdr_free_system(app->rdr);
-    if(rdr_err != RDR_NO_ERROR) {
-      app_err = rdr_to_app_error(rdr_err);
-      goto error;
+    if(app->default_render_material) {
+      rdr_err = rdr_free_material(app->rdr, app->default_render_material);
+      if(rdr_err != RDR_NO_ERROR) {
+        app_err = rdr_to_app_error(rdr_err);
+        goto error;
+      }
+      app->default_render_material = NULL;
     }
-    app->rdr = NULL;
+
+    if(app->rdr) {
+      rdr_err = rdr_free_system(app->rdr);
+      if(rdr_err != RDR_NO_ERROR) {
+        app_err = rdr_to_app_error(rdr_err);
+        goto error;
+      }
+      app->rdr = NULL;
+    }
+
+    if(MEM_ALLOCATED_SIZE_I(&app->rdr_allocator)) {
+      char dump[BUFSIZ];
+      MEM_DUMP_I(&app->rdr_allocator, dump, BUFSIZ, NULL);
+      APP_LOG_MSG(app, "Renderer leask summary:\n%s\n", dump);
+    }
   }
 
 exit:
@@ -335,18 +343,18 @@ init_renderer(struct app* app, const char* driver)
   enum rdr_error rdr_err = RDR_NO_ERROR;
   assert(app != NULL);
 
-  rdr_err = rdr_create_system(driver, &app->rdr);
+  mem_init_proxy_allocator
+    ("renderer", &app->rdr_allocator, &mem_default_allocator);
+  rdr_err = rdr_create_system(driver, &app->rdr_allocator, &app->rdr);
   if(rdr_err != RDR_NO_ERROR) {
     app_err = rdr_to_app_error(rdr_err);
     goto error;
   }
-
   rdr_err = rdr_create_material(app->rdr, &app->default_render_material);
   if(rdr_err != RDR_NO_ERROR) {
     app_err = rdr_to_app_error(rdr_err);
     goto error;
   }
-
   rdr_err = rdr_material_program
     (app->rdr, app->default_render_material, default_shader_sources);
   if(rdr_err != RDR_NO_ERROR) {
@@ -407,7 +415,7 @@ init_common(struct app* app)
   sl_err = sl_create_vector
     (sizeof(struct app_model*),
      ALIGNOF(struct app_model*),
-     NULL,
+     app->allocator,
      &app->model_list);
   if(sl_err != SL_NO_ERROR) {
     app_err = sl_to_app_error(sl_err);
@@ -416,7 +424,7 @@ init_common(struct app* app)
   sl_err = sl_create_vector
     (sizeof(struct app_model_instance*),
      ALIGNOF(struct app_model_instance*),
-     NULL,
+     app->allocator,
      &app->model_instance_list);
   if(sl_err != SL_NO_ERROR) {
     app_err = sl_to_app_error(sl_err);
@@ -457,7 +465,7 @@ init_sys(struct app* app)
   enum app_error tmp_err = APP_NO_ERROR;
   assert(app);
 
-  sl_err = sl_create_logger(NULL, &app->logger);
+  sl_err = sl_create_logger(app->allocator, &app->logger);
   if(sl_err != SL_NO_ERROR) {
     app_err = sl_to_app_error(sl_err);
     goto error;
@@ -522,7 +530,7 @@ error:
 
 /*******************************************************************************
  *
- * Main entry
+ * Core application functions.
  *
  ******************************************************************************/
 EXPORT_SYM enum app_error
@@ -531,6 +539,7 @@ app_init(struct app_args* args, struct app** out_app)
   struct app* app = NULL;
   struct app_model* mdl = NULL;
   struct app_model_instance* mdl_instance = NULL;
+  struct mem_allocator* allocator = NULL;
   enum app_error app_err = APP_NO_ERROR;
   enum sl_error sl_err = SL_NO_ERROR;
 
@@ -538,18 +547,18 @@ app_init(struct app_args* args, struct app** out_app)
     app_err = APP_INVALID_ARGUMENT;
     goto error;
   }
-
-  memset(&app, 0, sizeof(app));
-
   if(args->render_driver == NULL) {
     app_err = APP_RENDER_DRIVER_ERROR;
     goto error;
   }
-  app = MEM_CALLOC(1, sizeof(struct app));
+
+  allocator = args->allocator ? args->allocator : &mem_default_allocator;
+  app = MEM_CALLOC_I(allocator, 1, sizeof(struct app));
   if(app == NULL) {
     app_err = APP_MEMORY_ERROR;
     goto error;
   }
+  app->allocator = allocator;
 
   app_err = init(app, args->render_driver);
   if(app_err != APP_NO_ERROR)
@@ -590,7 +599,7 @@ error:
   if(app) {
     app_err = shutdown(app);
     assert(app_err == APP_NO_ERROR);
-    MEM_FREE(app);
+    MEM_FREE_I(allocator, app);
     app = NULL;
   }
   goto exit;
@@ -599,6 +608,7 @@ error:
 EXPORT_SYM enum app_error
 app_shutdown(struct app* app)
 {
+  struct mem_allocator* allocator = NULL;
   enum app_error app_err = APP_NO_ERROR;
 
   if(!app) {
@@ -609,7 +619,8 @@ app_shutdown(struct app* app)
   if(app_err != APP_NO_ERROR)
     goto error;
 
-  MEM_FREE(app);
+  allocator = app->allocator;
+  MEM_FREE_I(allocator, app);
 
 exit:
   return app_err;

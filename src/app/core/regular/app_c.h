@@ -7,6 +7,7 @@
 #include "resources/rsrc_error.h"
 #include "resources/rsrc_geometry.h"
 #include "stdlib/sl_error.h"
+#include "sys/mem_allocator.h"
 
 #ifndef NDEBUG
   #include <assert.h>
@@ -24,7 +25,7 @@
 #endif
 
 #define APP_LOG_MSG(app, ...) \
-  SL(logger_print((app)->sys, (app)->logger, __VA_ARGS__))
+  SL(logger_print((app)->logger, __VA_ARGS__))
 
 #define APP_ERR_PREFIX "error: "
 #define APP_LOG_ERR(app, ...) \
@@ -45,6 +46,8 @@ struct wm_window;
 struct app {
   struct app_world* world;
   struct app_view* view;
+  struct mem_allocator* allocator; /* allocator of this (app). */
+  struct mem_allocator rdr_allocator; /* allocator used by the renderer. */
   struct rdr_material* default_render_material;
   struct rdr_system* rdr;
   struct rsrc_context* rsrc;

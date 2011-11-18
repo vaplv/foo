@@ -223,7 +223,7 @@ main(int argc, char* argv[])
   }
   driver_name = argv[1];
 
-  if(rdr_create_system(driver_name, &sys) != RDR_NO_ERROR) {
+  if(rdr_create_system(driver_name, NULL, &sys) != RDR_NO_ERROR) {
     fprintf(stderr, "Invalid render backend driver: %s\n",  driver_name);
     goto error;
   }

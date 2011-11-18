@@ -174,7 +174,7 @@ app_create_model(struct app* app, const char* path, struct app_model** model)
     goto error;
   }
 
-  mdl = MEM_CALLOC(1, sizeof(struct app_model));
+  mdl = MEM_CALLOC_I(app->allocator, 1, sizeof(struct app_model));
   if(NULL == mdl) {
     app_err = APP_INVALID_ARGUMENT;
     goto error;
@@ -187,7 +187,7 @@ app_create_model(struct app* app, const char* path, struct app_model** model)
   sl_err = sl_create_vector
     (sizeof(struct rdr_mesh*),
      ALIGNOF(struct rdr_mesh*),
-     NULL,
+     app->allocator,
      &mdl->mesh_list);
   if(sl_err != SL_NO_ERROR) {
     app_err = sl_to_app_error(sl_err);
@@ -196,7 +196,7 @@ app_create_model(struct app* app, const char* path, struct app_model** model)
   sl_err = sl_create_vector
     (sizeof(struct rdr_material*),
      ALIGNOF(struct rdr_material*),
-     NULL,
+     app->allocator,
      &mdl->material_list);
   if(sl_err != SL_NO_ERROR) {
     app_err = sl_to_app_error(sl_err);
@@ -205,7 +205,7 @@ app_create_model(struct app* app, const char* path, struct app_model** model)
   sl_err = sl_create_vector
     (sizeof(struct rdr_model*),
      ALIGNOF(struct rdr_model*),
-     NULL,
+     app->allocator,
      &mdl->model_list);
   if(sl_err != SL_NO_ERROR) {
     app_err = sl_to_app_error(sl_err);
@@ -266,7 +266,7 @@ app_free_model(struct app* app, struct app_model* model)
     app_err = sl_to_app_error(sl_err);
     goto error;
   }
-  MEM_FREE(model);
+  MEM_FREE_I(app->allocator, model);
 
 exit:
   return app_err;
