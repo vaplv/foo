@@ -82,21 +82,28 @@ shutdown_window_manager(struct app* app)
   enum wm_error wm_err = WM_NO_ERROR;
   assert(app != NULL);
 
-  if(app->window) {
-    wm_err = wm_free_window(app->wm, app->window);
-    if(wm_err != WM_NO_ERROR) {
-      app_err = wm_to_app_error(wm_err);
-      goto error;
-    }
-    app->window = NULL;
-  }
   if(app->wm) {
+    if(app->window) {
+      wm_err = wm_free_window(app->wm, app->window);
+      if(wm_err != WM_NO_ERROR) {
+        app_err = wm_to_app_error(wm_err);
+        goto error;
+      }
+      app->window = NULL;
+    }
     wm_err = wm_free_device(app->wm);
     if(wm_err != WM_NO_ERROR) {
       app_err = wm_to_app_error(wm_err);
       goto error;
     }
     app->wm = NULL;
+
+    if(MEM_ALLOCATED_SIZE_I(&app->wm_allocator)) {
+      char dump[BUFSIZ];
+      MEM_DUMP_I(&app->wm_allocator, dump, BUFSIZ, NULL);
+      APP_LOG_MSG(app, "Window manager leaks summary:\n%s\n", dump);
+    }
+    mem_shutdown_proxy_allocator(&app->wm_allocator);
   }
 
 exit:
@@ -122,15 +129,12 @@ shutdown_renderer(struct app* app)
       }
       app->default_render_material = NULL;
     }
-
-    if(app->rdr) {
-      rdr_err = rdr_free_system(app->rdr);
-      if(rdr_err != RDR_NO_ERROR) {
-        app_err = rdr_to_app_error(rdr_err);
-        goto error;
-      }
-      app->rdr = NULL;
+    rdr_err = rdr_free_system(app->rdr);
+    if(rdr_err != RDR_NO_ERROR) {
+      app_err = rdr_to_app_error(rdr_err);
+      goto error;
     }
+    app->rdr = NULL;
 
     if(MEM_ALLOCATED_SIZE_I(&app->rdr_allocator)) {
       char dump[BUFSIZ];
@@ -323,7 +327,9 @@ init_window_manager(struct app* app)
   enum wm_error wm_err = WM_NO_ERROR;
   assert(app != NULL);
 
-  wm_err = wm_create_device(&app->wm);
+  mem_init_proxy_allocator
+    ("window manager:", &app->wm_allocator, &mem_default_allocator);
+  wm_err = wm_create_device(&app->wm_allocator, &app->wm);
   if(wm_err != WM_NO_ERROR) {
     app_err = wm_to_app_error(wm_err);
     goto error;

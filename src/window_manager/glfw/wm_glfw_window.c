@@ -1,4 +1,6 @@
+#include "sys/mem_allocator.h"
 #include "sys/sys.h"
+#include "window_manager/glfw/wm_glfw_device_c.h"
 #include "window_manager/wm_device.h"
 #include "window_manager/wm_window.h"
 #include <GL/glfw.h>
@@ -31,7 +33,7 @@ wm_create_window
     goto error;
   }
 
-  win = calloc(1, sizeof(struct wm_window));
+  win = MEM_CALLOC_I(device->allocator, 1, sizeof(struct wm_window));
   if(!win) {
     wm_err = WM_MEMORY_ERROR;
     goto error;
@@ -50,7 +52,7 @@ exit:
   return wm_err;
 error:
   if(win) {
-    free(win);
+    MEM_FREE_I(device->allocator, win);
     win = NULL;
   }
   goto exit;
@@ -63,7 +65,7 @@ wm_free_window(struct wm_device* device, struct wm_window* win)
     return WM_INVALID_ARGUMENT;
 
   glfwCloseWindow();
-  free(win);
+  MEM_FREE_I(device->allocator, win);
   return WM_NO_ERROR;
 }
 

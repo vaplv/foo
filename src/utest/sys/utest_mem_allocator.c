@@ -87,5 +87,7 @@ main(int argc UNUSED, char** argv UNUSED)
      mem_info.total_size,
      mem_info.used_size);
 
+  CHECK(MEM_ALLOCATED_SIZE(), 0);
+
   return 0;
 }

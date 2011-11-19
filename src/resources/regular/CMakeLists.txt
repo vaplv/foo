@@ -6,4 +6,4 @@ add_library(rsrc SHARED
   rsrc_geometry.c
   rsrc_wavefront_obj.c)
 
-target_link_libraries(rsrc sl)
+target_link_libraries(rsrc sl sys)

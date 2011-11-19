@@ -611,7 +611,7 @@ main(int argc, char** argv)
   }
   fclose(file);
 
-  CHECK(wm_create_device(&device), WM_NO_ERROR);
+  CHECK(wm_create_device(NULL, &device), WM_NO_ERROR);
   CHECK(wm_create_window(device, &win_desc, &window), WM_NO_ERROR);
 
   test_rdr_system(driver_name);
@@ -625,6 +625,8 @@ exit:
     CHECK(wm_free_window(device, window), WM_NO_ERROR);
   if(device)
     CHECK(wm_free_device(device), WM_NO_ERROR);
+
+  CHECK(MEM_ALLOCATED_SIZE(), 0);
 
   return err;
 

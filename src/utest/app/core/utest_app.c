@@ -1,5 +1,6 @@
 #include "app/core/app.h"
 #include "app/core/app_view.h"
+#include "sys/mem_allocator.h"
 #include "utest/utest.h"
 #include "window_manager/wm_device.h"
 #include <stdio.h>
@@ -42,5 +43,6 @@ main(int argc, char** argv)
   CHECK(app_shutdown(NULL), APP_INVALID_ARGUMENT);
   CHECK(app_shutdown(app), APP_NO_ERROR);
 
+  CHECK(MEM_ALLOCATED_SIZE(), 0);
   return 0;
 }

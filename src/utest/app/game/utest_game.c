@@ -1,5 +1,6 @@
 #include "app/core/app.h"
 #include "app/game/game.h"
+#include "sys/mem_allocator.h"
 #include "utest/utest.h"
 
 int
@@ -34,5 +35,7 @@ main(int argc, char** argv)
   CHECK(game_free(game), GAME_NO_ERROR);
 
   CHECK(app_shutdown(app), APP_NO_ERROR);
+
+  CHECK(MEM_ALLOCATED_SIZE(), 0);
   return 0;
 }

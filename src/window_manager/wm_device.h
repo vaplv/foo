@@ -3,11 +3,13 @@
 
 #include "window_manager/wm_error.h"
 
+struct mem_allocator;
 struct wm_device;
 
 extern enum wm_error
 wm_create_device
-  (struct wm_device** dev);
+  (struct mem_allocator* allocator, /* May be NULL. */
+   struct wm_device** dev);
 
 extern enum wm_error 
 wm_free_device

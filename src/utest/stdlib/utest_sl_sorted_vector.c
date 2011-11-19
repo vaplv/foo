@@ -280,6 +280,8 @@ main(int argc UNUSED, char** argv UNUSED)
   CHECK(sl_sorted_vector_insert(vec, &array[1]), BAD_ALIGN);
   CHECK(sl_free_sorted_vector(vec), OK);
 
+  CHECK(MEM_ALLOCATED_SIZE(), 0);
+
   return 0;
 }
 

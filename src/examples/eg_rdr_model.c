@@ -229,7 +229,7 @@ main(int argc, char* argv[])
   }
   null_driver = is_driver_null(driver_name);
 
-  wm_err = wm_create_device(&device);
+  wm_err = wm_create_device(NULL, &device);
   if(wm_err != WM_NO_ERROR) {
     fprintf(stderr, "Error creating the window manager device.\n");
     goto error;

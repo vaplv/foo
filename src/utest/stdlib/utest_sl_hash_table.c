@@ -226,6 +226,8 @@ main(int argc UNUSED, char** argv UNUSED)
   CHECK(sl_free_hash_table(tbl), OK);
   CHECK(count, 16);
 
+  CHECK(MEM_ALLOCATED_SIZE(), 0);
+
   return 0;
 }
 

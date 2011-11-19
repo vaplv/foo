@@ -2,6 +2,7 @@
 #include "app/core/app_model.h"
 #include "app/core/app_model_instance.h"
 #include "app/core/app_world.h"
+#include "sys/mem_allocator.h"
 #include "utest/app/core/cube_obj.h"
 #include "utest/utest.h"
 #include <stdio.h>
@@ -92,6 +93,8 @@ main(int argc, char** argv)
   CHECK(app_free_model_instance(app, instances[0]), OK);
   CHECK(app_free_model(app, model), OK);
   CHECK(app_shutdown(app), OK);
+
+  CHECK(MEM_ALLOCATED_SIZE(), 0);
 
   return 0;
 }

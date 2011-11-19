@@ -365,7 +365,7 @@ main(int argc UNUSED, char* argv[] UNUSED)
   }
   const char* driver_name = argv[1];
 
-  wm_err = wm_create_device(&device);
+  wm_err = wm_create_device(NULL, &device);
   assert(wm_err == WM_NO_ERROR);
   wm_err = wm_create_window(device, &win_desc, &window);
   assert(wm_err == WM_NO_ERROR);

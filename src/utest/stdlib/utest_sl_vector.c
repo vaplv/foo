@@ -303,7 +303,7 @@ main(int argc UNUSED, char** argv UNUSED)
   CHECK(((int*)data)[4], 4);
   CHECK(((int*)data)[5], 5);
   CHECK(((int*)data)[6], -1);
- 
+
   CHECK(sl_clear_vector(vec), OK);
   CHECK(sl_vector_insert(vec, 1, (int[]){1}), BAD_ARG);
   CHECK(sl_vector_buffer(vec, &len, NULL, NULL, &data), OK);
@@ -366,6 +366,8 @@ main(int argc UNUSED, char** argv UNUSED)
   CHECK(sl_vector_push_back(vec, (int[]){1}), OK);
   CHECK(sl_vector_insert(vec, 0, i + 1), SL_ALIGNMENT_ERROR);
   CHECK(sl_free_vector(vec), OK);
+
+  CHECK(MEM_ALLOCATED_SIZE(), 0);
 
   return 0;
 }

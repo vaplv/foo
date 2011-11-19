@@ -2,8 +2,8 @@
 #include "maths/simd/aosf44.h"
 #include "maths/simd/aosq.h"
 #include "maths/simd/simd.h"
-#include "utest/utest.h"
 #include "sys/sys.h"
+#include "utest/utest.h"
 #include <math.h>
 
 #define PI 3.14159265358979323846
@@ -1358,3 +1358,4 @@ main(int argc UNUSED, char** argv UNUSED)
   test_aosq();
   return 0;
 }
+

@@ -12,4 +12,4 @@ add_library(renderer SHARED
   rdr_system.c
   rdr_world.c)
 
-target_link_libraries(renderer m mathssse rbi sl)
+target_link_libraries(renderer m mathssse rbi sl sys)

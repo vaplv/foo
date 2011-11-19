@@ -4,6 +4,7 @@
 #include "renderer/rdr_model_instance.h"
 #include "renderer/rdr_system.h"
 #include "renderer/rdr_world.h"
+#include "sys/mem_allocator.h"
 #include "utest/utest.h"
 #include "window_manager/wm_device.h"
 #include "window_manager/wm_window.h"
@@ -82,7 +83,7 @@ main(int argc, char** argv)
   }
   fclose(file);
 
-  CHECK(wm_create_device(&device), WM_NO_ERROR);
+  CHECK(wm_create_device(NULL, &device), WM_NO_ERROR);
   CHECK(wm_create_window(device, &win_desc, &window), WM_NO_ERROR);
 
   CHECK(rdr_create_system(driver_name, NULL, &sys), RDR_NO_ERROR);
@@ -151,11 +152,12 @@ main(int argc, char** argv)
   CHECK(wm_free_window(device, window), WM_NO_ERROR);
   CHECK(wm_free_device(device), WM_NO_ERROR);
 
+  CHECK(MEM_ALLOCATED_SIZE(), 0);
+
 exit:
   return err;
 
 error:
   err = -1;
   goto exit;
-
 }

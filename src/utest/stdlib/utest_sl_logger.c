@@ -1,4 +1,5 @@
 #include "stdlib/sl_logger.h"
+#include "sys/mem_allocator.h"
 #include "utest/utest.h"
 #include <string.h>
 
@@ -120,6 +121,8 @@ main(int argc UNUSED, char** argv UNUSED)
 
   CHECK(sl_free_logger(NULL), BAD_ARG);
   CHECK(sl_free_logger(logger), OK);
+
+  CHECK(MEM_ALLOCATED_SIZE(), 0);
 
   return 0;
 }

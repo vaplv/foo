@@ -148,6 +148,8 @@ main(int argc UNUSED, char** argv UNUSED)
   CHECK(sl_free_linked_list(list), SL_NO_ERROR);
   CHECK(sl_free_linked_list(list1), SL_NO_ERROR);
 
+  CHECK(MEM_ALLOCATED_SIZE(), 0);
+
   return 0;
 }
 
