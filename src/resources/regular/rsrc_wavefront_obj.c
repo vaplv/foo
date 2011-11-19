@@ -8,6 +8,7 @@
 #include "resources/regular/rsrc_wavefront_obj_c.h"
 #include "resources/rsrc_wavefront_obj.h"
 #include "stdlib/sl_vector.h"
+#include "sys/mem_allocator.h"
 #include "sys/sys.h"
 #include <assert.h>
 #include <ctype.h>
@@ -208,7 +209,10 @@ flush_usemtl(struct rsrc_wavefront_obj* wobj)
 
 /* Parse 3 floats. Check the eol. */
 static enum rsrc_error
-parse_xyz(struct lex* lex, struct sl_vector* vec)
+parse_xyz
+  (struct rsrc_context* ctxt UNUSED,
+   struct lex* lex,
+   struct sl_vector* vec)
 {
   float f3[3];
   char* token = NULL;
@@ -248,7 +252,10 @@ error:
 
 /* Parse 2 or 3 floats. Check the eol. */
 static enum rsrc_error
-parse_uvw(struct lex* lex, struct sl_vector* vec)
+parse_uvw
+  (struct rsrc_context* ctxt UNUSED,
+   struct lex* lex,
+   struct sl_vector* vec)
 {
   float f3[3];
   char* token = NULL;
@@ -292,7 +299,10 @@ error:
 
 /* Parse the coords ids of a point element. */
 static enum rsrc_error
-parse_point_elmt(struct lex* lex, struct sl_vector* point_list)
+parse_point_elmt
+  (struct rsrc_context* ctxt,
+   struct lex* lex,
+   struct sl_vector* point_list)
 {
   char* token = NULL;
   struct sl_vector* vertices = NULL;
@@ -304,7 +314,8 @@ parse_point_elmt(struct lex* lex, struct sl_vector* point_list)
 
   assert(lex && point_list);
 
-  sl_err = sl_create_vector(sizeof(size_t), ALIGNOF(size_t), NULL, &vertices);
+  sl_err = sl_create_vector
+    (sizeof(size_t), ALIGNOF(size_t), ctxt->allocator, &vertices);
   if(sl_err != SL_NO_ERROR) {
     err = sl_to_rsrc_error(sl_err);
     goto error;
@@ -346,7 +357,10 @@ error:
 }
 
 static enum rsrc_error
-parse_line_elmt(struct lex* lex, struct sl_vector* line_list)
+parse_line_elmt
+  (struct rsrc_context* ctxt,
+   struct lex* lex,
+   struct sl_vector* line_list)
 {
   char* token = NULL;
   struct sl_vector* vertices = NULL;
@@ -358,7 +372,8 @@ parse_line_elmt(struct lex* lex, struct sl_vector* line_list)
 
   assert(lex && line_list);
 
-  sl_err = sl_create_vector(sizeof(line_t), ALIGNOF(line_t), NULL, &vertices);
+  sl_err = sl_create_vector
+    (sizeof(line_t), ALIGNOF(line_t), ctxt->allocator, &vertices);
   if(sl_err != SL_NO_ERROR) {
     err = sl_to_rsrc_error(sl_err);
     goto error;
@@ -422,7 +437,10 @@ error:
 }
 
 static enum rsrc_error
-parse_face_elmt(struct lex* lex, struct sl_vector* face_list)
+parse_face_elmt
+  (struct rsrc_context* ctxt,
+   struct lex* lex,
+   struct sl_vector* face_list)
 {
   char* token = NULL;
   struct sl_vector* vertices = NULL;
@@ -434,7 +452,8 @@ parse_face_elmt(struct lex* lex, struct sl_vector* face_list)
 
   assert(lex && face_list);
 
-  sl_err = sl_create_vector(sizeof(face_t), ALIGNOF(face_t), NULL, &vertices);
+  sl_err = sl_create_vector
+    (sizeof(face_t), ALIGNOF(face_t), ctxt->allocator, &vertices);
   if(sl_err != SL_NO_ERROR) {
     err = sl_to_rsrc_error(sl_err);
     goto error;
@@ -512,7 +531,10 @@ error:
 }
 
 static enum rsrc_error
-parse_group(struct lex* lex, struct rsrc_wavefront_obj* wobj)
+parse_group
+  (struct rsrc_context* ctxt,
+   struct lex* lex,
+   struct rsrc_wavefront_obj* wobj)
 {
   group_t group;
   struct sl_vector* name_list = NULL;
@@ -530,7 +552,8 @@ parse_group(struct lex* lex, struct rsrc_wavefront_obj* wobj)
   /* flush the previous group. */
   flush_group(wobj);
 
-  sl_err = sl_create_vector(sizeof(char*), ALIGNOF(char*), NULL, &name_list);
+  sl_err = sl_create_vector
+    (sizeof(char*), ALIGNOF(char*), ctxt->allocator, &name_list);
   if(sl_err != SL_NO_ERROR) {
     err = sl_to_rsrc_error(sl_err);
     goto error;
@@ -552,7 +575,7 @@ parse_group(struct lex* lex, struct rsrc_wavefront_obj* wobj)
     }
 
     token_len = strlen(token) + 1; /* +1 <=> null terminated character. */
-    name = malloc(token_len*sizeof(char));
+    name = MEM_ALLOC_I(ctxt->allocator, token_len*sizeof(char));
     if(!name) {
       err = RSRC_MEMORY_ERROR;
       goto error;
@@ -598,16 +621,19 @@ error:
     void* buffer = NULL;
     SL(vector_buffer(name_list, &len, NULL, NULL, &buffer));
     for(i = 0; i < len; ++i)
-      free(((char**)buffer)[i]);
+      MEM_FREE_I(ctxt->allocator, ((char**)buffer)[i]);
     SL(free_vector(name_list));
   }
   if(name)
-    free(name);
+    MEM_FREE_I(ctxt->allocator, name);
   goto exit;
 }
 
 static enum rsrc_error
-parse_smooth_group(struct lex* lex, struct rsrc_wavefront_obj* wobj)
+parse_smooth_group
+  (struct rsrc_context* ctxt UNUSED,
+   struct lex* lex,
+   struct rsrc_wavefront_obj* wobj)
 {
   smooth_group_t sgroup;
   char* token = NULL;
@@ -667,7 +693,10 @@ error:
 }
 
 static enum rsrc_error
-parse_mtllib(struct lex* lex, struct sl_vector* mtllib_list)
+parse_mtllib
+  (struct rsrc_context* ctxt,
+   struct lex* lex,
+   struct sl_vector* mtllib_list)
 {
   char* token = NULL;
   size_t nb_libs = 0;
@@ -678,8 +707,7 @@ parse_mtllib(struct lex* lex, struct sl_vector* mtllib_list)
 
   while((token = lex_next_token(lex)) != NULL) {
     const size_t token_len = strlen(token) + 1; /* +1 <=> null character. */
-    char* libname = malloc(token_len * sizeof(char));
-
+    char* libname = MEM_ALLOC_I(ctxt->allocator, token_len * sizeof(char));
     if(!libname) {
       err = RSRC_MEMORY_ERROR;
       goto error;
@@ -709,7 +737,7 @@ error:
     char* libname = NULL;
     SL(vector_length(mtllib_list, &len));
     SL(vector_at(mtllib_list, len-1, (void**)&libname));
-    free(libname);
+    MEM_FREE_I(ctxt->allocator, libname);
     SL(vector_pop_back(mtllib_list));
     --nb_libs;
   }
@@ -717,7 +745,10 @@ error:
 }
 
 static enum rsrc_error
-parse_mtl(struct lex* lex, struct rsrc_wavefront_obj* wobj)
+parse_mtl
+  (struct rsrc_context* ctxt,
+   struct lex* lex,
+   struct rsrc_wavefront_obj* wobj)
 {
   mtl_t mtl;
   char* token = NULL;
@@ -738,7 +769,7 @@ parse_mtl(struct lex* lex, struct rsrc_wavefront_obj* wobj)
   }
 
   len = strlen(token) + 1;
-  mtl.name = malloc(len*sizeof(char));
+  mtl.name = MEM_ALLOC_I(ctxt->allocator, len*sizeof(char));
   if(!mtl.name) {
     err = RSRC_MEMORY_ERROR;
     goto error;
@@ -766,12 +797,14 @@ error:
   if(is_pushed)
     SL(vector_pop_back(wobj->mtl_list));
   if(mtl.name)
-    free(mtl.name);
+    MEM_FREE_I(ctxt->allocator, mtl.name);
   goto exit;
 }
 
 static enum rsrc_error
-clear_wavefront_obj(struct rsrc_wavefront_obj* wobj)
+clear_wavefront_obj
+  (struct rsrc_context* ctxt,
+   struct rsrc_wavefront_obj* wobj)
 {
   void* buf = NULL;
   size_t len = 0;
@@ -848,7 +881,7 @@ clear_wavefront_obj(struct rsrc_wavefront_obj* wobj)
 
       VECTOR_BUFFER(grp->name_list, nb_names, name_list);
       for(name_id = 0; name_id < nb_names; ++name_id)
-        free(((char**)name_list)[name_id]);
+        MEM_FREE_I(ctxt->allocator, ((char**)name_list)[name_id]);
 
       FREE_VECTOR(grp->name_list);
     }
@@ -861,14 +894,14 @@ clear_wavefront_obj(struct rsrc_wavefront_obj* wobj)
   if(wobj->mtllib_list) {
     VECTOR_BUFFER(wobj->mtllib_list, len, buf);
     for(i = 0; i < len; ++i)
-      free(((char**)buf)[i]);
+      MEM_FREE_I(ctxt->allocator, ((char**)buf)[i]);
     CLEAR_VECTOR(wobj->mtllib_list);
   }
 
   if(wobj->mtl_list) {
     VECTOR_BUFFER(wobj->mtl_list, len, buf);
     for(i = 0; i < len; ++i)
-      free(((mtl_t*)buf)[i].name);
+      MEM_FREE_I(ctxt->allocator, ((mtl_t*)buf)[i].name);
     CLEAR_VECTOR(wobj->mtl_list);
   }
 
@@ -885,7 +918,8 @@ error:
 
 static enum rsrc_error
 parse_wavefront_obj
-  (struct rsrc_wavefront_obj* wobj,
+  (struct rsrc_context* ctxt,
+   struct rsrc_wavefront_obj* wobj,
    const char* path,
    char* filecontent)
 {
@@ -915,44 +949,44 @@ parse_wavefront_obj
       if(*token == '#') { /* Comment. */
         break;
       } else if(!strcmp(token, "v")) { /* Vertex position. */
-        err = parse_xyz(&lex_space, wobj->position_list);
+        err = parse_xyz(ctxt, &lex_space, wobj->position_list);
         if(err != RSRC_NO_ERROR)
           goto error;
       } else if(!strcmp(token, "vn")) { /* Vertex normal. */
-        err = parse_xyz(&lex_space, wobj->normal_list);
+        err = parse_xyz(ctxt, &lex_space, wobj->normal_list);
         if(err != RSRC_NO_ERROR)
           goto error;
       } else if(!strcmp(token, "vt")) { /* Vertex texture coordinates. */
-        err = parse_uvw(&lex_space, wobj->texcoord_list);
+        err = parse_uvw(ctxt, &lex_space, wobj->texcoord_list);
         if(err != RSRC_NO_ERROR)
           goto error;
       } else if(!strcmp(token, "p")) { /* Point element. */
-        err = parse_point_elmt(&lex_space, wobj->point_list);
+        err = parse_point_elmt(ctxt, &lex_space, wobj->point_list);
         if(err != RSRC_NO_ERROR)
           goto error;
       } else if(!strcmp(token, "l")) { /* Line element. */
-        err = parse_line_elmt(&lex_space, wobj->line_list);
+        err = parse_line_elmt(ctxt, &lex_space, wobj->line_list);
         if(err != RSRC_NO_ERROR)
           goto error;
       } else if(!strcmp(token, "f")
              || !strcmp(token, "fo")) { /* Face element. */
-        err = parse_face_elmt(&lex_space, wobj->face_list);
+        err = parse_face_elmt(ctxt, &lex_space, wobj->face_list);
         if(err != RSRC_NO_ERROR)
           goto error;
       } else if(!strcmp(token, "g")) { /* Grouping. */
-        err = parse_group(&lex_space, wobj);
+        err = parse_group(ctxt, &lex_space, wobj);
         if(err != RSRC_NO_ERROR)
           goto error;
       } else if(!strcmp(token, "s")) { /* Smooth group. */
-        err = parse_smooth_group(&lex_space, wobj);
+        err = parse_smooth_group(ctxt, &lex_space, wobj);
         if(err != RSRC_NO_ERROR)
           goto error;
       } else if(!strcmp(token, "mtllib")) { /* Mtl libraray render attrib. */
-        err = parse_mtllib(&lex_space, wobj->mtllib_list);
+        err = parse_mtllib(ctxt, &lex_space, wobj->mtllib_list);
         if(err != RSRC_NO_ERROR)
           goto error;
       } else if(!strcmp(token, "usemtl")) { /* Use mtl render attrib. */
-        err = parse_mtl(&lex_space, wobj);
+        err = parse_mtl(ctxt, &lex_space, wobj);
         if(err != RSRC_NO_ERROR)
           goto error;
       } else {
@@ -972,7 +1006,7 @@ exit:
 
 error:
   fprintf(stderr, "%s:%zd: error: parsing failed.\n", path, line_id);
-  err = clear_wavefront_obj(wobj);
+  err = clear_wavefront_obj(ctxt, wobj);
   assert(err == RSRC_NO_ERROR);
   goto exit;
 }
@@ -996,7 +1030,7 @@ rsrc_create_wavefront_obj
     goto error;
   }
 
-  wobj = calloc(1, sizeof(struct rsrc_wavefront_obj));
+  wobj = MEM_CALLOC_I(ctxt->allocator, 1, sizeof(struct rsrc_wavefront_obj));
   if(!wobj) {
     err = RSRC_MEMORY_ERROR;
     goto error;
@@ -1004,7 +1038,8 @@ rsrc_create_wavefront_obj
 
   #define CREATE_VECTOR(v, t) \
     do { \
-      sl_err = sl_create_vector(sizeof(t), ALIGNOF(t), NULL, &v); \
+      sl_err = sl_create_vector \
+        (sizeof(t), ALIGNOF(t), ctxt->allocator, &v); \
       if(sl_err != SL_NO_ERROR) { \
         err = sl_to_rsrc_error(sl_err); \
         goto error; \
@@ -1033,7 +1068,7 @@ error:
   if(wobj) {
     err = rsrc_free_wavefront_obj(ctxt, wobj);
     assert(err == RSRC_NO_ERROR);
-    free(wobj);
+    MEM_FREE_I(ctxt->allocator, wobj);
     wobj = NULL;
   }
   goto exit;
@@ -1052,7 +1087,7 @@ rsrc_free_wavefront_obj
     goto error;
   }
 
-  err = clear_wavefront_obj(wobj);
+  err = clear_wavefront_obj(ctxt, wobj);
   if(err != RSRC_NO_ERROR)
     goto error;
 
@@ -1080,7 +1115,7 @@ rsrc_free_wavefront_obj
 
   #undef FREE_VECTOR
 
-  free(wobj);
+  MEM_FREE_I(ctxt->allocator, wobj);
 
 exit:
   return err;
@@ -1128,7 +1163,7 @@ rsrc_load_wavefront_obj
   }
 
   /* +1 <=> null terminated character. */
-  file_content = malloc(file_len * sizeof(char) + 1);
+  file_content = MEM_ALLOC_I(ctxt->allocator, file_len * sizeof(char) + 1);
   if(!file_content) {
     err = RSRC_MEMORY_ERROR;
     goto error;
@@ -1144,17 +1179,17 @@ rsrc_load_wavefront_obj
   fclose(fptr);
   fptr = NULL;
 
-  err = clear_wavefront_obj(wobj);
+  err = clear_wavefront_obj(ctxt, wobj);
   if(err != RSRC_NO_ERROR)
     goto error;
 
-  err = parse_wavefront_obj(wobj, path, file_content);
+  err = parse_wavefront_obj(ctxt, wobj, path, file_content);
   if(err != RSRC_NO_ERROR)
     goto error;
 
 exit:
   if(file_content)
-    free(file_content);
+    MEM_FREE_I(ctxt->allocator, file_content);
   return err;
 
 error:

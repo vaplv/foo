@@ -11,7 +11,7 @@
 struct sl_context;
 
 struct rsrc_context {
-  char dummy;
+  struct mem_allocator* allocator;
 };
 
 #endif /* RSRC_CONTEXT_C_H */

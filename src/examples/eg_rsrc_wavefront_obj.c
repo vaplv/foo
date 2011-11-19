@@ -37,7 +37,7 @@ main(int argc, char** argv)
     goto error;
   }
 
-  RSRC(create_context(&ctxt));
+  RSRC(create_context(NULL, &ctxt));
   RSRC(create_wavefront_obj(ctxt, &wobj));
   RSRC(create_geometry(ctxt, &geom));
 

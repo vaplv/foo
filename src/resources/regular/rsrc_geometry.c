@@ -4,6 +4,7 @@
 #include "resources/rsrc_geometry.h"
 #include "stdlib/sl_hash_table.h"
 #include "stdlib/sl_vector.h"
+#include "sys/mem_allocator.h"
 #include "sys/sys.h"
 #include <assert.h>
 #include <limits.h>
@@ -109,10 +110,14 @@ build_triangle_list
     (tbl, (face_range->end - face_range->begin) / 2));
 
   SL_FUNC(create_vector
-    (sizeof(unsigned int), ALIGNOF(unsigned int), NULL, &indices));
-  SL_FUNC(create_vector(sizeof(float[8]), ALIGNOF(float[8]), NULL, &data));
+    (sizeof(unsigned int), ALIGNOF(unsigned int), ctxt->allocator, &indices));
   SL_FUNC(create_vector
-    (sizeof(struct rsrc_attrib), ALIGNOF(struct rsrc_attrib), NULL, &attribs));
+    (sizeof(float[8]), ALIGNOF(float[8]), ctxt->allocator, &data));
+  SL_FUNC(create_vector
+    (sizeof(struct rsrc_attrib),
+     ALIGNOF(struct rsrc_attrib),
+     ctxt->allocator,
+     &attribs));
 
   SL_FUNC(vector_reserve(attribs, 3));
   SL_FUNC(vector_push_back
@@ -223,8 +228,7 @@ rsrc_create_geometry
     err = RSRC_INVALID_ARGUMENT;
     goto error;
   }
-
-  geom = calloc(1, sizeof(struct rsrc_geometry));
+  geom = MEM_CALLOC_I(ctxt->allocator, 1, sizeof(struct rsrc_geometry));
   if(!geom) {
     err = RSRC_MEMORY_ERROR;
     goto error;
@@ -233,7 +237,7 @@ rsrc_create_geometry
   sl_err = sl_create_vector
     (sizeof(struct primitive_set),
      ALIGNOF(struct primitive_set),
-     NULL,
+     ctxt->allocator,
      &geom->primitive_set_list);
   if(sl_err != SL_NO_ERROR) {
     err = sl_to_rsrc_error(sl_err);
@@ -246,7 +250,7 @@ rsrc_create_geometry
      sizeof(struct vvtvn),
      compare,
      get_key,
-     NULL,
+     ctxt->allocator,
      &geom->hash_table);
   if(sl_err != SL_NO_ERROR) {
     err = sl_to_rsrc_error(sl_err);
@@ -264,7 +268,7 @@ error:
       SL(free_vector(geom->primitive_set_list));
     if(geom->hash_table)
       SL(free_hash_table(geom->hash_table));
-    free(geom);
+    MEM_FREE_I(ctxt->allocator, geom);
     geom = NULL;
   }
   goto exit;
@@ -301,7 +305,7 @@ rsrc_free_geometry
       goto error;
     }
   }
-  free(geom);
+  MEM_FREE_I(ctxt->allocator, geom);
 
 exit:
   return err;

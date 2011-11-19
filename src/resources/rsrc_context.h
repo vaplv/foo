@@ -3,11 +3,13 @@
 
 #include "resources/rsrc_error.h"
 
+struct mem_allocator;
 struct rsrc_context;
 
 extern enum rsrc_error
 rsrc_create_context
-  (struct rsrc_context** out_ctxt);
+  (struct mem_allocator* allocator, /* May be NULL. */
+   struct rsrc_context** out_ctxt);
 
 extern enum rsrc_error
 rsrc_free_context

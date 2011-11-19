@@ -135,8 +135,9 @@ shutdown_renderer(struct app* app)
     if(MEM_ALLOCATED_SIZE_I(&app->rdr_allocator)) {
       char dump[BUFSIZ];
       MEM_DUMP_I(&app->rdr_allocator, dump, BUFSIZ, NULL);
-      APP_LOG_MSG(app, "Renderer leask summary:\n%s\n", dump);
+      APP_LOG_MSG(app, "Renderer leaks summary:\n%s\n", dump);
     }
+    mem_shutdown_proxy_allocator(&app->rdr_allocator);
   }
 
 exit:
@@ -153,21 +154,28 @@ shutdown_resources(struct app* app)
   enum rsrc_error rsrc_err = RSRC_NO_ERROR;
   assert(app != NULL);
 
-  if(app->wavefront_obj) {
-    rsrc_err = rsrc_free_wavefront_obj(app->rsrc, app->wavefront_obj);
-    if(rsrc_err != RSRC_NO_ERROR) {
-      app_err = rsrc_to_app_error(app_err);
-      goto error;
-    }
-    app->wavefront_obj = NULL;
-  }
   if(app->rsrc) {
+    if(app->wavefront_obj) {
+      rsrc_err = rsrc_free_wavefront_obj(app->rsrc, app->wavefront_obj);
+      if(rsrc_err != RSRC_NO_ERROR) {
+        app_err = rsrc_to_app_error(app_err);
+        goto error;
+      }
+      app->wavefront_obj = NULL;
+    }
     rsrc_err = rsrc_free_context(app->rsrc);
     if(rsrc_err != RSRC_NO_ERROR) {
       app_err = rsrc_to_app_error(app_err);
       goto error;
     }
     app->rsrc = NULL;
+
+    if(MEM_ALLOCATED_SIZE_I(&app->rsrc_allocator)) {
+      char dump[BUFSIZ];
+      MEM_DUMP_I(&app->rsrc_allocator, dump, BUFSIZ, NULL);
+      APP_LOG_MSG(app, "Resource leaks summary:\n%s\n", dump);
+    }
+    mem_shutdown_proxy_allocator(&app->rsrc_allocator);
   }
 
 exit:
@@ -384,7 +392,9 @@ init_resources(struct app* app)
   enum rsrc_error rsrc_err = RSRC_NO_ERROR;
   assert(app != NULL);
 
-  rsrc_err = rsrc_create_context(&app->rsrc);
+  mem_init_proxy_allocator
+    ("resources", &app->rsrc_allocator, &mem_default_allocator);
+  rsrc_err = rsrc_create_context(&app->rsrc_allocator, &app->rsrc);
   if(rsrc_err != RSRC_NO_ERROR) {
     app_err = rsrc_to_app_error(app_err);
     goto error;

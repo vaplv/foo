@@ -61,20 +61,20 @@ default_alloc
 static void
 default_free(void* data UNUSED, void* mem)
 {
-  #ifndef NDEBUG
-  assert(data);
   if(mem) {
+    #ifndef NDEBUG
     struct alloc_counter* alloc_counter = data;
     size_t size_to_free = malloc_usable_size(mem);
     assert
-      ( (alloc_counter->nb_allocs != 0)
+      ( (data != NULL)
+      & (alloc_counter->nb_allocs != 0)
       & (alloc_counter->allocated_size >= size_to_free));
 
     alloc_counter->allocated_size -= size_to_free;
     --alloc_counter->nb_allocs;
+    #endif
+    free(mem);
   }
-  #endif
-  free(mem);
 }
 
 static void*
@@ -317,27 +317,29 @@ proxy_calloc
 static void
 proxy_free(void* data, void* mem)
 {
-  struct proxy_data* proxy_data = NULL;
-  struct mem_node* node = NULL;
-  uintptr_t alignment = 0;
+  if(mem) {
+    struct proxy_data* proxy_data = NULL;
+    struct mem_node* node = NULL;
+    uintptr_t alignment = 0;
 
-  assert(data);
-  proxy_data = data;
+    assert(data);
+    proxy_data = data;
 
-  alignment = ((char*)mem)[-1] | (((char*)mem)[-2] << 8);
-  node =
-    (void*)((uintptr_t)mem - ALIGN_SIZE(sizeof(struct mem_node), alignment));
+    alignment = ((char*)mem)[-1] | (((char*)mem)[-2] << 8);
+    node =
+      (void*)((uintptr_t)mem - ALIGN_SIZE(sizeof(struct mem_node), alignment));
 
-  if(node->prev) {
-    node->prev->next = node->next;
+    if(node->prev) {
+      node->prev->next = node->next;
+    }
+    if(node->next) {
+      node->next->prev = node->prev;
+    }
+    if(node->prev == NULL) {
+      proxy_data->node_list = node->next;
+    }
+    MEM_FREE_I(proxy_data->allocator, node);
   }
-  if(node->next) {
-    node->next->prev = node->prev;
-  }
-  if(node->prev == NULL) {
-    proxy_data->node_list = node->next;
-  }
-  MEM_FREE_I(proxy_data->allocator, node);
 }
 
 static void*

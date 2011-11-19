@@ -48,6 +48,7 @@ struct app {
   struct app_view* view;
   struct mem_allocator* allocator; /* allocator of this (app). */
   struct mem_allocator rdr_allocator; /* allocator used by the renderer. */
+  struct mem_allocator rsrc_allocator; /* allocator used by the resources. */
   struct rdr_material* default_render_material;
   struct rdr_system* rdr;
   struct rsrc_context* rsrc;
