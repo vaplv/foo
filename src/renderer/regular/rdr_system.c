@@ -36,7 +36,7 @@ rdr_create_system
     goto error;
   }
 
-  err = sys->rb.create_context(&sys->ctxt);
+  err = sys->rb.create_context(sys->allocator, &sys->ctxt);
   if(err != 0) {
     rdr_err = RDR_DRIVER_ERROR;
     goto error;

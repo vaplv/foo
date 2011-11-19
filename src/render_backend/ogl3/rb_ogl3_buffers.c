@@ -1,5 +1,6 @@
 #include "render_backend/ogl3/rb_ogl3.h"
 #include "render_backend/rb.h"
+#include "sys/mem_allocator.h"
 #include "sys/sys.h"
 #include <stdlib.h>
 #include <string.h>
@@ -43,7 +44,7 @@ rb_create_buffer
   || (desc->size != (size = desc->size)))
     return -1;
 
-  buffer = malloc(sizeof(struct rb_buffer));
+  buffer = MEM_ALLOC_I(ctxt->allocator, sizeof(struct rb_buffer));
   if(!buffer)
     return -1;
 
@@ -68,7 +69,7 @@ rb_free_buffer(struct rb_context* ctxt, struct rb_buffer* buffer)
     return -1;
 
   OGL(DeleteBuffers(1, &buffer->name));
-  free(buffer);
+  MEM_FREE_I(ctxt->allocator, buffer);
   return 0;
 }
 

@@ -1,5 +1,6 @@
 #include "render_backend/ogl3/rb_ogl3.h"
 #include "render_backend/rb.h"
+#include "sys/mem_allocator.h"
 #include "sys/sys.h"
 #include <stdlib.h>
 
@@ -19,14 +20,14 @@ static const GLenum ogl3_format[] = {
 };
 
 EXPORT_SYM int
-rb_create_tex2d(struct rb_context* ctxt UNUSED, struct rb_tex2d** out_tex)
+rb_create_tex2d(struct rb_context* ctxt, struct rb_tex2d** out_tex)
 {
   struct rb_tex2d* tex = NULL;
 
-  if(!out_tex)
+  if(!ctxt || !out_tex)
     return -1;
 
-  tex = malloc(sizeof(struct rb_tex2d));
+  tex = MEM_ALLOC_I(ctxt->allocator, sizeof(struct rb_tex2d));
   if(!tex)
     return -1;
 
@@ -42,7 +43,7 @@ rb_free_tex2d(struct rb_context* ctxt, struct rb_tex2d* tex)
     return -1;
 
   OGL(DeleteTextures(1, &tex->name));
-  free(tex);
+  MEM_FREE_I(ctxt->allocator, tex);
   return 0;
 }
 

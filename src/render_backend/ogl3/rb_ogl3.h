@@ -23,6 +23,7 @@
 #endif
 
 struct rb_context {
+  struct mem_allocator* allocator;
   GLuint texture_binding_2d;
   GLuint buffer_binding[2];
   GLuint vertex_array_binding;

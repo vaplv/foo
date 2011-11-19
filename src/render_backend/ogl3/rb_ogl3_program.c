@@ -1,5 +1,6 @@
 #include "render_backend/ogl3/rb_ogl3.h"
 #include "render_backend/rb.h"
+#include "sys/mem_allocator.h"
 #include "sys/sys.h"
 #include <stdlib.h>
 #include <string.h>
@@ -13,7 +14,7 @@ rb_create_program(struct rb_context* ctxt, struct rb_program** out_program)
   if(!ctxt || !out_program)
     goto error;
 
-  program = calloc(1, sizeof(struct rb_program));
+  program = MEM_CALLOC_I(ctxt->allocator, 1, sizeof(struct rb_program));
   if(!program)
     goto error;
 
@@ -30,8 +31,7 @@ error:
   err = -1;
   if(program->name != 0)
     OGL(DeleteProgram(program->name));
-  free(program);
-
+  MEM_FREE_I(ctxt->allocator, program);
   goto exit;
 }
 
@@ -45,8 +45,8 @@ rb_free_program(struct rb_context* ctxt, struct rb_program* program)
     return -1;
 
   OGL(DeleteProgram(program->name));
-  free(program->log);
-  free(program);
+  MEM_FREE_I(ctxt->allocator, program->log);
+  MEM_FREE_I(ctxt->allocator, program);
   return 0;
 }
 
@@ -102,14 +102,15 @@ rb_link_program(struct rb_context* ctxt, struct rb_program* program)
 
     OGL(GetProgramiv(program->name, GL_INFO_LOG_LENGTH, &log_length));
 
-    program->log = realloc(program->log, log_length*sizeof(char));
+    program->log = MEM_REALLOC_I
+      (ctxt->allocator, program->log, log_length*sizeof(char));
     if(!program->log)
       goto error;
 
     OGL(GetProgramInfoLog(program->name, log_length, NULL, program->log));
     err = -1;
   } else {
-    free(program->log);
+    MEM_FREE_I(ctxt->allocator, program->log);
     program->log = NULL;
   }
 

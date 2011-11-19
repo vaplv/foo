@@ -371,7 +371,7 @@ main(int argc UNUSED, char* argv[] UNUSED)
   assert(wm_err == WM_NO_ERROR);
 
   CHECK(rbi_init(driver_name, &rbi));
-  CHECK(rbi.create_context(&ctxt));
+  CHECK(rbi.create_context(NULL, &ctxt));
 
   CHECK(create_mesh(&rbi, ctxt, &mesh));
   CHECK(create_shader(&rbi, ctxt, &shader));

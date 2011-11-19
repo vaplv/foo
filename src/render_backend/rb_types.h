@@ -3,6 +3,8 @@
 
 #include <stddef.h>
 
+struct mem_allocator;
+
 /*******************************************************************************
  *
  * Render backend constants.

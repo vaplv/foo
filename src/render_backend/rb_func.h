@@ -6,6 +6,7 @@
 RB_FUNC(
   int,
   create_context,
+    struct mem_allocator* allocator, /* May be NULL. */
     struct rb_context** out_ctxt
 )
 
