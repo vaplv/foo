@@ -11,6 +11,9 @@ app_to_edit_error(enum app_error err)
     case APP_INVALID_ARGUMENT:
       edit_err = EDIT_INVALID_ARGUMENT;
       break;
+    case APP_IO_ERROR:
+      edit_err = EDIT_IO_ERROR;
+      break;
     case APP_MEMORY_ERROR:
       edit_err = EDIT_MEMORY_ERROR;
       break;

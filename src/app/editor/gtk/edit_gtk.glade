@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<interface>
+  <!-- interface-requires gtk+ 3.0 -->
+  <object class="GtkListStore" id="explorer_list_store">
+    <columns>
+      <!-- column-name Type -->
+      <column type="gchararray"/>
+      <!-- column-name Name -->
+      <column type="gchararray"/>
+    </columns>
+  </object>
+  <object class="GtkMenu" id="explorer_popup_menu">
+    <property name="visible">True</property>
+    <property name="can_focus">False</property>
+    <child>
+      <object class="GtkMenuItem" id="explorer_add_model">
+        <property name="visible">True</property>
+        <property name="can_focus">False</property>
+        <property name="use_action_appearance">False</property>
+        <property name="label" translatable="yes">Add model...</property>
+        <property name="use_underline">True</property>
+      </object>
+    </child>
+  </object>
+  <object class="GtkFileFilter" id="model_filter">
+    <mime-types>
+      <mime-type>text</mime-type>
+    </mime-types>
+    <patterns>
+      <pattern>*.obj</pattern>
+    </patterns>
+  </object>
+  <object class="GtkWindow" id="window_explorer">
+    <property name="can_focus">False</property>
+    <property name="default_width">320</property>
+    <property name="default_height">240</property>
+    <child>
+      <object class="GtkTreeView" id="explorer_tree_view">
+        <property name="visible">True</property>
+        <property name="can_focus">True</property>
+        <property name="model">explorer_list_store</property>
+        <child internal-child="selection">
+          <object class="GtkTreeSelection" id="treeview-selection2"/>
+        </child>
+        <child>
+          <object class="GtkTreeViewColumn" id="treeviewcolumn1">
+            <property name="title" translatable="yes">Type</property>
+            <child>
+              <object class="GtkCellRendererText" id="cellrenderertext1"/>
+              <attributes>
+                <attribute name="text">0</attribute>
+              </attributes>
+            </child>
+          </object>
+        </child>
+        <child>
+          <object class="GtkTreeViewColumn" id="treeviewcolumn2">
+            <property name="sizing">autosize</property>
+            <property name="title" translatable="yes">Name</property>
+            <child>
+              <object class="GtkCellRendererText" id="cellrenderertext2"/>
+              <attributes>
+                <attribute name="text">1</attribute>
+              </attributes>
+            </child>
+          </object>
+        </child>
+      </object>
+    </child>
+  </object>
+</interface>

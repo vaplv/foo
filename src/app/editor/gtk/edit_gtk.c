@@ -20,6 +20,7 @@ edit_init
   struct edit* edit = NULL;
   struct mem_allocator* allocator = NULL;
   enum edit_error edit_err = EDIT_NO_ERROR;
+  guint i = 0;
   gboolean b = TRUE;
   GtkWindow* window = NULL;
 
@@ -43,8 +44,12 @@ edit_init
   }
 
   edit->builder = gtk_builder_new();
-  gtk_builder_add_from_file
-    (edit->builder, "/home/moi/tmp/glade_test.glade", NULL);
+  i = gtk_builder_add_from_file
+    (edit->builder, "./edit_gtk.glade", NULL);
+  if(i == 0) {
+    edit_err = EDIT_IO_ERROR;
+    goto error;
+  }
   window = GTK_WINDOW(gtk_builder_get_object(edit->builder, "window_explorer"));
   gtk_widget_show_all(GTK_WIDGET(window));
 

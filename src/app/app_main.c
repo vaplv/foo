@@ -11,25 +11,34 @@
 /* return 1 if the `-h' option was parsed, -1 if a parsing error occurs and 0
  * otherwise. */
 static int
-parse_args(int argc, char** argv, struct app_args* args)
+parse_args
+  (int argc, 
+   char** argv, 
+   const char** model_path,
+   const char** render_driver_path,
+   bool* use_gui)
 {
   int err = 0;
   int i = 0;
-  assert(argc >= 1);
+
+  assert(argc >= 1 && !model_path && !render_driver_path && !use_gui);
 
   if(argc == 1)
     goto usage;
 
-  while(-1 != (i = getopt(argc, argv, "r:m:h"))) {
+  while(-1 != (i = getopt(argc, argv, "r:m:he"))) {
     switch(i) {
+      case 'e':
+        *use_gui = true;
+        break;
       case 'h':
         goto usage;
         break;
       case 'm':
-        args->model = optarg;
+        *model_path = optarg;
         break;
       case 'r':
-        args->render_driver = optarg;
+        *render_driver_path = optarg;
         break;
       case ':': /* missing argument. */
       case '?': /* unrecognized option. */
@@ -40,11 +49,18 @@ parse_args(int argc, char** argv, struct app_args* args)
         break;
     }
   }
+  if(NULL == *render_driver_path)
+    goto usage;
 
 exit:
   return err;
 usage:
-  printf("Usage: %s [-r RENDER_DRIVER] [-m MODEL]\n", argv[0]);
+  printf
+    ("Usage: %s -r RENDER_DRIVER [-m MODEL] [-e]\n"
+     "  -e  Launch the editor.\n"
+     "  -m  Load MODEL at the launch of the application.\n"
+     "  -r  Define the RENDER_DRIVER to use.\n",
+     argv[0]);
   err = 1;
   goto exit;
 error:
@@ -85,11 +101,14 @@ main(int argc, char** argv)
   struct app* app = NULL;
   struct edit* edit = NULL;
   struct game* game = NULL;
+  const char* model_path = NULL;
+  const char* render_driver_path = NULL;
   enum app_error app_err = APP_NO_ERROR;
   enum edit_error edit_err = EDIT_NO_ERROR;
   enum game_error game_err = GAME_NO_ERROR;
   int err = 0;
   bool keep_running = true;
+  bool use_gui = false;
 
   memset(&args, 0, sizeof(struct app_args));
   
@@ -98,18 +117,19 @@ main(int argc, char** argv)
   mem_init_proxy_allocator("game", &game_allocator, &mem_default_allocator);
  
   /* Parse the argument list. */
-  err = parse_args(argc, argv, &args);
+  err = parse_args(argc, argv, &model_path, &render_driver_path, &use_gui);
   if(err == 1) {
     err = 0;
     goto exit;
   } else if(err == -1) {
     goto error;
   }
-
   atexit(app_exit);
 
   /* Initialize the application modules. */
   args.allocator = &engine_allocator;
+  args.model = model_path;
+  args.render_driver = render_driver_path;
   app_err = app_init(&args, &app);
   if(app_err != APP_NO_ERROR) {
     fprintf(stderr, "Error in initializing the engine.\n");
@@ -122,19 +142,22 @@ main(int argc, char** argv)
     err = -1;
     goto error;
   }
-  edit_err = edit_init(app, &editor_allocator, &edit);
-  if(edit_err != EDIT_NO_ERROR) {
-    fprintf(stderr, "Error in initializing the editor.\n");
-    err = -1;
-    goto error;
+  if(use_gui) {
+    edit_err = edit_init(app, &editor_allocator, &edit);
+    if(edit_err != EDIT_NO_ERROR) {
+      fprintf(stderr, "Error in initializing the editor.\n");
+      err = -1;
+      goto error;
+    }
   }
 
   /* Run the application. */
   while(keep_running) {
-    edit_err = edit_run(edit, &keep_running);
-    if(edit_err != EDIT_NO_ERROR)
-      goto error;
-
+    if(edit) {
+      edit_err = edit_run(edit, &keep_running);
+      if(edit_err != EDIT_NO_ERROR)
+        goto error;
+    }
     if(keep_running) {
       game_err = game_run(game, app, &keep_running);
       if(game_err != GAME_NO_ERROR)

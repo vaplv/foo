@@ -11,5 +11,10 @@ add_library(editgtk SHARED
   edit_gtk_error.c
   edit_gtk_explorer.c)
 
+configure_file(
+  edit_gtk.glade 
+  ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/edit_gtk.glade 
+  COPY_ONLY)
+
 target_link_libraries(editgtk sys ${GTK_LIBRARIES})
 
