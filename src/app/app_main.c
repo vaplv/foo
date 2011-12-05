@@ -21,7 +21,7 @@ parse_args
   int err = 0;
   int i = 0;
 
-  assert(argc >= 1 && !model_path && !render_driver_path && !use_gui);
+  assert(argc >= 1 && model_path && render_driver_path && use_gui);
 
   if(argc == 1)
     goto usage;

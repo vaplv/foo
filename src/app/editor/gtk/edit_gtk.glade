@@ -35,33 +35,40 @@
     <property name="default_width">320</property>
     <property name="default_height">240</property>
     <child>
-      <object class="GtkTreeView" id="explorer_tree_view">
+      <object class="GtkScrolledWindow" id="scrolledwindow1">
         <property name="visible">True</property>
         <property name="can_focus">True</property>
-        <property name="model">explorer_list_store</property>
-        <child internal-child="selection">
-          <object class="GtkTreeSelection" id="treeview-selection2"/>
-        </child>
+        <property name="shadow_type">in</property>
         <child>
-          <object class="GtkTreeViewColumn" id="treeviewcolumn1">
-            <property name="title" translatable="yes">Type</property>
-            <child>
-              <object class="GtkCellRendererText" id="cellrenderertext1"/>
-              <attributes>
-                <attribute name="text">0</attribute>
-              </attributes>
+          <object class="GtkTreeView" id="explorer_tree_view">
+            <property name="visible">True</property>
+            <property name="can_focus">True</property>
+            <property name="model">explorer_list_store</property>
+            <child internal-child="selection">
+              <object class="GtkTreeSelection" id="treeview-selection2"/>
             </child>
-          </object>
-        </child>
-        <child>
-          <object class="GtkTreeViewColumn" id="treeviewcolumn2">
-            <property name="sizing">autosize</property>
-            <property name="title" translatable="yes">Name</property>
             <child>
-              <object class="GtkCellRendererText" id="cellrenderertext2"/>
-              <attributes>
-                <attribute name="text">1</attribute>
-              </attributes>
+              <object class="GtkTreeViewColumn" id="treeviewcolumn1">
+                <property name="title" translatable="yes">Type</property>
+                <child>
+                  <object class="GtkCellRendererText" id="cellrenderertext1"/>
+                  <attributes>
+                    <attribute name="text">0</attribute>
+                  </attributes>
+                </child>
+              </object>
+            </child>
+            <child>
+              <object class="GtkTreeViewColumn" id="treeviewcolumn2">
+                <property name="sizing">autosize</property>
+                <property name="title" translatable="yes">Name</property>
+                <child>
+                  <object class="GtkCellRendererText" id="cellrenderertext2"/>
+                  <attributes>
+                    <attribute name="text">1</attribute>
+                  </attributes>
+                </child>
+              </object>
             </child>
           </object>
         </child>
