@@ -1346,8 +1346,6 @@ test_aosq(void)
      1.e-6f);
 }
 
-#include <stdio.h>
-
 int
 main(int argc UNUSED, char** argv UNUSED)
 {

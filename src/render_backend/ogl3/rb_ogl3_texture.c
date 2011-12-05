@@ -27,7 +27,7 @@ rb_create_tex2d(struct rb_context* ctxt, struct rb_tex2d** out_tex)
   if(!ctxt || !out_tex)
     return -1;
 
-  tex = MEM_ALLOC_I(ctxt->allocator, sizeof(struct rb_tex2d));
+  tex = MEM_ALLOC(ctxt->allocator, sizeof(struct rb_tex2d));
   if(!tex)
     return -1;
 
@@ -43,7 +43,7 @@ rb_free_tex2d(struct rb_context* ctxt, struct rb_tex2d* tex)
     return -1;
 
   OGL(DeleteTextures(1, &tex->name));
-  MEM_FREE_I(ctxt->allocator, tex);
+  MEM_FREE(ctxt->allocator, tex);
   return 0;
 }
 

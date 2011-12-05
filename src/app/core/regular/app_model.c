@@ -9,6 +9,7 @@
 #include "renderer/rdr_model_instance.h"
 #include "resources/rsrc_geometry.h"
 #include "resources/rsrc_wavefront_obj.h"
+#include "stdlib/sl_string.h"
 #include "stdlib/sl_vector.h"
 #include "sys/mem_allocator.h"
 #include "sys/sys.h"
@@ -18,6 +19,7 @@
 #include <stdlib.h>
 
 struct app_model {
+  struct sl_string* name;
   struct rsrc_geometry* geometry;
   struct sl_vector* mesh_list; /* List of rdr_mesh*. */
   struct sl_vector* material_list; /* list of rdr_material*. */
@@ -174,9 +176,14 @@ app_create_model(struct app* app, const char* path, struct app_model** model)
     goto error;
   }
 
-  mdl = MEM_CALLOC_I(app->allocator, 1, sizeof(struct app_model));
+  mdl = MEM_CALLOC(app->allocator, 1, sizeof(struct app_model));
   if(NULL == mdl) {
     app_err = APP_INVALID_ARGUMENT;
+    goto error;
+  }
+  sl_err = sl_create_string(NULL, app->allocator, &mdl->name);
+  if(sl_err != SL_NO_ERROR) {
+    app_err = sl_to_app_error(sl_err);
     goto error;
   }
   rsrc_err = rsrc_create_geometry(app->rsrc, &mdl->geometry);
@@ -216,6 +223,9 @@ app_create_model(struct app* app, const char* path, struct app_model** model)
     if(app_err != APP_NO_ERROR)
       goto error;
   }
+  app_err = app_register_model(app, mdl);
+  if(app_err != APP_NO_ERROR)
+    goto error;
 
 exit:
   if(model)
@@ -224,8 +234,7 @@ exit:
 
 error:
   if(mdl) {
-    UNUSED const enum app_error err = app_free_model(app, mdl);
-    assert(err == APP_NO_ERROR);
+    APP(free_model(app, mdl));
     mdl = NULL;
   }
   goto exit;
@@ -237,6 +246,8 @@ app_free_model(struct app* app, struct app_model* model)
   enum app_error app_err = APP_NO_ERROR;
   enum rsrc_error rsrc_err = RSRC_NO_ERROR;
   enum sl_error sl_err = SL_NO_ERROR;
+  bool was_registered = true;
+  bool is_unregistered = false;
 
   if(!app || !model) {
     app_err = APP_INVALID_ARGUMENT;
@@ -246,32 +257,56 @@ app_free_model(struct app* app, struct app_model* model)
   if(app_err != APP_NO_ERROR)
     goto error;
 
-  rsrc_err = rsrc_free_geometry(app->rsrc, model->geometry);
-  if(rsrc_err != RSRC_NO_ERROR) {
-    app_err = rsrc_to_app_error(rsrc_err);
-    goto error;
+  if(model->name) {
+    sl_err = sl_free_string(model->name);
+    if(sl_err != SL_NO_ERROR) {
+      app_err = sl_to_app_error(sl_err);
+      goto error;
+    }
   }
-  sl_err = sl_free_vector(model->mesh_list);
-  if(sl_err != SL_NO_ERROR) {
-    app_err = sl_to_app_error(sl_err);
-    goto error;
+  if(model->geometry) {
+    rsrc_err = rsrc_free_geometry(app->rsrc, model->geometry);
+    if(rsrc_err != RSRC_NO_ERROR) {
+      app_err = rsrc_to_app_error(rsrc_err);
+      goto error;
+    }
   }
-  sl_err = sl_free_vector(model->material_list);
-  if(sl_err != SL_NO_ERROR) {
-    app_err = sl_to_app_error(sl_err);
-    goto error;
+  if(model->mesh_list) {
+    sl_err = sl_free_vector(model->mesh_list);
+    if(sl_err != SL_NO_ERROR) {
+      app_err = sl_to_app_error(sl_err);
+      goto error;
+    }
   }
-  sl_err = sl_free_vector(model->model_list);
-  if(sl_err != SL_NO_ERROR) {
-    app_err = sl_to_app_error(sl_err);
-    goto error;
+  if(model->material_list) {
+    sl_err = sl_free_vector(model->material_list);
+    if(sl_err != SL_NO_ERROR) {
+      app_err = sl_to_app_error(sl_err);
+      goto error;
+    }
   }
-  MEM_FREE_I(app->allocator, model);
+  if(model->model_list) {
+    sl_err = sl_free_vector(model->model_list);
+    if(sl_err != SL_NO_ERROR) {
+      app_err = sl_to_app_error(sl_err);
+      goto error;
+    }
+  }
+  APP(is_model_registered(app, model, &was_registered));
+  if(was_registered) {
+    app_err = app_unregister_model(app, model);
+    if(app_err != APP_NO_ERROR)
+      goto error;
+    is_unregistered = true;
+  }
+  MEM_FREE(app->allocator, model);
 
 exit:
   return app_err;
 
 error:
+  if(is_unregistered)
+    APP(register_model(app, model));
   goto exit;
 }
 
@@ -283,6 +318,14 @@ app_clear_model(struct app* app, struct app_model* model)
   if(!app || !model) {
     app_err = APP_INVALID_ARGUMENT;
     goto error;
+  }
+
+  if(model->name) {
+    const enum sl_error sl_err = sl_clear_string(model->name);
+    if(sl_err != SL_NO_ERROR) {
+      app_err = sl_to_app_error(sl_err);
+      goto error;
+    }
   }
 
   if(model->geometry)
@@ -304,6 +347,7 @@ app_load_model(struct app* app, const char* path, struct app_model* model)
 {
   enum rsrc_error rsrc_err = RSRC_NO_ERROR;
   enum app_error app_err = APP_NO_ERROR;
+  enum sl_error sl_err = SL_NO_ERROR;
 
   if(!app || !path || !model) {
     app_err = APP_INVALID_ARGUMENT;
@@ -313,7 +357,7 @@ app_load_model(struct app* app, const char* path, struct app_model* model)
 
   rsrc_err = rsrc_load_wavefront_obj(app->rsrc, app->wavefront_obj, path);
   if(rsrc_err != RSRC_NO_ERROR) {
-    fprintf(stderr, "Error loading the geometry `%s'\n", path);
+    APP_LOG_ERR(app, "Error loading the geometry `%s'\n", path);
     app_err = rsrc_to_app_error(rsrc_err);
     goto error;
   }
@@ -324,8 +368,14 @@ app_load_model(struct app* app, const char* path, struct app_model* model)
     goto error;
   }
   app_err = setup_model(app, model);
-  if(app_err != APP_NO_ERROR)
+  if(app_err != APP_NO_ERROR) {
     goto error;
+  }
+  sl_err = sl_string_set(model->name, path);
+  if(sl_err != SL_NO_ERROR) {
+    app_err = sl_to_app_error(sl_err);
+    goto error;
+  }
 
 exit:
   return app_err;
@@ -338,6 +388,64 @@ error:
   goto exit;
 }
 
+EXPORT_SYM enum app_error
+app_model_name
+  (struct app* app,
+   struct app_model* model,
+   const char* name)
+{
+  enum app_error app_err = APP_NO_ERROR;
+  enum sl_error sl_err = SL_NO_ERROR;
+
+  if(!app || !model || !name) {
+    app_err = APP_INVALID_ARGUMENT;
+    goto error;
+  }
+  sl_err = sl_string_set(model->name, name);
+  if(sl_err != SL_NO_ERROR) {
+    app_err = sl_to_app_error(sl_err);
+    goto error;
+  }
+
+exit:
+  return app_err;
+error:
+  goto exit;
+}
+
+EXPORT_SYM enum app_error
+app_get_model_name
+  (struct app* app,
+   const struct app_model* model,
+   const char** name)
+{
+  enum app_error app_err = APP_NO_ERROR;
+  bool name_is_empty = false;
+
+  if(!app || !model || !name) {
+    app_err = APP_INVALID_ARGUMENT;
+    goto error;
+  }
+
+  SL(is_string_empty(model->name, &name_is_empty));
+  if(name_is_empty) {
+    *name = NULL;
+  } else {
+    SL(string_get(model->name, name));
+  }
+
+exit:
+  return app_err;
+error:
+  goto exit;
+}
+
+
+/*******************************************************************************
+ *
+ * Model instance function(s).
+ *
+ ******************************************************************************/
 EXPORT_SYM enum app_error
 app_instantiate_model
   (struct app* app,
@@ -382,6 +490,9 @@ app_instantiate_model
       render_instance = NULL;
     }
   }
+  app_err = app_register_model_instance(app, instance);
+  if(app_err != APP_NO_ERROR)
+    goto error;
 
 exit:
   if(out_instance)
@@ -390,8 +501,7 @@ exit:
 
 error:
   if(instance) {
-    app_err = app_free_model_instance(app, instance);
-    assert(app_err == APP_NO_ERROR);
+    APP(free_model_instance(app, instance));
     instance = NULL;
   }
   if(render_instance) {

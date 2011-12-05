@@ -266,7 +266,7 @@ sl_create_hash_table
     goto error;
   }
   allocator = specific_allocator ? specific_allocator : &mem_default_allocator;
-  table = MEM_CALLOC_I(allocator, 1, sizeof(struct sl_hash_table));
+  table = MEM_CALLOC(allocator, 1, sizeof(struct sl_hash_table));
   if(table == NULL) {
     err = SL_MEMORY_ERROR;
     goto error;
@@ -286,7 +286,7 @@ exit:
 
 error:
   if(table)
-    MEM_FREE_I(allocator, table);
+    MEM_FREE(allocator, table);
   goto exit;
 }
 
@@ -306,8 +306,8 @@ sl_free_hash_table
     goto error;
 
   allocator = table->allocator;
-  MEM_FREE_I(allocator, table->buffer);
-  MEM_FREE_I(allocator, table);
+  MEM_FREE(allocator, table->buffer);
+  MEM_FREE(allocator, table);
 
 exit:
   return err;
@@ -350,13 +350,13 @@ sl_hash_table_insert
       goto error;
   }
 
-  entry = MEM_ALLOC_I(table->allocator, sizeof(struct entry));
+  entry = MEM_ALLOC(table->allocator, sizeof(struct entry));
   if(entry == NULL) {
     err = SL_MEMORY_ERROR;
     goto error;
   }
 
-  entry->data = MEM_ALIGNED_ALLOC_I
+  entry->data = MEM_ALIGNED_ALLOC
     (table->allocator, table->data_size, table->data_alignment);
   if(entry->data == NULL) {
     err = SL_MEMORY_ERROR;
@@ -384,8 +384,8 @@ error:
   }
   if(entry) {
     if(entry->data)
-      MEM_FREE_I(table->allocator, entry->data);
-    MEM_FREE_I(table->allocator, entry);
+      MEM_FREE(table->allocator, entry->data);
+    MEM_FREE(table->allocator, entry);
   }
   goto exit;
 
@@ -420,8 +420,8 @@ sl_hash_table_erase
       else
         table->buffer[hash] = entry->next;
 
-      MEM_FREE_I(table->allocator, entry->data);
-      MEM_FREE_I(table->allocator, entry);
+      MEM_FREE(table->allocator, entry->data);
+      MEM_FREE(table->allocator, entry);
 
       entry = next;
       --table->nb_elements;
@@ -502,7 +502,7 @@ sl_hash_table_resize
   SL_NEXT_POWER_OF_2(nb_buckets, nb_buckets);
 
   if(nb_buckets > table->nb_buckets) {
-    new_buffer = MEM_CALLOC_I
+    new_buffer = MEM_CALLOC
       (table->allocator, nb_buckets, sizeof(struct entry*));
     if(new_buffer == NULL) {
       err = SL_MEMORY_ERROR;
@@ -512,7 +512,7 @@ sl_hash_table_resize
       (new_buffer, nb_buckets,
        table->buffer, table->nb_buckets,
        table->get_key, table->key_size);
-    MEM_FREE_I(table->allocator, table->buffer);
+    MEM_FREE(table->allocator, table->buffer);
     table->buffer = new_buffer;
     table->nb_buckets = nb_buckets;
   }
@@ -522,7 +522,7 @@ exit:
 
 error:
   if(new_buffer)
-    MEM_FREE_I(table->allocator, new_buffer);
+    MEM_FREE(table->allocator, new_buffer);
   goto exit;
 }
 
@@ -563,8 +563,8 @@ sl_hash_table_clear
     struct entry* entry = table->buffer[i];
     while(entry) {
       struct entry* next_entry = entry->next;
-      MEM_FREE_I(table->allocator, entry->data);
-      MEM_FREE_I(table->allocator, entry);
+      MEM_FREE(table->allocator, entry->data);
+      MEM_FREE(table->allocator, entry);
       entry = next_entry;
     }
     table->buffer[i] = NULL;

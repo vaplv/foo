@@ -65,7 +65,7 @@ rdr_create_world(struct rdr_system* sys, struct rdr_world** out_world)
     goto error;
   }
 
-  world = MEM_CALLOC_I(sys->allocator, 1, sizeof(struct rdr_world));
+  world = MEM_CALLOC(sys->allocator, 1, sizeof(struct rdr_world));
   if(world == NULL) {
     rdr_err = RDR_MEMORY_ERROR;
     goto error;
@@ -93,7 +93,7 @@ error:
       sl_err = sl_free_sorted_vector(world->model_instance_list);
       assert(sl_err == SL_NO_ERROR);
     }
-    MEM_FREE_I(sys->allocator, world);
+    MEM_FREE(sys->allocator, world);
     world = NULL;
   }
   goto exit;
@@ -131,7 +131,7 @@ rdr_free_world(struct rdr_system* sys, struct rdr_world* world)
       goto error;
     }
   }
-  MEM_FREE_I(sys->allocator, world);
+  MEM_FREE(sys->allocator, world);
 
 exit:
   return rdr_err;

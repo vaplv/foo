@@ -36,7 +36,7 @@ app_create_world(struct app* app, struct app_world** out_world)
     goto error;
   }
 
-  world = MEM_CALLOC_I(app->allocator, 1, sizeof(struct app_world));
+  world = MEM_CALLOC(app->allocator, 1, sizeof(struct app_world));
   if(!world) {
     err = APP_MEMORY_ERROR;
     goto error;
@@ -63,7 +63,7 @@ error:
   if(world) {
     if(world->render_world)
       RDR(free_world(app->rdr, world->render_world));
-    MEM_FREE_I(app->allocator, world);
+    MEM_FREE(app->allocator, world);
     world = NULL;
   }
   goto exit;
@@ -84,7 +84,7 @@ app_free_world(struct app* app, struct app_world* world)
     app_err = rdr_to_app_error(rdr_err);
     goto error;
   }
-  MEM_FREE_I(app->allocator, world);
+  MEM_FREE(app->allocator, world);
 
 exit:
   return app_err;

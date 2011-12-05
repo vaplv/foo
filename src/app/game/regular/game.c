@@ -149,7 +149,7 @@ game_create(struct mem_allocator* specific_allocator, struct game** out_game)
   }
 
   allocator = specific_allocator ? specific_allocator : &mem_default_allocator;
-  game = MEM_CALLOC_I(allocator, 1, sizeof(struct game));
+  game = MEM_CALLOC(allocator, 1, sizeof(struct game));
   if(!game) {
     game_err = GAME_MEMORY_ERROR;
     goto error;
@@ -163,7 +163,7 @@ exit:
 
 error:
   if(game) {
-    MEM_FREE_I(allocator, game);
+    MEM_FREE(allocator, game);
     game = NULL;
   }
   goto exit;
@@ -176,7 +176,7 @@ game_free(struct game* game)
   if(!game)
     return GAME_INVALID_ARGUMENT;
   allocator = game->allocator;
-  MEM_FREE_I(allocator, game);
+  MEM_FREE(allocator, game);
   return GAME_NO_ERROR;
 }
 

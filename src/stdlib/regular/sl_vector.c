@@ -46,7 +46,7 @@ sl_create_vector
     goto error;
   }
   allocator = specific_allocator ? specific_allocator : &mem_default_allocator;
-  vec = MEM_CALLOC_I(allocator, 1, sizeof(struct sl_vector));
+  vec = MEM_CALLOC(allocator, 1, sizeof(struct sl_vector));
   if(vec == NULL) {
     err = SL_MEMORY_ERROR;
     goto error;
@@ -63,7 +63,7 @@ exit:
 error:
   if(vec) {
     assert(allocator);
-    MEM_FREE_I(allocator, vec);
+    MEM_FREE(allocator, vec);
     vec = NULL;
   }
   goto exit;
@@ -80,8 +80,8 @@ sl_free_vector
 
   allocator = vec->allocator;
   if(vec->buffer)
-    MEM_FREE_I(allocator, vec->buffer);
-  MEM_FREE_I(allocator, vec);
+    MEM_FREE(allocator, vec->buffer);
+  MEM_FREE(allocator, vec);
 
   return SL_NO_ERROR;
 }
@@ -121,7 +121,7 @@ sl_vector_push_back
   assert(vec->length <= vec->capacity);
   if(vec->length == vec->capacity) {
     new_capacity = vec->capacity == 0 ? 1 : vec->capacity * 2;
-    buffer = MEM_ALIGNED_ALLOC_I
+    buffer = MEM_ALIGNED_ALLOC
       (vec->allocator, new_capacity * vec->data_size, vec->data_alignment);
     if(!buffer) {
       err = SL_MEMORY_ERROR;
@@ -129,7 +129,7 @@ sl_vector_push_back
     }
     buffer = memcpy(buffer, vec->buffer, vec->length * vec->data_size);
     if(vec->buffer)
-      MEM_FREE_I(vec->allocator, vec->buffer);
+      MEM_FREE(vec->allocator, vec->buffer);
 
     vec->buffer = buffer;
     vec->capacity = new_capacity;
@@ -144,7 +144,7 @@ exit:
 
 error:
   if(buffer)
-    MEM_FREE_I(vec->allocator, buffer);
+    MEM_FREE(vec->allocator, buffer);
   goto exit;
 }
 
@@ -189,7 +189,7 @@ sl_vector_insert
     if(vec->length == vec->capacity) {
       const size_t new_capacity = vec->capacity * 2;
 
-      buffer = MEM_ALIGNED_ALLOC_I
+      buffer = MEM_ALIGNED_ALLOC
         (vec->allocator, new_capacity * vec->data_size, vec->data_alignment);
       if(!buffer) {
         err = SL_MEMORY_ERROR;
@@ -216,7 +216,7 @@ sl_vector_insert
       /* The data to insert may be contained in vec, i.e. free vec->buffer
        * *AFTER* the insertion. */
       if(vec->buffer)
-        MEM_FREE_I(vec->allocator, vec->buffer);
+        MEM_FREE(vec->allocator, vec->buffer);
 
       vec->buffer = buffer;
       vec->capacity = new_capacity;
@@ -252,7 +252,7 @@ exit:
 
 error:
   if(buffer)
-    MEM_FREE_I(vec->allocator, buffer);
+    MEM_FREE(vec->allocator, buffer);
   goto exit;
 }
 
@@ -338,7 +338,7 @@ sl_vector_reserve
     goto error;
   }
   if(capacity > vec->capacity) {
-    buffer = MEM_ALIGNED_ALLOC_I
+    buffer = MEM_ALIGNED_ALLOC
       (vec->allocator, capacity * vec->data_size, vec->data_alignment);
     if(!buffer) {
       err = SL_MEMORY_ERROR;
@@ -347,7 +347,7 @@ sl_vector_reserve
     buffer = memcpy(buffer, vec->buffer, vec->length * vec->data_size);
 
     if(vec->buffer)
-      MEM_FREE_I(vec->allocator, vec->buffer);
+      MEM_FREE(vec->allocator, vec->buffer);
 
     vec->buffer = buffer;
     vec->capacity = capacity;
@@ -359,7 +359,7 @@ exit:
 
 error:
   if(buffer)
-    MEM_FREE_I(vec->allocator, buffer);
+    MEM_FREE(vec->allocator, buffer);
   goto exit;
 }
 

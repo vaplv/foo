@@ -24,7 +24,7 @@ rdr_create_system
   }
 
   allocator = specific_allocator ? specific_allocator : &mem_default_allocator;
-  sys = MEM_CALLOC_I(allocator, 1, sizeof(struct rdr_system));
+  sys = MEM_CALLOC(allocator, 1, sizeof(struct rdr_system));
   if(!sys) {
     rdr_err = RDR_MEMORY_ERROR;
   }
@@ -55,7 +55,7 @@ error:
     }
     err = rbi_shutdown(&sys->rb);
     assert(err == 0);
-    MEM_FREE_I(allocator, sys);
+    MEM_FREE(allocator, sys);
     sys = NULL;
   }
   goto exit;
@@ -76,7 +76,7 @@ rdr_free_system(struct rdr_system* sys)
   assert(err == 0);
 
   allocator = sys->allocator;
-  MEM_FREE_I(allocator, sys);
+  MEM_FREE(allocator, sys);
   return RDR_NO_ERROR;
 }
 

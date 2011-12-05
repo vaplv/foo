@@ -24,7 +24,7 @@ rb_create_shader
   if(!ctxt || !out_shader)
     goto error;
 
-  shader = MEM_ALLOC_I(ctxt->allocator, sizeof(struct rb_shader));
+  shader = MEM_ALLOC(ctxt->allocator, sizeof(struct rb_shader));
   if(!shader)
     goto error;
 
@@ -46,8 +46,8 @@ error:
   if(shader->name != 0)
     OGL(DeleteShader(shader->name));
   if(shader) {
-    MEM_FREE_I(ctxt->allocator, shader->log);
-    MEM_FREE_I(ctxt->allocator, shader);
+    MEM_FREE(ctxt->allocator, shader->log);
+    MEM_FREE(ctxt->allocator, shader);
   }
 
   goto exit;
@@ -74,7 +74,7 @@ rb_shader_source
     int log_length = 0;
     OGL(GetShaderiv(shader->name, GL_INFO_LOG_LENGTH, &log_length));
 
-    shader->log = MEM_REALLOC_I
+    shader->log = MEM_REALLOC
       (ctxt->allocator, shader->log, log_length*sizeof(char));
     if(!shader->log)
       goto error;
@@ -82,7 +82,7 @@ rb_shader_source
     OGL(GetShaderInfoLog(shader->name, log_length, NULL, shader->log));
     err = -1;
   } else {
-    MEM_FREE_I(ctxt->allocator, shader->log);
+    MEM_FREE(ctxt->allocator, shader->log);
     shader->log = NULL;
   }
 
@@ -101,8 +101,8 @@ rb_free_shader(struct rb_context* ctxt, struct rb_shader* shader)
     return -1;
 
   OGL(DeleteShader(shader->name));
-  MEM_FREE_I(ctxt->allocator, shader->log);
-  MEM_FREE_I(ctxt->allocator, shader);
+  MEM_FREE(ctxt->allocator, shader->log);
+  MEM_FREE(ctxt->allocator, shader);
   return 0;
 }
 

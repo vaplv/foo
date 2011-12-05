@@ -152,7 +152,7 @@ main(int argc, char** argv)
   CHECK(wm_free_window(device, window), WM_NO_ERROR);
   CHECK(wm_free_device(device), WM_NO_ERROR);
 
-  CHECK(MEM_ALLOCATED_SIZE(), 0);
+  CHECK(MEM_ALLOCATED_SIZE(&mem_default_allocator), 0);
 
 exit:
   return err;

@@ -187,7 +187,7 @@ register_mesh_attribs
       goto error;
     }
 
-    assert(attr_usage < RDR_NB_ATTRIB_USAGES);
+    assert((int)attr_usage < RDR_NB_ATTRIB_USAGES);
     mesh->attrib_list[attr_usage].stride = mesh->vertex_size;
     mesh->attrib_list[attr_usage].offset = offset;
     mesh->attrib_list[attr_usage].type = rbattr_type;

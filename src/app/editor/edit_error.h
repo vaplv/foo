@@ -1,0 +1,13 @@
+#ifndef EDIT_ERROR_H
+#define EDIT_ERROR_H
+
+enum edit_error {
+  EDIT_INTERNAL_ERROR,
+  EDIT_INVALID_ARGUMENT,
+  EDIT_MEMORY_ERROR,
+  EDIT_NO_ERROR,
+  EDIT_UNKOWN_ERROR
+};
+
+#endif /* EDIT_ERROR_H */
+

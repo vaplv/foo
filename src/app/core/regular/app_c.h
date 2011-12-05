@@ -1,22 +1,27 @@
 #ifndef APP_C_H
 #define APP_C_H
 
+#include "app/core/app_error.h"
 #include "renderer/rdr_attrib.h"
 #include "renderer/rdr_error.h"
 #include "resources/rsrc.h"
 #include "resources/rsrc_error.h"
 #include "resources/rsrc_geometry.h"
 #include "stdlib/sl_error.h"
+#include "stdlib/sl_logger.h"
 #include "sys/mem_allocator.h"
+#include <stdbool.h>
 
 #ifndef NDEBUG
   #include <assert.h>
+  #define APP(func) assert(APP_NO_ERROR == app_##func)
   #define SL(func) assert(SL_NO_ERROR == sl_##func)
   #define RSRC(func) assert(RSRC_NO_ERROR == rsrc_##func)
   #define RDR(func) assert(RDR_NO_ERROR == rdr_##func)
   #define SYS(func) assert(SYS_NO_ERROR == sys_##func)
   #define WM(func) assert(WM_NO_ERROR == wm_##func)
 #else
+  #define APP(func) app_##func
   #define SL(func) sl_##func
   #define RSRC(func) rsrc_##func
   #define RDR(func) rdr_##func
@@ -31,6 +36,8 @@
 #define APP_LOG_ERR(app, ...) \
   SL(logger_print((app)->logger, APP_ERR_PREFIX __VA_ARGS__))
 
+struct app_model;
+struct app_model_instance;
 struct app_view;
 struct app_world;
 struct rdr_material;
@@ -55,11 +62,45 @@ struct app {
   struct rsrc_context* rsrc;
   struct rsrc_wavefront_obj* wavefront_obj;
   struct sl_logger* logger;
-  struct sl_vector* model_list; /* vector of app_model*. */
-  struct sl_vector* model_instance_list; /* vector of app_model_instance* .*/
+  struct sl_sorted_vector* add_model_cbk_list; /* vector of callbacks. */
+  struct sl_sorted_vector* remove_model_cbk_list; /* vector of callback. */
+  struct sl_sorted_vector* model_list; /* vector of app_model*. */
+  struct sl_sorted_vector* model_instance_list; /* vec of app_model_instance*.*/
   struct wm_device* wm;
   struct wm_window* window;
 };
+
+extern enum app_error
+app_register_model
+  (struct app* app,
+   struct app_model* model);
+
+extern enum app_error
+app_unregister_model
+  (struct app* app,
+   struct app_model* model);
+
+extern enum app_error
+app_is_model_registered
+  (struct app* app,
+   struct app_model* model,
+   bool* is_registered);
+
+extern enum app_error
+app_register_model_instance
+  (struct app* app,
+   struct app_model_instance* instance);
+
+extern enum app_error
+app_unregister_model_instance
+  (struct app* app,
+   struct app_model_instance* instance);
+
+extern enum app_error
+app_is_model_instance_registered
+  (struct app* app,
+   struct  app_model_instance* instance,
+   bool* is_registered);
 
 extern enum rdr_attrib_usage
 rsrc_to_rdr_attrib_usage

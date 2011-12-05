@@ -256,13 +256,13 @@ instance_cbk_func
   assert(cbk_data != NULL);
 
   if(cbk_data->uniform_list) {
-    MEM_FREE(cbk_data->uniform_list);
+    MEM_FREE(&mem_default_allocator, cbk_data->uniform_list);
     cbk_data->uniform_list = NULL;
     cbk_data->nb_uniforms = 0;
   }
 
   if(cbk_data->attrib_list) {
-    MEM_FREE(cbk_data->attrib_list);
+    MEM_FREE(&mem_default_allocator, cbk_data->attrib_list);
     cbk_data->attrib_list = NULL;
     cbk_data->nb_attribs = 0;
   }
@@ -301,9 +301,11 @@ instance_cbk_func
 
   if(cbk_data->nb_uniforms > 0) {
     if(cbk_data->uniform_list)
-      MEM_FREE(cbk_data->uniform_list);
+      MEM_FREE(&mem_default_allocator, cbk_data->uniform_list);
     cbk_data->uniform_list = MEM_CALLOC
-      (cbk_data->nb_uniforms, SZ(struct instance_cbk_data));
+      (&mem_default_allocator, 
+       cbk_data->nb_uniforms, 
+       SZ(struct instance_cbk_data));
     assert(NULL != cbk_data->uniform_list);
 
     CHECK(rdr_get_model_instance_uniforms
@@ -345,9 +347,11 @@ instance_cbk_func
 
   if(cbk_data->nb_attribs > 0) {
     if(cbk_data->attrib_list)
-      MEM_FREE(cbk_data->attrib_list);
+      MEM_FREE(&mem_default_allocator, cbk_data->attrib_list);
     cbk_data->attrib_list = MEM_CALLOC
-      (cbk_data->nb_attribs, SZ(struct instance_cbk_data));
+      (&mem_default_allocator, 
+       cbk_data->nb_attribs, 
+       SZ(struct instance_cbk_data));
     assert(NULL != cbk_data->attrib_list);
 
     CHECK(rdr_get_model_instance_attribs
@@ -571,9 +575,9 @@ test_rdr_model_instance(const char* driver_name)
   CHECK(rdr_detach_model_instance_callback(sys, inst, cbk), OK);
 
   if(instance_cbk_data.uniform_list)
-    MEM_FREE(instance_cbk_data.uniform_list);
+    MEM_FREE(&mem_default_allocator, instance_cbk_data.uniform_list);
   if(instance_cbk_data.attrib_list)
-    MEM_FREE(instance_cbk_data.attrib_list);
+    MEM_FREE(&mem_default_allocator, instance_cbk_data.attrib_list);
 
   CHECK(rdr_free_model_instance(NULL, NULL), BAD_ARG);
   CHECK(rdr_free_model_instance(sys, NULL), BAD_ARG);
@@ -626,7 +630,7 @@ exit:
   if(device)
     CHECK(wm_free_device(device), WM_NO_ERROR);
 
-  CHECK(MEM_ALLOCATED_SIZE(), 0);
+  CHECK(MEM_ALLOCATED_SIZE(&mem_default_allocator), 0);
 
   return err;
 

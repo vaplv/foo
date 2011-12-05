@@ -36,6 +36,6 @@ main(int argc, char** argv)
 
   CHECK(app_shutdown(app), APP_NO_ERROR);
 
-  CHECK(MEM_ALLOCATED_SIZE(), 0);
+  CHECK(MEM_ALLOCATED_SIZE(&mem_default_allocator), 0);
   return 0;
 }

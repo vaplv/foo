@@ -52,64 +52,38 @@ struct mem_allocator {
   size_t (*allocated_size)
     (const void* data);
 
-  void (*dump)
+  size_t (*dump) /* Return the real dump len (without the null char). */
     (const void* data,
      char* dump,
-     size_t max_dump_len, /* Include the null char. */
-     size_t* real_dump_len); /* Do *NOT* include the null char. */
+     size_t max_dump_len); /* Include the null char. */
 
   void* data;
 };
 
-#define MEM_ALLOC_I(allocator, size) \
+/* Default allocator. */
+extern struct mem_allocator mem_default_allocator;
+
+#define MEM_ALLOC(allocator, size) \
   ((allocator)->alloc((allocator)->data, (size), __FILE__, __LINE__))
 
-#define MEM_CALLOC_I(allocator, nb, size) \
+#define MEM_CALLOC(allocator, nb, size) \
   ((allocator)->calloc((allocator)->data, (nb), (size), __FILE__, __LINE__))
 
-#define MEM_REALLOC_I(allocator, mem, size) \
+#define MEM_REALLOC(allocator, mem, size) \
   ((allocator)->realloc((allocator)->data, (mem), (size), __FILE__, __LINE__))
 
-#define MEM_ALIGNED_ALLOC_I(allocator, size, alignment) \
+#define MEM_ALIGNED_ALLOC(allocator, size, alignment) \
   ((allocator)->aligned_alloc \
    ((allocator)->data, (size), (alignment), __FILE__, __LINE__))
 
-#define MEM_FREE_I(allocator, mem) \
+#define MEM_FREE(allocator, mem) \
   ((allocator)->free((allocator)->data, (mem)))
 
-#define MEM_ALLOCATED_SIZE_I(allocator) \
+#define MEM_ALLOCATED_SIZE(allocator) \
   ((allocator)->allocated_size((allocator)->data))
 
-#define MEM_DUMP_I(allocator, msg, max_len, real_len) \
-  ((allocator)->dump((allocator)->data, (msg), (max_len), (real_len)))
-
-/*******************************************************************************
- *
- * Default allocator.
- *
- ******************************************************************************/
-extern struct mem_allocator mem_default_allocator;
-
-#define MEM_ALLOC(size) \
-  MEM_ALLOC_I(&mem_default_allocator, (size))
-
-#define MEM_CALLOC(nb, size) \
-  MEM_CALLOC_I(&mem_default_allocator, (nb), (size))
-
-#define MEM_REALLOC(mem, size) \
-  MEM_REALLOC_I(&mem_default_allocator, (mem), (size))
-
-#define MEM_ALIGNED_ALLOC(size, align) \
-  MEM_ALIGNED_ALLOC_I(&mem_default_allocator, (size), (align))
-
-#define MEM_FREE(mem) \
-  MEM_FREE_I(&mem_default_allocator, (mem))
-
-#define MEM_ALLOCATED_SIZE() \
-  MEM_ALLOCATED_SIZE_I(&mem_default_allocator)
-
-#define MEM_DUMP(dump, max_len, real_len) \
-  MEM_DUMP_I(&mem_default_allocator, (dump), (max_len), (real_len))
+#define MEM_DUMP(allocator, msg, max_len) \
+  ((allocator)->dump((allocator)->data, (msg), (max_len)))
 
 /*******************************************************************************
  *

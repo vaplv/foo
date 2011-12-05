@@ -29,8 +29,8 @@ free_node(struct mem_allocator* allocator, struct sl_node* node)
 {
   assert(node != NULL);
   if(node->data)
-    MEM_FREE_I(allocator, node->data);
-  MEM_FREE_I(allocator, node);
+    MEM_FREE(allocator, node->data);
+  MEM_FREE(allocator, node);
 }
 
 static enum sl_error
@@ -45,13 +45,13 @@ alloc_node
 
   assert(out_node);
 
-  node = MEM_CALLOC_I(allocator, 1, sizeof(struct sl_node));
+  node = MEM_CALLOC(allocator, 1, sizeof(struct sl_node));
   if(!node) {
     err = SL_MEMORY_ERROR;
     goto error;
   }
 
-  node->data = MEM_ALIGNED_ALLOC_I(allocator, data_size, data_alignment);
+  node->data = MEM_ALIGNED_ALLOC(allocator, data_size, data_alignment);
   if(!node->data) {
     err = SL_MEMORY_ERROR;
     goto error;
@@ -112,7 +112,7 @@ sl_create_linked_list
   }
 
   allocator = specific_allocator ? specific_allocator : &mem_default_allocator;
-  list = MEM_CALLOC_I(allocator, 1, sizeof(struct sl_linked_list));
+  list = MEM_CALLOC(allocator, 1, sizeof(struct sl_linked_list));
   if(list == NULL) {
     err = SL_MEMORY_ERROR;
     goto error;
@@ -130,7 +130,7 @@ exit:
 error:
   if(list) {
     assert(allocator);
-    MEM_FREE_I(allocator, list);
+    MEM_FREE(allocator, list);
     list = NULL;
   }
   goto exit;
@@ -147,7 +147,7 @@ sl_free_linked_list
 
   free_all_nodes(list);
   allocator = list->allocator;
-  MEM_FREE_I(allocator, list);
+  MEM_FREE(allocator, list);
 
   return SL_NO_ERROR;
 }

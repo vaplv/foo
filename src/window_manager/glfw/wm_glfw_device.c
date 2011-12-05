@@ -19,7 +19,7 @@ wm_create_device
     goto error;
   }
   allocator = specific_allocator ? specific_allocator : &mem_default_allocator;
-  device = MEM_ALLOC_I(allocator, sizeof(struct wm_device));
+  device = MEM_ALLOC(allocator, sizeof(struct wm_device));
   if(!device) {
     err = WM_MEMORY_ERROR;
     goto error;
@@ -39,7 +39,7 @@ exit:
 
 error:
   if(device) {
-    MEM_FREE_I(allocator, device);
+    MEM_FREE(allocator, device);
     device = NULL;
   }
   goto exit;
@@ -53,7 +53,7 @@ wm_free_device(struct wm_device* device)
     return WM_INVALID_ARGUMENT;
 
   allocator = device->allocator;
-  MEM_FREE_I(allocator, device);
+  MEM_FREE(allocator, device);
   glfwTerminate();
   return WM_NO_ERROR;
 }

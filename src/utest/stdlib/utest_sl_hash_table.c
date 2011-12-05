@@ -35,7 +35,7 @@ main(int argc UNUSED, char** argv UNUSED)
   struct sl_hash_table* tbl = NULL;
   size_t count = 0;
 
-  STATIC_ASSERT(!IS_ALIGNED(array + 1, 16), Unexpected_alignment);
+  STATIC_ASSERT(!IS_ALIGNED(&array[1], 16), Unexpected_alignment);
 
   CHECK(sl_create_hash_table(0, 0, 0, NULL, NULL, NULL, NULL), BAD_ARG);
   CHECK(sl_create_hash_table(SZP, 0, 0, NULL, NULL, NULL, NULL), BAD_ARG);
@@ -226,7 +226,7 @@ main(int argc UNUSED, char** argv UNUSED)
   CHECK(sl_free_hash_table(tbl), OK);
   CHECK(count, 16);
 
-  CHECK(MEM_ALLOCATED_SIZE(), 0);
+  CHECK(MEM_ALLOCATED_SIZE(&mem_default_allocator), 0);
 
   return 0;
 }

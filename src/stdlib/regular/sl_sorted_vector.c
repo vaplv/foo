@@ -97,7 +97,7 @@ sl_create_sorted_vector
     goto error;
   }
   allocator = specific_allocator ? specific_allocator : &mem_default_allocator;
-  svec = MEM_CALLOC_I(allocator, 1, sizeof(struct sl_sorted_vector));
+  svec = MEM_CALLOC(allocator, 1, sizeof(struct sl_sorted_vector));
   if(!svec) {
     err = SL_MEMORY_ERROR;
     goto error;
@@ -120,7 +120,7 @@ error:
       err = sl_free_vector(svec->vector);
       assert(err == SL_NO_ERROR);
     }
-    MEM_FREE_I(allocator, svec);
+    MEM_FREE(allocator, svec);
     svec = NULL;
   }
   goto exit;
@@ -141,7 +141,7 @@ sl_free_sorted_vector
   if(err != SL_NO_ERROR)
     goto error;
   allocator = svec->allocator;
-  MEM_FREE_I(allocator, svec);
+  MEM_FREE(allocator, svec);
 
 exit:
   return err;

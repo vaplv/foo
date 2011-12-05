@@ -575,7 +575,7 @@ parse_group
     }
 
     token_len = strlen(token) + 1; /* +1 <=> null terminated character. */
-    name = MEM_ALLOC_I(ctxt->allocator, token_len*sizeof(char));
+    name = MEM_ALLOC(ctxt->allocator, token_len*sizeof(char));
     if(!name) {
       err = RSRC_MEMORY_ERROR;
       goto error;
@@ -621,11 +621,11 @@ error:
     void* buffer = NULL;
     SL(vector_buffer(name_list, &len, NULL, NULL, &buffer));
     for(i = 0; i < len; ++i)
-      MEM_FREE_I(ctxt->allocator, ((char**)buffer)[i]);
+      MEM_FREE(ctxt->allocator, ((char**)buffer)[i]);
     SL(free_vector(name_list));
   }
   if(name)
-    MEM_FREE_I(ctxt->allocator, name);
+    MEM_FREE(ctxt->allocator, name);
   goto exit;
 }
 
@@ -707,7 +707,7 @@ parse_mtllib
 
   while((token = lex_next_token(lex)) != NULL) {
     const size_t token_len = strlen(token) + 1; /* +1 <=> null character. */
-    char* libname = MEM_ALLOC_I(ctxt->allocator, token_len * sizeof(char));
+    char* libname = MEM_ALLOC(ctxt->allocator, token_len * sizeof(char));
     if(!libname) {
       err = RSRC_MEMORY_ERROR;
       goto error;
@@ -737,7 +737,7 @@ error:
     char* libname = NULL;
     SL(vector_length(mtllib_list, &len));
     SL(vector_at(mtllib_list, len-1, (void**)&libname));
-    MEM_FREE_I(ctxt->allocator, libname);
+    MEM_FREE(ctxt->allocator, libname);
     SL(vector_pop_back(mtllib_list));
     --nb_libs;
   }
@@ -769,7 +769,7 @@ parse_mtl
   }
 
   len = strlen(token) + 1;
-  mtl.name = MEM_ALLOC_I(ctxt->allocator, len*sizeof(char));
+  mtl.name = MEM_ALLOC(ctxt->allocator, len*sizeof(char));
   if(!mtl.name) {
     err = RSRC_MEMORY_ERROR;
     goto error;
@@ -797,7 +797,7 @@ error:
   if(is_pushed)
     SL(vector_pop_back(wobj->mtl_list));
   if(mtl.name)
-    MEM_FREE_I(ctxt->allocator, mtl.name);
+    MEM_FREE(ctxt->allocator, mtl.name);
   goto exit;
 }
 
@@ -881,7 +881,7 @@ clear_wavefront_obj
 
       VECTOR_BUFFER(grp->name_list, nb_names, name_list);
       for(name_id = 0; name_id < nb_names; ++name_id)
-        MEM_FREE_I(ctxt->allocator, ((char**)name_list)[name_id]);
+        MEM_FREE(ctxt->allocator, ((char**)name_list)[name_id]);
 
       FREE_VECTOR(grp->name_list);
     }
@@ -894,14 +894,14 @@ clear_wavefront_obj
   if(wobj->mtllib_list) {
     VECTOR_BUFFER(wobj->mtllib_list, len, buf);
     for(i = 0; i < len; ++i)
-      MEM_FREE_I(ctxt->allocator, ((char**)buf)[i]);
+      MEM_FREE(ctxt->allocator, ((char**)buf)[i]);
     CLEAR_VECTOR(wobj->mtllib_list);
   }
 
   if(wobj->mtl_list) {
     VECTOR_BUFFER(wobj->mtl_list, len, buf);
     for(i = 0; i < len; ++i)
-      MEM_FREE_I(ctxt->allocator, ((mtl_t*)buf)[i].name);
+      MEM_FREE(ctxt->allocator, ((mtl_t*)buf)[i].name);
     CLEAR_VECTOR(wobj->mtl_list);
   }
 
@@ -1030,7 +1030,7 @@ rsrc_create_wavefront_obj
     goto error;
   }
 
-  wobj = MEM_CALLOC_I(ctxt->allocator, 1, sizeof(struct rsrc_wavefront_obj));
+  wobj = MEM_CALLOC(ctxt->allocator, 1, sizeof(struct rsrc_wavefront_obj));
   if(!wobj) {
     err = RSRC_MEMORY_ERROR;
     goto error;
@@ -1068,7 +1068,7 @@ error:
   if(wobj) {
     err = rsrc_free_wavefront_obj(ctxt, wobj);
     assert(err == RSRC_NO_ERROR);
-    MEM_FREE_I(ctxt->allocator, wobj);
+    MEM_FREE(ctxt->allocator, wobj);
     wobj = NULL;
   }
   goto exit;
@@ -1115,7 +1115,7 @@ rsrc_free_wavefront_obj
 
   #undef FREE_VECTOR
 
-  MEM_FREE_I(ctxt->allocator, wobj);
+  MEM_FREE(ctxt->allocator, wobj);
 
 exit:
   return err;
@@ -1163,7 +1163,7 @@ rsrc_load_wavefront_obj
   }
 
   /* +1 <=> null terminated character. */
-  file_content = MEM_ALLOC_I(ctxt->allocator, file_len * sizeof(char) + 1);
+  file_content = MEM_ALLOC(ctxt->allocator, file_len * sizeof(char) + 1);
   if(!file_content) {
     err = RSRC_MEMORY_ERROR;
     goto error;
@@ -1189,7 +1189,7 @@ rsrc_load_wavefront_obj
 
 exit:
   if(file_content)
-    MEM_FREE_I(ctxt->allocator, file_content);
+    MEM_FREE(ctxt->allocator, file_content);
   return err;
 
 error:

@@ -86,8 +86,8 @@ build_triangle_list
 
   assert(ctxt
       && pos
-      && nor
-      && tex
+      /*&& nor May be NULL.*/
+      /*&& tex  May be NULL. */
       && face_range
       && faces
       && tbl
@@ -228,7 +228,7 @@ rsrc_create_geometry
     err = RSRC_INVALID_ARGUMENT;
     goto error;
   }
-  geom = MEM_CALLOC_I(ctxt->allocator, 1, sizeof(struct rsrc_geometry));
+  geom = MEM_CALLOC(ctxt->allocator, 1, sizeof(struct rsrc_geometry));
   if(!geom) {
     err = RSRC_MEMORY_ERROR;
     goto error;
@@ -268,7 +268,7 @@ error:
       SL(free_vector(geom->primitive_set_list));
     if(geom->hash_table)
       SL(free_hash_table(geom->hash_table));
-    MEM_FREE_I(ctxt->allocator, geom);
+    MEM_FREE(ctxt->allocator, geom);
     geom = NULL;
   }
   goto exit;
@@ -305,7 +305,7 @@ rsrc_free_geometry
       goto error;
     }
   }
-  MEM_FREE_I(ctxt->allocator, geom);
+  MEM_FREE(ctxt->allocator, geom);
 
 exit:
   return err;

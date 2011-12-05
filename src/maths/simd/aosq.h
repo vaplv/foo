@@ -48,15 +48,14 @@ aosq_eq_eps(vf4_t q0, vf4_t q1, vf4_t eps)
 static FINLINE vf4_t
 aosq_mul(vf4_t q0, vf4_t q1)
 {
-  const union { float f; int32_t i; } s = { .i = 0x80000000 };
   const vf4_t r0 =
-    vf4_mul(vf4_xor(vf4_set(0.f, 0.f, s.f, 0.f), q0), vf4_wzyx(q1));
+    vf4_mul(vf4_mul(vf4_set(1.f, 1.f, -1.f, 1.f), q0), vf4_wzyx(q1));
   const vf4_t r1 =
-    vf4_mul(vf4_xor(vf4_set(s.f, 0.f, 0.f, 0.f), q0), vf4_zwxy(q1));
+    vf4_mul(vf4_mul(vf4_set(-1.f, 1.f, 1.f, 1.f), q0), vf4_zwxy(q1));
   const vf4_t r2 =
-    vf4_mul(vf4_xor(vf4_set(0.f, s.f, 0.f, 0.f), q0), vf4_yxwz(q1));
+    vf4_mul(vf4_mul(vf4_set(1.f, -1.f, 1.f, 1.f), q0), vf4_yxwz(q1));
   const vf4_t r3 =
-    vf4_mul(vf4_xor(vf4_set(s.f, s.f, s.f, 0.f), q0), q1);
+    vf4_mul(vf4_mul(vf4_set(-1.f, -1.f, -1.f, 1.f), q0), q1);
 
   const vf4_t ijij = vf4_xayb(vf4_sum(r0), vf4_sum(r1));
   const vf4_t kaka = vf4_xayb(vf4_sum(r2), vf4_sum(r3));
@@ -66,9 +65,7 @@ aosq_mul(vf4_t q0, vf4_t q1)
 static FINLINE vf4_t
 aosq_conj(vf4_t q)  /* { -ix, -jy, -jz, a } */
 {
-  const union { float f; int32_t i; } sign = { .i = 0x80000000 };
-  const vf4_t mask = vf4_set(sign.f, sign.f, sign.f, 0.f);
-  return vf4_xor(q, mask);
+  return vf4_mul(q, vf4_set(-1.f, -1.f, -1.f, 1.f));
 }
 
 static FINLINE vf4_t

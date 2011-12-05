@@ -18,7 +18,7 @@ rb_create_context
     goto error;
 
   allocator = specific_allocator ? specific_allocator : &mem_default_allocator;
-  ctxt = MEM_CALLOC_I(allocator, 1, sizeof(struct rb_context));
+  ctxt = MEM_CALLOC(allocator, 1, sizeof(struct rb_context));
   if(!ctxt)
     goto error;
   ctxt->allocator = allocator;
@@ -30,7 +30,7 @@ exit:
 
 error:
   if(ctxt) {
-    MEM_FREE_I(allocator, ctxt);
+    MEM_FREE(allocator, ctxt);
     ctxt = NULL;
   }
   err = -1;
@@ -43,7 +43,7 @@ rb_free_context(struct rb_context* ctxt)
   int err = 0;
   if(!ctxt)
     return -1;
-  MEM_FREE_I(ctxt->allocator, ctxt);
+  MEM_FREE(ctxt->allocator, ctxt);
   return err;
 }
 

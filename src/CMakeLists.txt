@@ -6,9 +6,9 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${foo_SOURCE_DIR}/../lib)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${foo_SOURCE_DIR}/../bin)
 set(CMAKE_VERBOSE_MAKEFILE false)
 
-set(CMAKE_BUILD_TYPE "Debug")
+set(CMAKE_BUILD_TYPE "Release")
 set(CMAKE_C_FLAGS 
-  "-pedantic -std=c99 -Wall -Wcast-align -Wextra -Wmissing-declarations -Wmissing-prototypes -ffast-math -fvisibility=hidden -msse3")
+  "-pedantic -std=c99 -Wall -Wextra -Wcast-align -Wmissing-declarations -Wmissing-prototypes -ffast-math -fvisibility=hidden -msse3")
 set(CMAKE_C_FLAGS_DEBUG "-g -DDEBUG")
 set(CMAKE_C_FLAGS_RELEASE "-O3 -DNDEBUG")
  

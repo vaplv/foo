@@ -94,7 +94,7 @@ main(int argc, char** argv)
   CHECK(app_free_model(app, model), OK);
   CHECK(app_shutdown(app), OK);
 
-  CHECK(MEM_ALLOCATED_SIZE(), 0);
+  CHECK(MEM_ALLOCATED_SIZE(&mem_default_allocator), 0);
 
   return 0;
 }

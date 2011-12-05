@@ -9,7 +9,7 @@ sl_to_app_error(enum sl_error err)
       app_err = APP_ALIGNMENT_ERROR;
       break;
     case SL_INVALID_ARGUMENT:
-      app_err = APP_INTERNAL_ERROR;
+      app_err = APP_INVALID_ARGUMENT;
       break;
     case SL_MEMORY_ERROR:
       app_err = APP_MEMORY_ERROR;

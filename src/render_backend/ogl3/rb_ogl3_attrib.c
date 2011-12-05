@@ -65,7 +65,7 @@ get_active_attrib
        &attr_type,
        buffer));
 
-  attr = MEM_CALLOC_I(ctxt->allocator, 1, sizeof(struct rb_attrib));
+  attr = MEM_CALLOC(ctxt->allocator, 1, sizeof(struct rb_attrib));
   if(!attr)
     goto error;
 
@@ -78,7 +78,7 @@ get_active_attrib
     /* Add 1 to namelen <=> include the null character. */
     ++attr_namelen;
 
-    attr->name = MEM_ALLOC_I(ctxt->allocator, sizeof(char) * attr_namelen);
+    attr->name = MEM_ALLOC(ctxt->allocator, sizeof(char) * attr_namelen);
     if(!attr->name)
       goto error;
 
@@ -129,7 +129,7 @@ rb_get_attribs
 
   if(dst_attrib_list) {
     OGL(GetProgramiv(prog->name, GL_ACTIVE_ATTRIBUTE_MAX_LENGTH, &attr_buflen));
-    attr_buffer = MEM_ALLOC_I(ctxt->allocator, sizeof(GLchar) * attr_buflen);
+    attr_buffer = MEM_ALLOC(ctxt->allocator, sizeof(GLchar) * attr_buflen);
     if(!attr_buffer)
       goto error;
 
@@ -147,7 +147,7 @@ rb_get_attribs
 
 exit:
   if(attr_buffer)
-    MEM_FREE_I(ctxt->allocator, attr_buffer);
+    MEM_FREE(ctxt->allocator, attr_buffer);
   if(out_nb_attribs)
     *out_nb_attribs = nb_attribs;
   return err;
@@ -189,7 +189,7 @@ rb_get_named_attrib
     goto error;
 
   name_len = strlen(name) + 1;
-  attr->name = MEM_ALLOC_I(ctxt->allocator, sizeof(char) * name_len);
+  attr->name = MEM_ALLOC(ctxt->allocator, sizeof(char) * name_len);
   if(!attr->name)
     goto error;
 
@@ -230,8 +230,8 @@ rb_release_attribs
       assert(attr->program->ref_count > 0);
 
       attr->program->ref_count -= 1;
-      MEM_FREE_I(ctxt->allocator, attr->name);
-      MEM_FREE_I(ctxt->allocator, attr);
+      MEM_FREE(ctxt->allocator, attr->name);
+      MEM_FREE(ctxt->allocator, attr);
     }
   }
 

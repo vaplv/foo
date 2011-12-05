@@ -20,7 +20,7 @@ rsrc_create_context
     goto error;
   }
   allocator = specific_allocator ? specific_allocator : &mem_default_allocator;
-  ctxt = MEM_CALLOC_I(allocator, 1, sizeof(struct rsrc_context));
+  ctxt = MEM_CALLOC(allocator, 1, sizeof(struct rsrc_context));
   if(!ctxt) {
     err = RSRC_MEMORY_ERROR;
     goto error;
@@ -34,7 +34,7 @@ exit:
 
 error:
   if(ctxt) {
-    MEM_FREE_I(allocator, ctxt);
+    MEM_FREE(allocator, ctxt);
     ctxt = NULL;
   }
   goto exit;
@@ -51,7 +51,7 @@ rsrc_free_context(struct rsrc_context* ctxt)
     goto error;
   }
   allocator = ctxt->allocator;
-  MEM_FREE_I(allocator, ctxt);
+  MEM_FREE(allocator, ctxt);
 
 exit:
   return err;

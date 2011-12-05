@@ -34,7 +34,9 @@
    : (o)->ref_count)
 
 #define CREATE_REF_COUNT(data_size, func, o) \
-  (((o) = calloc(1, sizeof(REF_COUNT(struct)) + data_size)), \
+  (((o) = memalign \
+    (ALIGNOF(REF_COUNT(struct), sizeof(REF_COUNT(struct)) + data_size)), \
+   memset((o), 0, sizeof(REF_COUNT(struct))), \
    ((o) ? ((o)->destructor = func), RETAIN(o), (o) : NULL))
 
 #endif /* REF_COUNT_H */

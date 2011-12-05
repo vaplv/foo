@@ -42,13 +42,20 @@
   __builtin_choose_expr(cond, vtrue, vfalse)
 
 #define STATIC_ASSERT(condition, msg) \
-  extern char STATIC_ASSERT_##msg[1 -  2*(!(condition))] UNUSED
+  char STATIC_ASSERT_##msg[1 -  2*(!(condition))] UNUSED
 
 #define FORMAT_PRINTF(a, b) \
   __attribute__((format(printf, a, b)))
 
 #define IS_POWER_OF_2(i) \
   ((i) > 0 && ((i) & ((i)-1)) == 0)
+
+#define FATAL(msg) \
+  do { \
+    fprintf(stderr, msg); \
+    assert(0); \
+    exit(-1); \
+  } while(0) \
 
 #endif /* SYS_H */
 

@@ -100,7 +100,7 @@ build_program
           char* tmp_log = NULL;
           
           assert(log != NULL);
-          tmp_log = MEM_ALLOC_I(sys->allocator, strlen(log) + 1);
+          tmp_log = MEM_ALLOC(sys->allocator, strlen(log) + 1);
           if(!tmp_log) {
             rdr_err = RDR_MEMORY_ERROR;
             goto error;
@@ -128,7 +128,7 @@ build_program
       char* tmp_log = NULL; 
 
       assert(log != NULL);
-      tmp_log = MEM_ALLOC_I(sys->allocator, strlen(log) + 1);
+      tmp_log = MEM_ALLOC(sys->allocator, strlen(log) + 1);
       if(!tmp_log) {
         rdr_err = RDR_MEMORY_ERROR;
         goto error;
@@ -172,7 +172,7 @@ get_attribs
   }
 
   if(nb_mtr_attribs) {
-    mtr_attrib_list = MEM_ALLOC_I
+    mtr_attrib_list = MEM_ALLOC
       (sys->allocator, sizeof(struct rb_attrib*) * nb_mtr_attribs);
     if(!mtr_attrib_list) {
       rdr_err = RDR_MEMORY_ERROR;
@@ -195,7 +195,7 @@ exit:
 error:
   if(sys && mtr_attrib_list) {
     sys->rb.release_attribs(sys->ctxt, nb_mtr_attribs, mtr_attrib_list);
-    MEM_FREE_I(sys->allocator, mtr_attrib_list);
+    MEM_FREE(sys->allocator, mtr_attrib_list);
   }
   mtr_attrib_list = NULL;
   nb_mtr_attribs = 0;
@@ -219,7 +219,7 @@ release_attribs
       (sys->ctxt, nb_attribs, attrib_list);
     assert(err == 0);
 
-    MEM_FREE_I(sys->allocator, attrib_list);
+    MEM_FREE(sys->allocator, attrib_list);
   }
 }
 
@@ -244,7 +244,7 @@ get_uniforms
   }
 
   if(nb_uniforms) {
-    uniform_list = MEM_ALLOC_I
+    uniform_list = MEM_ALLOC
       (sys->allocator, sizeof(struct rb_uniform*) * nb_uniforms);
     if(!uniform_list) {
       rdr_err = RDR_MEMORY_ERROR;
@@ -266,7 +266,7 @@ exit:
 error:
   if(sys && uniform_list) {
     sys->rb.release_uniforms(sys->ctxt, nb_uniforms, uniform_list);
-    MEM_FREE_I(sys->allocator, uniform_list);
+    MEM_FREE(sys->allocator, uniform_list);
   }
   uniform_list = NULL;
   nb_uniforms = 0;
@@ -290,7 +290,7 @@ release_uniforms
       (sys->ctxt, nb_uniforms, uniform_list);
     assert(err == 0);
 
-    MEM_FREE_I(sys->allocator, uniform_list);
+    MEM_FREE(sys->allocator, uniform_list);
   }
 }
 
@@ -341,7 +341,7 @@ free_material(struct rdr_system* sys, void* data)
   release_uniforms(sys, mtr->nb_uniforms, mtr->uniform_list);
 
   if(mtr->log != NULL) {
-    MEM_FREE_I(sys->allocator, mtr->log);
+    MEM_FREE(sys->allocator, mtr->log);
     mtr->log = NULL;
   }
 
@@ -464,7 +464,7 @@ rdr_material_program
   release_shaders(sys, mtr->program, mtr->shader_list);
 
   if(mtr->log) {
-    MEM_FREE_I(sys->allocator, mtr->log);
+    MEM_FREE(sys->allocator, mtr->log);
     mtr->log = NULL;
   }
   rdr_err = build_program

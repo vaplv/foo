@@ -368,7 +368,7 @@ setup_model_instance_buffers
       && !instance->attrib_buffer);
 
   if(model_desc->sizeof_uniform_data) {
-    instance->uniform_buffer = MEM_CALLOC_I
+    instance->uniform_buffer = MEM_CALLOC
       (sys->allocator, 1, model_desc->sizeof_uniform_data);
     if(!instance->uniform_buffer) {
       rdr_err = RDR_MEMORY_ERROR;
@@ -376,7 +376,7 @@ setup_model_instance_buffers
     }
   }
   if(model_desc->sizeof_attrib_data) {
-    instance->attrib_buffer = MEM_CALLOC_I
+    instance->attrib_buffer = MEM_CALLOC
       (sys->allocator, 1, model_desc->sizeof_attrib_data);
     if(!instance->attrib_buffer) {
       rdr_err = RDR_MEMORY_ERROR;
@@ -389,9 +389,9 @@ error:
 
 exit:
   if(instance->uniform_buffer)
-    MEM_FREE_I(sys->allocator, instance->uniform_buffer);
+    MEM_FREE(sys->allocator, instance->uniform_buffer);
   if(instance->attrib_buffer)
-    MEM_FREE_I(sys->allocator, instance->attrib_buffer);
+    MEM_FREE(sys->allocator, instance->attrib_buffer);
 
   goto exit;
 }
@@ -417,12 +417,12 @@ model_callback_func
     goto error;
 
   if(instance->uniform_buffer) {
-    MEM_FREE_I(sys->allocator, instance->uniform_buffer);
+    MEM_FREE(sys->allocator, instance->uniform_buffer);
     instance->uniform_buffer = NULL;
   }
 
   if(instance->attrib_buffer) {
-    MEM_FREE_I(sys->allocator, instance->attrib_buffer);
+    MEM_FREE(sys->allocator, instance->attrib_buffer);
     instance->attrib_buffer = NULL;
   }
 
@@ -464,9 +464,9 @@ free_model_instance(struct rdr_system* sys, void* data)
   }
 
   if(instance->uniform_buffer)
-    MEM_FREE_I(sys->allocator, instance->uniform_buffer);
+    MEM_FREE(sys->allocator, instance->uniform_buffer);
   if(instance->attrib_buffer)
-    MEM_FREE_I(sys->allocator, instance->attrib_buffer);
+    MEM_FREE(sys->allocator, instance->attrib_buffer);
 
   RDR_RELEASE_OBJECT(sys, instance->model);
 }

@@ -33,7 +33,7 @@ wm_create_window
     goto error;
   }
 
-  win = MEM_CALLOC_I(device->allocator, 1, sizeof(struct wm_window));
+  win = MEM_CALLOC(device->allocator, 1, sizeof(struct wm_window));
   if(!win) {
     wm_err = WM_MEMORY_ERROR;
     goto error;
@@ -52,7 +52,7 @@ exit:
   return wm_err;
 error:
   if(win) {
-    MEM_FREE_I(device->allocator, win);
+    MEM_FREE(device->allocator, win);
     win = NULL;
   }
   goto exit;
@@ -65,7 +65,7 @@ wm_free_window(struct wm_device* device, struct wm_window* win)
     return WM_INVALID_ARGUMENT;
 
   glfwCloseWindow();
-  MEM_FREE_I(device->allocator, win);
+  MEM_FREE(device->allocator, win);
   return WM_NO_ERROR;
 }
 

@@ -122,7 +122,7 @@ main(int argc UNUSED, char** argv UNUSED)
   CHECK(sl_free_logger(NULL), BAD_ARG);
   CHECK(sl_free_logger(logger), OK);
 
-  CHECK(MEM_ALLOCATED_SIZE(), 0);
+  CHECK(MEM_ALLOCATED_SIZE(&mem_default_allocator), 0);
 
   return 0;
 }

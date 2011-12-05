@@ -86,7 +86,7 @@ get_active_uniform
        &uniform_type,
        buffer));
 
-  uniform = MEM_CALLOC_I(ctxt->allocator, 1, sizeof(struct rb_uniform));
+  uniform = MEM_CALLOC(ctxt->allocator, 1, sizeof(struct rb_uniform));
   if(!uniform)
     goto error;
 
@@ -100,7 +100,7 @@ get_active_uniform
     /* Add 1 to namelen <=> include the null character. */
     ++uniform_namelen;
 
-    uniform->name = MEM_ALLOC_I
+    uniform->name = MEM_ALLOC
       (ctxt->allocator, sizeof(char) * uniform_namelen);
     if(!uniform->name)
       goto error;
@@ -154,7 +154,7 @@ rb_get_named_uniform
     goto error;
 
   name_len = strlen(name) + 1;
-  uniform->name = MEM_ALLOC_I(ctxt->allocator, sizeof(char) * name_len);
+  uniform->name = MEM_ALLOC(ctxt->allocator, sizeof(char) * name_len);
   if(!uniform->name)
     goto error;
 
@@ -199,7 +199,7 @@ rb_get_uniforms
   if(dst_uniform_list) {
       OGL(GetProgramiv
         (prog->name, GL_ACTIVE_UNIFORM_MAX_LENGTH, &uniform_buflen));
-    uniform_buffer = MEM_ALLOC_I
+    uniform_buffer = MEM_ALLOC
       (ctxt->allocator, sizeof(GLchar) * uniform_buflen);
     if(!uniform_buffer)
       goto error;
@@ -218,7 +218,7 @@ rb_get_uniforms
 
 exit:
   if(uniform_buffer)
-    MEM_FREE_I(ctxt->allocator, uniform_buffer);
+    MEM_FREE(ctxt->allocator, uniform_buffer);
   if(out_nb_uniforms)
     *out_nb_uniforms = nb_uniforms;
   return err;
@@ -254,8 +254,8 @@ rb_release_uniforms
       assert(uniform->program->ref_count > 0);
 
       uniform->program->ref_count -= 1;
-      MEM_FREE_I(ctxt->allocator, uniform->name);
-      MEM_FREE_I(ctxt->allocator, uniform);
+      MEM_FREE(ctxt->allocator, uniform->name);
+      MEM_FREE(ctxt->allocator, uniform);
     }
   }
 

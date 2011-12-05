@@ -21,6 +21,8 @@ app_free_model_instance(struct app* app, struct app_model_instance* instance)
   size_t len = 0;
   size_t i = 0;
   enum app_error app_err = APP_NO_ERROR;
+  bool is_unregistered = false;
+  bool was_registered = true;
 
   if(!app || !instance) {
     app_err = APP_INVALID_ARGUMENT;
@@ -38,12 +40,21 @@ app_free_model_instance(struct app* app, struct app_model_instance* instance)
 
     SL(free_vector(instance->model_instance_list));
   }
-  MEM_FREE_I(app->allocator, instance);
+  APP(is_model_instance_registered(app, instance, &was_registered));
+  if(was_registered) {
+    app_err = app_unregister_model_instance(app, instance);
+    if(app_err != APP_NO_ERROR) 
+      goto error;
+    is_unregistered = true;
+  }
+  MEM_FREE(app->allocator, instance);
 
 exit:
   return app_err;
 
 error:
+  if(is_unregistered)
+    APP(register_model_instance(app, instance));
   goto exit;
 }
 
@@ -65,15 +76,15 @@ app_create_model_instance
     app_err = APP_INVALID_ARGUMENT;
     goto error;
   }
-  instance = MEM_CALLOC_I
+  instance = MEM_CALLOC
     (app->allocator, 1, sizeof(struct app_model_instance));
   if(!instance) {
     app_err = APP_MEMORY_ERROR;
     goto error;
   }
   sl_err = sl_create_vector
-    (sizeof(struct app_model_instance*),
-     ALIGNOF(struct app_model_instance*),
+    (sizeof(struct rdr_model_instance*),
+     ALIGNOF(struct rdr_model_instance*),
      app->allocator,
      &instance->model_instance_list);
   if(sl_err != SL_NO_ERROR) {

@@ -28,5 +28,17 @@ app_load_model
    const char* path,
    struct app_model* model);
 
+extern enum app_error
+app_model_name
+  (struct app* app,
+   struct app_model* model,
+   const char* name);
+
+extern enum app_error
+app_get_model_name
+  (struct app* app,
+   const struct app_model* model,
+   const char** name);
+
 #endif /* APP_MODEL_H */
 

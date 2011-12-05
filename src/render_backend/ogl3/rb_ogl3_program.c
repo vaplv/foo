@@ -14,7 +14,7 @@ rb_create_program(struct rb_context* ctxt, struct rb_program** out_program)
   if(!ctxt || !out_program)
     goto error;
 
-  program = MEM_CALLOC_I(ctxt->allocator, 1, sizeof(struct rb_program));
+  program = MEM_CALLOC(ctxt->allocator, 1, sizeof(struct rb_program));
   if(!program)
     goto error;
 
@@ -31,7 +31,7 @@ error:
   err = -1;
   if(program->name != 0)
     OGL(DeleteProgram(program->name));
-  MEM_FREE_I(ctxt->allocator, program);
+  MEM_FREE(ctxt->allocator, program);
   goto exit;
 }
 
@@ -45,8 +45,8 @@ rb_free_program(struct rb_context* ctxt, struct rb_program* program)
     return -1;
 
   OGL(DeleteProgram(program->name));
-  MEM_FREE_I(ctxt->allocator, program->log);
-  MEM_FREE_I(ctxt->allocator, program);
+  MEM_FREE(ctxt->allocator, program->log);
+  MEM_FREE(ctxt->allocator, program);
   return 0;
 }
 
@@ -102,7 +102,7 @@ rb_link_program(struct rb_context* ctxt, struct rb_program* program)
 
     OGL(GetProgramiv(program->name, GL_INFO_LOG_LENGTH, &log_length));
 
-    program->log = MEM_REALLOC_I
+    program->log = MEM_REALLOC
       (ctxt->allocator, program->log, log_length*sizeof(char));
     if(!program->log)
       goto error;
@@ -110,7 +110,7 @@ rb_link_program(struct rb_context* ctxt, struct rb_program* program)
     OGL(GetProgramInfoLog(program->name, log_length, NULL, program->log));
     err = -1;
   } else {
-    MEM_FREE_I(ctxt->allocator, program->log);
+    MEM_FREE(ctxt->allocator, program->log);
     program->log = NULL;
   }
 

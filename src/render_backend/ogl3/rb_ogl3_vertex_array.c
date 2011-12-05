@@ -22,7 +22,7 @@ rb_create_vertex_array
   if(!ctxt || !out_array)
     return -1;
 
-  array = MEM_ALLOC_I(ctxt->allocator, sizeof(struct rb_vertex_array));
+  array = MEM_ALLOC(ctxt->allocator, sizeof(struct rb_vertex_array));
   if(!array)
     return -1;
 
@@ -38,7 +38,7 @@ rb_free_vertex_array(struct rb_context* ctxt, struct rb_vertex_array* array)
     return -1;
 
   OGL(DeleteBuffers(1, &array->name));
-  MEM_FREE_I(ctxt->allocator, array);
+  MEM_FREE(ctxt->allocator, array);
   return 0;
 }
 

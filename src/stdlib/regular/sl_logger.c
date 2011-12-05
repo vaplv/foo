@@ -54,7 +54,7 @@ sl_create_logger
     goto error;
   }
   allocator = specific_allocator ? specific_allocator : &mem_default_allocator;
-  logger = MEM_CALLOC_I(allocator, 1, sizeof(struct sl_logger));
+  logger = MEM_CALLOC(allocator, 1, sizeof(struct sl_logger));
   if(!logger) {
     sl_err = SL_MEMORY_ERROR;
     goto error;
@@ -70,7 +70,7 @@ sl_create_logger
 
   logger->allocator = allocator;
   logger->buffer_len = BUFSIZ;
-  logger->buffer = MEM_ALLOC_I(allocator, sizeof(char) * BUFSIZ);
+  logger->buffer = MEM_ALLOC(allocator, sizeof(char) * BUFSIZ);
   if(!logger->buffer) {
     sl_err = SL_MEMORY_ERROR;
     goto error;
@@ -107,8 +107,8 @@ sl_free_logger(struct sl_logger* logger)
       goto error;
   }
   allocator = logger->allocator;
-  MEM_FREE_I(allocator, logger->buffer);
-  MEM_FREE_I(allocator, logger);
+  MEM_FREE(allocator, logger->buffer);
+  MEM_FREE(allocator, logger);
 
 exit:
   return sl_err;;
@@ -203,12 +203,12 @@ sl_logger_print
   assert(i > 0);
   if((size_t)i >= logger->buffer_len) {
     len = i + 1; /* +1 <=> null terminated character. */
-    buffer = MEM_ALLOC_I(logger->allocator, len * sizeof(char));
+    buffer = MEM_ALLOC(logger->allocator, len * sizeof(char));
     if(!buffer) {
       sl_err = SL_MEMORY_ERROR;
       goto error;
     }
-    MEM_FREE_I(logger->allocator, logger->buffer);
+    MEM_FREE(logger->allocator, logger->buffer);
     logger->buffer = buffer;
     logger->buffer_len = len;
     i = vsnprintf(logger->buffer, logger->buffer_len, fmt, vargs_list);

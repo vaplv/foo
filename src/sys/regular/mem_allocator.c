@@ -186,18 +186,16 @@ default_allocated_size(const void* data UNUSED)
   #endif
 }
 
-static void
+static size_t
 default_dump
   (const void* data UNUSED,
    char* dump,
-   size_t max_dump_len,
-   size_t* real_dump_len)
+   size_t max_dump_len)
 {
   #ifdef NDEBUG
   if(dump && max_dump_len)
     dump[0] = '\0';
-  if(real_dump_len)
-    *real_dump_len = 0;
+  return 0;
   #else
   const struct alloc_counter* alloc_counter = NULL;
   size_t dump_len = 0;
@@ -218,8 +216,7 @@ default_dump
   if((size_t)len >= (max_dump_len - 1)) /* -1 <=> null char. */
     dump[max_dump_len] = '\0';
 
-  if(real_dump_len)
-    *real_dump_len = dump_len;
+  return dump_len;
   #endif
 }
 
@@ -269,7 +266,7 @@ proxy_aligned_alloc
 
   node_header_size = ALIGN_SIZE(sizeof(struct mem_node), align);
   node_size = node_header_size + size;
-  node = MEM_ALIGNED_ALLOC_I(proxy_data->allocator, node_size, align);
+  node = MEM_ALIGNED_ALLOC(proxy_data->allocator, node_size, align);
   if(!node)
     return NULL;
 
@@ -338,7 +335,7 @@ proxy_free(void* data, void* mem)
     if(node->prev == NULL) {
       proxy_data->node_list = node->next;
     }
-    MEM_FREE_I(proxy_data->allocator, node);
+    MEM_FREE(proxy_data->allocator, node);
   }
 }
 
@@ -398,12 +395,11 @@ proxy_allocated_size(const void* data)
   return allocated_size;
 }
 
-static void
+static size_t
 proxy_dump
   (const void* data,
    char* dump,
-   size_t max_dump_len,
-   size_t* real_dump_len)
+   size_t max_dump_len)
 {
   const struct proxy_data* proxy_data = NULL;
   struct mem_node* node = NULL;
@@ -434,8 +430,7 @@ proxy_dump
       avaible_dump_space = 0;
     }
   }
-  if(real_dump_len)
-    *real_dump_len = dump_len;
+  return dump_len;
 }
 
 #undef PROXY_DEFAULT_ALIGNMENT
@@ -474,7 +469,7 @@ mem_init_proxy_allocator
   if((!allocator) | (!proxy_allocator))
     goto error;
 
-  proxy_data = MEM_CALLOC_I(allocator, 1, sizeof(struct proxy_data));
+  proxy_data = MEM_CALLOC(allocator, 1, sizeof(struct proxy_data));
   if(!proxy_data)
     goto error;
   proxy_data->name = name;
@@ -495,7 +490,7 @@ exit:
 error:
   if(proxy_allocator) {
     assert(proxy_data == NULL);
-    memset(&proxy_allocator, 0, sizeof(struct mem_allocator));
+    memset(proxy_allocator, 0, sizeof(struct mem_allocator));
   }
   goto exit;
 }
@@ -510,7 +505,7 @@ mem_shutdown_proxy_allocator(struct mem_allocator* proxy)
   proxy_data = proxy->data;
   assert(proxy_data->node_list == NULL);
   allocator = proxy_data->allocator;
-  MEM_FREE_I(allocator, proxy_data);
+  MEM_FREE(allocator, proxy_data);
   memset(proxy, 0, sizeof(struct mem_allocator));
 }
 

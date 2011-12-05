@@ -44,7 +44,7 @@ rb_create_buffer
   || (desc->size != (size = desc->size)))
     return -1;
 
-  buffer = MEM_ALLOC_I(ctxt->allocator, sizeof(struct rb_buffer));
+  buffer = MEM_ALLOC(ctxt->allocator, sizeof(struct rb_buffer));
   if(!buffer)
     return -1;
 
@@ -69,7 +69,7 @@ rb_free_buffer(struct rb_context* ctxt, struct rb_buffer* buffer)
     return -1;
 
   OGL(DeleteBuffers(1, &buffer->name));
-  MEM_FREE_I(ctxt->allocator, buffer);
+  MEM_FREE(ctxt->allocator, buffer);
   return 0;
 }
 

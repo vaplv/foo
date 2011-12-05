@@ -367,7 +367,7 @@ main(int argc UNUSED, char** argv UNUSED)
   CHECK(sl_vector_insert(vec, 0, i + 1), SL_ALIGNMENT_ERROR);
   CHECK(sl_free_vector(vec), OK);
 
-  CHECK(MEM_ALLOCATED_SIZE(), 0);
+  CHECK(MEM_ALLOCATED_SIZE(&mem_default_allocator), 0);
 
   return 0;
 }

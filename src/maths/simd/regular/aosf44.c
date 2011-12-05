@@ -2,7 +2,7 @@
 #include "sys/sys.h"
 
 EXPORT_SYM vf4_t
-aosf44_inverse(struct aosf44* res, const struct aosf44* m) 
+aosf44_inverse(struct aosf44* res, const struct aosf44* m)
 {
   /* Retrieve the columns 0, 1, 2 and 3 and the row 3 of the "m" matrix. */
   const vf4_t c0 = m->c0;
@@ -65,16 +65,15 @@ aosf44_inverse(struct aosf44* res, const struct aosf44* m)
      aosf33_det(&f33_013_012));
 
   /* Compute the cofactors of the column 3 */
-  const union { float f; int32_t i; } s = { .i = 0x80000000 };
-  const vf4_t cofacts = vf4_xor(det_012, vf4_set(s.f, 0.f, s.f, 0.f));
+  const vf4_t cofacts = vf4_mul(det_012, vf4_set(-1.f, 1.f, -1.f, 1.f));
 
   /* Compute the determinant of the "m" matrix */
   const vf4_t det = vf4_dot(cofacts, r3);
 
   /* Invert the matrix */
   const vf4_t idet = vf4_rcp(det);
-  const vf4_t mpmp_idet = vf4_xor(idet, vf4_set(s.f, 0.f, s.f, 0.f));
-  const vf4_t pmpm_idet = vf4_xor(idet, vf4_set(0.f, s.f, 0.f, s.f));
+  const vf4_t mpmp_idet = vf4_mul(idet, vf4_set(-1.f, 1.f, -1.f, 1.f));
+  const vf4_t pmpm_idet = vf4_mul(idet, vf4_set(1.f, -1.f, 1.f, -1.f));
   res->c0 = vf4_mul(det_123, pmpm_idet);
   res->c1 = vf4_mul(det_023, mpmp_idet);
   res->c2 = vf4_mul(det_013, pmpm_idet);
