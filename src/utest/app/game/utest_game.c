@@ -34,7 +34,7 @@ main(int argc, char** argv)
   CHECK(game_free(NULL), GAME_INVALID_ARGUMENT);
   CHECK(game_free(game), GAME_NO_ERROR);
 
-  CHECK(app_shutdown(app), APP_NO_ERROR);
+  CHECK(app_ref_put(app), APP_NO_ERROR);
 
   CHECK(MEM_ALLOCATED_SIZE(&mem_default_allocator), 0);
   return 0;

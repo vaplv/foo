@@ -54,7 +54,7 @@ on_add_model
     APP(create_model(edit->app, filename, &model));
     APP(instantiate_model(edit->app, model, &instance));
     APP(get_main_world(edit->app, &world));
-    APP(world_add_model_instances(edit->app, world, 1, &instance));
+    APP(world_add_model_instances(world, 1, &instance));
 
     g_free(filename);
   }
@@ -110,17 +110,16 @@ on_button_pressed
  ******************************************************************************/
 static void
 add_model
-  (struct app* app UNUSED,
-   struct app_model* model,
+  (struct app_model* model,
    void* data)
 {
   const char* model_name = NULL;
   GtkListStore* list_store = NULL;
   GtkTreeIter iter;
   struct edit* edit = data;
-  assert(app && model && data);
+  assert(model && data);
 
-  APP(get_model_name(app, model, &model_name));
+  APP(get_model_name(model, &model_name));
   if(!model_name)
     model_name = "Unknown";
 
@@ -132,8 +131,7 @@ add_model
 
 static void
 remove_model
-  (struct app* app UNUSED,
-   struct app_model* mode UNUSED,
+  (struct app_model* mode UNUSED,
    void* data UNUSED)
 {
 }
@@ -195,7 +193,7 @@ populate_explorer_list(struct edit* edit)
     GtkTreeIter iter;
     const char* model_name = NULL;
 
-    APP(get_model_name(edit->app, model_list[i], &model_name));
+    APP(get_model_name(model_list[i], &model_name));
     if(!model_name)
       model_name = "Unknown";
 

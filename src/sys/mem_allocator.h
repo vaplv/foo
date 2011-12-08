@@ -1,6 +1,7 @@
 #ifndef MEM_ALLOCATOR_H
 #define MEM_ALLOCATOR_H
 
+#include "sys/ref_count.h"
 #include <stddef.h>
 
 struct mem_sys_info {

@@ -57,5 +57,8 @@
     exit(-1); \
   } while(0) \
 
+#define CONTAINER_OF(ptr, type, member) \
+    (type*)((uintptr_t)ptr - offsetof(type, member))
+  
 #endif /* SYS_H */
 

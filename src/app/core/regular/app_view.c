@@ -9,6 +9,25 @@
 
 #define DEG2RAD(x) ((x)*0.0174532925199432957692369076848861L)
 
+/*******************************************************************************
+ *
+ * Helper functions.
+ *
+ ******************************************************************************/
+static void
+release_view(struct ref* ref)
+{
+  struct app_view* view = NULL;
+  assert(ref);
+  view = CONTAINER_OF(ref, struct app_view, ref);
+  MEM_FREE(view->app->allocator, view);
+}
+
+/*******************************************************************************
+ *
+ * View functions.
+ *
+ ******************************************************************************/
 EXPORT_SYM enum app_error
 app_create_view(struct app* app, struct app_view** out_view)
 {
@@ -19,13 +38,14 @@ app_create_view(struct app* app, struct app_view** out_view)
     app_err = APP_INVALID_ARGUMENT;
     goto error;
   }
-
   view = MEM_ALIGNED_ALLOC(app->allocator, sizeof(struct app_view), 16);
   if(!view) {
     app_err = APP_MEMORY_ERROR;
     goto error;
   }
   view = memset(view, 0, sizeof(struct app_view));
+  view->app = app;
+  ref_init(&view->ref);
 
   aosf44_identity(&view->transform);
   view->ratio = 4.f / 3.f;
@@ -40,25 +60,33 @@ exit:
 
 error:
   if(view) {
-    MEM_FREE(app->allocator, view);
+    while(!ref_put(&view->ref, release_view));
     view = NULL;
   }
   goto exit;
 }
 
 EXPORT_SYM enum app_error
-app_free_view(struct app* app, struct app_view* view)
+app_view_ref_get(struct app_view* view)
 {
-  if(!app || !view)
+  if(!view)
     return APP_INVALID_ARGUMENT;
-  MEM_FREE(app->allocator, view);
+  ref_get(&view->ref);
+  return APP_NO_ERROR;
+}
+
+EXPORT_SYM enum app_error
+app_view_ref_put(struct app_view* view)
+{
+  if(!view)
+    return APP_INVALID_ARGUMENT;
+  ref_put(&view->ref, release_view);
   return APP_NO_ERROR;
 }
 
 EXPORT_SYM enum app_error
 app_look_at
-  (struct app* app,
-   struct app_view* view,
+  (struct app_view* view,
    float pos[3],
    float target[3],
    float up[3])
@@ -68,7 +96,7 @@ app_look_at
   vf4_t aos_pos;
   vf4_t aos_up;
 
-  if(!app || !view || !pos || !target || !up)
+  if(!view || !pos || !target || !up)
     return APP_INVALID_ARGUMENT;
 
   aos_target = vf4_set(target[0], target[1], target[3], 0.f);
@@ -91,14 +119,13 @@ app_look_at
 
 EXPORT_SYM enum app_error
 app_perspective
-  (struct app* app,
-   struct app_view* view,
+  (struct app_view* view,
    float fov_x,
    float ratio,
    float znear,
    float zfar)
 {
-  if(!app || !view)
+  if(!view)
     return APP_INVALID_ARGUMENT;
   view->fov_x = fov_x;
   view->ratio = ratio;
@@ -109,13 +136,12 @@ app_perspective
 
 EXPORT_SYM enum app_error
 app_view_translate
-  (struct app* app,
-   struct app_view* view,
+  (struct app_view* view,
    float x,
    float y,
    float z)
 {
-  if(!app || !view)
+  if(!view)
     return APP_INVALID_ARGUMENT;
 
   view->transform.c3 = vf4_add(view->transform.c3, vf4_set(x, y, z, 0.f));
@@ -125,8 +151,7 @@ app_view_translate
 /* XYZ norm. */
 EXPORT_SYM enum app_error
 app_view_rotate
-  (struct app* app,
-   struct app_view* view,
+  (struct app_view* view,
    float pitch,
    float yaw,
    float roll)
@@ -135,7 +160,7 @@ app_view_rotate
   float c1, c2, c3;
   float s1, s2, s3;
 
-  if(!app || !view)
+  if(!view)
     return APP_INVALID_ARGUMENT;
 
   if(!yaw && !pitch && !roll)
@@ -158,9 +183,8 @@ app_view_rotate
 }
 
 EXPORT_SYM enum app_error
-app_get_view_space
-  (struct app* app,
-   struct app_view* view,
+app_get_view_basis
+  (struct app_view* view,
    float pos[3],
    float right[3],
    float up[3],
@@ -170,7 +194,7 @@ app_get_view_space
   struct aosf44 m;
   vf4_t v;
 
-  if(!app || !view)
+  if(!view)
     return APP_INVALID_ARGUMENT;
 
   v = vf4_normalize3(vf4_minus(view->transform.c0));
@@ -203,14 +227,13 @@ app_get_view_space
 
 EXPORT_SYM enum app_error
 app_get_view_projection
-  (struct app* app,
-   struct app_view* view,
+  (struct app_view* view,
    float* fov_x,
    float* ratio,
    float* znear,
    float* zfar)
 {
-  if(!app || !view)
+  if(!view)
     return APP_INVALID_ARGUMENT;
 
   if(fov_x)

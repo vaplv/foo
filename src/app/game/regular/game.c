@@ -104,14 +104,12 @@ update_view
 
   APP(get_main_view(app, &view));
   APP(view_translate
-    (app,
-     view,
+    (view,
      move_scale * (float)usr_cmd->move_right,
      move_scale * (float)usr_cmd->move_up,
      move_scale * (float)usr_cmd->move_forward));
   APP(view_rotate
-    (app,
-     view,
+    (view,
      rotate_scale * (float)usr_cmd->pitch,
      rotate_scale * (float)usr_cmd->yaw,
      rotate_scale * (float)usr_cmd->roll));

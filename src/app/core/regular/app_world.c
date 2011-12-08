@@ -9,6 +9,7 @@
 #include "renderer/rdr_world.h"
 #include "stdlib/sl_vector.h"
 #include "sys/mem_allocator.h"
+#include "sys/ref_count.h"
 #include "sys/sys.h"
 #include "window_manager/wm_window.h"
 #include <assert.h>
@@ -16,8 +17,26 @@
 #include <string.h>
 
 struct app_world {
+  struct ref ref;
+  struct app* app;
   struct rdr_world* render_world;
 };
+
+/*******************************************************************************
+ *
+ * World functions.
+ *
+ ******************************************************************************/
+static void
+release_world(struct ref* ref)
+{
+  struct app_world* world = NULL;
+  assert(ref != NULL);
+
+  world = CONTAINER_OF(ref, struct app_world, ref);
+  RDR(free_world(world->app->rdr, world->render_world));
+  MEM_FREE(world->app->allocator, world);
+}
 
 /*******************************************************************************
  *
@@ -41,6 +60,8 @@ app_create_world(struct app* app, struct app_world** out_world)
     err = APP_MEMORY_ERROR;
     goto error;
   }
+  world->app = app;
+  ref_init(&world->ref);
 
   rdr_err = rdr_create_world(app->rdr, &world->render_world);
   if(rdr_err != RDR_NO_ERROR) {
@@ -63,40 +84,33 @@ error:
   if(world) {
     if(world->render_world)
       RDR(free_world(app->rdr, world->render_world));
-    MEM_FREE(app->allocator, world);
+    while(!ref_put(&world->ref, release_world));
     world = NULL;
   }
   goto exit;
 }
 
 EXPORT_SYM enum app_error
-app_free_world(struct app* app, struct app_world* world)
+app_world_ref_get(struct app_world* world)
 {
-  enum app_error app_err = APP_NO_ERROR;
-  enum rdr_error rdr_err = RDR_NO_ERROR;
+  if(!world)
+    return APP_INVALID_ARGUMENT;
+  ref_get(&world->ref);
+  return APP_NO_ERROR;
+}
 
-  if(!app || !world) {
-    app_err = APP_INVALID_ARGUMENT;
-    goto error;
-  }
-  rdr_err = rdr_free_world(app->rdr, world->render_world);
-  if(rdr_err != RDR_NO_ERROR) {
-    app_err = rdr_to_app_error(rdr_err);
-    goto error;
-  }
-  MEM_FREE(app->allocator, world);
-
-exit:
-  return app_err;
-
-error:
-  goto exit;
+EXPORT_SYM enum app_error
+app_world_ref_put(struct app_world* world)
+{
+  if(!world)
+    return APP_INVALID_ARGUMENT;
+  ref_put(&world->ref, release_world);
+  return APP_NO_ERROR;
 }
 
 EXPORT_SYM enum app_error
 app_world_add_model_instances
-  (struct app* app,
-   struct app_world* world,
+  (struct app_world* world,
    size_t nb_model_instances,
    struct app_model_instance* instance_list[])
 {
@@ -108,7 +122,7 @@ app_world_add_model_instances
   enum app_error app_err = APP_NO_ERROR;
   enum rdr_error rdr_err = RDR_NO_ERROR;
 
-  if(!app || !world || (nb_model_instances && !instance_list)) {
+  if(!world || (nb_model_instances && !instance_list)) {
     app_err = APP_INVALID_ARGUMENT;
     goto error;
   }
@@ -121,7 +135,7 @@ app_world_add_model_instances
         (void**)&buffer));
     for(j = 0; j < len; ++j) {
       rdr_err = rdr_add_model_instance
-        (app->rdr, world->render_world, buffer[j]);
+        (world->app->rdr, world->render_world, buffer[j]);
       if(rdr_err != RDR_NO_ERROR) {
         app_err = rdr_to_app_error(rdr_err);
         goto error;
@@ -142,7 +156,8 @@ error:
         NULL,
         (void**)&buffer));
     for(j = 0; j < len && nb_added_instances; ++j) {
-      RDR(remove_model_instance(app->rdr, world->render_world, buffer[i]));
+      RDR(remove_model_instance
+        (world->app->rdr, world->render_world, buffer[i]));
       --nb_added_instances;
     }
   }
@@ -152,8 +167,7 @@ error:
 
 EXPORT_SYM enum app_error
 app_world_remove_model_instances
-  (struct app* app,
-   struct app_world* world,
+  (struct app_world* world,
    size_t nb_model_instances,
    struct app_model_instance* instance_list[])
 {
@@ -166,7 +180,7 @@ app_world_remove_model_instances
   enum rdr_error rdr_err = RDR_NO_ERROR;
   enum sl_error sl_err = SL_NO_ERROR;
 
-  if(!app || !world || (nb_model_instances && !instance_list)) {
+  if(!world || (nb_model_instances && !instance_list)) {
     app_err = APP_INVALID_ARGUMENT;
     goto error;
   }
@@ -183,7 +197,7 @@ app_world_remove_model_instances
     }
     for(j = 0; j < len; ++j) {
       rdr_err = rdr_remove_model_instance
-        (app->rdr, world->render_world, buffer[j]);
+        (world->app->rdr, world->render_world, buffer[j]);
       if(rdr_err != RDR_NO_ERROR) {
         app_err = rdr_to_app_error(rdr_err);
         goto error;
@@ -204,7 +218,7 @@ error:
         NULL,
         (void**)&buffer));
     for(j = 0; j < len && nb_removed_instances; ++j) {
-      RDR(add_model_instance(app->rdr, world->render_world, buffer[i]));
+      RDR(add_model_instance(world->app->rdr, world->render_world, buffer[i]));
       --nb_removed_instances;
     }
   }
@@ -218,22 +232,19 @@ error:
  *
  ******************************************************************************/
 enum app_error
-app_draw_world
-  (struct app* app,
-   struct app_world* world,
-   const struct app_view* view)
+app_draw_world(struct app_world* world, const struct app_view* view)
 {
   struct wm_window_desc win_desc;
   struct rdr_view render_view;
   enum app_error app_err = APP_NO_ERROR;
   enum rdr_error rdr_err = RDR_NO_ERROR;
 
-  if(!app || !world || !view) {
+  if(!world || !view) {
     app_err = APP_INVALID_ARGUMENT;
     goto error;
   }
 
-  WM(get_window_desc(app->wm, app->window, &win_desc));
+  WM(get_window_desc(world->app->wm, world->app->window, &win_desc));
 
   assert(sizeof(view->transform) == sizeof(render_view.transform));
 
@@ -247,7 +258,7 @@ app_draw_world
   render_view.width = win_desc.width;
   render_view.height = win_desc.height;
 
-  rdr_err = rdr_draw_world(app->rdr, world->render_world, &render_view);
+  rdr_err = rdr_draw_world(world->app->rdr, world->render_world, &render_view);
   if(rdr_err != RDR_NO_ERROR) {
     app_err = rdr_to_app_error(rdr_err);
     goto error;

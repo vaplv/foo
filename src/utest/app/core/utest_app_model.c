@@ -15,7 +15,7 @@
 #define BAD_ARG APP_INVALID_ARGUMENT
 
 static void
-cbk(struct app* app UNUSED, struct app_model* model, void* data)
+cbk(struct app_model* model, void* data)
 {
   struct app_model** m = data;
   (*m) = model;
@@ -88,10 +88,8 @@ main(int argc, char** argv)
   CHECK(model, model2);
 
   model3 = NULL;
-  CHECK(app_free_model(NULL, NULL), BAD_ARG);
-  CHECK(app_free_model(app, NULL), BAD_ARG);
-  CHECK(app_free_model(NULL, model), BAD_ARG);
-  CHECK(app_free_model(app, model), OK);
+  CHECK(app_model_ref_put(NULL), BAD_ARG);
+  CHECK(app_model_ref_put(model), OK);
   CHECK(model, model3);
 
   model2 = NULL;
@@ -99,20 +97,14 @@ main(int argc, char** argv)
   CHECK(model, model2);
 
   model2 = NULL;
-  CHECK(app_clear_model(NULL, NULL), BAD_ARG);
-  CHECK(app_clear_model(app, NULL), BAD_ARG);
-  CHECK(app_clear_model(NULL, model), BAD_ARG);
-  CHECK(app_clear_model(app, model), OK);
+  CHECK(app_clear_model(NULL), BAD_ARG);
+  CHECK(app_clear_model(model), OK);
   CHECK(model2, NULL);
 
-  CHECK(app_load_model(NULL, NULL, NULL), BAD_ARG);
-  CHECK(app_load_model(app, NULL, NULL), BAD_ARG);
-  CHECK(app_load_model(NULL, PATH, NULL), BAD_ARG);
-  CHECK(app_load_model(app, PATH, NULL), BAD_ARG);
-  CHECK(app_load_model(NULL, NULL, model), BAD_ARG);
-  CHECK(app_load_model(app, NULL, model), BAD_ARG);
-  CHECK(app_load_model(NULL, PATH, model), BAD_ARG);
-  CHECK(app_load_model(app, PATH, model), OK);
+  CHECK(app_load_model(NULL, NULL), BAD_ARG);
+  CHECK(app_load_model(PATH, NULL), BAD_ARG);
+  CHECK(app_load_model(NULL, model), BAD_ARG);
+  CHECK(app_load_model(PATH, model), OK);
   CHECK(model2, NULL);
 
   /* This model may be freed when the application will be shut down. */
@@ -128,14 +120,18 @@ main(int argc, char** argv)
   CHECK(app_instantiate_model(NULL, model, &instance), BAD_ARG);
   CHECK(app_instantiate_model(app, model, &instance), OK);
 
-  CHECK(app_free_model_instance(NULL, NULL), BAD_ARG);
-  CHECK(app_free_model_instance(app, NULL), BAD_ARG);
-  CHECK(app_free_model_instance(NULL, instance), BAD_ARG);
-  CHECK(app_free_model_instance(app, instance), OK);
+  CHECK(app_model_instance_ref_get(NULL), BAD_ARG);
+  CHECK(app_model_instance_ref_get(instance), OK);
+  CHECK(app_model_instance_ref_put(NULL), BAD_ARG);
+  CHECK(app_model_instance_ref_put(instance), OK);
+  CHECK(app_model_instance_ref_put(instance), OK);
 
-  CHECK(app_free_model(app, model), OK);
+  CHECK(app_model_ref_get(NULL), BAD_ARG);
+  CHECK(app_model_ref_get(model), OK);
+  CHECK(app_model_ref_put(model), OK);
+  CHECK(app_model_ref_put(model), OK);
 
-  CHECK(app_shutdown(app), OK);
+  CHECK(app_ref_put(app), OK);
 
   CHECK(MEM_ALLOCATED_SIZE(&mem_default_allocator), 0);
 

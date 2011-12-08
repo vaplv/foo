@@ -10,6 +10,7 @@
 #include "stdlib/sl_error.h"
 #include "stdlib/sl_logger.h"
 #include "sys/mem_allocator.h"
+#include "sys/ref_count.h"
 #include <stdbool.h>
 
 #ifndef NDEBUG
@@ -50,7 +51,13 @@ struct sl_vector;
 struct wm_device;
 struct wm_window;
 
+struct model_callback {
+  void (*func)(struct app_model*, void*);
+  void* data;
+};
+
 struct app {
+  struct ref ref;
   struct app_world* world;
   struct app_view* view;
   struct mem_allocator* allocator; /* allocator of this (app). */
@@ -69,38 +76,6 @@ struct app {
   struct wm_device* wm;
   struct wm_window* window;
 };
-
-extern enum app_error
-app_register_model
-  (struct app* app,
-   struct app_model* model);
-
-extern enum app_error
-app_unregister_model
-  (struct app* app,
-   struct app_model* model);
-
-extern enum app_error
-app_is_model_registered
-  (struct app* app,
-   struct app_model* model,
-   bool* is_registered);
-
-extern enum app_error
-app_register_model_instance
-  (struct app* app,
-   struct app_model_instance* instance);
-
-extern enum app_error
-app_unregister_model_instance
-  (struct app* app,
-   struct app_model_instance* instance);
-
-extern enum app_error
-app_is_model_instance_registered
-  (struct app* app,
-   struct  app_model_instance* instance,
-   bool* is_registered);
 
 extern enum rdr_attrib_usage
 rsrc_to_rdr_attrib_usage

@@ -187,7 +187,7 @@ exit:
     }
   }
   if(app) {
-    app_err = app_shutdown(app);
+    app_err = app_ref_put(app);
     assert(app_err == APP_NO_ERROR);
     if(MEM_ALLOCATED_SIZE(&engine_allocator)) {
       MEM_DUMP(&engine_allocator, buffer, sizeof(buffer));

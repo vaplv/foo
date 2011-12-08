@@ -48,51 +48,37 @@ main(int argc, char** argv)
   CHECK(app_create_world(NULL, &world), BAD_ARG);
   CHECK(app_create_world(app, &world), OK);
 
-  CHECK(app_world_add_model_instances(NULL, NULL, 0, NULL), BAD_ARG);
-  CHECK(app_world_add_model_instances(app, NULL, 0, NULL), BAD_ARG);
-  CHECK(app_world_add_model_instances(NULL, world, 0, NULL), BAD_ARG);
-  CHECK(app_world_add_model_instances(app, world, 0, NULL), OK);
-  CHECK(app_world_add_model_instances(NULL, NULL, 0, instances), BAD_ARG);
-  CHECK(app_world_add_model_instances(app, NULL, 0, instances), BAD_ARG);
-  CHECK(app_world_add_model_instances(NULL, world, 0, instances), BAD_ARG);
-  CHECK(app_world_add_model_instances(app, world, 0, instances), OK);
-  CHECK(app_world_add_model_instances(NULL, NULL, 2, NULL), BAD_ARG);
-  CHECK(app_world_add_model_instances(app, NULL, 2, NULL), BAD_ARG);
-  CHECK(app_world_add_model_instances(NULL, world, 2, NULL), BAD_ARG);
-  CHECK(app_world_add_model_instances(app, world, 2, NULL), BAD_ARG);
-  CHECK(app_world_add_model_instances(NULL, NULL, 2, instances), BAD_ARG);
-  CHECK(app_world_add_model_instances(app, NULL, 2, instances), BAD_ARG);
-  CHECK(app_world_add_model_instances(NULL, world, 2, instances), BAD_ARG);
-  CHECK(app_world_add_model_instances(app, world, 2, instances), OK);
+  CHECK(app_world_add_model_instances(NULL, 0, NULL), BAD_ARG);
+  CHECK(app_world_add_model_instances(world, 0, NULL), OK);
+  CHECK(app_world_add_model_instances(NULL, 0, instances), BAD_ARG);
+  CHECK(app_world_add_model_instances(world, 0, instances), OK);
+  CHECK(app_world_add_model_instances(NULL, 2, NULL), BAD_ARG);
+  CHECK(app_world_add_model_instances(world, 2, NULL), BAD_ARG);
+  CHECK(app_world_add_model_instances(NULL, 2, instances), BAD_ARG);
+  CHECK(app_world_add_model_instances(world, 2, instances), OK);
 
-  CHECK(app_world_remove_model_instances(NULL, NULL, 0, NULL), BAD_ARG);
-  CHECK(app_world_remove_model_instances(app, NULL, 0, NULL), BAD_ARG);
-  CHECK(app_world_remove_model_instances(NULL, world, 0, NULL), BAD_ARG);
-  CHECK(app_world_remove_model_instances(app, world, 0, NULL), OK);
-  CHECK(app_world_remove_model_instances(NULL, NULL, 1, NULL), BAD_ARG);
-  CHECK(app_world_remove_model_instances(app, NULL, 1, NULL), BAD_ARG);
-  CHECK(app_world_remove_model_instances(NULL, world, 1, NULL), BAD_ARG);
-  CHECK(app_world_remove_model_instances(app, world, 1, NULL), BAD_ARG);
-  CHECK(app_world_remove_model_instances(NULL, NULL, 0, &instances[0]), BAD_ARG);
-  CHECK(app_world_remove_model_instances(app, NULL, 0, &instances[0]), BAD_ARG);
-  CHECK(app_world_remove_model_instances(NULL, world, 0, &instances[0]), BAD_ARG);
-  CHECK(app_world_remove_model_instances(app, world, 0, &instances[0]), OK);
-  CHECK(app_world_remove_model_instances(NULL, NULL, 1, &instances[0]), BAD_ARG);
-  CHECK(app_world_remove_model_instances(app, NULL, 1, &instances[0]), BAD_ARG);
-  CHECK(app_world_remove_model_instances(NULL, world, 1, &instances[0]), BAD_ARG);
-  CHECK(app_world_remove_model_instances(app, world, 1, &instances[0]), OK);
-  CHECK(app_world_remove_model_instances(app, world, 1, &instances[1]), OK);
-  CHECK(app_world_remove_model_instances(app, world, 1, &instances[0]), BAD_ARG);
+  CHECK(app_world_remove_model_instances(NULL, 0, NULL), BAD_ARG);
+  CHECK(app_world_remove_model_instances(world, 0, NULL), OK);
+  CHECK(app_world_remove_model_instances(NULL, 1, NULL), BAD_ARG);
+  CHECK(app_world_remove_model_instances(world, 1, NULL), BAD_ARG);
+  CHECK(app_world_remove_model_instances(NULL, 0, &instances[0]), BAD_ARG);
+  CHECK(app_world_remove_model_instances(world, 0, &instances[0]), OK);
+  CHECK(app_world_remove_model_instances(NULL, 1, &instances[0]), BAD_ARG);
+  CHECK(app_world_remove_model_instances(world, 1, &instances[0]), OK);
+  CHECK(app_world_remove_model_instances(world, 1, &instances[1]), OK);
+  CHECK(app_world_remove_model_instances(world, 1, &instances[0]), BAD_ARG);
 
-  CHECK(app_free_world(NULL, NULL), BAD_ARG);
-  CHECK(app_free_world(app, NULL), BAD_ARG);
-  CHECK(app_free_world(NULL, world), BAD_ARG);
-  CHECK(app_free_world(app, world), OK);
+  CHECK(app_world_ref_get(NULL), BAD_ARG);
+  CHECK(app_world_ref_get(world), OK);
 
-  CHECK(app_free_model_instance(app, instances[1]), OK);
-  CHECK(app_free_model_instance(app, instances[0]), OK);
-  CHECK(app_free_model(app, model), OK);
-  CHECK(app_shutdown(app), OK);
+  CHECK(app_world_ref_put(NULL), BAD_ARG);
+  CHECK(app_world_ref_put(world), OK);
+  CHECK(app_world_ref_put(world), OK);
+
+  CHECK(app_model_instance_ref_put(instances[1]), OK);
+  CHECK(app_model_instance_ref_put(instances[0]), OK);
+  CHECK(app_model_ref_put(model), OK);
+  CHECK(app_ref_put(app), OK);
 
   CHECK(MEM_ALLOCATED_SIZE(&mem_default_allocator), 0);
 

@@ -15,21 +15,22 @@ app_create_world
    struct app_world** out_world);
 
 extern enum app_error
-app_free_world
-  (struct app* app,
-   struct app_world* world);
+app_world_ref_get
+  (struct app_world* world);
+
+extern enum app_error
+app_world_ref_put
+  (struct app_world* world);
 
 extern enum app_error
 app_world_add_model_instances
-  (struct app* app,
-   struct app_world* world,
+  (struct app_world* world,
    size_t nb_model_instances,
    struct app_model_instance* model_list[]);
 
 extern enum app_error
 app_world_remove_model_instances
-  (struct app* app,
-   struct app_world* world,
+  (struct app_world* world,
    size_t nb_model_instances,
    struct app_model_instance* model_instance_list[]);
 

@@ -29,7 +29,11 @@ app_init
    struct app** app);
 
 extern enum app_error
-app_shutdown
+app_ref_get
+  (struct app* app);
+
+extern enum app_error
+app_ref_put
   (struct app* app);
 
 extern enum app_error
@@ -61,14 +65,14 @@ extern enum app_error
 app_connect_model_callback
   (struct app* app,
    enum app_model_event event,
-   void (*func)(struct app*, struct app_model*, void*),
+   void (*func)(struct app_model*, void*),
    void* data);
 
 extern enum app_error
 app_disconnect_model_callback
   (struct app* app,
    enum app_model_event event,
-   void (*func)(struct app*, struct app_model*, void*),
+   void (*func)(struct app_model*, void*),
    void* data);
 
 #endif /* APP_H */

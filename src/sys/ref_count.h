@@ -3,40 +3,39 @@
 
 #include "sys/sys.h"
 #include <assert.h>
-#include <limits.h>
 #include <stdlib.h>
 
-#define ALIGN_REF_COUNT(structure, alignment) \
-  structure { \
-    void (*destructor)(void* ctxt, void* data); \
-    void* ctxt; \
-    unsigned int ref_count; \
-    ALIGN(alignment) char data[]; \
+struct ref {
+  int64_t ref_count;
+};
+
+static FINLINE void
+ref_init(struct ref* ref)
+{
+  assert(NULL != ref);
+  ref->ref_count = 1;
+}
+
+static FINLINE void
+ref_get(struct ref* ref)
+{
+  assert(NULL != ref);
+  ++ref->ref_count;
+}
+
+static FINLINE int
+ref_put(struct ref* ref, void (*release)(struct ref*))
+{
+  assert(NULL != ref);
+  assert(NULL != release);
+  assert(0 != ref->ref_count);
+
+  --ref->ref_count;
+  if(0 == ref->ref_count) {
+    release(ref);
+    return 1;
   }
-
-#define REF_COUNT(structure) \
-  ALIGN_REF_COUNT(structure, 16)
-
-#define RETAIN(o) \
-  (assert(o), (o)->ref_count == UINT_MAX ? 0  : ++((o)->ref_count))
-
-#define GET_REF_COUNT(o) \
-  (assert(o), (const unsigned int)((o)->ref_count))
-
-#define GET_REF_DATA(o) \
-  (assert(o), (void*)&((o)->data))
-
-#define RELEASE(o) \
-  (assert((o) && (o)->ref_count != 0), \
-   --((o)->ref_count), \
-   (o)->ref_count == 0 \
-   ? (o)->destructor((o)->ctxt, GET_REF_DATA(o)), free(o), (o = NULL), 0 \
-   : (o)->ref_count)
-
-#define CREATE_REF_COUNT(data_size, func, o) \
-  (((o) = memalign \
-    (ALIGNOF(REF_COUNT(struct), sizeof(REF_COUNT(struct)) + data_size)), \
-   memset((o), 0, sizeof(REF_COUNT(struct))), \
-   ((o) ? ((o)->destructor = func), RETAIN(o), (o) : NULL))
+  return 0;
+}
 
 #endif /* REF_COUNT_H */
