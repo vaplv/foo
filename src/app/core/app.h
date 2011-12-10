@@ -62,6 +62,14 @@ app_get_model_list
    struct app_model** model_list[]);
 
 extern enum app_error
+app_is_model_callback_connected
+  (struct app* app,
+   enum app_model_event event,
+   void (*func)(struct app_model*, void*),
+   void* data,
+   bool* is_connected);
+
+extern enum app_error
 app_connect_model_callback
   (struct app* app,
    enum app_model_event event,

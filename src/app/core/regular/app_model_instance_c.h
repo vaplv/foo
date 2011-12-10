@@ -20,14 +20,6 @@ app_create_model_instance
    struct app_model_instance** instance);
 
 extern enum app_error
-app_register_model_instance
-  (struct app_model_instance* instance);
-
-extern enum app_error
-app_unregister_model_instance
-  (struct app_model_instance* instance);
-
-extern enum app_error
 app_is_model_instance_registered
   (struct  app_model_instance* instance,
    bool* is_registered);

@@ -267,16 +267,27 @@ EXPORT_SYM enum edit_error
 edit_shutdown_explorer(struct edit* edit)
 {
   enum edit_error edit_err = EDIT_NO_ERROR;
+  bool b = false;
 
   if(!edit) {
     edit_err = EDIT_INVALID_ARGUMENT;
     goto error;
   }
 
-  APP(disconnect_model_callback
-    (edit->app, APP_MODEL_EVENT_ADD, add_model, (void*)edit));
-  APP(disconnect_model_callback
-    (edit->app, APP_MODEL_EVENT_REMOVE, remove_model, (void*)edit));
+  if(edit->app) {
+    APP(is_model_callback_connected
+      (edit->app, APP_MODEL_EVENT_ADD, add_model, (void*) edit, &b));
+    if(true == b) {
+      APP(disconnect_model_callback
+        (edit->app, APP_MODEL_EVENT_ADD, add_model, (void*)edit));
+    }
+    APP(is_model_callback_connected
+      (edit->app, APP_MODEL_EVENT_REMOVE, add_model, (void*) edit, &b));
+    if(true == b) {
+      APP(disconnect_model_callback
+        (edit->app, APP_MODEL_EVENT_REMOVE, remove_model, (void*)edit));
+    }
+  }
 
 exit:
   return edit_err;

@@ -12,11 +12,54 @@
 
 /*******************************************************************************
  *
- * Private functions.
+ * Helper functions.
  *
  ******************************************************************************/
+static enum app_error
+register_model_instance(struct app_model_instance* instance)
+{
+  enum sl_error sl_err = SL_NO_ERROR;
+  assert(instance);
+
+  sl_err = sl_sorted_vector_insert
+    (instance->app->model_instance_list, &instance);
+  if(sl_err != SL_NO_ERROR) {
+    return sl_to_app_error(sl_err);
+  } else {
+    return APP_NO_ERROR;
+  }
+}
+
+static enum app_error
+unregister_model_instance(struct app_model_instance* instance)
+{
+  enum sl_error sl_err = SL_NO_ERROR;
+  assert(instance);
+
+  sl_err = sl_sorted_vector_remove
+    (instance->app->model_instance_list, &instance);
+  if(sl_err != SL_NO_ERROR) {
+    return sl_to_app_error(sl_err);
+  } else {
+    return APP_NO_ERROR;
+  }
+}
+
+static bool
+is_model_instance_registered(struct app_model_instance* instance)
+{
+  size_t i = 0;
+  size_t len = 0;
+  assert(instance);
+
+  SL(sorted_vector_find(instance->app->model_instance_list, &instance, &i));
+  SL(sorted_vector_buffer
+    (instance->app->model_instance_list, &len, NULL, NULL, NULL));
+  return (i != len);
+}
+
 static void
-release_model_instance(struct ref* ref) 
+release_model_instance(struct ref* ref)
 {
   struct app_model_instance* instance = CONTAINER_OF
     (ref, struct app_model_instance, ref);
@@ -24,7 +67,7 @@ release_model_instance(struct ref* ref)
   struct rdr_model_instance** render_instance_lstbuf = NULL;
   size_t len = 0;
   size_t i = 0;
-  bool was_registered = false;
+  bool is_registered = false;
 
   assert(app != NULL);
 
@@ -39,9 +82,10 @@ release_model_instance(struct ref* ref)
       RDR(free_model_instance(app->rdr, render_instance_lstbuf[i]));
     SL(free_vector(instance->model_instance_list));
   }
-  APP(is_model_instance_registered(instance, &was_registered));
-  if(was_registered) {
-    APP(unregister_model_instance(instance));
+  is_registered = is_model_instance_registered(instance);
+  if(is_registered) {
+    UNUSED const enum app_error app_err = unregister_model_instance(instance);
+    assert(app_err == APP_NO_ERROR);
   }
   MEM_FREE(app->allocator, instance);
 }
@@ -104,6 +148,9 @@ app_create_model_instance
     app_err = sl_to_app_error(sl_err);
     goto error;
   }
+  app_err = register_model_instance(instance);
+  if(app_err != APP_NO_ERROR)
+    goto error;
 
 exit:
   if(out_instance)
@@ -113,76 +160,6 @@ exit:
 error:
   if(instance)
     while(!ref_put(&instance->ref, release_model_instance));
-  goto exit;
-}
-
-enum app_error
-app_register_model_instance(struct app_model_instance* instance)
-{
-  enum app_error app_err = APP_NO_ERROR;
-  enum sl_error sl_err = SL_NO_ERROR;
-  
-  if(!instance) {
-    app_err = APP_INVALID_ARGUMENT;
-    goto error;
-  }
-  sl_err = sl_sorted_vector_insert
-    (instance->app->model_instance_list, &instance);
-  if(sl_err != SL_NO_ERROR) {
-    app_err = sl_to_app_error(sl_err);
-    goto error;
-  }
-
-exit:
-  return app_err;
-error:
-  goto exit;
-}
-
-enum app_error
-app_unregister_model_instance(struct app_model_instance* instance)
-{
-  enum app_error app_err = APP_NO_ERROR;
-  enum sl_error sl_err = SL_NO_ERROR;
-
-  if(!instance) {
-    app_err = APP_INVALID_ARGUMENT;
-    goto error;
-  }
-  sl_err = sl_sorted_vector_remove
-    (instance->app->model_instance_list, &instance);
-  if(sl_err != SL_NO_ERROR) {
-    app_err = sl_to_app_error(sl_err);
-    goto error;
-  }
-
-exit:
-  return app_err;
-error:
-  goto exit;
-}
-
-enum app_error
-app_is_model_instance_registered
-  (struct app_model_instance* instance,
-   bool* is_registered)
-{
-  enum app_error app_err = APP_NO_ERROR;
-  size_t i = 0;
-  size_t len = 0;
-
-  if(!instance || !is_registered) {
-    app_err = APP_INVALID_ARGUMENT;
-    goto error;
-  }
-  SL(sorted_vector_find(instance->app->model_instance_list, &instance, &i));
-  SL(sorted_vector_buffer
-    (instance->app->model_instance_list, &len, NULL, NULL, NULL));
-  *is_registered = (i != len);
-
-exit:
-  return app_err;
-error:
   goto exit;
 }
 

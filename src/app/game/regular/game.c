@@ -31,16 +31,15 @@ struct user_command {
  ******************************************************************************/
 static enum game_error
 process_user_command
-  (struct game* game UNUSED,
-   struct app* app,
+  (struct game* game,
    struct user_command* usr_cmd)
 {
   struct wm_device* wm = NULL;
   enum wm_state state = WM_STATE_UNKNOWN;
 
-  assert(game && app && usr_cmd);
+  assert(game && usr_cmd);
 
-  APP(get_window_manager_device(app, &wm));
+  APP(get_window_manager_device(game->app, &wm));
   WM(flush_events(wm));
 
   WM(get_key_state(wm, WM_KEY_Z, &state));
@@ -92,17 +91,16 @@ process_user_command
 
 static enum game_error
 update_view
-  (struct game* game UNUSED,
-   struct app* app,
+  (struct game* game,
    const struct user_command* usr_cmd)
 {
   struct app_view* view = NULL;
   const float move_scale = 0.02f;
   const float rotate_scale = 0.00025f;
 
-  assert(game && app && usr_cmd);
+  assert(game && usr_cmd);
 
-  APP(get_main_view(app, &view));
+  APP(get_main_view(game->app, &view));
   APP(view_translate
     (view,
      move_scale * (float)usr_cmd->move_right,
@@ -135,13 +133,17 @@ user_command_eq(struct user_command* cmd0, struct user_command* cmd1)
  *
  ******************************************************************************/
 EXPORT_SYM enum game_error
-game_create(struct mem_allocator* specific_allocator, struct game** out_game)
+game_create
+  (struct app* app,
+   struct mem_allocator* specific_allocator, 
+   struct game** out_game)
 {
   struct mem_allocator* allocator = NULL;
   struct game* game = NULL;
+  enum app_error app_err = APP_NO_ERROR;
   enum game_error game_err = GAME_NO_ERROR;
 
-  if(!out_game) {
+  if(!app || !out_game) {
     game_err = GAME_INVALID_ARGUMENT;
     goto error;
   }
@@ -154,6 +156,13 @@ game_create(struct mem_allocator* specific_allocator, struct game** out_game)
   }
   game->allocator = allocator;
 
+  app_err = app_ref_get(app);
+  if(!app_err) {
+    game_err = app_to_game_error(app_err);
+    goto error;
+  }
+  game->app = app;
+
 exit:
   if(out_game)
     *out_game = game;
@@ -161,6 +170,8 @@ exit:
 
 error:
   if(game) {
+    if(game->app)
+      APP(ref_put(game->app));
     MEM_FREE(allocator, game);
     game = NULL;
   }
@@ -171,15 +182,19 @@ EXPORT_SYM enum game_error
 game_free(struct game* game)
 {
   struct mem_allocator* allocator = NULL;
+
   if(!game)
     return GAME_INVALID_ARGUMENT;
+
+  APP(ref_put(game->app));
   allocator = game->allocator;
   MEM_FREE(allocator, game);
+
   return GAME_NO_ERROR;
 }
 
 EXPORT_SYM enum game_error
-game_run(struct game* game, struct app* app, bool* keep_running)
+game_run(struct game* game, bool* keep_running)
 {
   struct user_command usr_cmd0, usr_cmd1;
   enum game_error game_err = GAME_NO_ERROR;
@@ -187,17 +202,17 @@ game_run(struct game* game, struct app* app, bool* keep_running)
   memset(&usr_cmd0, 0, sizeof(struct user_command));
   memset(&usr_cmd1, 0, sizeof(struct user_command));
 
-  if(!game || !app || !keep_running) {
+  if(!game || !keep_running) {
     game_err = GAME_INVALID_ARGUMENT;
     goto error;
   }
 
-  game_err = process_user_command(game, app, &usr_cmd1);
+  game_err = process_user_command(game, &usr_cmd1);
   if(game_err != GAME_NO_ERROR)
     goto error;
 
   if(user_command_eq(&usr_cmd0, &usr_cmd1) == false) {
-    game_err = update_view(game, app, &usr_cmd1);
+    game_err = update_view(game, &usr_cmd1);
     if(game_err != GAME_NO_ERROR)
       goto error;
   }
@@ -209,5 +224,31 @@ exit:
 
 error:
   goto exit;
+}
+
+/*******************************************************************************
+ *
+ * Private functions.
+ *
+ ******************************************************************************/
+enum game_error
+app_to_game_error(enum app_error app_err)
+{
+  enum game_error game_err = GAME_NO_ERROR;
+  switch(app_err) {
+    case APP_INVALID_ARGUMENT:
+      game_err = GAME_INVALID_ARGUMENT;
+      break;
+    case APP_MEMORY_ERROR:
+      game_err = GAME_MEMORY_ERROR;
+      break;
+    case APP_NO_ERROR:
+      game_err = GAME_NO_ERROR;
+      break;
+    default:
+      game_err = GAME_UNKNOWN_ERROR;
+      break;
+  }
+  return game_err;
 }
 

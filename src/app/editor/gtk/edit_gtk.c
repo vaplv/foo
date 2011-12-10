@@ -1,3 +1,5 @@
+#include "app/core/app.h"
+#include "app/core/app_error.h"
 #include "app/editor/gtk/edit_gtk_c.h"
 #include "app/editor/gtk/edit_gtk_explorer.h"
 #include "app/editor/edit.h"
@@ -14,17 +16,19 @@
 EXPORT_SYM enum edit_error
 edit_init
   (struct app* app,
+   const char* gui_desc,
    struct mem_allocator* specific_allocator, 
    struct edit** out_edit)
 {
   struct edit* edit = NULL;
   struct mem_allocator* allocator = NULL;
   enum edit_error edit_err = EDIT_NO_ERROR;
+  enum app_error app_err = APP_NO_ERROR;
   guint i = 0;
   gboolean b = TRUE;
   GtkWindow* window = NULL;
 
-  if(!out_edit) {
+  if(!app || !gui_desc || !out_edit) {
     edit_err = EDIT_INVALID_ARGUMENT;
     goto error;
   }
@@ -35,6 +39,12 @@ edit_init
     goto error;
   }
   edit->allocator = allocator;
+
+  app_err = app_ref_get(app);
+  if(app_err != APP_NO_ERROR) {
+    edit_err = app_to_edit_error(app_err);
+    goto error;
+  }
   edit->app = app;
 
   b = gtk_init_check(0, NULL);
@@ -45,7 +55,7 @@ edit_init
 
   edit->builder = gtk_builder_new();
   i = gtk_builder_add_from_file
-    (edit->builder, "./edit_gtk.glade", NULL);
+    (edit->builder, gui_desc, NULL);
   if(i == 0) {
     edit_err = EDIT_IO_ERROR;
     goto error;
@@ -81,12 +91,17 @@ edit_shutdown(struct edit* edit)
     goto error;
   }
 
-  edit_err = edit_shutdown_explorer(edit);
-  if(edit_err != EDIT_NO_ERROR)
-    goto error;
+  if(edit->builder) {
+    edit_err = edit_shutdown_explorer(edit);
+    if(edit_err != EDIT_NO_ERROR)
+      goto error;
 
-  window = GTK_WINDOW(gtk_builder_get_object(edit->builder, "window_explorer"));
-  gtk_widget_destroy(GTK_WIDGET(window));
+    window = GTK_WINDOW(gtk_builder_get_object(edit->builder, "window_explorer"));
+    gtk_widget_destroy(GTK_WIDGET(window));
+  }
+  if(edit->app) {
+    APP(ref_put(edit->app));
+  }
   MEM_FREE(edit->allocator, edit);
 
 exit:

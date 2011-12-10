@@ -810,6 +810,54 @@ error:
 }
 
 EXPORT_SYM enum app_error
+app_is_model_callback_connected
+  (struct app* app,
+   enum app_model_event event,
+   void (*func)(struct app_model*, void*),
+   void* data,
+   bool* is_connected)
+{
+  struct sl_sorted_vector* svec = NULL;
+  enum app_error app_err = APP_NO_ERROR;
+  enum sl_error sl_err = SL_NO_ERROR;
+  size_t i = 0;
+  size_t len = 0;
+
+  if(!app || !func || !is_connected) {
+    app_err = APP_INVALID_ARGUMENT;
+    goto error;
+  }
+  switch(event) {
+    case APP_MODEL_EVENT_ADD:
+      svec = app->add_model_cbk_list;
+      break;
+    case APP_MODEL_EVENT_REMOVE:
+      svec = app->remove_model_cbk_list;
+      break;
+    default:
+      assert(false);
+      break;
+  }
+  sl_err = sl_sorted_vector_find
+    (svec, (struct model_callback[]){{func, data}}, &i);
+  if(sl_err != SL_NO_ERROR) {
+    app_err = sl_to_app_error(sl_err);
+    goto error;
+  }
+  sl_err = sl_sorted_vector_buffer(svec, &len, NULL, NULL, NULL);
+  if(sl_err != SL_NO_ERROR) {
+    app_err = sl_to_app_error(sl_err);
+    goto error;
+  }
+  *is_connected = (i != len);
+
+exit:
+  return app_err;
+error:
+  goto exit;
+}
+
+EXPORT_SYM enum app_error
 app_connect_model_callback
   (struct app* app,
    enum app_model_event event,

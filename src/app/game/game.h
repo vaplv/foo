@@ -10,7 +10,8 @@ struct mem_allocator;
 
 extern enum game_error
 game_create
-  (struct mem_allocator* allocator, /* May be NULL. */
+  (struct app* app,
+   struct mem_allocator* allocator, /* May be NULL. */
    struct game** out_game);
 
 extern enum game_error
@@ -20,7 +21,6 @@ game_free
 extern enum game_error
 game_run
   (struct game* game,
-   struct app* app,
    bool* keep_running);
 
 #endif /* GAME_H. */

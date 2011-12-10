@@ -13,7 +13,7 @@
   #define APP(func) app_##func
   #define EDIT(func) edit_##func
 #endif
- 
+
 struct mem_allocator;
 
 struct edit {

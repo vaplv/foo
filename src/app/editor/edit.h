@@ -11,6 +11,7 @@ struct mem_allocator;
 enum edit_error
 edit_init
   (struct app* app,
+   const char* gui_desc,
    struct mem_allocator* allocator, /* May be NULL. */
    struct edit** edit);
 

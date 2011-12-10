@@ -18,18 +18,18 @@ main(int argc, char** argv)
   args.render_driver = argv[1];
 
   CHECK(app_init(&args, &app), APP_NO_ERROR);
+  
+  CHECK(game_create(NULL, NULL, NULL), GAME_INVALID_ARGUMENT);
+  CHECK(game_create(NULL, NULL, &game), GAME_INVALID_ARGUMENT);
+  CHECK(game_create(app, NULL, NULL), GAME_INVALID_ARGUMENT);
+  CHECK(game_create(app, NULL, &game), GAME_NO_ERROR);
 
-  CHECK(game_create(NULL, NULL), GAME_INVALID_ARGUMENT);
-  CHECK(game_create(NULL, &game), GAME_NO_ERROR);
-
-  CHECK(game_run(NULL, NULL, NULL), GAME_INVALID_ARGUMENT);
-  CHECK(game_run(game, NULL, NULL), GAME_INVALID_ARGUMENT);
-  CHECK(game_run(NULL, app, NULL), GAME_INVALID_ARGUMENT);
-  CHECK(game_run(game, app, NULL), GAME_INVALID_ARGUMENT);
-  CHECK(game_run(NULL, NULL, &b), GAME_INVALID_ARGUMENT);
-  CHECK(game_run(game, NULL, &b), GAME_INVALID_ARGUMENT);
-  CHECK(game_run(NULL, app, &b), GAME_INVALID_ARGUMENT);
-  CHECK(game_run(game, app, &b), GAME_NO_ERROR);
+  CHECK(game_run(NULL, NULL), GAME_INVALID_ARGUMENT);
+  CHECK(game_run(game, NULL), GAME_INVALID_ARGUMENT);
+  CHECK(game_run(NULL, NULL), GAME_INVALID_ARGUMENT);
+  CHECK(game_run(game, NULL), GAME_INVALID_ARGUMENT);
+  CHECK(game_run(NULL, &b), GAME_INVALID_ARGUMENT);
+  CHECK(game_run(game, &b), GAME_NO_ERROR);
 
   CHECK(game_free(NULL), GAME_INVALID_ARGUMENT);
   CHECK(game_free(game), GAME_NO_ERROR);
