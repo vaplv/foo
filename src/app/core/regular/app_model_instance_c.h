@@ -10,6 +10,7 @@ struct sl_vector;
 /* Data of app_model_instance. */
 struct app_model_instance {
   struct app* app;
+  struct app_model* model;
   struct sl_vector* model_instance_list; /* list of rdr_model_instance*. */
   struct ref ref;
 };

@@ -1,5 +1,7 @@
 #include "resources/regular/rsrc_context_c.h"
 #include "resources/regular/rsrc_error_c.h"
+#include "resources/regular/rsrc_font_c.h"
+#include "resources/rsrc.h"
 #include "resources/rsrc_context.h"
 #include "sys/mem_allocator.h"
 #include "sys/sys.h"
@@ -26,6 +28,9 @@ rsrc_create_context
     goto error;
   }
   ctxt->allocator = allocator;
+  err = rsrc_init_font_library(ctxt);
+  if(err != RSRC_NO_ERROR)
+    goto error;
 
 exit:
   if(out_ctxt)
@@ -43,15 +48,14 @@ error:
 EXPORT_SYM enum rsrc_error
 rsrc_free_context(struct rsrc_context* ctxt)
 {
-  struct mem_allocator* allocator = NULL;
   enum rsrc_error err = RSRC_NO_ERROR;
 
   if(!ctxt) {
     err = RSRC_INVALID_ARGUMENT;
     goto error;
   }
-  allocator = ctxt->allocator;
-  MEM_FREE(allocator, ctxt);
+  RSRC(shutdown_font_library(ctxt));
+  MEM_FREE(ctxt->allocator, ctxt);
 
 exit:
   return err;

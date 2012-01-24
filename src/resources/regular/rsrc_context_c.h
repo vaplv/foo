@@ -9,9 +9,11 @@
 #endif
 
 struct sl_context;
+struct rsrc_font_library;
 
 struct rsrc_context {
   struct mem_allocator* allocator;
+  struct rsrc_font_library* font_lib; 
 };
 
 #endif /* RSRC_CONTEXT_C_H */

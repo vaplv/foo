@@ -13,14 +13,21 @@ struct app_args {
 
 struct app;
 struct app_model;
+struct app_model_instance;
 struct app_view;
 struct app_world;
 struct wm_device;
 struct sys;
 
-enum app_model_event {
-  APP_MODEL_EVENT_ADD,
-  APP_MODEL_EVENT_REMOVE
+typedef void(*app_callback_t)(void);
+#define APP_CALLBACK(v) (app_callback_t)(v)
+
+enum app_signal {
+  APP_SIGNAL_CREATE_MODEL,
+  APP_SIGNAL_DESTROY_MODEL,
+  APP_SIGNAL_CREATE_MODEL_INSTANCE,
+  APP_SIGNAL_DESTROY_MODEL_INSTANCE,
+  APP_NB_SIGNALS
 };
 
 extern enum app_error
@@ -62,26 +69,32 @@ app_get_model_list
    struct app_model** model_list[]);
 
 extern enum app_error
-app_is_model_callback_connected
+app_get_model_instance_list
   (struct app* app,
-   enum app_model_event event,
-   void (*func)(struct app_model*, void*),
+   size_t* length,
+   struct app_model_instance** model_instance_list[]);
+
+extern enum app_error
+app_attach_callback
+  (struct app* app,
+   enum app_signal signal,
+   app_callback_t callback,
+   void* data);
+
+extern enum app_error
+app_detach_callback
+  (struct app* app,
+   enum app_signal signal,
+   app_callback_t callback,
+   void* data);
+
+extern enum app_error
+app_is_callback_attached
+  (struct app* app,
+   enum app_signal signal,
+   app_callback_t callback,
    void* data,
-   bool* is_connected);
-
-extern enum app_error
-app_connect_model_callback
-  (struct app* app,
-   enum app_model_event event,
-   void (*func)(struct app_model*, void*),
-   void* data);
-
-extern enum app_error
-app_disconnect_model_callback
-  (struct app* app,
-   enum app_model_event event,
-   void (*func)(struct app_model*, void*),
-   void* data);
+   bool* is_attached);
 
 #endif /* APP_H */
 

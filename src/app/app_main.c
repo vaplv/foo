@@ -1,5 +1,4 @@
 #include "app/core/app.h"
-#include "app/editor/edit.h"
 #include "app/game/game.h"
 #include "sys/mem_allocator.h"
 #include <assert.h>
@@ -15,22 +14,18 @@ parse_args
   (int argc, 
    char** argv, 
    const char** model_path,
-   const char** render_driver_path,
-   const char** gui_desc_path)
+   const char** render_driver_path)
 {
   int err = 0;
   int i = 0;
 
-  assert(argc >= 1 && model_path && render_driver_path && gui_desc_path);
+  assert(argc >= 1 && model_path && render_driver_path);
 
   if(argc == 1)
     goto usage;
 
-  while(-1 != (i = getopt(argc, argv, "e:r:m:h"))) {
+  while(-1 != (i = getopt(argc, argv, "r:m:h"))) {
     switch(i) {
-      case 'e':
-        *gui_desc_path = optarg;
-        break;
       case 'h':
         goto usage;
         break;
@@ -56,8 +51,7 @@ exit:
   return err;
 usage:
   printf
-    ("Usage: %s -r RENDER_DRIVER [-m MODEL] [-e GUI_DESC]\n"
-     "  -e  Launch the editor with GUI_DESC as descriptor.\n"
+    ("Usage: %s -r RENDER_DRIVER [-m MODEL]\n"
      "  -m  Load MODEL at the launch of the application.\n"
      "  -r  Define the RENDER_DRIVER to use.\n",
      argv[0]);
@@ -99,13 +93,10 @@ main(int argc, char** argv)
   struct mem_allocator engine_allocator;
   struct mem_allocator game_allocator;
   struct app* app = NULL;
-  struct edit* edit = NULL;
   struct game* game = NULL;
   const char* model_path = NULL;
   const char* render_driver_path = NULL;
-  const char* gui_desc_path = NULL;
   enum app_error app_err = APP_NO_ERROR;
-  enum edit_error edit_err = EDIT_NO_ERROR;
   enum game_error game_err = GAME_NO_ERROR;
   int err = 0;
   bool keep_running = true;
@@ -118,7 +109,7 @@ main(int argc, char** argv)
  
   /* Parse the argument list. */
   err = parse_args
-    (argc, argv, &model_path, &render_driver_path, &gui_desc_path);
+    (argc, argv, &model_path, &render_driver_path);
   if(err == 1) {
     err = 0;
     goto exit;
@@ -143,22 +134,8 @@ main(int argc, char** argv)
     err = -1;
     goto error;
   }
-  if(gui_desc_path) {
-    edit_err = edit_init(app, gui_desc_path, &editor_allocator, &edit);
-    if(edit_err != EDIT_NO_ERROR) {
-      fprintf(stderr, "Error in initializing the editor.\n");
-      err = -1;
-      goto error;
-    }
-  }
-
   /* Run the application. */
   while(keep_running) {
-    if(edit) {
-      edit_err = edit_run(edit, &keep_running);
-      if(edit_err != EDIT_NO_ERROR)
-        goto error;
-    }
     if(keep_running) {
       game_err = game_run(game, &keep_running);
       if(game_err != GAME_NO_ERROR)
@@ -171,15 +148,7 @@ main(int argc, char** argv)
   }
 
 exit:
-  if(edit) {
-    edit_err = edit_shutdown(edit);
-    assert(edit_err == EDIT_NO_ERROR);
-    if(MEM_ALLOCATED_SIZE(&editor_allocator)) {
-      MEM_DUMP(&editor_allocator, buffer, sizeof(buffer));
-      printf("Editor leask summary:\n%s\n", buffer);
-    }
-  }
-  if(game) {
+ if(game) {
     game_err = game_free(game);
     assert(game_err == GAME_NO_ERROR);
     if(MEM_ALLOCATED_SIZE(&game_allocator)) {

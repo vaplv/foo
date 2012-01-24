@@ -1,6 +1,7 @@
 #ifndef APP_C_H
 #define APP_C_H
 
+#include "app/core/app.h"
 #include "app/core/app_error.h"
 #include "renderer/rdr_attrib.h"
 #include "renderer/rdr_error.h"
@@ -37,6 +38,12 @@
 #define APP_LOG_ERR(app, ...) \
   SL(logger_print((app)->logger, APP_ERR_PREFIX __VA_ARGS__))
 
+enum app_object_type {
+  APP_MODEL,
+  APP_MODEL_INSTANCE,
+  APP_NB_OBJECT_TYPES
+};
+
 struct app_model;
 struct app_model_instance;
 struct app_view;
@@ -51,11 +58,6 @@ struct sl_vector;
 struct wm_device;
 struct wm_window;
 
-struct model_callback {
-  void (*func)(struct app_model*, void*);
-  void* data;
-};
-
 struct app {
   struct ref ref;
   struct app_world* world;
@@ -69,13 +71,36 @@ struct app {
   struct rsrc_context* rsrc;
   struct rsrc_wavefront_obj* wavefront_obj;
   struct sl_logger* logger;
-  struct sl_sorted_vector* add_model_cbk_list; /* vector of callbacks. */
-  struct sl_sorted_vector* remove_model_cbk_list; /* vector of callback. */
-  struct sl_sorted_vector* model_list; /* vector of app_model*. */
-  struct sl_sorted_vector* model_instance_list; /* vec of app_model_instance*.*/
+  struct sl_set* callback_list[APP_NB_SIGNALS];
+  struct sl_set* object_list[APP_NB_OBJECT_TYPES];
   struct wm_device* wm;
   struct wm_window* window;
 };
+
+extern enum app_error
+app_register_object
+  (struct app* app,
+   enum app_object_type type,
+   void* object);
+
+extern enum app_error
+app_unregister_object
+  (struct app* app,
+   enum app_object_type type,
+   void* object);
+
+extern enum app_error
+app_is_object_registered
+  (struct app* app,
+   enum app_object_type type,
+   void* object,
+   bool* is_registered);
+
+extern enum app_error
+app_invoke_callbacks
+  (struct app* app,
+   enum app_signal signal,
+   ...);
 
 extern enum rdr_attrib_usage
 rsrc_to_rdr_attrib_usage

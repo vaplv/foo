@@ -49,36 +49,36 @@ main(int argc, char** argv)
 
   CHECK(app_init(&args, &app), OK);
 
-  CHECK(app_connect_model_callback
-    (NULL, APP_MODEL_EVENT_ADD, NULL, NULL), BAD_ARG);
-  CHECK(app_connect_model_callback
-    (app, APP_MODEL_EVENT_ADD, NULL, NULL), BAD_ARG);
-  CHECK(app_connect_model_callback
-    (NULL, APP_MODEL_EVENT_ADD, cbk, NULL), BAD_ARG);
-  CHECK(app_connect_model_callback
-    (app, APP_MODEL_EVENT_ADD, cbk, NULL), OK);
+  CHECK(app_attach_callback
+    (NULL, APP_SIGNAL_CREATE_MODEL, NULL, NULL), BAD_ARG);
+  CHECK(app_attach_callback
+    (app, APP_SIGNAL_CREATE_MODEL, NULL, NULL), BAD_ARG);
+  CHECK(app_attach_callback
+    (NULL, APP_SIGNAL_CREATE_MODEL, APP_CALLBACK(cbk), NULL), BAD_ARG);
+  CHECK(app_attach_callback
+    (app, APP_SIGNAL_CREATE_MODEL, APP_CALLBACK(cbk), NULL), OK);
 
-  CHECK(app_disconnect_model_callback
-    (NULL, APP_MODEL_EVENT_REMOVE, NULL, NULL), BAD_ARG);
-  CHECK(app_disconnect_model_callback
-    (app, APP_MODEL_EVENT_REMOVE, NULL, NULL), BAD_ARG);
-  CHECK(app_disconnect_model_callback
-    (NULL, APP_MODEL_EVENT_ADD, NULL, NULL), BAD_ARG);
-  CHECK(app_disconnect_model_callback
-    (app, APP_MODEL_EVENT_ADD, NULL, NULL), BAD_ARG);
-  CHECK(app_disconnect_model_callback
-    (NULL, APP_MODEL_EVENT_REMOVE, cbk, NULL), BAD_ARG);
-  CHECK(app_disconnect_model_callback
-    (app, APP_MODEL_EVENT_REMOVE, cbk, NULL), BAD_ARG);
-  CHECK(app_disconnect_model_callback
-    (NULL, APP_MODEL_EVENT_ADD, cbk, NULL), BAD_ARG);
-  CHECK(app_disconnect_model_callback
-    (app, APP_MODEL_EVENT_ADD, cbk, NULL), OK);
+  CHECK(app_detach_callback
+    (NULL, APP_SIGNAL_DESTROY_MODEL, NULL, NULL), BAD_ARG);
+  CHECK(app_detach_callback
+    (app, APP_SIGNAL_DESTROY_MODEL, NULL, NULL), BAD_ARG);
+  CHECK(app_detach_callback
+    (NULL, APP_SIGNAL_CREATE_MODEL, NULL, NULL), BAD_ARG);
+  CHECK(app_detach_callback
+    (app, APP_SIGNAL_CREATE_MODEL, NULL, NULL), BAD_ARG);
+  CHECK(app_detach_callback
+    (NULL, APP_SIGNAL_DESTROY_MODEL, APP_CALLBACK(cbk), NULL), BAD_ARG);
+  CHECK(app_detach_callback
+    (app, APP_SIGNAL_DESTROY_MODEL, APP_CALLBACK(cbk), NULL), BAD_ARG);
+  CHECK(app_detach_callback
+    (NULL, APP_SIGNAL_CREATE_MODEL, APP_CALLBACK(cbk), NULL), BAD_ARG);
+  CHECK(app_detach_callback
+    (app, APP_SIGNAL_CREATE_MODEL, APP_CALLBACK(cbk), NULL), OK);
 
-  CHECK(app_connect_model_callback
-    (app, APP_MODEL_EVENT_ADD, cbk, &model2), OK);
-  CHECK(app_connect_model_callback
-    (app, APP_MODEL_EVENT_REMOVE, cbk, &model3), OK);
+  CHECK(app_attach_callback
+    (app, APP_SIGNAL_CREATE_MODEL, APP_CALLBACK(cbk), &model2), OK);
+  CHECK(app_attach_callback
+    (app, APP_SIGNAL_DESTROY_MODEL, APP_CALLBACK(cbk), &model3), OK);
 
   model2 = NULL;
   CHECK(app_create_model(NULL, NULL, NULL), BAD_ARG);

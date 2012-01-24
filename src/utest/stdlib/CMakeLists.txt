@@ -12,8 +12,8 @@ target_link_libraries(utest_sl_linked_list sl)
 add_executable(utest_sl_logger utest_sl_logger.c)
 target_link_libraries(utest_sl_logger sl)
 
-add_executable(utest_sl_sorted_vector utest_sl_sorted_vector.c)
-target_link_libraries(utest_sl_sorted_vector sl)
+add_executable(utest_sl_set utest_sl_set.c)
+target_link_libraries(utest_sl_set sl)
 
 add_executable(utest_sl_string utest_sl_string.c)
 target_link_libraries(utest_sl_string sl)
@@ -38,8 +38,8 @@ add_test(
   ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/utest_sl_vector)
 
 add_test(
-  sl_sorted_vector
-  ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/utest_sl_sorted_vector)
+  sl_set
+  ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/utest_sl_set)
 
 add_test(
   sl_string

@@ -4,7 +4,7 @@ add_library(sl SHARED
   sl_hash_table.c
   sl_linked_list.c
   sl_logger.c
-  sl_sorted_vector.c
+  sl_set.c
   sl_string.c
   sl_vector.c)
 

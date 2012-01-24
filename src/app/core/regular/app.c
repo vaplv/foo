@@ -13,7 +13,7 @@
 #include "resources/rsrc_geometry.h"
 #include "resources/rsrc_wavefront_obj.h"
 #include "stdlib/sl_logger.h"
-#include "stdlib/sl_sorted_vector.h"
+#include "stdlib/sl_set.h"
 #include "stdlib/sl_vector.h"
 #include "sys/mem_allocator.h"
 #include "sys/sys.h"
@@ -22,6 +22,7 @@
 #include "window_manager/wm_window.h"
 #include <assert.h>
 #include <error.h>
+#include <stdarg.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -60,21 +61,27 @@ static const char* default_shader_sources[] = {
   [RDR_GEOMETRY_SHADER] = NULL
 };
 
+
 /*******************************************************************************
  *
  * Callbacks.
  *
  ******************************************************************************/
+struct callback {
+  app_callback_t func;
+  void* data;
+};
+
 enum callback_action {
-  CALLBACK_CONNECT,
-  CALLBACK_DISCONNECT
+  CALLBACK_ATTACH,
+  CALLBACK_DETACH
 };
 
 static int
 compare_callbacks(const void* a, const void* b)
 {
-  struct model_callback* cbk0 = (struct model_callback*)a;
-  struct model_callback* cbk1 = (struct model_callback*)b;
+  struct callback* cbk0 = (struct callback*)a;
+  struct callback* cbk1 = (struct callback*)b;
   const uintptr_t p0[2] = {(uintptr_t)cbk0->func, (uintptr_t)cbk0->data};
   const uintptr_t p1[2] = {(uintptr_t)cbk1->func, (uintptr_t)cbk1->data};
   const int inf = (p0[0] < p1[0]) | ((p0[0] == p1[0]) & (p0[1] < p1[1]));
@@ -107,41 +114,32 @@ compare_pointers(const void* ptr0, const void* ptr1)
 }
 
 static enum app_error
-manage_model_callback_list
+manage_callback
   (struct app* app,
-   enum app_model_event event,
-   void (*func)(struct app_model*, void*),
+   enum app_signal signal,
+   app_callback_t cbk,
    void* data,
    enum callback_action action)
 {
-  struct sl_sorted_vector* svec = NULL;
+  struct sl_set* set = NULL;
   enum app_error app_err = APP_NO_ERROR;
   enum sl_error sl_err = SL_NO_ERROR;
   bool is_updated = false;
 
-  if(!app || !func) {
+  if(!app || !cbk) {
     app_err = APP_INVALID_ARGUMENT;
     goto error;
   }
-  switch(event) {
-    case APP_MODEL_EVENT_ADD:
-      svec = app->add_model_cbk_list;
-      break;
-    case APP_MODEL_EVENT_REMOVE:
-      svec = app->remove_model_cbk_list;
-      break;
-    default:
-      assert(false);
-      break;
-  }
+
+  set = app->callback_list[signal];
   switch(action) {
-    case CALLBACK_CONNECT:
-      sl_err = sl_sorted_vector_insert
-        (svec, (struct model_callback[]){{func, data}});
+    case CALLBACK_ATTACH:
+      sl_err = sl_set_insert
+        (set, (struct callback[]){{cbk, data}});
       break;
-    case CALLBACK_DISCONNECT:
-      sl_err = sl_sorted_vector_remove
-        (svec, (struct model_callback[]){{func, data}});
+    case CALLBACK_DETACH:
+      sl_err = sl_set_remove
+        (set, (struct callback[]){{cbk, data}});
       break;
     default:
       assert(false);
@@ -159,11 +157,11 @@ exit:
 error:
   if(is_updated) {
     switch(action) {
-      case CALLBACK_CONNECT:
-        SL(sorted_vector_remove(svec, (struct model_callback[]){{func, data}}));
+      case CALLBACK_ATTACH:
+        SL(set_remove(set, (struct callback[]){{cbk, data}}));
         break;
-      case CALLBACK_DISCONNECT:
-        SL(sorted_vector_insert(svec, (struct model_callback[]){{func, data}}));
+      case CALLBACK_DETACH:
+        SL(set_insert(set, (struct callback[]){{cbk, data}}));
         break;
       default:
         assert(false);
@@ -292,38 +290,50 @@ shutdown_common(struct app* app)
 {
   size_t len = 0;
   size_t i = 0;
+  int type_id = 0;
   enum app_error app_err = APP_NO_ERROR;
   assert(app != NULL);
 
-  /* Note that when the model/model_instance is freed, it is unregistered from
-   * the application, i.e. it is removed from the app->model_[instance_]list. */
-  if(app->model_instance_list) {
-    SL(sorted_vector_buffer(app->model_instance_list, &len, NULL, NULL, NULL));
-    for(i = len; i > 0; ) {
-      struct app_model_instance** instance = NULL;
-      SL(sorted_vector_at(app->model_instance_list, --i, (void**)&instance));
-      APP(model_instance_ref_put(*instance));
+  /* When the object is put, it is unregistered from the application if its ref
+   * count reaches 0. That's why we have to use the `at' function of the
+   * container at each iteration rather than retrieving its internal buffer and
+   * iterating onto it. In addition, each object may by referenced by another
+   * one. For instance the model_instance keep a reference onto the
+   * instantieted model. Consequently, we cannot ensure that an object list is
+   * empty exepted when all the created object are released. */
+  for(type_id = 0; type_id < APP_NB_OBJECT_TYPES; ++type_id) {
+    if(app->object_list[type_id]) {
+      SL(set_buffer(app->object_list[type_id], &len, NULL, NULL, NULL));
+      for(i = len; i > 0; ) {
+        void* object = NULL;
+        SL(set_at(app->object_list[type_id], --i, (void**)&object));
+
+        switch((enum app_object_type)type_id) {
+          case APP_MODEL:
+            APP(model_ref_put(*(struct app_model**)object));
+            break;
+          case APP_MODEL_INSTANCE:
+            APP(model_instance_ref_put(*(struct app_model_instance**)object));
+            break;
+          default:
+            assert(false);
+            break;
+        }
+      }
     }
-    SL(free_sorted_vector(app->model_instance_list));
-    app->model_instance_list = NULL;
   }
-  if(app->model_list) {
-    SL(sorted_vector_buffer(app->model_list, &len, NULL, NULL, NULL));
-    for(i = len; i > 0; ) {
-      struct app_model** model = NULL;
-      SL(sorted_vector_at(app->model_list, --i, (void**)&model));
-      APP(model_ref_put(*model));
+  for(type_id = 0; type_id < APP_NB_OBJECT_TYPES; ++type_id) {
+    if(app->object_list[type_id]) {
+      SL(free_set(app->object_list[type_id]));
+      app->object_list[type_id] = NULL;
     }
-    SL(free_sorted_vector(app->model_list));
-    app->model_list = NULL;
   }
-  if(app->add_model_cbk_list) {
-    SL(free_sorted_vector(app->add_model_cbk_list));
-    app->add_model_cbk_list = NULL;
-  }
-  if(app->remove_model_cbk_list) {
-    SL(free_sorted_vector(app->remove_model_cbk_list));
-    app->remove_model_cbk_list = NULL;
+
+  for(i = 0; i < APP_NB_SIGNALS; ++i) {
+    if(NULL != app->callback_list[i]) {
+      SL(free_set(app->callback_list[i]));
+      app->callback_list[i] = NULL;
+    }
   }
   if(app->world) {
     APP(world_ref_put(app->world));
@@ -331,7 +341,6 @@ shutdown_common(struct app* app)
   if(app->view) {
     APP(view_ref_put(app->view));
   }
-
   return app_err;
 }
 
@@ -497,50 +506,35 @@ error:
 static enum app_error
 init_common(struct app* app)
 {
+  int i = 0;
   enum app_error app_err = APP_NO_ERROR;
   enum app_error tmp_err = APP_NO_ERROR;
   enum sl_error sl_err = SL_NO_ERROR;
   assert(app != NULL);
 
-  sl_err = sl_create_sorted_vector
-    (sizeof(struct app_model*),
-     ALIGNOF(struct app_model*),
-     compare_pointers,
-     app->allocator,
-     &app->model_list);
-  if(sl_err != SL_NO_ERROR) {
-    app_err = sl_to_app_error(sl_err);
-    goto error;
+  for(i = 0; i < APP_NB_OBJECT_TYPES; ++i) {
+    sl_err = sl_create_set
+      (sizeof(void*),
+       ALIGNOF(void*),
+       compare_pointers,
+       app->allocator,
+       &app->object_list[i]);
+    if(sl_err != SL_NO_ERROR) {
+      app_err = sl_to_app_error(sl_err);
+      goto error;
+    }
   }
-  sl_err = sl_create_sorted_vector
-    (sizeof(struct app_model_instance*),
-     ALIGNOF(struct app_model_instance*),
-     compare_pointers,
-     app->allocator,
-     &app->model_instance_list);
-  if(sl_err != SL_NO_ERROR) {
-    app_err = sl_to_app_error(sl_err);
-    goto error;
-  }
-  sl_err = sl_create_sorted_vector
-    (sizeof(struct model_callback),
-     ALIGNOF(struct model_callback),
-     compare_callbacks,
-     app->allocator,
-     &app->add_model_cbk_list);
-  if(sl_err != SL_NO_ERROR) {
-    app_err = sl_to_app_error(sl_err);
-    goto error;
-  }
-  sl_err = sl_create_sorted_vector
-    (sizeof(struct model_callback),
-     ALIGNOF(struct model_callback),
-     compare_callbacks,
-     app->allocator,
-     &app->remove_model_cbk_list);
-  if(sl_err != SL_NO_ERROR) {
-    app_err = sl_to_app_error(sl_err);
-    goto error;
+  for(i = 0; i < APP_NB_SIGNALS; ++i) {
+    sl_err = sl_create_set
+      (sizeof(struct callback),
+       ALIGNOF(struct callback),
+       compare_callbacks,
+       app->allocator,
+       &app->callback_list[i]);
+    if(sl_err != SL_NO_ERROR) {
+      app_err = sl_to_app_error(sl_err);
+      goto error;
+    }
   }
 
   app_err = app_create_world(app, &app->world);
@@ -646,7 +640,7 @@ release_app(struct ref* ref)
   struct app* app = NULL;
   enum app_error app_err = APP_NO_ERROR;
   assert(ref != NULL);
-  
+
   app = CONTAINER_OF(ref, struct app, ref);
   app_err = shutdown(app);
   assert(app_err == APP_NO_ERROR);
@@ -800,8 +794,12 @@ app_get_model_list
     app_err = APP_INVALID_ARGUMENT;
     goto error;
   }
-  SL(sorted_vector_buffer
-    (app->model_list, len, NULL, NULL, (void**)model_list));
+  SL(set_buffer
+    (app->object_list[APP_MODEL],
+     len,
+     NULL,
+     NULL,
+     (void**)model_list));
 
 exit:
   return app_err;
@@ -810,46 +808,62 @@ error:
 }
 
 EXPORT_SYM enum app_error
-app_is_model_callback_connected
+app_get_model_instance_list
   (struct app* app,
-   enum app_model_event event,
-   void (*func)(struct app_model*, void*),
-   void* data,
-   bool* is_connected)
+   size_t* len,
+   struct app_model_instance** model_instance_list[])
 {
-  struct sl_sorted_vector* svec = NULL;
+  enum app_error app_err = APP_NO_ERROR;
+
+  if(!app || !len || !model_instance_list) {
+    app_err = APP_INVALID_ARGUMENT;
+    goto error;
+  }
+  SL(set_buffer
+    (app->object_list[APP_MODEL_INSTANCE],
+     len,
+     NULL,
+     NULL,
+     (void**)model_instance_list));
+
+exit:
+  return app_err;
+error:
+  goto exit;
+}
+
+EXPORT_SYM enum app_error
+app_is_callback_attached
+  (struct app* app,
+   enum app_signal signal,
+   app_callback_t callback,
+   void* data,
+   bool* is_attached)
+{
+  struct sl_set* set = NULL;
   enum app_error app_err = APP_NO_ERROR;
   enum sl_error sl_err = SL_NO_ERROR;
   size_t i = 0;
   size_t len = 0;
 
-  if(!app || !func || !is_connected) {
+  if(!app || !callback || !is_attached || signal >= APP_NB_SIGNALS) {
     app_err = APP_INVALID_ARGUMENT;
     goto error;
   }
-  switch(event) {
-    case APP_MODEL_EVENT_ADD:
-      svec = app->add_model_cbk_list;
-      break;
-    case APP_MODEL_EVENT_REMOVE:
-      svec = app->remove_model_cbk_list;
-      break;
-    default:
-      assert(false);
-      break;
-  }
-  sl_err = sl_sorted_vector_find
-    (svec, (struct model_callback[]){{func, data}}, &i);
+
+  set = app->callback_list[signal];
+  sl_err = sl_set_find
+    (set, (struct callback[]){{callback, data}}, &i);
   if(sl_err != SL_NO_ERROR) {
     app_err = sl_to_app_error(sl_err);
     goto error;
   }
-  sl_err = sl_sorted_vector_buffer(svec, &len, NULL, NULL, NULL);
+  sl_err = sl_set_buffer(set, &len, NULL, NULL, NULL);
   if(sl_err != SL_NO_ERROR) {
     app_err = sl_to_app_error(sl_err);
     goto error;
   }
-  *is_connected = (i != len);
+  *is_attached = (i != len);
 
 exit:
   return app_err;
@@ -858,25 +872,25 @@ error:
 }
 
 EXPORT_SYM enum app_error
-app_connect_model_callback
+app_attach_callback
   (struct app* app,
-   enum app_model_event event,
-   void (*func)(struct app_model*, void*),
+   enum app_signal signal,
+   app_callback_t callback,
    void* data)
 {
-  return manage_model_callback_list
-    (app, event, func, data, CALLBACK_CONNECT);
+  return manage_callback
+    (app, signal, callback, data, CALLBACK_ATTACH);
 }
 
 EXPORT_SYM enum app_error
-app_disconnect_model_callback
+app_detach_callback
   (struct app* app,
-   enum app_model_event event,
-   void (*func)(struct app_model*, void*),
+   enum app_signal signal,
+   app_callback_t callback,
    void* data)
 {
-  return manage_model_callback_list
-    (app, event, func, data, CALLBACK_DISCONNECT);
+  return manage_callback
+    (app, signal, callback, data, CALLBACK_DETACH);
 }
 
 /*******************************************************************************
@@ -884,6 +898,122 @@ app_disconnect_model_callback
  * Private functions.
  *
  ******************************************************************************/
+enum app_error
+app_register_object(struct app* app, enum app_object_type type, void* object)
+{
+  enum app_error app_err = APP_NO_ERROR;
+  enum sl_error sl_err = SL_NO_ERROR;
+  assert(app && object);
+
+  sl_err = sl_set_insert(app->object_list[type], &object);
+  if(sl_err != SL_NO_ERROR) {
+    app_err = sl_to_app_error(sl_err);
+    goto error;
+  }
+
+exit:
+  return app_err;
+error:
+  goto exit;
+}
+
+enum app_error
+app_unregister_object(struct app* app, enum app_object_type type, void* object)
+{
+  enum app_error app_err = APP_NO_ERROR;
+  enum sl_error sl_err = SL_NO_ERROR;
+  assert(app && object);
+
+  sl_err = sl_set_remove(app->object_list[type], &object);
+  if(sl_err != SL_NO_ERROR) {
+    app_err = sl_to_app_error(sl_err);
+    goto error;
+  }
+
+exit:
+  return app_err;
+error:
+  goto exit;
+}
+
+enum app_error
+app_is_object_registered
+  (struct app* app,
+   enum app_object_type type,
+   void* object,
+   bool* is_registered)
+{
+  size_t len = 0;
+  size_t i = 0;
+  enum app_error app_err = APP_NO_ERROR;
+  enum sl_error sl_err = SL_NO_ERROR;
+  assert(app && object && is_registered);
+
+  sl_err = sl_set_find(app->object_list[type], &object, &i);
+  if(sl_err != SL_NO_ERROR) {
+    app_err = sl_to_app_error(sl_err);
+    goto error;
+  }
+  sl_err = sl_set_buffer(app->object_list[type], &len, NULL, NULL, NULL);
+  if(sl_err != SL_NO_ERROR) {
+    app_err = sl_to_app_error(sl_err);
+    goto error;
+  }
+  *is_registered = (i != len);
+
+exit:
+  return app_err;
+error:
+  goto exit;
+}
+
+enum app_error
+app_invoke_callbacks(struct app* app, enum app_signal signal, ...)
+{
+  va_list arg_list;
+  void* arg = NULL;
+  struct callback* callback_list = NULL;
+  size_t len = 0;
+  size_t i = 0;
+  enum app_error app_err = APP_NO_ERROR;
+
+  if(!app || signal >= APP_NB_SIGNALS) {
+    app_err = APP_INVALID_ARGUMENT;
+    goto error;
+  }
+
+  va_start(arg_list, signal);
+  arg = va_arg(arg_list, void*);
+
+  SL(set_buffer
+    (app->callback_list[signal], &len, NULL, NULL, (void**)&callback_list));
+
+  for(i = 0; i < len; ++i) {
+    app_callback_t func = callback_list[i].func;
+    void* data = callback_list[i].data;
+
+    switch(signal) {
+      case APP_SIGNAL_DESTROY_MODEL:
+      case APP_SIGNAL_CREATE_MODEL:
+        ((void (*)(struct app_model*, void*))func)(arg, data);
+        break;
+      case APP_SIGNAL_CREATE_MODEL_INSTANCE:
+      case APP_SIGNAL_DESTROY_MODEL_INSTANCE:
+        ((void (*)(struct app_model_instance*, void*))func)(arg, data);
+        break;
+      default:
+        assert(false);
+        break;
+    }
+  }
+  va_end(arg_list);
+
+exit:
+  return app_err;
+error:
+  goto exit;
+}
+
 enum rdr_attrib_usage
 rsrc_to_rdr_attrib_usage(enum rsrc_attrib_usage usage)
 {

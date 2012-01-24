@@ -3,7 +3,7 @@
 #include "renderer/regular/rdr_model_instance_c.h"
 #include "renderer/regular/rdr_system_c.h"
 #include "renderer/rdr_world.h"
-#include "stdlib/sl_sorted_vector.h"
+#include "stdlib/sl_set.h"
 #include "sys/sys.h"
 #include <assert.h>
 #include <math.h>
@@ -13,7 +13,7 @@
 
 struct rdr_world {
   float bkg_color[4];
-  struct sl_sorted_vector* model_instance_list;
+  struct sl_set* model_instance_list;
 };
 
 /*******************************************************************************
@@ -71,7 +71,7 @@ rdr_create_world(struct rdr_system* sys, struct rdr_world** out_world)
     goto error;
   }
 
-  sl_err = sl_create_sorted_vector
+  sl_err = sl_create_set
     (sizeof(struct rdr_model_instance*),
      ALIGNOF(struct rdr_model_instance*),
      compare_model_instance,
@@ -90,7 +90,7 @@ exit:
 error:
   if(world) {
     if(world->model_instance_list) {
-      sl_err = sl_free_sorted_vector(world->model_instance_list);
+      sl_err = sl_free_set(world->model_instance_list);
       assert(sl_err == SL_NO_ERROR);
     }
     MEM_FREE(sys->allocator, world);
@@ -115,7 +115,7 @@ rdr_free_world(struct rdr_system* sys, struct rdr_world* world)
     size_t nb_instances = 0;
     size_t i = 0;
 
-    sl_err = sl_sorted_vector_buffer
+    sl_err = sl_set_buffer
       (world->model_instance_list,
        &nb_instances,
        NULL,
@@ -125,7 +125,7 @@ rdr_free_world(struct rdr_system* sys, struct rdr_world* world)
     for(i = 0; i < nb_instances; ++i)
       RDR_RELEASE_OBJECT(sys, instance_list[i]);
 
-    sl_err = sl_free_sorted_vector(world->model_instance_list);
+    sl_err = sl_free_set(world->model_instance_list);
     if(sl_err != SL_NO_ERROR) {
       rdr_err = sl_to_rdr_error(sl_err);
       goto error;
@@ -156,7 +156,7 @@ rdr_add_model_instance
     goto error;
   }
 
-  sl_err = sl_sorted_vector_insert
+  sl_err = sl_set_insert
     (world->model_instance_list, &instance);
   if(sl_err != SL_NO_ERROR) {
     rdr_err = sl_to_rdr_error(sl_err);
@@ -175,7 +175,7 @@ exit:
 error:
   if(is_instance_added) {
     assert(world);
-    sl_err = sl_sorted_vector_remove(world->model_instance_list, &instance);
+    sl_err = sl_set_remove(world->model_instance_list, &instance);
     assert(sl_err == SL_NO_ERROR);
   }
   if(is_instance_retained)
@@ -199,7 +199,7 @@ rdr_remove_model_instance
     goto error;
   }
 
-  sl_err = sl_sorted_vector_remove(world->model_instance_list, &instance);
+  sl_err = sl_set_remove(world->model_instance_list, &instance);
   if(sl_err != SL_NO_ERROR) {
     rdr_err = sl_to_rdr_error(sl_err);
     goto error;
@@ -215,7 +215,7 @@ exit:
 error:
   if(is_instance_removed) {
     assert(world);
-    sl_err = sl_sorted_vector_insert(world->model_instance_list, &instance);
+    sl_err = sl_set_insert(world->model_instance_list, &instance);
     assert(sl_err == SL_NO_ERROR);
   }
   if(is_instance_released)
@@ -264,7 +264,7 @@ rdr_draw_world
     goto error;
   }
 
-  sl_err = sl_sorted_vector_buffer
+  sl_err = sl_set_buffer
     (world->model_instance_list,
      &nb_instances,
      NULL,

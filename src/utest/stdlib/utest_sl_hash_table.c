@@ -2,6 +2,8 @@
 #include "sys/mem_allocator.h"
 #include "sys/sys.h"
 #include "utest/utest.h"
+#include <stdbool.h>
+#include <string.h>
 
 struct pair{
   int key;
@@ -18,7 +20,7 @@ struct pair{
 static int
 cmp(const void* p0, const void* p1)
 {
-  return ((struct pair*)p0)->key - ((struct pair*)p1)->key;
+  return *((const int*)p0) - *((const int*)p1);
 }
 
 static const void*
@@ -33,9 +35,13 @@ main(int argc UNUSED, char** argv UNUSED)
   ALIGN(16) struct pair array[2] = {{0, 'a'}, {1, 'b'}};
   void* ptr;
   struct sl_hash_table* tbl = NULL;
+  struct sl_hash_table_it it;
   size_t count = 0;
+  bool bool_array[16];
+  bool b = false;
 
   STATIC_ASSERT(!IS_ALIGNED(&array[1], 16), Unexpected_alignment);
+  memset(&it, 0, sizeof(struct sl_hash_table_it));
 
   CHECK(sl_create_hash_table(0, 0, 0, NULL, NULL, NULL, NULL), BAD_ARG);
   CHECK(sl_create_hash_table(SZP, 0, 0, NULL, NULL, NULL, NULL), BAD_ARG);
@@ -128,12 +134,12 @@ main(int argc UNUSED, char** argv UNUSED)
   CHECK(sl_hash_table_erase(NULL, NULL, NULL), BAD_ARG);
   CHECK(sl_hash_table_erase(tbl, NULL, NULL), BAD_ARG);
   CHECK(sl_hash_table_erase(NULL, (int[]){1}, NULL), BAD_ARG);
-  CHECK(sl_hash_table_erase(tbl, (int[]){1}, NULL), BAD_ARG);
   CHECK(sl_hash_table_erase(NULL, NULL, &count), BAD_ARG);
   CHECK(sl_hash_table_erase(tbl, NULL, &count), BAD_ARG);
   CHECK(sl_hash_table_erase(NULL, (int[]){1}, &count), BAD_ARG);
   CHECK(sl_hash_table_erase(tbl, (int[]){1}, &count), OK);
   CHECK(count, 0);
+  CHECK(sl_hash_table_erase(tbl, (int[]){1}, NULL), OK);
   CHECK(sl_hash_table_erase(tbl, (int[]){0}, &count), OK);
   CHECK(count, 2);
   CHECK(sl_hash_table_data_count(tbl, &count), OK);
@@ -223,11 +229,39 @@ main(int argc UNUSED, char** argv UNUSED)
   CHECK(count, 16);
   CHECK(sl_hash_table_resize(tbl, 1), OK);
   CHECK(sl_hash_table_bucket_count(tbl, &count), OK);
-  CHECK(sl_free_hash_table(tbl), OK);
   CHECK(count, 16);
 
-  CHECK(MEM_ALLOCATED_SIZE(&mem_default_allocator), 0);
+  STATIC_ASSERT(sizeof(bool_array) / sizeof(bool) < 255, Unexpected_array_size);
+  memset(bool_array, 0, sizeof(bool_array));
+  for(count = 0; count < sizeof(bool_array) / sizeof(bool); ++count) {
+    const char c = 'a' + (char)count;
+    CHECK(sl_hash_table_insert(tbl, (int[]){count, c}), OK);
+  }
 
+  CHECK(sl_hash_table_begin(NULL, NULL, NULL), BAD_ARG);
+  CHECK(sl_hash_table_begin(tbl, NULL, NULL), BAD_ARG);
+  CHECK(sl_hash_table_begin(NULL, &it, NULL), BAD_ARG);
+  CHECK(sl_hash_table_begin(tbl, &it, NULL), BAD_ARG);
+  CHECK(sl_hash_table_begin(NULL, NULL, &b), BAD_ARG);
+  CHECK(sl_hash_table_begin(tbl, NULL, &b), BAD_ARG);
+  CHECK(sl_hash_table_begin(NULL, &it, &b), BAD_ARG);
+  CHECK(sl_hash_table_begin(tbl, &it, &b), OK);
+  CHECK(sl_hash_table_it_next(NULL, NULL), BAD_ARG);
+  CHECK(sl_hash_table_it_next(&it, NULL), BAD_ARG);
+  CHECK(sl_hash_table_it_next(NULL, &b), BAD_ARG);
+  CHECK(b, false);
+  do {
+    const char c = (char)((struct pair*)it.value)->key;
+    bool_array[(size_t)c] = true;
+    CHECK('a' + c,  ((struct pair*)it.value)->val);
+    CHECK(sl_hash_table_it_next(&it, &b), OK);
+  } while(false == b);
+  for(count = 0; count < sizeof(bool_array) / sizeof(bool); ++count)
+    CHECK(bool_array[count], true);
+
+  CHECK(sl_free_hash_table(tbl), OK);
+
+  CHECK(MEM_ALLOCATED_SIZE(&mem_default_allocator), 0);
   return 0;
 }
 

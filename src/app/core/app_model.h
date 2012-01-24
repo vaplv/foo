@@ -30,12 +30,17 @@ app_load_model
    struct app_model* model);
 
 extern enum app_error
-app_model_name
+app_model_get_path
+  (const struct app_model* model,
+   const char** path);
+
+extern enum app_error
+app_model_set_name
   (struct app_model* model,
    const char* name);
 
 extern enum app_error
-app_get_model_name
+app_model_get_name
   (const struct app_model* model,
    const char** name);
 

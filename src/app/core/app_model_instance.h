@@ -15,6 +15,11 @@ app_instantiate_model
    struct app_model_instance** instance);
 
 extern enum app_error
+app_model_instance_get_model
+  (struct app_model_instance* instance,
+   struct app_model** out_model);
+
+extern enum app_error
 app_model_instance_ref_put
    (struct app_model_instance* instance);
 

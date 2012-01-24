@@ -10,7 +10,7 @@
 #include "resources/rsrc_geometry.h"
 #include "resources/rsrc_wavefront_obj.h"
 #include "stdlib/sl_string.h"
-#include "stdlib/sl_sorted_vector.h"
+#include "stdlib/sl_set.h"
 #include "stdlib/sl_vector.h"
 #include "sys/mem_allocator.h"
 #include "sys/ref_count.h"
@@ -24,6 +24,7 @@ struct app_model {
   struct ref ref;
   struct app* app;
   struct sl_string* name;
+  struct sl_string* path;
   struct rsrc_geometry* geometry;
   struct sl_vector* mesh_list; /* List of rdr_mesh*. */
   struct sl_vector* material_list; /* list of rdr_material*. */
@@ -163,81 +164,6 @@ error:
   goto exit;
 }
 
-static enum app_error
-register_model(struct app_model* model)
-{
-  enum app_error app_err = APP_NO_ERROR;
-  enum sl_error sl_err = SL_NO_ERROR;
-  struct model_callback* cbk_list = NULL;
-  size_t len = 0;
-  size_t i = 0;
-
-  assert(model);
-
-  sl_err = sl_sorted_vector_insert(model->app->model_list, &model);
-  if(sl_err != SL_NO_ERROR) {
-    app_err = sl_to_app_error(sl_err);
-    goto error;
-  }
-  sl_err = sl_sorted_vector_buffer
-    (model->app->add_model_cbk_list, &len, NULL, NULL, (void**)&cbk_list);
-  if(sl_err != SL_NO_ERROR) {
-    app_err = sl_to_app_error(sl_err);
-    goto error;
-  }
-  for(i = 0; i < len; ++i)
-    cbk_list[i].func(model, cbk_list[i].data);
-
-exit:
-  return app_err;
-error:
-  goto exit;
-}
-
-static enum app_error
-unregister_model(struct app_model* model)
-{
-  enum app_error app_err = APP_NO_ERROR;
-  enum sl_error sl_err = SL_NO_ERROR;
-  struct model_callback* cbk_list = NULL;
-  size_t len = 0;
-  size_t i = 0;
-
-  assert(model);
-
-  sl_err = sl_sorted_vector_remove(model->app->model_list, &model);
-  if(sl_err != SL_NO_ERROR) {
-    app_err = sl_to_app_error(sl_err);
-    goto error;
-  }
-  sl_err = sl_sorted_vector_buffer
-    (model->app->remove_model_cbk_list, &len, NULL, NULL, (void**)&cbk_list);
-  if(sl_err != SL_NO_ERROR) {
-    app_err = sl_to_app_error(sl_err);
-    goto error;
-  }
-  for(i = 0; i < len; ++i)
-    cbk_list[i].func(model, cbk_list[i].data);
-
-exit:
-  return app_err;
-error:
-  goto exit;
-}
-
-static bool
-is_model_registered(struct app_model* model)
-{
-  size_t i = 0;
-  size_t len = 0;
-
-  assert(model);
-
-  SL(sorted_vector_find(model->app->model_list, &model, &i));
-  SL(sorted_vector_buffer(model->app->model_list, &len, NULL, NULL, NULL));
-  return (i != len);
-}
-
 static void
 release_model(struct ref* ref)
 {
@@ -245,10 +171,18 @@ release_model(struct ref* ref)
   bool is_registered = true;
   assert(ref != NULL);
 
+  APP(is_object_registered(model->app, APP_MODEL, model, &is_registered));
+  if(is_registered) {
+    APP(invoke_callbacks(model->app, APP_SIGNAL_DESTROY_MODEL, model));
+    APP(unregister_object(model->app, APP_MODEL, model));
+  }
+
   APP(clear_model(model));
 
   if(model->name)
     SL(free_string(model->name));
+  if(model->path)
+    SL(free_string(model->path));
   if(model->geometry)
     RSRC(free_geometry(model->app->rsrc, model->geometry));
   if(model->mesh_list)
@@ -257,12 +191,6 @@ release_model(struct ref* ref)
     SL(free_vector(model->material_list));
   if(model->model_list)
     SL(free_vector(model->model_list));
-
-  is_registered = is_model_registered(model);
-  if(is_registered) {
-    UNUSED const enum app_error app_err = unregister_model(model);
-    assert(app_err == APP_NO_ERROR);
-  }
 
   MEM_FREE(model->app->allocator, model);
 }
@@ -294,6 +222,11 @@ app_create_model(struct app* app, const char* path, struct app_model** model)
   ref_init(&mdl->ref);
 
   sl_err = sl_create_string(NULL, app->allocator, &mdl->name);
+  if(sl_err != SL_NO_ERROR) {
+    app_err = sl_to_app_error(sl_err);
+    goto error;
+  }
+  sl_err = sl_create_string(NULL, app->allocator, &mdl->path);
   if(sl_err != SL_NO_ERROR) {
     app_err = sl_to_app_error(sl_err);
     goto error;
@@ -335,9 +268,11 @@ app_create_model(struct app* app, const char* path, struct app_model** model)
     if(app_err != APP_NO_ERROR)
       goto error;
   }
-  app_err = register_model(mdl);
+  app_err = app_register_object(app, APP_MODEL, mdl);
   if(app_err != APP_NO_ERROR)
     goto error;
+
+  APP(invoke_callbacks(app, APP_SIGNAL_CREATE_MODEL, mdl));
 
 exit:
   if(model)
@@ -364,6 +299,14 @@ app_clear_model(struct app_model* model)
 
   if(model->name) {
     const enum sl_error sl_err = sl_clear_string(model->name);
+    if(sl_err != SL_NO_ERROR) {
+      app_err = sl_to_app_error(sl_err);
+      goto error;
+    }
+  }
+
+  if(model->path) {
+    const enum sl_error sl_err = sl_clear_string(model->path);
     if(sl_err != SL_NO_ERROR) {
       app_err = sl_to_app_error(sl_err);
       goto error;
@@ -432,7 +375,7 @@ app_load_model(const char* path, struct app_model* model)
   if(app_err != APP_NO_ERROR) {
     goto error;
   }
-  sl_err = sl_string_set(model->name, path);
+  sl_err = sl_string_set(model->path, path);
   if(sl_err != SL_NO_ERROR) {
     app_err = sl_to_app_error(sl_err);
     goto error;
@@ -450,9 +393,31 @@ error:
 }
 
 EXPORT_SYM enum app_error
-app_model_name
-  (struct app_model* model,
-   const char* name)
+app_model_get_path
+  (const struct app_model* model,
+   const char** path)
+{
+  enum app_error app_err = APP_NO_ERROR;
+  bool is_empty = false;
+
+  if(!model || !path) {
+    app_err = APP_INVALID_ARGUMENT;
+    goto error;
+  }
+  SL(is_string_empty(model->path, &is_empty));
+  if(is_empty) {
+    *path = NULL;
+  } else {
+    SL(string_get(model->path, path));
+  }
+exit:
+  return app_err;
+error:
+  goto exit;
+}
+
+EXPORT_SYM enum app_error
+app_model_set_name(struct app_model* model, const char* name)
 {
   enum app_error app_err = APP_NO_ERROR;
   enum sl_error sl_err = SL_NO_ERROR;
@@ -466,7 +431,6 @@ app_model_name
     app_err = sl_to_app_error(sl_err);
     goto error;
   }
-
 exit:
   return app_err;
 error:
@@ -474,31 +438,26 @@ error:
 }
 
 EXPORT_SYM enum app_error
-app_get_model_name
-  (const struct app_model* model,
-   const char** name)
+app_model_get_name(const struct app_model* model, const char** name)
 {
   enum app_error app_err = APP_NO_ERROR;
-  bool name_is_empty = false;
+  bool is_empty = false;
 
   if(!model || !name) {
     app_err = APP_INVALID_ARGUMENT;
     goto error;
   }
-
-  SL(is_string_empty(model->name, &name_is_empty));
-  if(name_is_empty) {
-    *name = NULL;
+  SL(is_string_empty(model->name, &is_empty));
+  if(is_empty) {
+   *name = NULL;
   } else {
     SL(string_get(model->name, name));
   }
-
 exit:
   return app_err;
 error:
   goto exit;
 }
-
 
 /*******************************************************************************
  *
@@ -516,6 +475,7 @@ app_instantiate_model
   enum app_error app_err = APP_NO_ERROR;
   enum rdr_error rdr_err = RDR_NO_ERROR;
   enum sl_error sl_err = SL_NO_ERROR;
+  bool is_ref_get = false;
 
   if(!app || !model || !out_instance) {
     app_err = APP_INVALID_ARGUMENT;
@@ -549,6 +509,11 @@ app_instantiate_model
       render_instance = NULL;
     }
   }
+  app_err = app_model_ref_get(model);
+  if(app_err != APP_NO_ERROR)
+    goto error;
+  is_ref_get = true;
+  instance->model = model;
 
 exit:
   if(out_instance)
@@ -564,7 +529,8 @@ error:
     RDR(free_model_instance(app->rdr, render_instance));
     render_instance = NULL;
   }
+  if(is_ref_get)
+    APP(model_ref_put(model));
   goto exit;
 }
-
 

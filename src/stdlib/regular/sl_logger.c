@@ -1,6 +1,6 @@
 #include "stdlib/regular/sl.h"
 #include "stdlib/sl_logger.h"
-#include "stdlib/sl_sorted_vector.h"
+#include "stdlib/sl_set.h"
 #include "sys/mem_allocator.h"
 #include "sys/sys.h"
 #include <assert.h>
@@ -10,7 +10,7 @@
 #include <stdlib.h>
 
 struct sl_logger {
-  struct sl_sorted_vector* stream_list;
+  struct sl_set* stream_list;
   struct mem_allocator* allocator;
   char* buffer;
   size_t buffer_len;
@@ -59,7 +59,7 @@ sl_create_logger
     sl_err = SL_MEMORY_ERROR;
     goto error;
   }
-  sl_err = sl_create_sorted_vector
+  sl_err = sl_create_set
     (sizeof(struct sl_log_stream),
      ALIGNOF(struct sl_log_stream),
      compare_log_stream,
@@ -102,7 +102,7 @@ sl_free_logger(struct sl_logger* logger)
     goto error;
   }
   if(logger->stream_list) {
-    sl_err = sl_free_sorted_vector(logger->stream_list);
+    sl_err = sl_free_set(logger->stream_list);
     if(sl_err != SL_NO_ERROR)
       goto error;
   }
@@ -127,7 +127,7 @@ sl_logger_add_stream
     sl_err = SL_INVALID_ARGUMENT;
     goto error;
   }
-  sl_err = sl_sorted_vector_insert(logger->stream_list, stream);
+  sl_err = sl_set_insert(logger->stream_list, stream);
   if(sl_err != SL_NO_ERROR)
     goto error;
 
@@ -146,7 +146,7 @@ sl_clear_logger(struct sl_logger* logger)
     sl_err = SL_INVALID_ARGUMENT;
     goto error;
   }
-  sl_err = sl_clear_sorted_vector(logger->stream_list);
+  sl_err = sl_clear_set(logger->stream_list);
   if(sl_err != SL_NO_ERROR)
     goto error;
 
@@ -168,7 +168,7 @@ sl_logger_remove_stream
     sl_err = SL_INVALID_ARGUMENT;
     goto error;
   }
-  sl_err = sl_sorted_vector_remove(logger->stream_list, stream);
+  sl_err = sl_set_remove(logger->stream_list, stream);
   if(sl_err != SL_NO_ERROR)
     goto error;
 
@@ -215,7 +215,7 @@ sl_logger_print
     assert((size_t)i < logger->buffer_len);
   }
 
-  sl_err = sl_sorted_vector_buffer
+  sl_err = sl_set_buffer
     (logger->stream_list, &len, NULL, NULL, &buffer);
   if(sl_err != SL_NO_ERROR)
     goto error;

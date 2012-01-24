@@ -404,7 +404,7 @@ sl_hash_table_erase
   size_t nb_erased = 0;
   enum sl_error err = SL_NO_ERROR;
 
-  if(!table || !key || !out_nb_erased) {
+  if(!table || !key) {
     err = SL_INVALID_ARGUMENT;
     goto error;
   }
@@ -528,7 +528,7 @@ error:
 
 EXPORT_SYM enum sl_error
 sl_hash_table_bucket_count
-  (struct sl_hash_table* table,
+  (const struct sl_hash_table* table,
    size_t* nb_buckets)
 {
   if(!table || !nb_buckets)
@@ -540,7 +540,7 @@ sl_hash_table_bucket_count
 
 EXPORT_SYM enum sl_error
 sl_hash_table_used_bucket_count
-  (struct sl_hash_table* table,
+  (const struct sl_hash_table* table,
    size_t* nb_used_buckets)
 {
   if(!table || !nb_used_buckets)
@@ -572,6 +572,62 @@ sl_hash_table_clear
   table->nb_elements = 0;
   table->nb_used_buckets = 0;
 
+  return SL_NO_ERROR;
+}
+
+EXPORT_SYM enum sl_error
+sl_hash_table_begin
+  (struct sl_hash_table* table, 
+   struct sl_hash_table_it* it,
+   bool* is_end_reached)
+{
+  size_t i = 0;
+
+  if(!table || !it || !is_end_reached)
+    return SL_INVALID_ARGUMENT;
+
+  for(i = 0; i < table->nb_buckets; ++i) {
+    if(table->buffer[i] != NULL) {
+      it->bucket = i;
+      it->entry = table->buffer[i];
+      it->value = table->buffer[i]->data;
+      it->hash_table = table;
+      break;
+    }
+  }
+  *is_end_reached = (i >= table->nb_buckets);
+  return SL_NO_ERROR;
+}
+
+EXPORT_SYM enum sl_error
+sl_hash_table_it_next(struct sl_hash_table_it* it, bool* is_end_reached)
+{
+  struct entry* entry = NULL;
+
+  if(!it 
+  || !it->hash_table 
+  || !it->entry 
+  || !is_end_reached)
+    return SL_INVALID_ARGUMENT;
+
+  entry = (struct entry*)it->entry;
+  if(entry->next) {
+    it->entry = entry->next;
+    it->value = entry->next->data;
+  } else {
+    struct sl_hash_table* table = it->hash_table;
+    size_t i = 0;
+    for(i = it->bucket + 1; i < table->nb_buckets;  ++i) {
+      if(it->hash_table->buffer[i] != NULL) {
+        it->bucket = i;
+        it->entry = table->buffer[i];
+        it->value = table->buffer[i]->data;
+        it->hash_table = table;
+        break;
+      }
+    }
+    *is_end_reached = (i >= table->nb_buckets);
+  }
   return SL_NO_ERROR;
 }
 

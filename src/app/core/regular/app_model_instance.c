@@ -1,9 +1,10 @@
 #include "app/core/regular/app_c.h"
 #include "app/core/regular/app_error_c.h"
 #include "app/core/regular/app_model_instance_c.h"
+#include "app/core/app_model.h"
 #include "app/core/app_model_instance.h"
 #include "renderer/rdr_model_instance.h"
-#include "stdlib/sl_sorted_vector.h"
+#include "stdlib/sl_set.h"
 #include "stdlib/sl_vector.h"
 #include "sys/mem_allocator.h"
 #include "sys/sys.h"
@@ -15,49 +16,6 @@
  * Helper functions.
  *
  ******************************************************************************/
-static enum app_error
-register_model_instance(struct app_model_instance* instance)
-{
-  enum sl_error sl_err = SL_NO_ERROR;
-  assert(instance);
-
-  sl_err = sl_sorted_vector_insert
-    (instance->app->model_instance_list, &instance);
-  if(sl_err != SL_NO_ERROR) {
-    return sl_to_app_error(sl_err);
-  } else {
-    return APP_NO_ERROR;
-  }
-}
-
-static enum app_error
-unregister_model_instance(struct app_model_instance* instance)
-{
-  enum sl_error sl_err = SL_NO_ERROR;
-  assert(instance);
-
-  sl_err = sl_sorted_vector_remove
-    (instance->app->model_instance_list, &instance);
-  if(sl_err != SL_NO_ERROR) {
-    return sl_to_app_error(sl_err);
-  } else {
-    return APP_NO_ERROR;
-  }
-}
-
-static bool
-is_model_instance_registered(struct app_model_instance* instance)
-{
-  size_t i = 0;
-  size_t len = 0;
-  assert(instance);
-
-  SL(sorted_vector_find(instance->app->model_instance_list, &instance, &i));
-  SL(sorted_vector_buffer
-    (instance->app->model_instance_list, &len, NULL, NULL, NULL));
-  return (i != len);
-}
-
 static void
 release_model_instance(struct ref* ref)
 {
@@ -71,6 +29,14 @@ release_model_instance(struct ref* ref)
 
   assert(app != NULL);
 
+  APP(is_object_registered
+    (instance->app, APP_MODEL_INSTANCE, instance, &is_registered));
+  if(is_registered) {
+    APP(invoke_callbacks
+      (instance->app, APP_SIGNAL_DESTROY_MODEL_INSTANCE, instance));
+    APP(unregister_object(instance->app, APP_MODEL_INSTANCE, instance));
+  }
+
  if(instance->model_instance_list) {
     SL(vector_buffer
        (instance->model_instance_list,
@@ -82,11 +48,7 @@ release_model_instance(struct ref* ref)
       RDR(free_model_instance(app->rdr, render_instance_lstbuf[i]));
     SL(free_vector(instance->model_instance_list));
   }
-  is_registered = is_model_instance_registered(instance);
-  if(is_registered) {
-    UNUSED const enum app_error app_err = unregister_model_instance(instance);
-    assert(app_err == APP_NO_ERROR);
-  }
+  APP(model_ref_put(instance->model));
   MEM_FREE(app->allocator, instance);
 }
 
@@ -110,6 +72,17 @@ app_model_instance_ref_put(struct app_model_instance* instance)
   if(!instance)
     return APP_INVALID_ARGUMENT;
   ref_put(&instance->ref, release_model_instance);
+  return APP_NO_ERROR;
+}
+
+EXPORT_SYM enum app_error
+app_model_instance_get_model
+  (struct app_model_instance* instance, 
+   struct app_model** out_model)
+{
+  if(!instance || !out_model)
+    return APP_INVALID_ARGUMENT;
+  *out_model = instance->model;
   return APP_NO_ERROR;
 }
 
@@ -148,9 +121,10 @@ app_create_model_instance
     app_err = sl_to_app_error(sl_err);
     goto error;
   }
-  app_err = register_model_instance(instance);
+  app_err = app_register_object(app, APP_MODEL_INSTANCE, instance);
   if(app_err != APP_NO_ERROR)
     goto error;
+  APP(invoke_callbacks(app, APP_SIGNAL_CREATE_MODEL_INSTANCE, instance));
 
 exit:
   if(out_instance)
