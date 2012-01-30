@@ -6,6 +6,7 @@
 #include <assert.h>
 #include <ft2build.h>
 #include FT_FREETYPE_H
+#include FT_GLYPH_H
 #include <stdbool.h>
 
 #ifndef NDEBUG
@@ -24,6 +25,12 @@ struct rsrc_font
 {
   struct rsrc_context* ctxt;
   FT_Face face;
+};
+
+struct rsrc_glyph 
+{
+  struct rsrc_context* ctxt;
+  FT_Glyph glyph;
 };
 
 /*******************************************************************************
@@ -88,18 +95,18 @@ copy_bitmap_pixel
   if(mode == FT_PIXEL_MODE_MONO) {
     bmp_byte = bmp_row + x / 8;
     bit_shift = 7 - x % 8;
-    *pixel = (*bmp_byte >> bit_shift) & 0x01;
+    *pixel = (((*bmp_byte) >> bit_shift) & 0x01) * 255;
   } else if(mode == FT_PIXEL_MODE_GRAY) {
     bmp_byte = bmp_row + x;
     *pixel = *bmp_byte;
   } else if(mode == FT_PIXEL_MODE_GRAY2) {
     bmp_byte = bmp_row + x / 4;
     bit_shift = (3 - x % 4) * 2;
-    *pixel = (*bmp_byte >> bit_shift) & 0x03;
+    *pixel = (((*bmp_byte) >> bit_shift) & 0x03) * 85;
   } else if(mode == FT_PIXEL_MODE_GRAY4) {
     bmp_byte = bmp_row + x / 2;
     bit_shift = (1 - x % 2) * 4;
-    *pixel = (*bmp_byte >> bit_shift) & 0x0F;
+    *pixel = (((*bmp_byte) >> bit_shift) & 0x0F) * 17;
   } else if(mode == FT_PIXEL_MODE_LCD || mode == FT_PIXEL_MODE_LCD_V) {
     bmp_byte = bmp_row + x * 3;
     pixel[0] = bmp_byte[0];
@@ -197,9 +204,79 @@ error:
 }
 
 EXPORT_SYM enum rsrc_error
-rsrc_font_bitmap
-  (const struct rsrc_font* font,
-   unsigned long int ch,
+rsrc_font_size(struct rsrc_font* font, size_t width, size_t height)
+{
+  if(!font || !width || !height)
+    return RSRC_INVALID_ARGUMENT;
+  FT(Set_Pixel_Sizes(font->face, width, height));
+  return RSRC_NO_ERROR;
+}
+
+EXPORT_SYM enum rsrc_error
+rsrc_font_line_space(const struct rsrc_font* font, size_t* line_space)
+{
+  if(!font || !line_space)
+    return RSRC_INVALID_ARGUMENT;
+  *line_space = font->face->height;
+  return RSRC_NO_ERROR;
+}
+
+EXPORT_SYM enum rsrc_error
+rsrc_font_glyph
+  (struct rsrc_font* font, 
+   wchar_t ch, 
+   struct rsrc_glyph** out_glyph)
+{
+  struct rsrc_glyph* glyph = NULL;
+  FT_UInt glyph_index = 0;
+  enum rsrc_error rsrc_err = RSRC_NO_ERROR;
+
+  if(!font || !out_glyph) {
+    rsrc_err = RSRC_INVALID_ARGUMENT;
+    goto error;
+  }
+  glyph_index = FT_Get_Char_Index(font->face, ch);
+  if(0 == glyph_index) {
+    rsrc_err = RSRC_INVALID_ARGUMENT;
+    goto error;
+  }
+  glyph = MEM_CALLOC(font->ctxt->allocator, 1, sizeof(struct rsrc_glyph));
+  if(!glyph) {
+    rsrc_err = RSRC_MEMORY_ERROR;
+    goto error;
+  }
+  glyph->ctxt = font->ctxt;
+  FT(Load_Glyph(font->face, (FT_ULong)ch, FT_LOAD_DEFAULT));
+  FT(Get_Glyph(font->face->glyph, &glyph->glyph));
+
+exit:
+  if(out_glyph)
+    *out_glyph = glyph;
+  return rsrc_err;
+error:
+  if(glyph) {
+    if(glyph->glyph)
+      FT_Done_Glyph(glyph->glyph);
+    MEM_FREE(glyph->ctxt->allocator, glyph);
+    glyph = NULL;
+  }
+  goto exit;
+}
+
+EXPORT_SYM enum rsrc_error
+rsrc_free_glyph(struct rsrc_glyph* glyph)
+{
+  if(!glyph)
+    return RSRC_INVALID_ARGUMENT;
+  FT_Done_Glyph(glyph->glyph);
+  MEM_FREE(glyph->ctxt->allocator, glyph);
+  return RSRC_NO_ERROR;
+}
+
+EXPORT_SYM enum rsrc_error
+rsrc_glyph_bitmap
+  (struct rsrc_glyph* glyph,
+   bool antialiasing,
    size_t* width,
    size_t* height,
    size_t* bytes_per_pixel,
@@ -209,12 +286,16 @@ rsrc_font_bitmap
   size_t Bpp = 0;
   enum rsrc_error rsrc_err = RSRC_NO_ERROR;
 
-  if(!font) {
+  if(!glyph) {
     rsrc_err = RSRC_INVALID_ARGUMENT;
     goto error;
   }
-  FT(Load_Char(font->face, (FT_ULong)ch, FT_LOAD_RENDER));
-  bmp = &font->face->glyph->bitmap;
+  if(antialiasing) {
+    FT(Glyph_To_Bitmap(&glyph->glyph, FT_RENDER_MODE_NORMAL, NULL, 1));
+  } else {
+    FT(Glyph_To_Bitmap(&glyph->glyph, FT_RENDER_MODE_MONO, NULL, 1));
+  }
+  bmp = &((FT_BitmapGlyph)glyph->glyph)->bitmap;
   Bpp = sizeof_ft_pixel_mode(bmp->pixel_mode);
 
   if(width)
@@ -238,6 +319,16 @@ exit:
   return rsrc_err;
 error:
   goto exit;
+}
+
+EXPORT_SYM enum rsrc_error
+rsrc_glyph_width(const struct rsrc_glyph* glyph, size_t* width)
+{
+  if(!glyph || !width)
+    return RSRC_INVALID_ARGUMENT;
+  *width = (glyph->glyph->advance.x) >> 16; /* 16.16 Fixed point. */
+  return RSRC_NO_ERROR;
+
 }
 
 /*******************************************************************************
