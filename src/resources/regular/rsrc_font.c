@@ -1,5 +1,6 @@
 #include "resources/regular/rsrc_context_c.h"
 #include "resources/regular/rsrc_font_c.h"
+#include "resources/rsrc_context.h"
 #include "resources/rsrc_font.h"
 #include "sys/mem_allocator.h"
 #include "sys/sys.h"
@@ -142,6 +143,8 @@ rsrc_create_font
     goto error;
   }
   font->ctxt = ctxt;
+  RSRC(context_ref_get(ctxt));
+
   if(path) {
     rsrc_err = rsrc_load_font(font, path);
     if(rsrc_err != RSRC_NO_ERROR)
@@ -164,6 +167,7 @@ error:
 EXPORT_SYM enum rsrc_error
 rsrc_free_font(struct rsrc_font* font)
 {
+  struct rsrc_context* ctxt = NULL;
   enum rsrc_error rsrc_err = RSRC_NO_ERROR;
 
   if(!font) {
@@ -171,7 +175,9 @@ rsrc_free_font(struct rsrc_font* font)
     goto error;
   }
   FT(Done_Face(font->face));
-  MEM_FREE(font->ctxt->allocator, font);
+  ctxt = font->ctxt;
+  MEM_FREE(ctxt->allocator, font);
+  RSRC(context_ref_put(ctxt));
 
 exit:
   return rsrc_err;

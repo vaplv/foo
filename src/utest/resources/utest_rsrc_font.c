@@ -123,7 +123,7 @@ main(int argc, char** argv)
   CHECK(rsrc_free_font(NULL), BAD_ARG);
   CHECK(rsrc_free_font(font), OK);
 
-  CHECK(rsrc_free_context(ctxt), OK);
+  CHECK(rsrc_context_ref_put(ctxt), OK);
 
   CHECK(MEM_ALLOCATED_SIZE(&mem_default_allocator), 0);
 

@@ -256,14 +256,14 @@ shutdown_resources(struct app* app)
 
   if(app->rsrc) {
     if(app->wavefront_obj) {
-      rsrc_err = rsrc_free_wavefront_obj(app->rsrc, app->wavefront_obj);
+      rsrc_err = rsrc_free_wavefront_obj(app->wavefront_obj);
       if(rsrc_err != RSRC_NO_ERROR) {
         app_err = rsrc_to_app_error(app_err);
         goto error;
       }
       app->wavefront_obj = NULL;
     }
-    rsrc_err = rsrc_free_context(app->rsrc);
+    rsrc_err = rsrc_context_ref_put(app->rsrc);
     if(rsrc_err != RSRC_NO_ERROR) {
       app_err = rsrc_to_app_error(app_err);
       goto error;

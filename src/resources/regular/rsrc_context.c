@@ -8,6 +8,28 @@
 #include <assert.h>
 #include <stdlib.h>
 
+/*******************************************************************************
+ *
+ * Helper functions.
+ *
+ ******************************************************************************/
+static void
+release_context(struct ref* ref)
+{
+  struct rsrc_context* ctxt = NULL;
+  assert(NULL != ref);
+
+  ctxt = CONTAINER_OF(ref, struct rsrc_context, ref);
+
+  RSRC(shutdown_font_library(ctxt));
+  MEM_FREE(ctxt->allocator, ctxt);
+}
+
+/*******************************************************************************
+ *
+ * Context functions.
+ *
+ ******************************************************************************/
 EXPORT_SYM enum rsrc_error
 rsrc_create_context
   (struct mem_allocator* specific_allocator, 
@@ -28,6 +50,8 @@ rsrc_create_context
     goto error;
   }
   ctxt->allocator = allocator;
+  ref_init(&ctxt->ref);
+
   err = rsrc_init_font_library(ctxt);
   if(err != RSRC_NO_ERROR)
     goto error;
@@ -39,28 +63,27 @@ exit:
 
 error:
   if(ctxt) {
-    MEM_FREE(allocator, ctxt);
+    RSRC(context_ref_put(ctxt));
     ctxt = NULL;
   }
   goto exit;
 }
 
 EXPORT_SYM enum rsrc_error
-rsrc_free_context(struct rsrc_context* ctxt)
+rsrc_context_ref_get(struct rsrc_context* ctxt)
 {
-  enum rsrc_error err = RSRC_NO_ERROR;
+  if(!ctxt)
+    return RSRC_INVALID_ARGUMENT;
+  ref_get(&ctxt->ref);
+  return RSRC_NO_ERROR;
+}
 
-  if(!ctxt) {
-    err = RSRC_INVALID_ARGUMENT;
-    goto error;
-  }
-  RSRC(shutdown_font_library(ctxt));
-  MEM_FREE(ctxt->allocator, ctxt);
-
-exit:
-  return err;
-
-error:
-  goto exit;
+EXPORT_SYM enum rsrc_error
+rsrc_context_ref_put(struct rsrc_context* ctxt)
+{
+  if(!ctxt)
+    return RSRC_INVALID_ARGUMENT;
+  ref_put(&ctxt->ref, release_context);
+  return RSRC_NO_ERROR;
 }
 

@@ -12,7 +12,11 @@ rsrc_create_context
    struct rsrc_context** out_ctxt);
 
 extern enum rsrc_error
-rsrc_free_context
+rsrc_context_ref_get
+  (struct rsrc_context* ctxt);
+
+extern enum rsrc_error
+rsrc_context_ref_put
   (struct rsrc_context* ctxt);
 
 #endif /* RSRC_CONTEXT_H */

@@ -40,6 +40,7 @@ struct rsrc_wavefront_obj_mtl {
 };
 
 struct rsrc_wavefront_obj {
+  struct rsrc_context* ctxt;
   struct sl_vector* position_list; /* vector of float[3]. */
   struct sl_vector* normal_list; /* vector of float[3]. */
   struct sl_vector* texcoord_list; /* vector of float[3]. */

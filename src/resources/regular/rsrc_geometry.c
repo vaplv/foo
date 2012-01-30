@@ -1,6 +1,7 @@
 #include "resources/regular/rsrc_context_c.h"
 #include "resources/regular/rsrc_error_c.h"
 #include "resources/regular/rsrc_wavefront_obj_c.h"
+#include "resources/rsrc_context.h"
 #include "resources/rsrc_geometry.h"
 #include "stdlib/sl_hash_table.h"
 #include "stdlib/sl_vector.h"
@@ -19,6 +20,7 @@ struct primitive_set {
 };
 
 struct rsrc_geometry {
+  struct rsrc_context* ctxt;
   struct sl_vector* primitive_set_list; /* vector of vector of primitive_set. */
   struct sl_hash_table* hash_table; /* Internal hash table. */
 };
@@ -65,7 +67,7 @@ compare(const void* p0, const void* p1)
  ******************************************************************************/
 static enum rsrc_error
 build_triangle_list
-  (struct rsrc_context* ctxt UNUSED,
+  (struct rsrc_context* ctxt,
    const float (*pos)[3],
    const float (*nor)[3],
    const float (*tex)[3],
@@ -233,11 +235,13 @@ rsrc_create_geometry
     err = RSRC_MEMORY_ERROR;
     goto error;
   }
+  geom->ctxt = ctxt;
+  RSRC(context_ref_get(ctxt));
 
   sl_err = sl_create_vector
     (sizeof(struct primitive_set),
      ALIGNOF(struct primitive_set),
-     ctxt->allocator,
+     geom->ctxt->allocator,
      &geom->primitive_set_list);
   if(sl_err != SL_NO_ERROR) {
     err = sl_to_rsrc_error(sl_err);
@@ -250,7 +254,7 @@ rsrc_create_geometry
      sizeof(struct vvtvn),
      compare,
      get_key,
-     ctxt->allocator,
+     geom->ctxt->allocator,
      &geom->hash_table);
   if(sl_err != SL_NO_ERROR) {
     err = sl_to_rsrc_error(sl_err);
@@ -268,26 +272,25 @@ error:
       SL(free_vector(geom->primitive_set_list));
     if(geom->hash_table)
       SL(free_hash_table(geom->hash_table));
-    MEM_FREE(ctxt->allocator, geom);
+    MEM_FREE(geom->ctxt->allocator, geom);
     geom = NULL;
   }
   goto exit;
 }
 
 EXPORT_SYM enum rsrc_error
-rsrc_free_geometry
-  (struct rsrc_context* ctxt,
-   struct rsrc_geometry* geom)
+rsrc_free_geometry(struct rsrc_geometry* geom)
 {
+  struct rsrc_context* ctxt = NULL;
   enum rsrc_error err = RSRC_NO_ERROR;
   enum sl_error sl_err = SL_NO_ERROR;
 
-  if(!ctxt || !geom) {
+  if(!geom) {
     err = RSRC_INVALID_ARGUMENT;
     goto error;
   }
 
-  err = rsrc_clear_geometry(ctxt, geom);
+  err = rsrc_clear_geometry(geom);
   if(err != RSRC_NO_ERROR)
     goto error;
 
@@ -305,7 +308,9 @@ rsrc_free_geometry
       goto error;
     }
   }
+  ctxt = geom->ctxt;
   MEM_FREE(ctxt->allocator, geom);
+  RSRC(context_ref_put(ctxt));
 
 exit:
   return err;
@@ -315,9 +320,7 @@ error:
 }
 
 EXPORT_SYM enum rsrc_error
-rsrc_clear_geometry
-  (struct rsrc_context* ctxt,
-   struct rsrc_geometry* geom)
+rsrc_clear_geometry(struct rsrc_geometry* geom)
 {
   struct primitive_set* prim_set = NULL;
   size_t len = 0;
@@ -325,7 +328,7 @@ rsrc_clear_geometry
   enum rsrc_error err = RSRC_NO_ERROR;
   enum sl_error sl_err = SL_NO_ERROR;
 
-  if(!ctxt || !geom) {
+  if(!geom) {
     err = RSRC_INVALID_ARGUMENT;
     goto error;
   }
@@ -381,8 +384,7 @@ error:
 
 EXPORT_SYM enum rsrc_error
 rsrc_geometry_from_wavefront_obj
-  (struct rsrc_context* ctxt,
-   struct rsrc_geometry* geom,
+  (struct rsrc_geometry* geom,
    const struct rsrc_wavefront_obj* wobj)
 {
   struct primitive_set prim_set;
@@ -398,7 +400,7 @@ rsrc_geometry_from_wavefront_obj
 
   memset(&prim_set, 0, sizeof(prim_set));
 
-  if(!ctxt || !geom || !wobj) {
+  if(!geom || !wobj) {
     err = RSRC_INVALID_ARGUMENT;
     goto error;
   }
@@ -418,7 +420,7 @@ rsrc_geometry_from_wavefront_obj
   VECTOR_BUFFER(wobj->group_list, &nb_groups, &wobj_groups);
   #undef VECTOR_BUFFER
 
-  err = rsrc_clear_geometry(ctxt, geom);
+  err = rsrc_clear_geometry(geom);
   if(err != RSRC_NO_ERROR)
     goto error;
 
@@ -432,7 +434,7 @@ rsrc_geometry_from_wavefront_obj
     memset(&prim_set, 0, sizeof(prim_set));
     prim_set.primitive_type = RSRC_TRIANGLE;
     err = build_triangle_list
-      (ctxt,
+      (geom->ctxt,
        wobj_pos,
        wobj_nor,
        wobj_tex,
@@ -463,21 +465,19 @@ error:
   if(prim_set.attrib_list)
     SL(free_vector(prim_set.attrib_list));
   {
-    UNUSED const enum rsrc_error tmp_err = rsrc_clear_geometry(ctxt, geom);
-    assert(tmp_err == RSRC_NO_ERROR);
+    RSRC(clear_geometry(geom));
   }
   goto exit;
 }
 
 EXPORT_SYM enum rsrc_error
 rsrc_get_primitive_set_count
-  (struct rsrc_context* ctxt,
-   const struct rsrc_geometry* geom,
+  (const struct rsrc_geometry* geom,
    size_t* out_nb_prim_list)
 {
   enum sl_error sl_err = SL_NO_ERROR;
 
-  if(!ctxt || !geom || !out_nb_prim_list)
+  if(!geom || !out_nb_prim_list)
     return RSRC_INVALID_ARGUMENT;
 
   sl_err = sl_vector_length(geom->primitive_set_list, out_nb_prim_list);
@@ -489,8 +489,7 @@ rsrc_get_primitive_set_count
 
 EXPORT_SYM enum rsrc_error
 rsrc_get_primitive_set
-  (struct rsrc_context* ctxt,
-   const struct rsrc_geometry* geom,
+  (const struct rsrc_geometry* geom,
    size_t id,
    struct rsrc_primitive_set* primitive_set)
 {
@@ -500,7 +499,7 @@ rsrc_get_primitive_set
   size_t len = 0;
   enum rsrc_error err = RSRC_NO_ERROR;
 
-  if(!ctxt || !geom || !primitive_set) {
+  if(!geom || !primitive_set) {
     err = RSRC_INVALID_ARGUMENT;
     goto error;
   }

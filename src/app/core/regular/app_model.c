@@ -89,12 +89,11 @@ setup_model(struct app_model* model)
   if(app_err != APP_NO_ERROR)
     goto error;
 
-  RSRC(get_primitive_set_count
-    (model->app->rsrc, model->geometry, &nb_prim_set));
+  RSRC(get_primitive_set_count(model->geometry, &nb_prim_set));
   for(i = 0; i < nb_prim_set; ++i) {
     struct rsrc_primitive_set prim_set;
     size_t j = 0;
-    RSRC(get_primitive_set(model->app->rsrc, model->geometry, i, &prim_set));
+    RSRC(get_primitive_set(model->geometry, i, &prim_set));
 
     /* Only triangular geometry are handled. */
     if(prim_set.primitive_type != RSRC_TRIANGLE)
@@ -184,7 +183,7 @@ release_model(struct ref* ref)
   if(model->path)
     SL(free_string(model->path));
   if(model->geometry)
-    RSRC(free_geometry(model->app->rsrc, model->geometry));
+    RSRC(free_geometry(model->geometry));
   if(model->mesh_list)
     SL(free_vector(model->mesh_list));
   if(model->material_list)
@@ -314,7 +313,7 @@ app_clear_model(struct app_model* model)
   }
 
   if(model->geometry)
-    RSRC(clear_geometry(model->app->rsrc, model->geometry));
+    RSRC(clear_geometry(model->geometry));
 
   app_err = clear_model_render_data(model);
   if(app_err != APP_NO_ERROR)
@@ -359,14 +358,14 @@ app_load_model(const char* path, struct app_model* model)
   assert(model->app && model->app->wavefront_obj != NULL);
 
   rsrc_err = rsrc_load_wavefront_obj
-    (model->app->rsrc, model->app->wavefront_obj, path);
+    (model->app->wavefront_obj, path);
   if(rsrc_err != RSRC_NO_ERROR) {
     APP_LOG_ERR(model->app, "Error loading the geometry `%s'\n", path);
     app_err = rsrc_to_app_error(rsrc_err);
     goto error;
   }
   rsrc_err = rsrc_geometry_from_wavefront_obj
-    (model->app->rsrc, model->geometry, model->app->wavefront_obj);
+    (model->geometry, model->app->wavefront_obj);
   if(rsrc_err != RSRC_NO_ERROR) {
     app_err = rsrc_to_app_error(rsrc_err);
     goto error;

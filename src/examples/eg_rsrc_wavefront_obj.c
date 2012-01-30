@@ -43,7 +43,7 @@ main(int argc, char** argv)
 
   err = gettimeofday(&t0, NULL);
   assert(err == 0);
-  rsrc_err = rsrc_load_wavefront_obj(ctxt, wobj, argv[1]);
+  rsrc_err = rsrc_load_wavefront_obj(wobj, argv[1]);
   if(rsrc_err != RSRC_NO_ERROR) {
     fprintf(stderr, "Error loading the wavefront obj: %s\n", argv[1]);
     goto error;
@@ -55,7 +55,7 @@ main(int argc, char** argv)
 
   err = gettimeofday(&t0, NULL);
   assert(err == 0);
-  rsrc_err = rsrc_geometry_from_wavefront_obj(ctxt, geom, wobj);
+  rsrc_err = rsrc_geometry_from_wavefront_obj(geom, wobj);
   if(rsrc_err != RSRC_NO_ERROR) {
     fprintf(stderr, "Error creating the geometry from the wavefront obj.");
     goto error;
@@ -65,7 +65,7 @@ main(int argc, char** argv)
   us = (t1.tv_sec * 1000000 + t1.tv_usec) - (t0.tv_sec * 1000000 + t0.tv_usec);
   printf("Creating geometry: %.3f ms\n", us / 1000.f);
 
-  CALL(get_primitive_set_count(ctxt, geom, &nb_prim_set));
+  CALL(get_primitive_set_count(geom, &nb_prim_set));
   for(prim_set_id = 0; prim_set_id < nb_prim_set; ++prim_set_id) {
     struct rsrc_primitive_set set;
     const char* prim_name = NULL;
@@ -74,7 +74,7 @@ main(int argc, char** argv)
     unsigned short indices_per_primitive;
 
     printf("Set %zu -- ", prim_set_id);
-    CALL(get_primitive_set(ctxt, geom, prim_set_id, &set));
+    CALL(get_primitive_set(geom, prim_set_id, &set));
     switch(set.primitive_type) {
       case RSRC_POINT:
         prim_name = "Point";
@@ -129,11 +129,11 @@ main(int argc, char** argv)
 
 exit:
   if(geom)
-    CALL(free_geometry(ctxt, geom));
+    CALL(free_geometry(geom));
   if(wobj)
-    CALL(free_wavefront_obj(ctxt, wobj));
+    CALL(free_wavefront_obj(wobj));
   if(ctxt)
-    CALL(free_context(ctxt));
+    CALL(context_ref_put(ctxt));
 
   return err;
 
