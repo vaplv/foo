@@ -3,6 +3,7 @@
 #include "app/core/regular/app_model_instance_c.h"
 #include "app/core/app_model.h"
 #include "app/core/app_model_instance.h"
+#include "renderer/rdr.h"
 #include "renderer/rdr_model_instance.h"
 #include "stdlib/sl_set.h"
 #include "stdlib/sl_vector.h"
@@ -45,7 +46,7 @@ release_model_instance(struct ref* ref)
         NULL,
         (void**)&render_instance_lstbuf));
     for(i = 0; i < len; ++i)
-      RDR(free_model_instance(app->rdr, render_instance_lstbuf[i]));
+      RDR(model_instance_ref_put(render_instance_lstbuf[i]));
     SL(free_vector(instance->model_instance_list));
   }
   APP(model_ref_put(instance->model));
@@ -77,7 +78,7 @@ app_model_instance_ref_put(struct app_model_instance* instance)
 
 EXPORT_SYM enum app_error
 app_model_instance_get_model
-  (struct app_model_instance* instance, 
+  (struct app_model_instance* instance,
    struct app_model** out_model)
 {
   if(!instance || !out_model)

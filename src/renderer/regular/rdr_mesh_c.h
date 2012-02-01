@@ -1,15 +1,8 @@
 #ifndef RDR_MESH_C_H
 #define RDR_MESH_C_H
 
-#include "renderer/regular/rdr_object.h"
 #include "renderer/rdr_mesh.h"
-
-struct rdr_mesh_callback;
-
-struct rdr_mesh_callback_desc {
-  void* data;
-  enum rdr_error (*func)(struct rdr_system*, struct rdr_mesh*, void* data); 
-};
+#include <stdbool.h>
 
 struct rdr_mesh_attrib_desc {
   size_t stride;
@@ -18,35 +11,37 @@ struct rdr_mesh_attrib_desc {
   enum rdr_attrib_usage usage;
 };
 
-RDR_OBJECT(struct rdr_mesh);
-
 extern enum rdr_error
 rdr_get_mesh_attribs
-  (struct rdr_system* sys,
-   struct rdr_mesh* mesh,
+  (struct rdr_mesh* mesh,
    size_t* nb_attribs,
    struct rdr_mesh_attrib_desc* attrib_list);
 
 extern enum rdr_error
 rdr_get_mesh_indexed_data
-  (struct rdr_system* sys,
-   struct rdr_mesh* mesh,
+  (struct rdr_mesh* mesh,
    size_t* nb_indices,
    struct rb_buffer** indices,
    struct rb_buffer** data);
 
 extern enum rdr_error
 rdr_attach_mesh_callback
-  (struct rdr_system* sys,
-   struct rdr_mesh* mesh,
-   const struct rdr_mesh_callback_desc* desc,
-   struct rdr_mesh_callback** out_calback);
+  (struct rdr_mesh* mesh,
+   void (*func)(struct rdr_mesh*, void* data),
+   void* data);
 
 extern enum rdr_error
 rdr_detach_mesh_callback
-  (struct rdr_system* sys,
-   struct rdr_mesh* mesh,
-   struct rdr_mesh_callback* callback);
+  (struct rdr_mesh* mesh,
+   void (*func)(struct rdr_mesh*, void* data),
+   void* data);
+
+extern enum rdr_error
+rdr_is_mesh_callback_attached
+  (struct rdr_mesh* mesh,
+   void (*func)(struct rdr_mesh*, void* data),
+   void* data,
+   bool* is_attached);
 
 #endif /* RDR_MESH_C_H */
 

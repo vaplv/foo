@@ -5,6 +5,7 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -msse3")
 add_library(renderer SHARED
   rdr_attrib.c
   rdr_error.c
+  rdr_font.c
   rdr_material.c
   rdr_mesh.c
   rdr_model.c

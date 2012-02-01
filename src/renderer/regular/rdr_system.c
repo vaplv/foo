@@ -7,6 +7,32 @@
 #include <stdlib.h>
 #include <string.h>
 
+/*******************************************************************************
+ *
+ * Helper functions.
+ *
+ ******************************************************************************/
+static void
+release_system(struct ref* ref)
+{
+  struct rdr_system* sys = NULL;
+  int err = 0;
+  assert(NULL != ref);
+
+  sys = CONTAINER_OF(ref, struct rdr_system, ref);
+  err = sys->rb.free_context(sys->ctxt);
+  assert(err == 0);
+  err = rbi_shutdown(&sys->rb);
+  assert(err == 0);
+
+  MEM_FREE(sys->allocator, sys);
+}
+
+/*******************************************************************************
+ *
+ * Render system functions.
+ *
+ ******************************************************************************/
 EXPORT_SYM enum rdr_error
 rdr_create_system
   (const char* graphic_driver, 
@@ -29,6 +55,7 @@ rdr_create_system
     rdr_err = RDR_MEMORY_ERROR;
   }
   sys->allocator = allocator;
+  ref_init(&sys->ref);
 
   err = rbi_init(graphic_driver, &sys->rb);
   if(err != 0) {
@@ -62,21 +89,20 @@ error:
 }
 
 EXPORT_SYM enum rdr_error
-rdr_free_system(struct rdr_system* sys)
+rdr_system_ref_get(struct rdr_system* sys)
 {
-  struct mem_allocator* allocator = NULL;
-  int err = 0;
-
   if(!sys)
     return RDR_INVALID_ARGUMENT;
+  ref_get(&sys->ref);
+  return RDR_NO_ERROR;
+}
 
-  err = sys->rb.free_context(sys->ctxt);
-  assert(err == 0);
-  err = rbi_shutdown(&sys->rb);
-  assert(err == 0);
-
-  allocator = sys->allocator;
-  MEM_FREE(allocator, sys);
+EXPORT_SYM enum rdr_error
+rdr_system_ref_put(struct rdr_system* sys)
+{
+  if(!sys)
+    return RDR_INVALID_ARGUMENT;
+  ref_put(&sys->ref, release_system);
   return RDR_NO_ERROR;
 }
 

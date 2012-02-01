@@ -2,8 +2,12 @@
 #include "renderer/regular/rdr_error_c.h"
 #include "renderer/regular/rdr_model_instance_c.h"
 #include "renderer/regular/rdr_system_c.h"
+#include "renderer/rdr.h"
+#include "renderer/rdr_model_instance.h"
+#include "renderer/rdr_system.h"
 #include "renderer/rdr_world.h"
 #include "stdlib/sl_set.h"
+#include "sys/ref_count.h"
 #include "sys/sys.h"
 #include <assert.h>
 #include <math.h>
@@ -12,6 +16,8 @@
 #include <string.h>
 
 struct rdr_world {
+  struct ref ref;
+  struct rdr_system* sys;
   float bkg_color[4];
   struct sl_set* model_instance_list;
 };
@@ -48,6 +54,37 @@ compare_model_instance(const void* inst0, const void* inst1)
   return -(a < b) | (a > b);
 }
 
+static void
+release_world(struct ref* ref)
+{
+  struct rdr_system* sys = NULL;
+  struct rdr_world* world = NULL;
+  assert(ref);
+
+  world = CONTAINER_OF(ref, struct rdr_world, ref);
+
+  if(world->model_instance_list) {
+    struct rdr_model_instance** instance_list = NULL;
+    size_t nb_instances = 0;
+    size_t i = 0;
+
+    SL(set_buffer
+      (world->model_instance_list,
+       &nb_instances,
+       NULL,
+       NULL,
+       (void**)&instance_list));
+
+    for(i = 0; i < nb_instances; ++i)
+      RDR(model_instance_ref_put(instance_list[i]));
+
+    SL(free_set(world->model_instance_list));
+  }
+  sys = world->sys;
+  MEM_FREE(world->sys->allocator, world);
+  RDR(system_ref_put(sys));
+}
+
 /*******************************************************************************
  *
  * Implementation of the render world functions.
@@ -70,12 +107,15 @@ rdr_create_world(struct rdr_system* sys, struct rdr_world** out_world)
     rdr_err = RDR_MEMORY_ERROR;
     goto error;
   }
+  ref_init(&world->ref);
+  RDR(system_ref_get(sys));
+  world->sys = sys;
 
   sl_err = sl_create_set
     (sizeof(struct rdr_model_instance*),
      ALIGNOF(struct rdr_model_instance*),
      compare_model_instance,
-     sys->allocator,
+     world->sys->allocator,
      &world->model_instance_list);
   if(sl_err != SL_NO_ERROR) {
     rdr_err = sl_to_rdr_error(sl_err);
@@ -89,61 +129,33 @@ exit:
 
 error:
   if(world) {
-    if(world->model_instance_list) {
-      sl_err = sl_free_set(world->model_instance_list);
-      assert(sl_err == SL_NO_ERROR);
-    }
-    MEM_FREE(sys->allocator, world);
+    RDR(world_ref_put(world));
     world = NULL;
   }
   goto exit;
 }
 
 EXPORT_SYM enum rdr_error
-rdr_free_world(struct rdr_system* sys, struct rdr_world* world)
+rdr_world_ref_get(struct rdr_world* world)
 {
-  enum rdr_error rdr_err = RDR_NO_ERROR;
-  enum sl_error sl_err = SL_NO_ERROR;
+  if(!world)
+    return RDR_INVALID_ARGUMENT;
+  ref_get(&world->ref);
+  return RDR_NO_ERROR;
+}
 
-  if(!sys || !world) {
-    rdr_err = RDR_INVALID_ARGUMENT;
-    goto error;
-  }
-
-  if(world->model_instance_list) {
-    struct rdr_model_instance** instance_list = NULL;
-    size_t nb_instances = 0;
-    size_t i = 0;
-
-    sl_err = sl_set_buffer
-      (world->model_instance_list,
-       &nb_instances,
-       NULL,
-       NULL,
-       (void**)&instance_list);
-
-    for(i = 0; i < nb_instances; ++i)
-      RDR_RELEASE_OBJECT(sys, instance_list[i]);
-
-    sl_err = sl_free_set(world->model_instance_list);
-    if(sl_err != SL_NO_ERROR) {
-      rdr_err = sl_to_rdr_error(sl_err);
-      goto error;
-    }
-  }
-  MEM_FREE(sys->allocator, world);
-
-exit:
-  return rdr_err;
-
-error:
-  goto exit;
+EXPORT_SYM enum rdr_error
+rdr_world_ref_put(struct rdr_world* world)
+{
+  if(!world)
+    return RDR_INVALID_ARGUMENT;
+  ref_put(&world->ref, release_world);
+  return RDR_NO_ERROR;
 }
 
 EXPORT_SYM enum rdr_error
 rdr_add_model_instance
-  (struct rdr_system* sys,
-   struct rdr_world* world,
+  (struct rdr_world* world,
    struct rdr_model_instance* instance)
 {
   enum rdr_error rdr_err = RDR_NO_ERROR;
@@ -151,7 +163,7 @@ rdr_add_model_instance
   bool is_instance_added = false;
   bool is_instance_retained = false;
 
-  if(!sys || !world || !instance) {
+  if(!world || !instance) {
     rdr_err = RDR_INVALID_ARGUMENT;
     goto error;
   }
@@ -164,14 +176,11 @@ rdr_add_model_instance
   }
   is_instance_added = true;
 
-  rdr_err = RDR_RETAIN_OBJECT(sys, instance);
-  if(rdr_err != RDR_NO_ERROR)
-    goto error;
+  RDR(model_instance_ref_get(instance));
   is_instance_retained = true;
 
 exit:
   return rdr_err;
-
 error:
   if(is_instance_added) {
     assert(world);
@@ -179,14 +188,13 @@ error:
     assert(sl_err == SL_NO_ERROR);
   }
   if(is_instance_retained)
-    RDR_RELEASE_OBJECT(sys, instance);
+    RDR(model_instance_ref_put(instance));
   goto exit;
 }
 
 EXPORT_SYM enum rdr_error
 rdr_remove_model_instance
-  (struct rdr_system* sys,
-   struct rdr_world* world,
+  (struct rdr_world* world,
    struct rdr_model_instance* instance)
 {
   enum rdr_error rdr_err = RDR_NO_ERROR;
@@ -194,7 +202,7 @@ rdr_remove_model_instance
   bool is_instance_removed = false;
   bool is_instance_released = false;
 
-  if(!sys || !world || !instance) {
+  if(!world || !instance) {
     rdr_err = RDR_INVALID_ARGUMENT;
     goto error;
   }
@@ -206,7 +214,7 @@ rdr_remove_model_instance
   }
   is_instance_removed = true;
 
-  RDR_RELEASE_OBJECT(sys, instance);
+  RDR(model_instance_ref_put(instance));
   is_instance_released = true;
 
 exit:
@@ -219,15 +227,12 @@ error:
     assert(sl_err == SL_NO_ERROR);
   }
   if(is_instance_released)
-    RDR_RETAIN_OBJECT(sys, instance);
+    RDR(model_instance_ref_get(instance));
   goto exit;
 }
 
 EXPORT_SYM enum rdr_error
-rdr_draw_world
-  (struct rdr_system* sys,
-   struct rdr_world* world,
-   const struct rdr_view* view)
+rdr_draw_world(struct rdr_world* world, const struct rdr_view* view)
 {
   const struct rb_depth_stencil_desc depth_stencil_desc = {
     .enable_depth_test = 1,
@@ -242,13 +247,13 @@ rdr_draw_world
   size_t nb_instances = 0;
   int err = 0;
 
-  if(!sys || !world || !view) {
+  if(!world || !view) {
     rdr_err = RDR_INVALID_ARGUMENT;
     goto error;
   }
 
-  err = sys->rb.clear
-    (sys->ctxt,
+  err = world->sys->rb.clear
+    (world->sys->ctxt,
      RB_CLEAR_COLOR_BIT | RB_CLEAR_DEPTH_BIT | RB_CLEAR_STENCIL_BIT,
      world->bkg_color,
      1.f,
@@ -258,7 +263,7 @@ rdr_draw_world
     goto error;
   }
 
-  err = sys->rb.depth_stencil(sys->ctxt, &depth_stencil_desc);
+  err = world->sys->rb.depth_stencil(world->sys->ctxt, &depth_stencil_desc);
   if(err != 0) {
     rdr_err = RDR_DRIVER_ERROR;
     goto error;
@@ -281,27 +286,22 @@ rdr_draw_world
     compute_proj
       (view->fov_x, view->proj_ratio, view->znear, view->zfar, &proj_matrix);
     rdr_err = rdr_draw_instances
-      (sys, &view_matrix, &proj_matrix, nb_instances, instance_list);
+      (world->sys, &view_matrix, &proj_matrix, nb_instances, instance_list);
     if(rdr_err != RDR_NO_ERROR)
       goto error;
   }
 
 exit:
   return rdr_err;
-
 error:
   goto exit;
 }
 
 EXPORT_SYM enum rdr_error
-rdr_background_color
-  (struct rdr_system* sys,
-   struct rdr_world* world,
-   const float rgb[3])
+rdr_background_color(struct rdr_world* world, const float rgb[3])
 {
-  if(!sys || !world || !rgb)
+  if(!world || !rgb)
     return RDR_INVALID_ARGUMENT;
-
   memcpy(world->bkg_color, rgb, 3 * sizeof(float));
   return RDR_NO_ERROR;
 }

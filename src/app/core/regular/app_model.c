@@ -3,6 +3,7 @@
 #include "app/core/regular/app_model_instance_c.h"
 #include "app/core/app_model.h"
 #include "app/core/app_model_instance.h"
+#include "renderer/rdr.h"
 #include "renderer/rdr_material.h"
 #include "renderer/rdr_mesh.h"
 #include "renderer/rdr_model.h"
@@ -52,21 +53,21 @@ clear_model_render_data(struct app_model* model)
     SL(vector_buffer
        (model->mesh_list, &len, NULL, NULL, (void**)&mesh_lstbuf));
     for(i = 0; i < len; ++i)
-      RDR(free_mesh(model->app->rdr, mesh_lstbuf[i]));
+      RDR(mesh_ref_put(mesh_lstbuf[i]));
     SL(clear_vector(model->mesh_list));
   }
   if(model->material_list) {
     SL(vector_buffer
        (model->material_list, &len, NULL, NULL, (void**)&mtr_lstbuf));
     for(i = 0; i < len; ++i)
-      RDR(free_material(model->app->rdr, mtr_lstbuf[i]));
+      RDR(material_ref_put(mtr_lstbuf[i]));
     SL(clear_vector(model->material_list));
   }
   if(model->model_list) {
     SL(vector_buffer
        (model->model_list, &len, NULL, NULL, (void**)&mdl_lstbuf));
     for(i = 0; i < len; ++i)
-      RDR(free_model(model->app->rdr, mdl_lstbuf[i]));
+      RDR(model_ref_put(mdl_lstbuf[i]));
     SL(clear_vector(model->model_list));
   }
   return APP_NO_ERROR;
@@ -105,8 +106,7 @@ setup_model(struct app_model* model)
       app_err = rdr_to_app_error(rdr_err);
       goto error;
     }
-    rdr_err = rdr_mesh_indices
-      (model->app->rdr, mesh, prim_set.nb_indices, prim_set.index_list);
+    rdr_err = rdr_mesh_indices(mesh, prim_set.nb_indices, prim_set.index_list);
     if(rdr_err != RDR_NO_ERROR) {
       app_err = rdr_to_app_error(rdr_err);
       goto error;
@@ -119,8 +119,7 @@ setup_model(struct app_model* model)
         rsrc_to_rdr_attrib_usage(prim_set.attrib_list[j].usage);
     }
     rdr_err = rdr_mesh_data
-      (model->app->rdr,
-       mesh,
+      (mesh,
        prim_set.nb_attribs,
        mesh_attribs,
        prim_set.sizeof_data,
@@ -157,9 +156,9 @@ exit:
 
 error:
   if(mesh)
-    RDR(free_mesh(model->app->rdr, mesh));
+    RDR(mesh_ref_put(mesh));
   if(rmodel)
-    RDR(free_model(model->app->rdr, rmodel));
+    RDR(model_ref_put(rmodel));
   goto exit;
 }
 
@@ -525,7 +524,7 @@ error:
     instance = NULL;
   }
   if(render_instance) {
-    RDR(free_model_instance(app->rdr, render_instance));
+    RDR(model_instance_ref_put(render_instance));
     render_instance = NULL;
   }
   if(is_ref_get)

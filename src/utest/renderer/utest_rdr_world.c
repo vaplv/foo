@@ -89,10 +89,10 @@ main(int argc, char** argv)
   CHECK(rdr_create_system(driver_name, NULL, &sys), RDR_NO_ERROR);
 
   CHECK(rdr_create_mesh(sys, &mesh), RDR_NO_ERROR);
-  CHECK(rdr_mesh_data(sys, mesh, 1, attr, sizeof(data), data), RDR_NO_ERROR);
-  CHECK(rdr_mesh_indices(sys, mesh, 3, indices), RDR_NO_ERROR);
+  CHECK(rdr_mesh_data(mesh, 1, attr, sizeof(data), data), RDR_NO_ERROR);
+  CHECK(rdr_mesh_indices(mesh, 3, indices), RDR_NO_ERROR);
   CHECK(rdr_create_material(sys, &mtr), RDR_NO_ERROR);
-  CHECK(rdr_material_program(sys, mtr, sources), RDR_NO_ERROR);
+  CHECK(rdr_material_program(mtr, sources), RDR_NO_ERROR);
   CHECK(rdr_create_model(sys, mesh, mtr, &mdl), RDR_NO_ERROR);
   CHECK(rdr_create_model_instance(sys, mdl, &inst0), RDR_NO_ERROR);
   CHECK(rdr_create_model_instance(sys, mdl, &inst1), RDR_NO_ERROR);
@@ -103,51 +103,40 @@ main(int argc, char** argv)
   CHECK(rdr_create_world(NULL, &world), RDR_INVALID_ARGUMENT);
   CHECK(rdr_create_world(sys, &world), RDR_NO_ERROR);
 
-  CHECK(rdr_add_model_instance(NULL, NULL, NULL), RDR_INVALID_ARGUMENT);
-  CHECK(rdr_add_model_instance(sys, NULL, NULL), RDR_INVALID_ARGUMENT);
-  CHECK(rdr_add_model_instance(NULL, world, NULL), RDR_INVALID_ARGUMENT);
-  CHECK(rdr_add_model_instance(sys, world, NULL), RDR_INVALID_ARGUMENT);
-  CHECK(rdr_add_model_instance(NULL, NULL, inst0), RDR_INVALID_ARGUMENT);
-  CHECK(rdr_add_model_instance(sys, NULL, inst0), RDR_INVALID_ARGUMENT);
-  CHECK(rdr_add_model_instance(NULL, world, inst0), RDR_INVALID_ARGUMENT);
-  CHECK(rdr_add_model_instance(sys, world, inst0), RDR_NO_ERROR);
+  CHECK(rdr_add_model_instance(NULL, NULL), RDR_INVALID_ARGUMENT);
+  CHECK(rdr_add_model_instance(world, NULL), RDR_INVALID_ARGUMENT);
+  CHECK(rdr_add_model_instance(NULL, inst0), RDR_INVALID_ARGUMENT);
+  CHECK(rdr_add_model_instance(world, inst0), RDR_NO_ERROR);
 
-  CHECK(rdr_draw_world(NULL, NULL, NULL), RDR_INVALID_ARGUMENT);
-  CHECK(rdr_draw_world(sys, NULL, NULL), RDR_INVALID_ARGUMENT);
-  CHECK(rdr_draw_world(NULL, world, NULL), RDR_INVALID_ARGUMENT);
-  CHECK(rdr_draw_world(sys, world, NULL), RDR_INVALID_ARGUMENT);
-  CHECK(rdr_draw_world(NULL, NULL, &view), RDR_INVALID_ARGUMENT);
-  CHECK(rdr_draw_world(sys, NULL, &view), RDR_INVALID_ARGUMENT);
-  CHECK(rdr_draw_world(NULL, world, &view), RDR_INVALID_ARGUMENT);
-  CHECK(rdr_draw_world(sys, world, &view), RDR_NO_ERROR);
+  CHECK(rdr_draw_world(NULL, NULL), RDR_INVALID_ARGUMENT);
+  CHECK(rdr_draw_world(world, NULL), RDR_INVALID_ARGUMENT);
+  CHECK(rdr_draw_world(NULL, &view), RDR_INVALID_ARGUMENT);
+  CHECK(rdr_draw_world(world, &view), RDR_NO_ERROR);
 
-  CHECK(rdr_add_model_instance(sys, world, inst1), RDR_NO_ERROR);
-  CHECK(rdr_add_model_instance(sys, world, inst2), RDR_NO_ERROR);
+  CHECK(rdr_add_model_instance(world, inst1), RDR_NO_ERROR);
+  CHECK(rdr_add_model_instance(world, inst2), RDR_NO_ERROR);
 
-  CHECK(rdr_remove_model_instance(NULL, NULL, NULL), RDR_INVALID_ARGUMENT);
-  CHECK(rdr_remove_model_instance(sys, NULL, NULL), RDR_INVALID_ARGUMENT);
-  CHECK(rdr_remove_model_instance(NULL, world, NULL), RDR_INVALID_ARGUMENT);
-  CHECK(rdr_remove_model_instance(sys, world, NULL), RDR_INVALID_ARGUMENT);
-  CHECK(rdr_remove_model_instance(NULL, NULL, inst0), RDR_INVALID_ARGUMENT);
-  CHECK(rdr_remove_model_instance(sys, NULL, inst0), RDR_INVALID_ARGUMENT);
-  CHECK(rdr_remove_model_instance(NULL, world, inst0), RDR_INVALID_ARGUMENT);
-  CHECK(rdr_remove_model_instance(sys, world, inst0), RDR_NO_ERROR);
-  CHECK(rdr_remove_model_instance(sys, world, inst0), RDR_INVALID_ARGUMENT);
-  CHECK(rdr_remove_model_instance(sys, world, inst1), RDR_NO_ERROR);
-  CHECK(rdr_remove_model_instance(sys, world, inst2), RDR_NO_ERROR);
+  CHECK(rdr_remove_model_instance(NULL, NULL), RDR_INVALID_ARGUMENT);
+  CHECK(rdr_remove_model_instance(world, NULL), RDR_INVALID_ARGUMENT);
+  CHECK(rdr_remove_model_instance(NULL, inst0), RDR_INVALID_ARGUMENT);
+  CHECK(rdr_remove_model_instance(world, inst0), RDR_NO_ERROR);
+  CHECK(rdr_remove_model_instance(world, inst0), RDR_INVALID_ARGUMENT);
+  CHECK(rdr_remove_model_instance(world, inst1), RDR_NO_ERROR);
+  CHECK(rdr_remove_model_instance(world, inst2), RDR_NO_ERROR);
 
-  CHECK(rdr_free_world(NULL, NULL), RDR_INVALID_ARGUMENT);
-  CHECK(rdr_free_world(sys, NULL), RDR_INVALID_ARGUMENT);
-  CHECK(rdr_free_world(NULL, world), RDR_INVALID_ARGUMENT);
-  CHECK(rdr_free_world(sys, world), RDR_NO_ERROR);
+  CHECK(rdr_world_ref_get(NULL), RDR_INVALID_ARGUMENT);
+  CHECK(rdr_world_ref_get(world), RDR_NO_ERROR);
+  CHECK(rdr_world_ref_put(NULL), RDR_INVALID_ARGUMENT);
+  CHECK(rdr_world_ref_put(world), RDR_NO_ERROR);
+  CHECK(rdr_world_ref_put(world), RDR_NO_ERROR);
 
-  CHECK(rdr_free_model_instance(sys, inst0), RDR_NO_ERROR);
-  CHECK(rdr_free_model_instance(sys, inst1), RDR_NO_ERROR);
-  CHECK(rdr_free_model_instance(sys, inst2), RDR_NO_ERROR);
-  CHECK(rdr_free_model(sys, mdl), RDR_NO_ERROR);
-  CHECK(rdr_free_material(sys, mtr), RDR_NO_ERROR);
-  CHECK(rdr_free_mesh(sys, mesh), RDR_NO_ERROR);
-  CHECK(rdr_free_system(sys), RDR_NO_ERROR);
+  CHECK(rdr_model_instance_ref_put(inst0), RDR_NO_ERROR);
+  CHECK(rdr_model_instance_ref_put(inst1), RDR_NO_ERROR);
+  CHECK(rdr_model_instance_ref_put(inst2), RDR_NO_ERROR);
+  CHECK(rdr_model_ref_put(mdl), RDR_NO_ERROR);
+  CHECK(rdr_material_ref_put(mtr), RDR_NO_ERROR);
+  CHECK(rdr_mesh_ref_put(mesh), RDR_NO_ERROR);
+  CHECK(rdr_system_ref_put(sys), RDR_NO_ERROR);
 
   CHECK(wm_free_window(device, window), WM_NO_ERROR);
   CHECK(wm_free_device(device), WM_NO_ERROR);

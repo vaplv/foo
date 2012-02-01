@@ -6,6 +6,7 @@
 #include "app/core/app_model_instance.h"
 #include "app/core/app_view.h"
 #include "app/core/app_world.h"
+#include "renderer/rdr.h"
 #include "renderer/rdr_material.h"
 #include "renderer/rdr_system.h"
 #include "renderer/rdr_world.h"
@@ -218,14 +219,14 @@ shutdown_renderer(struct app* app)
 
   if(app->rdr) {
     if(app->default_render_material) {
-      rdr_err = rdr_free_material(app->rdr, app->default_render_material);
+      rdr_err = rdr_material_ref_put(app->default_render_material);
       if(rdr_err != RDR_NO_ERROR) {
         app_err = rdr_to_app_error(rdr_err);
         goto error;
       }
       app->default_render_material = NULL;
     }
-    rdr_err = rdr_free_system(app->rdr);
+    rdr_err = rdr_system_ref_put(app->rdr);
     if(rdr_err != RDR_NO_ERROR) {
       app_err = rdr_to_app_error(rdr_err);
       goto error;
@@ -453,10 +454,10 @@ init_renderer(struct app* app, const char* driver)
     goto error;
   }
   rdr_err = rdr_material_program
-    (app->rdr, app->default_render_material, default_shader_sources);
+    (app->default_render_material, default_shader_sources);
   if(rdr_err != RDR_NO_ERROR) {
     const char* log = NULL;
-    RDR(get_material_log(app->rdr, app->default_render_material, &log));
+    RDR(get_material_log(app->default_render_material, &log));
     if(log  != NULL)
       APP_LOG_ERR(app, "Default render material error: \n%s", log);
 

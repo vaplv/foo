@@ -18,15 +18,11 @@
   #include <assert.h>
   #define APP(func) assert(APP_NO_ERROR == app_##func)
   #define SL(func) assert(SL_NO_ERROR == sl_##func)
-  #define RSRC(func) assert(RSRC_NO_ERROR == rsrc_##func)
-  #define RDR(func) assert(RDR_NO_ERROR == rdr_##func)
   #define SYS(func) assert(SYS_NO_ERROR == sys_##func)
   #define WM(func) assert(WM_NO_ERROR == wm_##func)
 #else
   #define APP(func) app_##func
   #define SL(func) sl_##func
-  #define RSRC(func) rsrc_##func
-  #define RDR(func) rdr_##func
   #define SYS(func) sys_##func
   #define WM(func) wm_##func
 #endif

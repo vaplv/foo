@@ -2,8 +2,11 @@
 #include "renderer/regular/rdr_error_c.h"
 #include "renderer/regular/rdr_material_c.h"
 #include "renderer/regular/rdr_system_c.h"
+#include "renderer/rdr.h"
 #include "renderer/rdr_material.h"
-#include "stdlib/sl_linked_list.h"
+#include "renderer/rdr_system.h"
+#include "stdlib/sl_set.h"
+#include "sys/ref_count.h"
 #include "sys/sys.h"
 #include <assert.h>
 #include <limits.h>
@@ -17,17 +20,41 @@ static const enum rb_shader_type rdr_shader_to_rb_shader_type[] = {
   [RDR_FRAGMENT_SHADER] = RB_FRAGMENT_SHADER
 };
 
-struct material {
+struct rdr_material {
+  struct rdr_system* sys;
+  struct ref ref;
   struct rb_program* program;
   struct rb_shader* shader_list[RDR_NB_SHADER_USAGES];
   struct rb_attrib** attrib_list;
   struct rb_uniform** uniform_list;
   char* log;
-  struct sl_linked_list* callback_list;
+  struct sl_set* callback_set;
   size_t nb_attribs;
   size_t nb_uniforms;
   bool is_linked;
 };
+
+/*******************************************************************************
+ *
+ * Callbacks.
+ *
+ ******************************************************************************/
+struct callback {
+  void (*func)(struct rdr_material*, void*);
+  void* data;
+};
+
+static int
+cmp_callbacks(const void* a, const void* b)
+{
+  struct callback* cbk0 = (struct callback*)a;
+  struct callback* cbk1 = (struct callback*)b;
+  const uintptr_t p0[2] = {(uintptr_t)cbk0->func, (uintptr_t)cbk0->data};
+  const uintptr_t p1[2] = {(uintptr_t)cbk1->func, (uintptr_t)cbk1->data};
+  const int inf = (p0[0] < p1[0]) | ((p0[0] == p1[0]) & (p0[1] < p1[1]));
+  const int sup = (p0[0] > p1[0]) | ((p0[0] == p1[0]) & (p0[1] > p1[1]));
+  return -(inf) | (sup);
+}
 
 /*******************************************************************************
  *
@@ -98,7 +125,7 @@ build_program
         err = sys->rb.get_shader_log(sys->ctxt, shader, &log);
         if(err == 0) {
           char* tmp_log = NULL;
-          
+
           assert(log != NULL);
           tmp_log = MEM_ALLOC(sys->allocator, strlen(log) + 1);
           if(!tmp_log) {
@@ -125,7 +152,7 @@ build_program
   if(err != 0) {
     err = sys->rb.get_program_log(sys->ctxt, program, &log);
     if(err == 0) {
-      char* tmp_log = NULL; 
+      char* tmp_log = NULL;
 
       assert(log != NULL);
       tmp_log = MEM_ALLOC(sys->allocator, strlen(log) + 1);
@@ -294,63 +321,52 @@ release_uniforms
   }
 }
 
-static enum rdr_error
-invoke_callbacks(struct rdr_system* sys, struct rdr_material* mtr_obj)
+
+static void
+invoke_callbacks(struct rdr_material* mtr)
 {
-  struct sl_node* node = NULL;
-  struct material* mtr = NULL;
-  enum rdr_error rdr_err = RDR_NO_ERROR;
+  struct callback* buffer = NULL;
+  size_t len = 0;
+  size_t i = 0;
+  assert(mtr);
 
-  assert(sys && mtr_obj);
-
-  mtr = RDR_GET_OBJECT_DATA(sys, mtr_obj);
-
-  for(SL(linked_list_head(mtr->callback_list, &node));
-      node != NULL;
-      SL(next_node(node, &node))) {
-    struct rdr_material_callback_desc* desc = NULL;
-    enum rdr_error last_err = RDR_NO_ERROR;
-
-    SL(node_data(node, (void**)&desc));
-
-    last_err = desc->func(sys, mtr_obj, desc->data);
-    if(last_err != RDR_NO_ERROR)
-      rdr_err = last_err;
+  SL(set_buffer(mtr->callback_set, &len, NULL, NULL, (void**)&buffer));
+  for(i = 0; i < len; ++i) {
+    struct callback* clbk = buffer + i;
+    clbk->func(mtr, clbk->data);
   }
-
-  return rdr_err;
 }
 
 static void
-free_material(struct rdr_system* sys, void* data)
+release_material(struct ref* ref)
 {
-  struct material* mtr = data;
+  struct rdr_material* mtr = NULL;
+  struct rdr_system* sys = NULL;
   int err = 0;
+  assert(ref);
 
-  assert(sys && mtr);
+  mtr = CONTAINER_OF(ref, struct rdr_material, ref);
 
-  if(mtr->callback_list) {
-    struct sl_node* node = NULL;
-
-    SL(linked_list_head(mtr->callback_list, &node));
-    assert(node == NULL);
-    SL(free_linked_list(mtr->callback_list));
+  if(mtr->callback_set) {
+    size_t len = 0;
+    SL(set_buffer(mtr->callback_set, &len, NULL, NULL, NULL));
+    assert(0 == len);
+    SL(free_set(mtr->callback_set));
   }
-
-  release_attribs(sys, mtr->nb_attribs, mtr->attrib_list);
-  release_uniforms(sys, mtr->nb_uniforms, mtr->uniform_list);
-
+  release_attribs(mtr->sys, mtr->nb_attribs, mtr->attrib_list);
+  release_uniforms(mtr->sys, mtr->nb_uniforms, mtr->uniform_list);
   if(mtr->log != NULL) {
-    MEM_FREE(sys->allocator, mtr->log);
+    MEM_FREE(mtr->sys->allocator, mtr->log);
     mtr->log = NULL;
   }
-
   if(mtr->program) {
-    release_shaders(sys, mtr->program, mtr->shader_list);
-
-    err = sys->rb.free_program(sys->ctxt, mtr->program);
+    release_shaders(mtr->sys, mtr->program, mtr->shader_list);
+    err = mtr->sys->rb.free_program(mtr->sys->ctxt, mtr->program);
     assert(err == 0);
   }
+  sys = mtr->sys;
+  MEM_FREE(sys->allocator, mtr);
+  RDR(system_ref_put(sys));
 }
 
 /*******************************************************************************
@@ -359,144 +375,135 @@ free_material(struct rdr_system* sys, void* data)
  *
  ******************************************************************************/
 EXPORT_SYM enum rdr_error
-rdr_create_material(struct rdr_system* sys, struct rdr_material** out_mtr_obj)
+rdr_create_material(struct rdr_system* sys, struct rdr_material** out_mtr)
 {
-  struct rdr_material* mtr_obj = NULL;
-  struct material* mtr = NULL;
+  struct rdr_material* mtr = NULL;
   enum rdr_error rdr_err = RDR_NO_ERROR;
   enum sl_error sl_err = SL_NO_ERROR;
   int err = 0;
 
-  if(!sys || !out_mtr_obj) {
+  if(!sys || !out_mtr) {
     rdr_err = RDR_INVALID_ARGUMENT;
     goto error;
   }
 
-  rdr_err = RDR_CREATE_OBJECT
-    (sys, sizeof(struct material), free_material, mtr_obj);
-  if(rdr_err != RDR_NO_ERROR)
+  mtr = MEM_CALLOC(sys->allocator, 1, sizeof(struct rdr_material));
+  if(!mtr) {
+    rdr_err = RDR_MEMORY_ERROR;
     goto error;
+  }
+  ref_init(&mtr->ref);
+  RDR(system_ref_get(sys));
+  mtr->sys = sys;
 
-  mtr = RDR_GET_OBJECT_DATA(sys, mtr_obj);
-
-  err = sys->rb.create_program(sys->ctxt, &mtr->program);
+  err = mtr->sys->rb.create_program(mtr->sys->ctxt, &mtr->program);
   if(err != 0) {
     rdr_err = RDR_DRIVER_ERROR;
     goto error;
   }
 
-  sl_err = sl_create_linked_list
-    (sizeof(struct rdr_material_callback_desc),
-     ALIGNOF(struct rdr_material_callback_desc),
-     sys->allocator,
-     &mtr->callback_list);
+  sl_err = sl_create_set
+    (sizeof(struct callback),
+     ALIGNOF(struct callback),
+     cmp_callbacks,
+     mtr->sys->allocator,
+     &mtr->callback_set);
   if(sl_err != SL_NO_ERROR) {
     rdr_err = sl_to_rdr_error(sl_err);
     goto error;
   }
 
 exit:
-  if(out_mtr_obj)
-    *out_mtr_obj = mtr_obj;
+  if(out_mtr)
+    *out_mtr = mtr;
   return rdr_err;
 
 error:
-  if(mtr_obj) {
-    while(RDR_RELEASE_OBJECT(sys, mtr_obj));
-    mtr_obj = NULL;
+  if(mtr) {
+    RDR(material_ref_put(mtr));
+    mtr = NULL;
   }
   goto exit;
 }
 
 EXPORT_SYM enum rdr_error
-rdr_free_material(struct rdr_system* sys, struct rdr_material* mtr)
+rdr_material_ref_get(struct rdr_material* mtr)
 {
-  if(!sys || !mtr)
+  if(!mtr)
     return RDR_INVALID_ARGUMENT;
-
-  RDR_RELEASE_OBJECT(sys, mtr);
-
+  ref_get(&mtr->ref);
   return RDR_NO_ERROR;
 }
 
 EXPORT_SYM enum rdr_error
-rdr_get_material_log
-  (struct rdr_system* sys,
-   struct rdr_material* mtr_obj,
-   const char** out_log)
+rdr_material_ref_put(struct rdr_material* mtr)
 {
-  struct material* mtr = NULL;
-
-  if(!sys || !mtr_obj || !out_log)
+  if(!mtr)
     return RDR_INVALID_ARGUMENT;
+  ref_put(&mtr->ref, release_material);
+  return RDR_NO_ERROR;
+}
 
-  mtr = RDR_GET_OBJECT_DATA(sys, mtr_obj);
+EXPORT_SYM enum rdr_error
+rdr_get_material_log(struct rdr_material* mtr, const char** out_log)
+{
+  if(!mtr || !out_log)
+    return RDR_INVALID_ARGUMENT;
   *out_log = mtr->log;
-
   return RDR_NO_ERROR;
 }
 
 EXPORT_SYM enum rdr_error
 rdr_material_program
-  (struct rdr_system* sys,
-   struct rdr_material* mtr_obj,
+  (struct rdr_material* mtr,
    const char* shader_sources[RDR_NB_SHADER_USAGES])
 {
-  struct material* mtr = NULL;
   enum rdr_error rdr_err = RDR_NO_ERROR;
-  enum rdr_error tmp_err = RDR_NO_ERROR;
 
-  if(!sys || !mtr_obj || !shader_sources) {
+  if(!mtr || !shader_sources) {
     rdr_err = RDR_INVALID_ARGUMENT;
     goto error;
   }
-
-  mtr = RDR_GET_OBJECT_DATA(sys, mtr_obj);
-
-  release_attribs(sys, mtr->nb_attribs, mtr->attrib_list);
+  release_attribs(mtr->sys, mtr->nb_attribs, mtr->attrib_list);
   mtr->nb_attribs = 0;
   mtr->attrib_list = NULL;
 
-  release_uniforms(sys, mtr->nb_uniforms, mtr->uniform_list);
+  release_uniforms(mtr->sys, mtr->nb_uniforms, mtr->uniform_list);
   mtr->nb_uniforms = 0;
   mtr->uniform_list = NULL;
 
-  release_shaders(sys, mtr->program, mtr->shader_list);
+  release_shaders(mtr->sys, mtr->program, mtr->shader_list);
 
   if(mtr->log) {
-    MEM_FREE(sys->allocator, mtr->log);
+    MEM_FREE(mtr->sys->allocator, mtr->log);
     mtr->log = NULL;
   }
   rdr_err = build_program
-    (sys, 
-     mtr->program, 
-     shader_sources, 
-     mtr->shader_list, 
-     &mtr->log, 
+    (mtr->sys,
+     mtr->program,
+     shader_sources,
+     mtr->shader_list,
+     &mtr->log,
      &mtr->is_linked);
   if(rdr_err != RDR_NO_ERROR)
     goto error;
 
   if(mtr->is_linked) {
     rdr_err = get_attribs
-      (sys, mtr->program, &mtr->nb_attribs, &mtr->attrib_list);
+      (mtr->sys, mtr->program, &mtr->nb_attribs, &mtr->attrib_list);
     if(rdr_err != RDR_NO_ERROR)
       goto error;
 
     rdr_err = get_uniforms
-      (sys, mtr->program, &mtr->nb_uniforms, &mtr->uniform_list);
+      (mtr->sys, mtr->program, &mtr->nb_uniforms, &mtr->uniform_list);
     if(rdr_err != RDR_NO_ERROR)
       goto error;
   }
 
 exit:
-  if(sys && mtr_obj) {
-    tmp_err = invoke_callbacks(sys, mtr_obj);
-    if(tmp_err != RDR_NO_ERROR)
-      rdr_err = tmp_err;
-  }
+  if(mtr)
+    invoke_callbacks(mtr);
   return rdr_err;
-
 error:
   goto exit;
 }
@@ -507,19 +514,18 @@ error:
  *
  ******************************************************************************/
 enum rdr_error
-rdr_bind_material(struct rdr_system* sys, struct rdr_material* mtr_obj)
+rdr_bind_material(struct rdr_system* sys, struct rdr_material* mtr)
 {
   struct rb_program* program = NULL;
   enum rdr_error rdr_err = RDR_NO_ERROR;
   int err = 0;
 
-  if(!sys) {
+  if(!sys || (mtr && mtr->sys != sys)) {
     rdr_err = RDR_INVALID_ARGUMENT;
     goto error;
   }
 
-  if(mtr_obj) {
-    struct material* mtr = RDR_GET_OBJECT_DATA(sys, mtr_obj);
+  if(mtr) {
     if(!mtr->is_linked) {
       rdr_err = RDR_INVALID_ARGUMENT;
       goto error;
@@ -528,7 +534,6 @@ rdr_bind_material(struct rdr_system* sys, struct rdr_material* mtr_obj)
   } else {
     program = NULL;
   }
-
   err = sys->rb.bind_program(sys->ctxt, program);
   if(err != 0) {
     rdr_err = RDR_DRIVER_ERROR;
@@ -548,19 +553,16 @@ error:
 
 enum rdr_error
 rdr_get_material_desc
-  (struct rdr_system* sys,
-   struct rdr_material* mtr_obj,
+  (struct rdr_material* mtr,
    struct rdr_material_desc* desc)
 {
-  struct material* mtr = NULL;
   enum rdr_error rdr_err = RDR_NO_ERROR;
 
-  if(!sys || !mtr_obj || !desc) {
+  if(!mtr || !desc) {
     rdr_err = RDR_INVALID_ARGUMENT;
     goto error;
   }
 
-  mtr = RDR_GET_OBJECT_DATA(sys, mtr_obj);
   desc->attrib_list = mtr->attrib_list;
   desc->uniform_list = mtr->uniform_list;
   desc->nb_attribs = mtr->nb_attribs;
@@ -568,97 +570,58 @@ rdr_get_material_desc
 
 exit:
   return rdr_err;
-
 error:
   goto exit;
 }
 
 enum rdr_error
-rdr_is_material_linked
-  (struct rdr_system* sys,
-   struct rdr_material* mtr_obj,
-   bool* is_material_linked)
+rdr_is_material_linked(struct rdr_material* mtr, bool* is_material_linked)
 {
-  struct material* mtr = NULL;
-
-  if(!sys || !mtr_obj || !is_material_linked)
+  if(!mtr || !is_material_linked)
     return RDR_INVALID_ARGUMENT;
-
-  mtr = RDR_GET_OBJECT_DATA(sys, mtr_obj);
   *is_material_linked = mtr->is_linked;
-
   return RDR_NO_ERROR;
 }
 
 enum rdr_error
 rdr_attach_material_callback
-  (struct rdr_system* sys,
-   struct rdr_material* mtr_obj,
-   const struct rdr_material_callback_desc* cbk_desc,
-   struct rdr_material_callback** out_cbk)
+  (struct rdr_material* mtr,
+   void (*func)(struct rdr_material*, void*),
+   void* data)
 {
-  struct sl_node* node = NULL;
-  struct material* mtr = NULL;
-  enum rdr_error rdr_err = RDR_NO_ERROR;
-  enum sl_error sl_err = SL_NO_ERROR;
-
-  if(!sys || !mtr_obj || !cbk_desc|| !out_cbk) {
-    rdr_err = RDR_INVALID_ARGUMENT;
-    goto error;
-  }
-
-  mtr = RDR_GET_OBJECT_DATA(sys, mtr_obj);
-  sl_err = sl_linked_list_add(mtr->callback_list, cbk_desc, &node);
-  if(sl_err != SL_NO_ERROR) {
-    rdr_err = sl_to_rdr_error(sl_err);
-    goto error;
-  }
-
-exit:
-  /* the rdr_material_callback is not defined. It simply wraps the sl_node
-   * data structure. */
-  if(out_cbk)
-    *out_cbk = (struct rdr_material_callback*)node;
-  return rdr_err;
-
-error:
-  if(node) {
-    assert(mtr != NULL);
-    SL(linked_list_remove(mtr->callback_list, node));
-    node = NULL;
-  }
-  goto exit;
+  if(!mtr || !func)
+    return  RDR_INVALID_ARGUMENT;
+  SL(set_insert(mtr->callback_set, (struct callback[]){{func, data}}));
+  return RDR_NO_ERROR;
 }
 
 enum rdr_error
 rdr_detach_material_callback
-  (struct rdr_system* sys,
-   struct rdr_material* mtr_obj,
-   struct rdr_material_callback* cbk)
+  (struct rdr_material* mtr,
+   void (*func)(struct rdr_material*, void*),
+   void* data)
 {
-  struct sl_node* node = NULL;
-  struct material* mtr = NULL;
-  enum rdr_error rdr_err = RDR_NO_ERROR;
-  enum sl_error sl_err = SL_NO_ERROR;
+  if(!mtr || !func)
+    return RDR_INVALID_ARGUMENT;
+  SL(set_remove(mtr->callback_set, (struct callback[]){{func, data}}));
+  return RDR_NO_ERROR;
+}
 
-  if(!sys || !mtr_obj || !cbk) {
-    rdr_err = RDR_INVALID_ARGUMENT;
-    goto error;
-  }
+enum rdr_error
+rdr_is_material_callback_attached
+  (struct rdr_material* mtr,
+   void (*func)(struct rdr_material*, void* data),
+   void* data,
+   bool* is_attached)
+{
+  size_t i = 0;
+  size_t len = 0;
 
-  mtr = RDR_GET_OBJECT_DATA(sys, mtr_obj);
-  node = (struct sl_node*)cbk;
-
-  sl_err = sl_linked_list_remove(mtr->callback_list, node);
-  if(sl_err != SL_NO_ERROR) {
-    rdr_err = sl_to_rdr_error(sl_err);
-    goto error;
-  }
-
-exit:
-  return rdr_err;
-
-error:
-  goto exit;
+  if(!mtr || !func || !is_attached)
+    return RDR_INVALID_ARGUMENT;
+  SL(set_find(mtr->callback_set, (struct callback[]){{func, data}}, &i));
+  SL(set_buffer(mtr->callback_set, &len, NULL, NULL, NULL));
+  *is_attached = (i != len);
+  return RDR_NO_ERROR;
 }
 

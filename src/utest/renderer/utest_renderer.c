@@ -43,8 +43,8 @@ test_rdr_system(const char* driver_name)
   CHECK(rdr_create_system("__INVALID_DRIVER__", NULL, NULL), BAD_ARG);
   CHECK(rdr_create_system("__INVALID_DRIVER__", NULL, &sys), RDR_DRIVER_ERROR);
   CHECK(rdr_create_system(driver_name, NULL, &sys), OK);
-  CHECK(rdr_free_system(NULL), BAD_ARG);
-  CHECK(rdr_free_system(sys), OK);
+  CHECK(rdr_system_ref_put(NULL), BAD_ARG);
+  CHECK(rdr_system_ref_put(sys), OK);
 }
 
 static void
@@ -75,40 +75,36 @@ test_rdr_mesh(const char* driver_name)
   CHECK(rdr_create_mesh(sys, NULL), BAD_ARG);
   CHECK(rdr_create_mesh(sys, &mesh), OK);
 
-  CHECK(rdr_mesh_data(NULL, NULL, 0, NULL, 0, NULL), BAD_ARG);
-  CHECK(rdr_mesh_data(sys, NULL, 0, NULL, 0, NULL), BAD_ARG);
-  CHECK(rdr_mesh_data(NULL, mesh, 0, NULL, 0, NULL), BAD_ARG);
-  CHECK(rdr_mesh_data(NULL, NULL, 1, NULL, 0, NULL), BAD_ARG);
-  CHECK(rdr_mesh_data(NULL, NULL, 0, mesh_attr, 0, NULL), BAD_ARG);
-  CHECK(rdr_mesh_data(NULL, NULL, 0, NULL, 0, NULL), BAD_ARG);
-  CHECK(rdr_mesh_data(sys, mesh, 0, mesh_attr, SZ(vert1), vert1), BAD_ARG);
-  CHECK(rdr_mesh_data(sys, mesh, 2, NULL, SZ(vert1), vert1), BAD_ARG);
-  CHECK(rdr_mesh_data(sys, mesh, 2, mesh_attr, 0, vert1), BAD_ARG);
-  CHECK(rdr_mesh_data(sys, mesh, 2, mesh_attr, SZ(vert1), NULL), BAD_ARG);
-  CHECK(rdr_mesh_data(sys, mesh, 2, NULL, SZ(vert1), NULL), BAD_ARG);
-  CHECK(rdr_mesh_data(sys, mesh, 1, mesh_attr, SZ(vert1), vert1), BAD_ARG);
-  CHECK(rdr_mesh_data(NULL, mesh, 2, mesh_attr, SZ(vert1), vert1), BAD_ARG);
-  CHECK(rdr_mesh_data(NULL, NULL, 2, mesh_attr, SZ(vert1), vert1), BAD_ARG);
-  CHECK(rdr_mesh_data(sys, mesh, 1, mesh_attr2, SZ(vert1), vert1), BAD_ARG);
-  CHECK(rdr_mesh_data(sys, mesh, 1, mesh_attr3, SZ(vert1), vert1), BAD_ARG);
-  CHECK(rdr_mesh_data(sys, mesh, 0, mesh_attr, 0, vert1), OK);
-  CHECK(rdr_mesh_data(sys, mesh, 0, NULL, 0, NULL), OK);
-  CHECK(rdr_mesh_data(sys, mesh, 2, mesh_attr, SZ(vert1), vert1), OK);
-  CHECK(rdr_mesh_data(sys, mesh, 2, mesh_attr, SZ(vert2), vert2), OK);
-  CHECK(rdr_mesh_data(sys, mesh, 1, mesh_attr, SZ(vert2), vert2), OK);
+  CHECK(rdr_mesh_data(NULL, 0, NULL, 0, NULL), BAD_ARG);
+  CHECK(rdr_mesh_data(NULL, 1, NULL, 0, NULL), BAD_ARG);
+  CHECK(rdr_mesh_data(NULL, 0, mesh_attr, 0, NULL), BAD_ARG);
+  CHECK(rdr_mesh_data(NULL, 0, NULL, 0, NULL), BAD_ARG);
+  CHECK(rdr_mesh_data(mesh, 0, mesh_attr, SZ(vert1), vert1), BAD_ARG);
+  CHECK(rdr_mesh_data(mesh, 2, NULL, SZ(vert1), vert1), BAD_ARG);
+  CHECK(rdr_mesh_data(mesh, 2, mesh_attr, 0, vert1), BAD_ARG);
+  CHECK(rdr_mesh_data(mesh, 2, mesh_attr, SZ(vert1), NULL), BAD_ARG);
+  CHECK(rdr_mesh_data(mesh, 2, NULL, SZ(vert1), NULL), BAD_ARG);
+  CHECK(rdr_mesh_data(mesh, 1, mesh_attr, SZ(vert1), vert1), BAD_ARG);
+  CHECK(rdr_mesh_data(NULL, 2, mesh_attr, SZ(vert1), vert1), BAD_ARG);
+  CHECK(rdr_mesh_data(mesh, 1, mesh_attr2, SZ(vert1), vert1), BAD_ARG);
+  CHECK(rdr_mesh_data(mesh, 1, mesh_attr3, SZ(vert1), vert1), BAD_ARG);
+  CHECK(rdr_mesh_data(mesh, 0, mesh_attr, 0, vert1), OK);
+  CHECK(rdr_mesh_data(mesh, 0, NULL, 0, NULL), OK);
+  CHECK(rdr_mesh_data(mesh, 2, mesh_attr, SZ(vert1), vert1), OK);
+  CHECK(rdr_mesh_data(mesh, 2, mesh_attr, SZ(vert2), vert2), OK);
+  CHECK(rdr_mesh_data(mesh, 1, mesh_attr, SZ(vert2), vert2), OK);
 
-  CHECK(rdr_mesh_indices(NULL, NULL, 3, NULL), BAD_ARG);
-  CHECK(rdr_mesh_indices(sys, NULL, 3, NULL), BAD_ARG);
-  CHECK(rdr_mesh_indices(NULL, mesh, 3, NULL), BAD_ARG);
-  CHECK(rdr_mesh_indices(sys, mesh, 4, indices2), BAD_ARG);
-  CHECK(rdr_mesh_indices(sys, mesh, 3, indices1), OK);
-  CHECK(rdr_mesh_indices(sys, mesh, 0, indices1), OK);
+  CHECK(rdr_mesh_indices(NULL, 3, NULL), BAD_ARG);
+  CHECK(rdr_mesh_indices(mesh, 4, indices2), BAD_ARG);
+  CHECK(rdr_mesh_indices(mesh, 3, indices1), OK);
+  CHECK(rdr_mesh_indices(mesh, 0, indices1), OK);
 
-  CHECK(rdr_free_mesh(NULL, NULL), BAD_ARG);
-  CHECK(rdr_free_mesh(NULL, mesh), BAD_ARG);
-  CHECK(rdr_free_mesh(sys, NULL), BAD_ARG);
-  CHECK(rdr_free_mesh(sys, mesh), OK);
-  CHECK(rdr_free_system(sys), OK);
+  CHECK(rdr_mesh_ref_get(NULL), BAD_ARG);
+  CHECK(rdr_mesh_ref_get(mesh), OK);
+  CHECK(rdr_mesh_ref_put(NULL), BAD_ARG);
+  CHECK(rdr_mesh_ref_put(mesh), OK);
+  CHECK(rdr_mesh_ref_put(mesh), OK);
+  CHECK(rdr_system_ref_put(sys), OK);
 }
 
 static void
@@ -137,34 +133,27 @@ test_rdr_material(const char* driver_name)
   CHECK(rdr_create_material(sys, &mtr), OK);
 
   sources[RDR_VERTEX_SHADER] = bad_source;
-  CHECK(rdr_material_program(NULL, NULL, NULL), BAD_ARG);
-  CHECK(rdr_material_program(sys, NULL, NULL), BAD_ARG);
-  CHECK(rdr_material_program(NULL, mtr, NULL), BAD_ARG);
-  CHECK(rdr_material_program(sys, mtr, NULL), BAD_ARG);
-  CHECK(rdr_material_program(NULL, NULL, sources), BAD_ARG);
-  CHECK(rdr_material_program(sys, NULL, sources), BAD_ARG);
-  CHECK(rdr_material_program(NULL, mtr, sources), BAD_ARG);
+  CHECK(rdr_material_program(NULL, NULL), BAD_ARG);
+  CHECK(rdr_material_program(mtr, NULL), BAD_ARG);
+  CHECK(rdr_material_program(NULL, sources), BAD_ARG);
   if(null_driver == false)
-    CHECK(rdr_material_program(sys, mtr, sources), RDR_DRIVER_ERROR);
+    CHECK(rdr_material_program(mtr, sources), RDR_DRIVER_ERROR);
 
-  CHECK(rdr_get_material_log(NULL, NULL, NULL), BAD_ARG);
-  CHECK(rdr_get_material_log(sys, NULL, NULL), BAD_ARG);
-  CHECK(rdr_get_material_log(NULL, mtr, NULL), BAD_ARG);
-  CHECK(rdr_get_material_log(sys, mtr, NULL), BAD_ARG);
-  CHECK(rdr_get_material_log(NULL, NULL, &log), BAD_ARG);
-  CHECK(rdr_get_material_log(sys, NULL, &log), BAD_ARG);
-  CHECK(rdr_get_material_log(NULL, mtr, &log), BAD_ARG);
-  CHECK(rdr_get_material_log(sys, mtr, &log), OK);
+  CHECK(rdr_get_material_log(NULL, NULL), BAD_ARG);
+  CHECK(rdr_get_material_log(mtr, NULL), BAD_ARG);
+  CHECK(rdr_get_material_log(NULL, &log), BAD_ARG);
+  CHECK(rdr_get_material_log(mtr, &log), OK);
 
   sources[RDR_VERTEX_SHADER] = good_source;
-  CHECK(rdr_material_program(sys, mtr, sources), OK);
+  CHECK(rdr_material_program(mtr, sources), OK);
 
-  CHECK(rdr_free_material(NULL, NULL), BAD_ARG);
-  CHECK(rdr_free_material(sys, NULL), BAD_ARG);
-  CHECK(rdr_free_material(NULL, mtr), BAD_ARG);
-  CHECK(rdr_free_material(sys, mtr), OK);
+  CHECK(rdr_material_ref_get(NULL), BAD_ARG);
+  CHECK(rdr_material_ref_get(mtr), OK);
+  CHECK(rdr_material_ref_put(NULL), BAD_ARG);
+  CHECK(rdr_material_ref_put(mtr), OK);
+  CHECK(rdr_material_ref_put(mtr), OK);
 
-  CHECK(rdr_free_system(sys), OK);
+  CHECK(rdr_system_ref_put(sys), OK);
 }
 
 static void
@@ -196,9 +185,9 @@ test_rdr_model(const char* driver_name)
 
   CHECK(rdr_create_system(driver_name, NULL, &sys), OK);
   CHECK(rdr_create_mesh(sys, &mesh), OK);
-  CHECK(rdr_mesh_data(sys, mesh, 2, attr0, SZ(data), data), OK);
+  CHECK(rdr_mesh_data(mesh, 2, attr0, SZ(data), data), OK);
   CHECK(rdr_create_material(sys, &mtr), OK);
-  CHECK(rdr_material_program(sys, mtr, sources), OK);
+  CHECK(rdr_material_program(mtr, sources), OK);
 
   CHECK(rdr_create_model(NULL, NULL, NULL, NULL), BAD_ARG);
   CHECK(rdr_create_model(sys, NULL, NULL, NULL), BAD_ARG);
@@ -216,26 +205,24 @@ test_rdr_model(const char* driver_name)
   CHECK(rdr_create_model(sys, mesh, mtr, &model0), OK);
   CHECK(rdr_create_model(sys, mesh, mtr, &model1), OK);
 
-  CHECK(rdr_model_mesh(NULL, NULL, NULL), BAD_ARG);
-  CHECK(rdr_model_mesh(sys, NULL, NULL), BAD_ARG);
-  CHECK(rdr_model_mesh(NULL, model0, NULL), BAD_ARG);
-  CHECK(rdr_model_mesh(sys, model0, NULL), BAD_ARG);
-  CHECK(rdr_model_mesh(NULL, NULL, mesh), BAD_ARG);
-  CHECK(rdr_model_mesh(sys, NULL, mesh), BAD_ARG);
-  CHECK(rdr_model_mesh(NULL, model0, mesh), BAD_ARG);
-  CHECK(rdr_model_mesh(sys, model0, mesh), OK);
+  CHECK(rdr_model_mesh(NULL, NULL), BAD_ARG);
+  CHECK(rdr_model_mesh(model0, NULL), BAD_ARG);
+  CHECK(rdr_model_mesh(NULL, mesh), BAD_ARG);
+  CHECK(rdr_model_mesh(model0, mesh), OK);
 
-  CHECK(rdr_mesh_data(sys, mesh, 1, attr1, SZ(data), data), OK);
+  CHECK(rdr_mesh_data(mesh, 1, attr1, SZ(data), data), OK);
 
-  CHECK(rdr_free_model(NULL, NULL), BAD_ARG);
-  CHECK(rdr_free_model(sys, NULL), BAD_ARG);
-  CHECK(rdr_free_model(NULL, model0), BAD_ARG);
-  CHECK(rdr_free_model(sys, model0), OK);
-  CHECK(rdr_free_model(sys, model1), OK);
+  CHECK(rdr_model_ref_get(NULL), BAD_ARG);
+  CHECK(rdr_model_ref_get(model0), OK);
 
-  CHECK(rdr_free_mesh(sys, mesh), OK);
-  CHECK(rdr_free_material(sys, mtr), OK);
-  CHECK(rdr_free_system(sys), OK);
+  CHECK(rdr_model_ref_put(NULL), BAD_ARG);
+  CHECK(rdr_model_ref_put(model0), OK);
+  CHECK(rdr_model_ref_put(model0), OK);
+  CHECK(rdr_model_ref_put(model1), OK);
+
+  CHECK(rdr_mesh_ref_put(mesh), OK);
+  CHECK(rdr_material_ref_put(mtr), OK);
+  CHECK(rdr_system_ref_put(sys), OK);
 }
 
 struct instance_cbk_data {
@@ -245,10 +232,9 @@ struct instance_cbk_data {
   size_t nb_attribs;
 };
 
-static enum rdr_error
+static void
 instance_cbk_func
-  (struct rdr_system* sys,
-   struct rdr_model_instance* inst,
+  (struct rdr_model_instance* inst,
    void* data)
 {
   struct instance_cbk_data* cbk_data = data;
@@ -267,98 +253,59 @@ instance_cbk_func
     cbk_data->nb_attribs = 0;
   }
 
-  CHECK(rdr_get_model_instance_uniforms(NULL, NULL, NULL, NULL), BAD_ARG);
-  CHECK(rdr_get_model_instance_uniforms(sys, NULL, NULL, NULL), BAD_ARG);
-  CHECK(rdr_get_model_instance_uniforms(NULL, inst, NULL, NULL), BAD_ARG);
-  CHECK(rdr_get_model_instance_uniforms(sys, inst, NULL, NULL), BAD_ARG);
-
+  CHECK(rdr_get_model_instance_uniforms(NULL, NULL, NULL), BAD_ARG);
+  CHECK(rdr_get_model_instance_uniforms(inst, NULL, NULL), BAD_ARG);
   CHECK(rdr_get_model_instance_uniforms
-        (NULL, NULL, &cbk_data->nb_uniforms, NULL), BAD_ARG);
+        (NULL, &cbk_data->nb_uniforms, NULL), BAD_ARG);
+  CHECK(rdr_get_model_instance_uniforms(inst, NULL, NULL), BAD_ARG);
+    CHECK(rdr_get_model_instance_uniforms
+        (NULL, NULL, cbk_data->uniform_list), BAD_ARG);
+    CHECK(rdr_get_model_instance_uniforms
+        (inst, NULL, cbk_data->uniform_list), BAD_ARG);
   CHECK(rdr_get_model_instance_uniforms
-        (sys, NULL, &cbk_data->nb_uniforms, NULL), BAD_ARG);
+        (NULL, &cbk_data->nb_uniforms, cbk_data->uniform_list), BAD_ARG);
   CHECK(rdr_get_model_instance_uniforms
-        (NULL, inst, &cbk_data->nb_uniforms, NULL), BAD_ARG);
-  CHECK(rdr_get_model_instance_uniforms(sys, inst, NULL, NULL), BAD_ARG);
-
-  CHECK(rdr_get_model_instance_uniforms
-        (NULL, NULL, NULL, cbk_data->uniform_list), BAD_ARG);
-  CHECK(rdr_get_model_instance_uniforms
-        (sys, NULL, NULL, cbk_data->uniform_list), BAD_ARG);
-  CHECK(rdr_get_model_instance_uniforms
-        (NULL, inst, NULL, cbk_data->uniform_list), BAD_ARG);
-  CHECK(rdr_get_model_instance_uniforms
-        (sys, inst, NULL, cbk_data->uniform_list), BAD_ARG);
-
-  CHECK(rdr_get_model_instance_uniforms
-        (NULL, NULL, &cbk_data->nb_uniforms, cbk_data->uniform_list), BAD_ARG);
-  CHECK(rdr_get_model_instance_uniforms
-        (sys, NULL, &cbk_data->nb_uniforms, cbk_data->uniform_list), BAD_ARG);
-  CHECK(rdr_get_model_instance_uniforms
-        (NULL, inst, &cbk_data->nb_uniforms, cbk_data->uniform_list), BAD_ARG);
-
-  CHECK(rdr_get_model_instance_uniforms
-        (sys, inst, &cbk_data->nb_uniforms, NULL), OK);
+        (inst, &cbk_data->nb_uniforms, NULL), OK);
 
   if(cbk_data->nb_uniforms > 0) {
     if(cbk_data->uniform_list)
       MEM_FREE(&mem_default_allocator, cbk_data->uniform_list);
     cbk_data->uniform_list = MEM_CALLOC
-      (&mem_default_allocator, 
-       cbk_data->nb_uniforms, 
+      (&mem_default_allocator,
+       cbk_data->nb_uniforms,
        SZ(struct instance_cbk_data));
     assert(NULL != cbk_data->uniform_list);
 
     CHECK(rdr_get_model_instance_uniforms
-          (sys, inst, &cbk_data->nb_uniforms, cbk_data->uniform_list), OK);
+          (inst, &cbk_data->nb_uniforms, cbk_data->uniform_list), OK);
   }
 
-  CHECK(rdr_get_model_instance_attribs(NULL, NULL, NULL, NULL), BAD_ARG);
-  CHECK(rdr_get_model_instance_attribs(sys, NULL, NULL, NULL), BAD_ARG);
-  CHECK(rdr_get_model_instance_attribs(NULL, inst, NULL, NULL), BAD_ARG);
-  CHECK(rdr_get_model_instance_attribs(sys, inst, NULL, NULL), BAD_ARG);
-
+  CHECK(rdr_get_model_instance_attribs(NULL, NULL, NULL), BAD_ARG);
+  CHECK(rdr_get_model_instance_attribs(inst, NULL, NULL), BAD_ARG);
   CHECK(rdr_get_model_instance_attribs
-        (NULL, NULL, &cbk_data->nb_attribs, NULL), BAD_ARG);
+        (NULL, &cbk_data->nb_attribs, NULL), BAD_ARG);
+  CHECK(rdr_get_model_instance_attribs(inst, NULL, NULL), BAD_ARG);
   CHECK(rdr_get_model_instance_attribs
-        (sys, NULL, &cbk_data->nb_attribs, NULL), BAD_ARG);
+        (NULL, NULL, cbk_data->attrib_list), BAD_ARG);
   CHECK(rdr_get_model_instance_attribs
-        (NULL, inst, &cbk_data->nb_attribs, NULL), BAD_ARG);
+        (inst, NULL, cbk_data->attrib_list), BAD_ARG);
   CHECK(rdr_get_model_instance_attribs
-        (sys, inst, NULL, NULL), BAD_ARG);
-
+        (NULL, &cbk_data->nb_attribs, cbk_data->attrib_list), BAD_ARG);
   CHECK(rdr_get_model_instance_attribs
-        (NULL, NULL, NULL, cbk_data->attrib_list), BAD_ARG);
-  CHECK(rdr_get_model_instance_attribs
-        (sys, NULL, NULL, cbk_data->attrib_list), BAD_ARG);
-  CHECK(rdr_get_model_instance_attribs
-        (NULL, inst, NULL, cbk_data->attrib_list), BAD_ARG);
-  CHECK(rdr_get_model_instance_attribs
-        (sys, inst, NULL, cbk_data->attrib_list), BAD_ARG);
-
-  CHECK(rdr_get_model_instance_attribs
-        (NULL, NULL, &cbk_data->nb_attribs, cbk_data->attrib_list), BAD_ARG);
-  CHECK(rdr_get_model_instance_attribs
-        (sys, NULL, &cbk_data->nb_attribs, cbk_data->attrib_list), BAD_ARG);
-  CHECK(rdr_get_model_instance_attribs
-        (NULL, inst, &cbk_data->nb_attribs, cbk_data->attrib_list),BAD_ARG);
-
-  CHECK(rdr_get_model_instance_attribs
-        (sys, inst, &cbk_data->nb_attribs, NULL), OK);
+        (inst, &cbk_data->nb_attribs, NULL), OK);
 
   if(cbk_data->nb_attribs > 0) {
     if(cbk_data->attrib_list)
       MEM_FREE(&mem_default_allocator, cbk_data->attrib_list);
     cbk_data->attrib_list = MEM_CALLOC
-      (&mem_default_allocator, 
-       cbk_data->nb_attribs, 
+      (&mem_default_allocator,
+       cbk_data->nb_attribs,
        SZ(struct instance_cbk_data));
     assert(NULL != cbk_data->attrib_list);
 
     CHECK(rdr_get_model_instance_attribs
-          (sys, inst, &cbk_data->nb_attribs, cbk_data->attrib_list), OK);
+      (inst, &cbk_data->nb_attribs, cbk_data->attrib_list), OK);
   }
-
-  return OK;
 }
 
 static void
@@ -371,8 +318,6 @@ test_rdr_model_instance(const char* driver_name)
   struct rdr_model* model = NULL;
   struct rdr_model_instance* inst = NULL;
   struct rdr_model_instance* inst1 = NULL;
-  struct rdr_model_instance_callback_desc desc;
-  struct rdr_model_instance_callback* cbk = NULL;
   const char* vs_source =
     "#version 330\n"
     "uniform mat4x4 rdr_viewproj;\n"
@@ -419,6 +364,7 @@ test_rdr_model_instance(const char* driver_name)
   enum rdr_material_density density;
   struct rdr_rasterizer_desc rast;
   bool null_driver = is_driver_null(driver_name);
+  bool b = false;
 
   memset(&instance_cbk_data, 0, SZ(struct instance_cbk_data));
   memset(sources, 0, SZ(const char*) * RDR_NB_SHADER_USAGES);
@@ -426,9 +372,9 @@ test_rdr_model_instance(const char* driver_name)
 
   CHECK(rdr_create_system(driver_name, NULL, &sys), OK);
   CHECK(rdr_create_mesh(sys, &mesh), OK);
-  CHECK(rdr_mesh_data(sys, mesh, 2, attr0, SZ(data), data), OK);
+  CHECK(rdr_mesh_data(mesh, 2, attr0, SZ(data), data), OK);
   CHECK(rdr_create_material(sys, &mtr), OK);
-  CHECK(rdr_material_program(sys, mtr, sources), OK);
+  CHECK(rdr_material_program(mtr, sources), OK);
   CHECK(rdr_create_model(sys, mesh, mtr, &model), OK);
 
   CHECK(rdr_create_model_instance(NULL, NULL, NULL), BAD_ARG);
@@ -440,28 +386,26 @@ test_rdr_model_instance(const char* driver_name)
   CHECK(rdr_create_model_instance(NULL, model, &inst), BAD_ARG);
   CHECK(rdr_create_model_instance(sys, model, &inst), OK);
 
-  CHECK(rdr_mesh_data(sys, mesh, 1, attr1, SZ(data), data), OK);
+  CHECK(rdr_mesh_data(mesh, 1, attr1, SZ(data), data), OK);
 
-  desc.data = (void*)&instance_cbk_data;
-  desc.func = instance_cbk_func;
-  CHECK(rdr_attach_model_instance_callback(NULL, NULL, NULL, NULL), BAD_ARG);
-  CHECK(rdr_attach_model_instance_callback(sys, NULL, NULL, NULL), BAD_ARG);
-  CHECK(rdr_attach_model_instance_callback(NULL, inst, NULL, NULL), BAD_ARG);
-  CHECK(rdr_attach_model_instance_callback(sys, inst, NULL, NULL), BAD_ARG);
-  CHECK(rdr_attach_model_instance_callback(NULL, NULL, &desc, NULL), BAD_ARG);
-  CHECK(rdr_attach_model_instance_callback(sys, NULL, &desc, NULL), BAD_ARG);
-  CHECK(rdr_attach_model_instance_callback(NULL, inst, &desc, NULL), BAD_ARG);
-  CHECK(rdr_attach_model_instance_callback(sys, inst, &desc, NULL), BAD_ARG);
-  CHECK(rdr_attach_model_instance_callback(NULL, NULL, NULL, &cbk), BAD_ARG);
-  CHECK(rdr_attach_model_instance_callback(sys, NULL, NULL, &cbk), BAD_ARG);
-  CHECK(rdr_attach_model_instance_callback(NULL, inst, NULL, &cbk), BAD_ARG);
-  CHECK(rdr_attach_model_instance_callback(sys, inst, NULL, &cbk), BAD_ARG);
-  CHECK(rdr_attach_model_instance_callback(NULL, NULL, &desc, &cbk), BAD_ARG);
-  CHECK(rdr_attach_model_instance_callback(sys, NULL, &desc, &cbk), BAD_ARG);
-  CHECK(rdr_attach_model_instance_callback(NULL, inst, &desc, &cbk), BAD_ARG);
-  CHECK(rdr_attach_model_instance_callback(sys, inst, &desc, &cbk), OK);
+  CHECK(rdr_attach_model_instance_callback(NULL, NULL, NULL), BAD_ARG);
+  CHECK(rdr_attach_model_instance_callback(inst, NULL, NULL), BAD_ARG);
+  CHECK(rdr_attach_model_instance_callback
+    (NULL, instance_cbk_func, NULL), BAD_ARG);
+  CHECK(rdr_attach_model_instance_callback
+    (inst, instance_cbk_func, NULL), OK);
+  CHECK(rdr_detach_model_instance_callback
+    (inst, instance_cbk_func, NULL), OK);
+  CHECK(rdr_attach_model_instance_callback
+    (NULL, NULL, &instance_cbk_data), BAD_ARG);
+  CHECK(rdr_attach_model_instance_callback
+    (inst, NULL, &instance_cbk_data), BAD_ARG);
+  CHECK(rdr_attach_model_instance_callback
+    (NULL, instance_cbk_func, &instance_cbk_data), BAD_ARG);
+  CHECK(rdr_attach_model_instance_callback
+    (inst, instance_cbk_func, &instance_cbk_data), OK);
 
-  CHECK(rdr_mesh_data(sys, mesh, 1, attr1, SZ(data), data), OK);
+  CHECK(rdr_mesh_data(mesh, 1, attr1, SZ(data), data), OK);
   if(!null_driver) {
     CHECK(instance_cbk_data.nb_uniforms, 1);
     CHECK(strcmp(instance_cbk_data.uniform_list[0].name, "tmp"), 0);
@@ -471,7 +415,7 @@ test_rdr_model_instance(const char* driver_name)
     CHECK(instance_cbk_data.attrib_list[0].type, RDR_FLOAT4);
   }
 
-  CHECK(rdr_mesh_data(sys, mesh, 2, attr0, SZ(data), data), OK);
+  CHECK(rdr_mesh_data(mesh, 2, attr0, SZ(data), data), OK);
   if(!null_driver) {
     CHECK(instance_cbk_data.nb_uniforms, 1);
     CHECK(strcmp(instance_cbk_data.uniform_list[0].name, "tmp"), 0);
@@ -480,112 +424,131 @@ test_rdr_model_instance(const char* driver_name)
     }
 
   sources[RDR_VERTEX_SHADER] = vs_source1;
-  CHECK(rdr_material_program(sys, mtr, sources), OK);
+  CHECK(rdr_material_program(mtr, sources), OK);
   if(!null_driver) {
     CHECK(instance_cbk_data.nb_uniforms, 0);
     CHECK(instance_cbk_data.nb_attribs, 2);
   }
 
-  CHECK(rdr_mesh_data(sys, mesh, 3, attr2, SZ(data), data), OK);
+  CHECK(rdr_mesh_data(mesh, 3, attr2, SZ(data), data), OK);
   if(!null_driver) {
     CHECK(instance_cbk_data.nb_uniforms, 0);
     CHECK(instance_cbk_data.nb_attribs, 0);
   }
 
-  CHECK(rdr_model_instance_transform(NULL, NULL, NULL), BAD_ARG);
-  CHECK(rdr_model_instance_transform(sys, NULL, NULL), BAD_ARG);
-  CHECK(rdr_model_instance_transform(NULL,inst, NULL), BAD_ARG);
-  CHECK(rdr_model_instance_transform(sys, inst, NULL), BAD_ARG);
-  CHECK(rdr_model_instance_transform(NULL, NULL, m44), BAD_ARG);
-  CHECK(rdr_model_instance_transform(sys, NULL, m44), BAD_ARG);
-  CHECK(rdr_model_instance_transform(NULL,inst, m44), BAD_ARG);
-  CHECK(rdr_model_instance_transform(sys, inst, m44), OK);
-  CHECK(rdr_get_model_instance_transform(NULL,NULL,NULL), BAD_ARG);
-  CHECK(rdr_get_model_instance_transform(sys,NULL,NULL), BAD_ARG);
-  CHECK(rdr_get_model_instance_transform(NULL,inst,NULL), BAD_ARG);
-  CHECK(rdr_get_model_instance_transform(sys,inst,NULL), BAD_ARG);
-  CHECK(rdr_get_model_instance_transform(NULL,NULL, m), BAD_ARG);
-  CHECK(rdr_get_model_instance_transform(sys,NULL, m), BAD_ARG);
-  CHECK(rdr_get_model_instance_transform(NULL,inst, m), BAD_ARG);
-  CHECK(rdr_get_model_instance_transform(sys,inst, m), OK);
+  CHECK(rdr_model_instance_transform(NULL, NULL), BAD_ARG);
+  CHECK(rdr_model_instance_transform(inst, NULL), BAD_ARG);
+  CHECK(rdr_model_instance_transform(NULL, m44), BAD_ARG);
+  CHECK(rdr_model_instance_transform(inst, m44), OK);
+  CHECK(rdr_get_model_instance_transform(NULL,NULL), BAD_ARG);
+  CHECK(rdr_get_model_instance_transform(inst,NULL), BAD_ARG);
+  CHECK(rdr_get_model_instance_transform(NULL, m), BAD_ARG);
+  CHECK(rdr_get_model_instance_transform(inst, m), OK);
 
-  CHECK(rdr_model_instance_material_density(NULL, NULL, RDR_OPAQUE), BAD_ARG);
-  CHECK(rdr_model_instance_material_density(sys, NULL, RDR_OPAQUE), BAD_ARG);
-  CHECK(rdr_model_instance_material_density(sys, inst, RDR_OPAQUE), OK);
-  CHECK(rdr_get_model_instance_material_density(NULL, NULL, NULL), BAD_ARG);
-  CHECK(rdr_get_model_instance_material_density(sys, NULL, NULL), BAD_ARG);
-  CHECK(rdr_get_model_instance_material_density(NULL, inst, NULL), BAD_ARG);
-  CHECK(rdr_get_model_instance_material_density(sys, inst, NULL), BAD_ARG);
-  CHECK(rdr_get_model_instance_material_density(NULL, NULL, &density), BAD_ARG);
-  CHECK(rdr_get_model_instance_material_density(sys, NULL, &density), BAD_ARG);
-  CHECK(rdr_get_model_instance_material_density(NULL, inst, &density), BAD_ARG);
-  CHECK(rdr_get_model_instance_material_density(sys, inst, &density), OK);
+  CHECK(rdr_model_instance_material_density(NULL, RDR_OPAQUE), BAD_ARG);
+  CHECK(rdr_model_instance_material_density(inst, RDR_OPAQUE), OK);
+  CHECK(rdr_get_model_instance_material_density(NULL, NULL), BAD_ARG);
+  CHECK(rdr_get_model_instance_material_density(inst, NULL), BAD_ARG);
+  CHECK(rdr_get_model_instance_material_density(NULL, &density), BAD_ARG);
+  CHECK(rdr_get_model_instance_material_density(inst, &density), OK);
   CHECK(density, RDR_OPAQUE);
-  CHECK(rdr_model_instance_material_density(sys, inst, RDR_TRANSLUCENT), OK);
-  CHECK(rdr_get_model_instance_material_density(sys, inst, &density), OK);
+  CHECK(rdr_model_instance_material_density(inst, RDR_TRANSLUCENT), OK);
+  CHECK(rdr_get_model_instance_material_density(inst, &density), OK);
   CHECK(density, RDR_TRANSLUCENT);
 
   rast.fill_mode = RDR_WIREFRAME;
   rast.cull_mode = RDR_CULL_NONE;
-  CHECK(rdr_model_instance_rasterizer(NULL, NULL, NULL), BAD_ARG);
-  CHECK(rdr_model_instance_rasterizer(sys, NULL, NULL), BAD_ARG);
-  CHECK(rdr_model_instance_rasterizer(NULL, inst, NULL), BAD_ARG);
-  CHECK(rdr_model_instance_rasterizer(sys, inst, NULL), BAD_ARG);
-  CHECK(rdr_model_instance_rasterizer(NULL, NULL, &rast), BAD_ARG);
-  CHECK(rdr_model_instance_rasterizer(sys, NULL, &rast), BAD_ARG);
-  CHECK(rdr_model_instance_rasterizer(NULL, inst, &rast), BAD_ARG);
-  CHECK(rdr_model_instance_rasterizer(sys, inst, &rast), OK);
-  CHECK(rdr_model_instance_rasterizer(sys, inst, &rast), OK);
-  CHECK(rdr_get_model_instance_rasterizer(NULL, NULL, NULL), BAD_ARG);
-  CHECK(rdr_get_model_instance_rasterizer(sys, NULL, NULL), BAD_ARG);
-  CHECK(rdr_get_model_instance_rasterizer(NULL, inst, NULL), BAD_ARG);
-  CHECK(rdr_get_model_instance_rasterizer(sys, inst, NULL), BAD_ARG);
-  CHECK(rdr_get_model_instance_rasterizer(NULL, NULL, &rast), BAD_ARG);
-  CHECK(rdr_get_model_instance_rasterizer(sys, NULL, &rast), BAD_ARG);
-  CHECK(rdr_get_model_instance_rasterizer(NULL, inst, &rast), BAD_ARG);
-  CHECK(rdr_get_model_instance_rasterizer(sys, inst, &rast),OK);
+  CHECK(rdr_model_instance_rasterizer(NULL, NULL), BAD_ARG);
+  CHECK(rdr_model_instance_rasterizer(inst, NULL), BAD_ARG);
+  CHECK(rdr_model_instance_rasterizer(NULL, &rast), BAD_ARG);
+  CHECK(rdr_model_instance_rasterizer(inst, &rast), OK);
+  CHECK(rdr_model_instance_rasterizer(inst, &rast), OK);
+  CHECK(rdr_get_model_instance_rasterizer(NULL, NULL), BAD_ARG);
+  CHECK(rdr_get_model_instance_rasterizer(inst, NULL), BAD_ARG);
+  CHECK(rdr_get_model_instance_rasterizer(NULL, &rast), BAD_ARG);
+  CHECK(rdr_get_model_instance_rasterizer(inst, &rast),OK);
   CHECK(rast.fill_mode, RDR_WIREFRAME);
   CHECK(rast.cull_mode, RDR_CULL_NONE);
   rast.fill_mode = RDR_SOLID;
   rast.cull_mode = RDR_CULL_BACK;
-  CHECK(rdr_model_instance_rasterizer(sys, inst, &rast), OK);
-  CHECK(rdr_get_model_instance_rasterizer(sys, inst, &rast), OK);
+  CHECK(rdr_model_instance_rasterizer(inst, &rast), OK);
+  CHECK(rdr_get_model_instance_rasterizer(inst, &rast), OK);
   CHECK(rast.fill_mode, RDR_SOLID);
   CHECK(rast.cull_mode, RDR_CULL_BACK);
 
   CHECK(rdr_create_model_instance(sys, model, &inst1), OK);
 
   sources[RDR_VERTEX_SHADER] = vs_source;
-  CHECK(rdr_material_program(sys, mtr, sources), OK);
+  CHECK(rdr_material_program(mtr, sources), OK);
 
-  CHECK(rdr_free_model(sys, model), OK);
-  CHECK(rdr_free_mesh(sys, mesh), OK);
-  CHECK(rdr_free_material(sys, mtr), OK);
+  CHECK(rdr_model_ref_put(model), OK);
+  CHECK(rdr_mesh_ref_put(mesh), OK);
+  CHECK(rdr_material_ref_put(mtr), OK);
+
+  CHECK(rdr_is_model_instance_callback_attached
+    (NULL, NULL, NULL, NULL), BAD_ARG);
+  CHECK(rdr_is_model_instance_callback_attached
+    (inst, NULL, NULL, NULL), BAD_ARG);
+  CHECK(rdr_is_model_instance_callback_attached
+    (NULL, instance_cbk_func, NULL, NULL), BAD_ARG);
+  CHECK(rdr_is_model_instance_callback_attached
+    (inst, instance_cbk_func, NULL, NULL), BAD_ARG);
+  CHECK(rdr_is_model_instance_callback_attached
+    (NULL, NULL, &instance_cbk_data, NULL), BAD_ARG);
+  CHECK(rdr_is_model_instance_callback_attached
+    (inst, NULL, &instance_cbk_data, NULL), BAD_ARG);
+  CHECK(rdr_is_model_instance_callback_attached
+    (NULL, instance_cbk_func, &instance_cbk_data, NULL), BAD_ARG);
+  CHECK(rdr_is_model_instance_callback_attached
+    (inst, instance_cbk_func, &instance_cbk_data, NULL), BAD_ARG);
+  CHECK(rdr_is_model_instance_callback_attached
+    (NULL, NULL, NULL, &b), BAD_ARG);
+  CHECK(rdr_is_model_instance_callback_attached
+    (inst, NULL, NULL, &b), BAD_ARG);
+  CHECK(rdr_is_model_instance_callback_attached
+    (NULL, instance_cbk_func, NULL, &b), BAD_ARG);
+  CHECK(rdr_is_model_instance_callback_attached
+    (inst, instance_cbk_func, NULL, &b), OK);
+  CHECK(b, false);
+  CHECK(rdr_is_model_instance_callback_attached
+    (NULL, NULL, &instance_cbk_data, &b), BAD_ARG);
+  CHECK(rdr_is_model_instance_callback_attached
+    (inst, NULL, &instance_cbk_data, &b), BAD_ARG);
+  CHECK(rdr_is_model_instance_callback_attached
+    (NULL, instance_cbk_func, &instance_cbk_data, &b), BAD_ARG);
+  CHECK(rdr_is_model_instance_callback_attached
+    (inst, instance_cbk_func, &instance_cbk_data, &b), OK);
+  CHECK(b, true);
 
   CHECK(rdr_detach_model_instance_callback(NULL, NULL, NULL), BAD_ARG);
-  CHECK(rdr_detach_model_instance_callback(sys, NULL, NULL), BAD_ARG);
-  CHECK(rdr_detach_model_instance_callback(NULL, inst, NULL), BAD_ARG);
-  CHECK(rdr_detach_model_instance_callback(sys, inst, NULL), BAD_ARG);
-  CHECK(rdr_detach_model_instance_callback(NULL, NULL, cbk), BAD_ARG);
-  CHECK(rdr_detach_model_instance_callback(sys, NULL, cbk), BAD_ARG);
-  CHECK(rdr_detach_model_instance_callback(NULL, inst, cbk), BAD_ARG);
-  #ifndef NDEBUG
-  NCHECK(rdr_detach_model_instance_callback(sys, inst1, cbk), OK);
-  #endif
-  CHECK(rdr_detach_model_instance_callback(sys, inst, cbk), OK);
+  CHECK(rdr_detach_model_instance_callback(inst, NULL, NULL), BAD_ARG);
+  CHECK(rdr_detach_model_instance_callback
+    (NULL, instance_cbk_func, NULL), BAD_ARG);
+  CHECK(rdr_detach_model_instance_callback
+    (inst, instance_cbk_func, NULL), BAD_ARG);
+  CHECK(rdr_detach_model_instance_callback
+    (NULL, NULL, &instance_cbk_data), BAD_ARG);
+  CHECK(rdr_detach_model_instance_callback
+    (inst, NULL, &instance_cbk_data), BAD_ARG);
+  CHECK(rdr_detach_model_instance_callback
+    (NULL, instance_cbk_func, &instance_cbk_data), BAD_ARG);
+  CHECK(rdr_detach_model_instance_callback
+    (inst, instance_cbk_func, &instance_cbk_data), OK);
 
   if(instance_cbk_data.uniform_list)
     MEM_FREE(&mem_default_allocator, instance_cbk_data.uniform_list);
   if(instance_cbk_data.attrib_list)
     MEM_FREE(&mem_default_allocator, instance_cbk_data.attrib_list);
 
-  CHECK(rdr_free_model_instance(NULL, NULL), BAD_ARG);
-  CHECK(rdr_free_model_instance(sys, NULL), BAD_ARG);
-  CHECK(rdr_free_model_instance(NULL, inst), BAD_ARG);
-  CHECK(rdr_free_model_instance(sys, inst), OK);
-  CHECK(rdr_free_model_instance(sys, inst1), OK);
+  CHECK(rdr_model_instance_ref_get(NULL), BAD_ARG);
+  CHECK(rdr_model_instance_ref_get(inst), OK);
 
-  CHECK(rdr_free_system(sys), OK);
+  CHECK(rdr_model_instance_ref_put(NULL), BAD_ARG);
+  CHECK(rdr_model_instance_ref_put(inst), OK);
+  CHECK(rdr_model_instance_ref_put(inst), OK);
+  CHECK(rdr_model_instance_ref_put(inst1), OK);
+
+  CHECK(rdr_system_ref_put(sys), OK);
 }
 
 int

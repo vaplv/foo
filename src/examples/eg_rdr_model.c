@@ -1,3 +1,4 @@
+#include "renderer/rdr.h"
 #include "renderer/rdr_material.h"
 #include "renderer/rdr_mesh.h"
 #include "renderer/rdr_model.h"
@@ -16,11 +17,6 @@
 #include <unistd.h>
 
 #define M_DEG_TO_RAD(x) ((x) * 3.14159 / 180.f)
-#define RDR(func) \
-  do { \
-    UNUSED const enum rdr_error rdr_err = rdr_##func; \
-    assert(rdr_err == RDR_NO_ERROR); \
-  } while(0)
 
 static bool
 is_driver_null(const char* name)
@@ -102,12 +98,12 @@ create_mesh(struct rdr_system* sys, struct rdr_mesh** out_mesh)
     goto error;
 
   rdr_err = rdr_mesh_data
-    (sys, mesh, 2, attrib_list, sizeof(vertices), vertices);
+    (mesh, 2, attrib_list, sizeof(vertices), vertices);
   if(rdr_err != RDR_NO_ERROR)
     goto error;
 
   rdr_err = rdr_mesh_indices
-    (sys, mesh, sizeof(indices)/sizeof(unsigned int), indices);
+    (mesh, sizeof(indices)/sizeof(unsigned int), indices);
   if(rdr_err != RDR_NO_ERROR)
     goto error;
 
@@ -117,7 +113,7 @@ exit:
 
 error:
   if(mesh) {
-    rdr_free_mesh(sys, mesh);
+    RDR(mesh_ref_put(mesh));
     mesh = NULL;
   }
   err = -1;
@@ -161,10 +157,10 @@ create_material(struct rdr_system* sys, struct rdr_material** out_material)
   if(rdr_err != RDR_NO_ERROR)
     goto error;
 
-  rdr_err = rdr_material_program(sys, mtr, shader_sources);
+  rdr_err = rdr_material_program(mtr, shader_sources);
   if(rdr_err != RDR_NO_ERROR) {
     const char* log = NULL;
-    rdr_err = rdr_get_material_log(sys, mtr, &log);
+    rdr_err = rdr_get_material_log(mtr, &log);
     if(rdr_err != RDR_NO_ERROR)
       goto error;
     if(log)
@@ -178,7 +174,7 @@ exit:
 
 error:
   if(mtr) {
-    rdr_free_material(sys, mtr);
+    RDR(material_ref_put(mtr));
     mtr = NULL;
   }
   err = -1;
@@ -255,16 +251,16 @@ main(int argc, char* argv[])
 
   RDR(create_model(sys, mesh, mtr, &model));
   RDR(create_world(sys, &world));
-  RDR(background_color(sys, world, (float[]){0.1f, 0.1f, 0.1f}));
+  RDR(background_color(world, (float[]){0.1f, 0.1f, 0.1f}));
 
   for(i = 0; i < 27; ++i) {
     RDR(create_model_instance(sys, model, &instance_list[i]));
-    RDR(add_model_instance(sys, world, instance_list[i]));
+    RDR(add_model_instance(world, instance_list[i]));
 
     if(null_driver == false) {
       struct rdr_model_instance_data uniform;
       size_t nb = 0;
-      RDR(get_model_instance_uniforms(sys, instance_list[i], &nb, &uniform));
+      RDR(get_model_instance_uniforms(instance_list[i], &nb, &uniform));
       ((float*)uniform.data)[0] = rand() / (float)RAND_MAX;
       ((float*)uniform.data)[1] = rand() / (float)RAND_MAX;
       ((float*)uniform.data)[2] = rand() / (float)RAND_MAX;
@@ -298,13 +294,13 @@ main(int argc, char* argv[])
           };
           compute_transform(0.f, pos[0], pos[1], pos[2], transform_matrix);
           RDR(model_instance_transform
-              (sys, instance_list[z*9 + y*3 + x], transform_matrix));
+            (instance_list[z*9 + y*3 + x], transform_matrix));
         }
       }
     }
 
     compute_transform(M_DEG_TO_RAD(angle), 0.f, 0.f, -20.f, view.transform);
-    RDR(draw_world(sys, world, &view));
+    RDR(draw_world(world, &view));
 
     if(wm_swap(device, window) != WM_NO_ERROR) {
       fprintf(stderr, "Error swaping the window.\n");
@@ -316,19 +312,19 @@ main(int argc, char* argv[])
 
 exit:
   if(world)
-    RDR(free_world(sys, world));
+    RDR(world_ref_put(world));
   for(i = 0; i < 27; ++i) {
     if(instance_list[i])
-      RDR(free_model_instance(sys, instance_list[i]));
+      RDR(model_instance_ref_put(instance_list[i]));
   }
   if(model)
-    RDR(free_model(sys, model));
+    RDR(model_ref_put(model));
   if(mesh)
-    RDR(free_mesh(sys, mesh));
+    RDR(mesh_ref_put(mesh));
   if(mtr)
-    RDR(free_material(sys, mtr));
+    RDR(material_ref_put(mtr));
   if(sys)
-    RDR(free_system(sys));
+    RDR(system_ref_put(sys));
   if(window) {
     wm_err = wm_free_window(device, window);
     assert(wm_err == WM_NO_ERROR);

@@ -13,7 +13,11 @@ rdr_create_system
    struct rdr_system** out_sys);
 
 extern enum rdr_error 
-rdr_free_system
+rdr_system_ref_get
+  (struct rdr_system* sys);
+
+extern enum rdr_error
+rdr_system_ref_put
   (struct rdr_system* sys);
 
 #endif /* RDR_SYSTEM_H */
