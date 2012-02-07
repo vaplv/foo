@@ -252,7 +252,7 @@ rsrc_font_glyph
     goto error;
   }
   glyph->ctxt = font->ctxt;
-  FT(Load_Glyph(font->face, (FT_ULong)ch, FT_LOAD_DEFAULT));
+  FT(Load_Glyph(font->face, (FT_ULong)glyph_index, FT_LOAD_DEFAULT));
   FT(Get_Glyph(font->face->glyph, &glyph->glyph));
 
 exit:

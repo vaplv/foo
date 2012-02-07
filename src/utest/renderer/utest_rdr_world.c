@@ -55,10 +55,10 @@ main(int argc, char** argv)
   };
   const struct rdr_view view = {
     .transform = {
-      1.f, 0.f, 0.f, 0.f, 
-      0.f, 1.f, 0.f, 0.f, 
-      0.f, 0.f, 1.f, 0.f, 
-      0.f, 0.f, 0.f, 1.f 
+      1.f, 0.f, 0.f, 0.f,
+      0.f, 1.f, 0.f, 0.f,
+      0.f, 0.f, 1.f, 0.f,
+      0.f, 0.f, 0.f, 1.f
     },
     .proj_ratio = win_desc.width / win_desc.height,
     .fov_x = 1.4f,

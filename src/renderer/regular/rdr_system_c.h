@@ -6,6 +6,7 @@
 #include "sys/ref_count.h"
 
 #ifndef NDEBUG
+  #include <assert.h>
   #define SL(func) assert(SL_NO_ERROR == sl_##func)
 #else
   #define SL(func) sl_##func

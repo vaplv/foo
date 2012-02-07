@@ -6,7 +6,7 @@
 
 struct rdr_font;
 struct rdr_glyph_desc {
-   wchar_t glyph;
+   wchar_t character;
    size_t width;
    struct {
      size_t width;
@@ -36,6 +36,14 @@ rdr_font_data
    size_t line_space,
    size_t nb_glyphs,
    const struct rdr_glyph_desc* glyph_list);
+
+extern enum rdr_error
+rdr_font_bitmap_cache
+  (const struct rdr_font* font,
+   size_t* width, /* May be NULL. */
+   size_t* height, /* May be NULL. */
+   size_t* bytest_per_pixel, /* May be NULL. */
+   const unsigned char** bitmap_cache); /* May be NULL. */
 
 #endif /* RDR_FONT_H */
 

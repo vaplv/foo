@@ -6,12 +6,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define IS_MEMORY_OVERLAPPED(d0, sz0, d1, sz1) \
-  ((uintptr_t)(d0) >= (uintptr_t)(d1) && \
-   (uintptr_t)(d0) < (uintptr_t)(d1) + (sz1)) || \
-  ((uintptr_t)(d0) + (sz0) >= (uintptr_t)(d1) && \
-   (uintptr_t)(d0) + (sz0) < (uintptr_t)(d1) + (sz1))
-
 struct sl_vector {
   struct mem_allocator* allocator;
   size_t data_size;

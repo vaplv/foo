@@ -2,6 +2,7 @@
 #include "sys/sys.h"
 #include <stdio.h>
 #include <string.h>
+#include <assert.h>
 
 EXPORT_SYM enum rsrc_error
 rsrc_write_ppm
