@@ -5,6 +5,7 @@
 #include "app/core/app_model_instance.h"
 #include "renderer/rdr.h"
 #include "renderer/rdr_model_instance.h"
+#include "stdlib/sl.h"
 #include "stdlib/sl_set.h"
 #include "stdlib/sl_vector.h"
 #include "sys/mem_allocator.h"

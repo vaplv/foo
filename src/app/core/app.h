@@ -5,6 +5,13 @@
 #include <stdbool.h>
 #include <stddef.h>
 
+#ifndef NDEBUG
+  #include <assert.h>
+  #define APP(func) assert(APP_NO_ERROR == app_##func)
+#else
+  #define APP(func) app_##func
+#endif /* NDEBUG */
+
 struct app_args {
   const char* render_driver;
   const char* model;

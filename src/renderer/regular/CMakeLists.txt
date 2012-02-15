@@ -11,6 +11,7 @@ add_library(renderer SHARED
   rdr_model.c
   rdr_model_instance.c
   rdr_system.c
+  rdr_term.c
   rdr_world.c)
 
-target_link_libraries(renderer m mathssse rbi sl sys rsrc)
+target_link_libraries(renderer m mathssse rbi sl sys)

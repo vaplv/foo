@@ -2,30 +2,13 @@
 #define APP_C_H
 
 #include "app/core/app.h"
-#include "app/core/app_error.h"
 #include "renderer/rdr_attrib.h"
-#include "renderer/rdr_error.h"
 #include "resources/rsrc.h"
-#include "resources/rsrc_error.h"
 #include "resources/rsrc_geometry.h"
-#include "stdlib/sl_error.h"
 #include "stdlib/sl_logger.h"
 #include "sys/mem_allocator.h"
 #include "sys/ref_count.h"
 #include <stdbool.h>
-
-#ifndef NDEBUG
-  #include <assert.h>
-  #define APP(func) assert(APP_NO_ERROR == app_##func)
-  #define SL(func) assert(SL_NO_ERROR == sl_##func)
-  #define SYS(func) assert(SYS_NO_ERROR == sys_##func)
-  #define WM(func) assert(WM_NO_ERROR == wm_##func)
-#else
-  #define APP(func) app_##func
-  #define SL(func) sl_##func
-  #define SYS(func) sys_##func
-  #define WM(func) wm_##func
-#endif
 
 #define APP_LOG_MSG(app, ...) \
   SL(logger_print((app)->logger, __VA_ARGS__))

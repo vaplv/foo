@@ -5,18 +5,27 @@
 #include <stdlib.h>
 
 static const GLenum ogl3_compressed_internal_format[] = {
+  [RB_R] = GL_COMPRESSED_RED,
+  [RB_RGB] = GL_COMPRESSED_RGB,
+  [RB_RGBA] = GL_COMPRESSED_RGBA,
+  [RB_SRGB] = GL_COMPRESSED_SRGB,
   [RB_SRGBA] = GL_COMPRESSED_SRGB_ALPHA,
-  [RB_RGBA] = GL_COMPRESSED_RGBA
 };
 
 static const GLenum ogl3_internal_format[] = {
-  [RB_SRGBA] = GL_SRGB8_ALPHA8,
-  [RB_RGBA] = GL_RGBA8
+  [RB_R] = GL_RED,
+  [RB_RGB] = GL_RGB8,
+  [RB_RGBA] = GL_RGBA8,
+  [RB_SRGB] = GL_SRGB8,
+  [RB_SRGBA] = GL_SRGB8_ALPHA8
 };
 
 static const GLenum ogl3_format[] = {
-  [RB_SRGBA] = GL_RGBA,
-  [RB_RGBA] = GL_RGBA
+  [RB_R] = GL_RED,
+  [RB_RGB] = GL_RGB,
+  [RB_RGBA] = GL_RGBA,
+  [RB_SRGB] = GL_RGB,
+  [RB_SRGBA] = GL_RGBA
 };
 
 EXPORT_SYM int

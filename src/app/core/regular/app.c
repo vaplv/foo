@@ -13,6 +13,7 @@
 #include "resources/rsrc_context.h"
 #include "resources/rsrc_geometry.h"
 #include "resources/rsrc_wavefront_obj.h"
+#include "stdlib/sl.h"
 #include "stdlib/sl_logger.h"
 #include "stdlib/sl_set.h"
 #include "stdlib/sl_vector.h"

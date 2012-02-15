@@ -1,4 +1,3 @@
-#include "stdlib/regular/sl.h"
 #include "stdlib/sl_logger.h"
 #include "stdlib/sl_set.h"
 #include "sys/mem_allocator.h"

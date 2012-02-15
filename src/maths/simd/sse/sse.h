@@ -216,7 +216,7 @@ vf4_xor(vf4_t v0, vf4_t v1)
 static FINLINE vf4_t
 vf4_sel(vf4_t vfalse, vf4_t vtrue, vf4_t vcond)
 {
-	return vf4_xor(vfalse, vf4_and(vcond, vf4_xor(vfalse, vtrue)));
+  return vf4_xor(vfalse, vf4_and(vcond, vf4_xor(vfalse, vtrue)));
 }
 
 /* Merge operations. */
@@ -329,22 +329,22 @@ vf4_abs(vf4_t v)
 static FINLINE vf4_t
 vf4_sqrt(vf4_t v)
 {
-	return _mm_sqrt_ps(v);
+  return _mm_sqrt_ps(v);
 }
 
 static FINLINE vf4_t
 vf4_rsqrte(vf4_t v)
 {
-	return _mm_rsqrt_ps(v);
+  return _mm_rsqrt_ps(v);
 }
 
 static FINLINE vf4_t
 vf4_rsqrt(vf4_t v)
 {
-	const vf4_t y = vf4_rsqrte(v);
-	const vf4_t yyv = vf4_mul(vf4_mul(y, y), v);
-	const vf4_t tmp = vf4_sub(vf4_set1(1.5f), vf4_mul(yyv, vf4_set1(0.5f)));
-	return vf4_mul(tmp, y);
+  const vf4_t y = vf4_rsqrte(v);
+  const vf4_t yyv = vf4_mul(vf4_mul(y, y), v);
+  const vf4_t tmp = vf4_sub(vf4_set1(1.5f), vf4_mul(yyv, vf4_set1(0.5f)));
+  return vf4_mul(tmp, y);
 }
 
 static FINLINE vf4_t
@@ -356,9 +356,9 @@ vf4_rcpe(vf4_t v)
 static FINLINE vf4_t
 vf4_rcp(vf4_t v)
 {
-	const vf4_t y = vf4_rcpe(v);
-	const vf4_t tmp = vf4_sub(vf4_set1(2.f), vf4_mul(y, v));
-	return vf4_mul(tmp, y);
+  const vf4_t y = vf4_rcpe(v);
+  const vf4_t tmp = vf4_sub(vf4_set1(2.f), vf4_mul(y, v));
+  return vf4_mul(tmp, y);
 }
 
 static FINLINE vf4_t
@@ -525,7 +525,7 @@ vf4_lt(vf4_t v0, vf4_t v1)
 static FINLINE vf4_t
 vf4_eq_eps(vf4_t v0, vf4_t v1, vf4_t eps)
 {
-	return vf4_lt(vf4_abs(vf4_sub(v0, v1)), eps);
+  return vf4_lt(vf4_abs(vf4_sub(v0, v1)), eps);
 }
 
 static FINLINE vf4_t
@@ -583,7 +583,7 @@ _VEC4_GEN_SWZ_FUNCS(vi4)
 static FINLINE vi4_t
 vi4_set1(int32_t i)
 {
-	return _mm_set1_epi32(i);
+  return _mm_set1_epi32(i);
 }
 
 static FINLINE vi4_t

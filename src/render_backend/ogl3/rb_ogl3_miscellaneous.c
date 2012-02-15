@@ -221,3 +221,16 @@ rb_rasterizer(struct rb_context* ctxt, const struct rb_rasterizer_desc* desc)
   return 0;
 }
 
+EXPORT_SYM int
+rb_get_config(struct rb_context* ctxt, struct rb_config* config)
+{
+  int i = 0;
+  if(!ctxt || !config)
+    return -1;
+
+  OGL(GetIntegerv(GL_MAX_TEXTURE_SIZE, &i));
+  assert(i > 0);
+  config->max_tex_size = i;
+  return 0;
+}
+

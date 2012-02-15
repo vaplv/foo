@@ -56,14 +56,17 @@ rdr_create_system
   }
   sys->allocator = allocator;
   ref_init(&sys->ref);
-
   err = rbi_init(graphic_driver, &sys->rb);
   if(err != 0) {
     rdr_err = RDR_DRIVER_ERROR;
     goto error;
   }
-
   err = sys->rb.create_context(sys->allocator, &sys->ctxt);
+  if(err != 0) {
+    rdr_err = RDR_DRIVER_ERROR;
+    goto error;
+  }
+  err = sys->rb.get_config(sys->ctxt, &sys->cfg);
   if(err != 0) {
     rdr_err = RDR_DRIVER_ERROR;
     goto error;

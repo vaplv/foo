@@ -17,19 +17,16 @@
   #define FT(func) FT_##func
 #endif
 
-struct rsrc_font_library
-{
+struct rsrc_font_library {
   FT_Library handle;
 };
 
-struct rsrc_font
-{
+struct rsrc_font {
   struct rsrc_context* ctxt;
   FT_Face face;
 };
 
-struct rsrc_glyph 
-{
+struct rsrc_glyph {
   struct rsrc_context* ctxt;
   FT_Glyph glyph;
 };

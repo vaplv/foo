@@ -398,3 +398,10 @@ RB_FUNC(
     const struct rb_viewport_desc* desc
 )
 
+RB_FUNC(
+  int,
+  get_config,
+    struct rb_context* ctxt,
+    struct rb_config* cfg
+)
+

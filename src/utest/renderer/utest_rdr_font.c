@@ -6,9 +6,25 @@
 #include "utest/utest.h"
 #include "window_manager/wm_device.h"
 #include "window_manager/wm_window.h"
+#include <stdbool.h>
+#include <string.h>
 
+#define MEM_ERROR RDR_MEMORY_ERROR
 #define BAD_ARG RDR_INVALID_ARGUMENT
 #define OK RDR_NO_ERROR
+
+static bool
+is_driver_null(const char* name)
+{
+  const char* null_driver_name = "librbnull.so";
+  char* p = NULL;
+  if(name == NULL)
+    return false;
+  p = strstr(name, null_driver_name);
+  return (p != NULL)
+    && (p == name ? true : *(p-1) == '/')
+    && (*(p + strlen(null_driver_name)) == '\0');
+}
 
 int
 main(int argc, char** argv)
@@ -23,6 +39,8 @@ main(int argc, char** argv)
   const unsigned char* bmp_cache = NULL;
   size_t i = 0;
   int err = 0;
+  bool null_driver = false; 
+
   /* Resources data. */
   unsigned char* glyph_bitmap_list[total_nb_glyphs];
   struct rsrc_context* ctxt = NULL;
@@ -45,6 +63,7 @@ main(int argc, char** argv)
   }
   driver_name = argv[1];
   font_name = argv[2];
+  null_driver = is_driver_null(driver_name);
 
   file = fopen(driver_name, "r");
   if(!file) {
@@ -144,18 +163,21 @@ main(int argc, char** argv)
   CHECK(rdr_font_data(NULL, 0, 0, NULL), BAD_ARG);
   CHECK(rdr_font_data(font, 0, 0, NULL), OK);
   CHECK(rsrc_font_line_space(ft, &i), RSRC_NO_ERROR);
-  CHECK(rdr_font_data(font, i, nb_glyphs, glyph_desc_list), OK);
+  if(null_driver) {
+    CHECK(rdr_font_data(font, i, nb_glyphs, glyph_desc_list), MEM_ERROR);
+  } else {
+    CHECK(rdr_font_data(font, i, nb_glyphs, glyph_desc_list), OK);
+    CHECK(rdr_font_bitmap_cache(font, &width, &height, &Bpp, &bmp_cache), OK);
+    NCHECK(bmp_cache, NULL);
+    NCHECK(width, 0);
+    NCHECK(height, 0);
+    NCHECK(Bpp, 0);
 
-  CHECK(rdr_font_bitmap_cache(font, &width, &height, &Bpp, &bmp_cache), OK);
-  NCHECK(bmp_cache, NULL);
-  NCHECK(width, 0);
-  NCHECK(height, 0);
-  NCHECK(Bpp, 0);
+    CHECK(rsrc_write_ppm
+      (ctxt, "/tmp/font_cache.ppm", width, height, Bpp, bmp_cache), 
+      RSRC_NO_ERROR);
+  }
 
-  CHECK(rsrc_write_ppm
-    (ctxt, "/tmp/font_cache.ppm", width, height, Bpp, bmp_cache), 
-    RSRC_NO_ERROR);
- 
   CHECK(rdr_font_ref_get(NULL), BAD_ARG);
   CHECK(rdr_font_ref_get(font), OK);
   CHECK(rdr_font_ref_put(NULL), BAD_ARG);

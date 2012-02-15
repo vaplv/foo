@@ -3,6 +3,7 @@
 #include "resources/regular/rsrc_wavefront_obj_c.h"
 #include "resources/rsrc_context.h"
 #include "resources/rsrc_geometry.h"
+#include "stdlib/sl.h"
 #include "stdlib/sl_hash_table.h"
 #include "stdlib/sl_vector.h"
 #include "sys/mem_allocator.h"

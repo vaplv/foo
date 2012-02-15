@@ -8,10 +8,12 @@
 #include "renderer/rdr.h"
 #include "renderer/rdr_error.h"
 #include "renderer/rdr_world.h"
+#include "stdlib/sl.h"
 #include "stdlib/sl_vector.h"
 #include "sys/mem_allocator.h"
 #include "sys/ref_count.h"
 #include "sys/sys.h"
+#include "window_manager/wm.h"
 #include "window_manager/wm_window.h"
 #include <assert.h>
 #include <stdlib.h>

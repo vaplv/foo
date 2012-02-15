@@ -9,6 +9,7 @@
 #include "resources/rsrc.h"
 #include "resources/rsrc_context.h"
 #include "resources/rsrc_wavefront_obj.h"
+#include "stdlib/sl.h"
 #include "stdlib/sl_vector.h"
 #include "sys/mem_allocator.h"
 #include "sys/sys.h"

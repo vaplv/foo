@@ -1,5 +1,5 @@
-#ifndef SL_H
-#define SL_H
+#ifndef SL_C_H
+#define SL_C_H
 
 #define SL_IS_POWER_OF_2(i) ((i) > 0 && ((i) & ((i)-1)) == 0)
 
@@ -13,5 +13,5 @@
   (sizeof(i) > 8 ? (j) |= (j) >> 32, (void)0 : (void)0), \
   ++(j)
 
-#endif /* SL_H */
+#endif /* SL_C_H */
 

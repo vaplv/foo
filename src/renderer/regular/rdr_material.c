@@ -5,6 +5,7 @@
 #include "renderer/rdr.h"
 #include "renderer/rdr_material.h"
 #include "renderer/rdr_system.h"
+#include "stdlib/sl.h"
 #include "stdlib/sl_set.h"
 #include "sys/ref_count.h"
 #include "sys/sys.h"

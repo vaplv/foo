@@ -8,145 +8,219 @@
 int
 main(int argc UNUSED, char** argv UNUSED)
 {
-  struct sl_linked_list* list = NULL;
-  struct sl_linked_list* list1 = NULL;
-  struct sl_node* node0 = NULL;
-  struct sl_node* node1 = NULL;
-  struct sl_node* node2 = NULL;
-  void* data = NULL;
-  size_t length = 0;
+  struct elmt {
+    struct sl_node node;
+    char c;
+  } elmt0, elmt1, elmt2;
+  struct sl_node list, list1;
+  struct sl_node* n = NULL;
+  struct sl_node* tmp = NULL;
   int i = 0;
-  ALIGN(4) char a = 'a';
-  
-  CHECK(sl_create_linked_list(1, 3, NULL, NULL), SL_INVALID_ARGUMENT);
-  CHECK(sl_create_linked_list(1, 3, NULL, &list), SL_ALIGNMENT_ERROR);
-  CHECK(sl_create_linked_list(1, 4, NULL, &list), SL_NO_ERROR);
+  bool b = false;
 
-  CHECK(sl_linked_list_length(NULL, NULL), SL_INVALID_ARGUMENT);
-  CHECK(sl_linked_list_length(list, NULL), SL_INVALID_ARGUMENT);
-  CHECK(sl_linked_list_length(NULL, &length), SL_INVALID_ARGUMENT);
-  CHECK(sl_linked_list_length(list, &length), SL_NO_ERROR);
-  CHECK(length, 0);
+  CHECK(sl_init_node(NULL), SL_INVALID_ARGUMENT);
+  CHECK(sl_init_node(&list), SL_NO_ERROR);
+  CHECK(sl_init_node(&list1), SL_NO_ERROR);
+  CHECK(sl_init_node(&elmt0.node), SL_NO_ERROR);
+  CHECK(sl_init_node(&elmt1.node), SL_NO_ERROR);
+  CHECK(sl_init_node(&elmt2.node), SL_NO_ERROR);
 
-  CHECK(sl_linked_list_add(NULL, NULL, NULL), SL_INVALID_ARGUMENT);
-  CHECK(sl_linked_list_add(NULL, NULL, &node0), SL_INVALID_ARGUMENT);
-  CHECK(sl_linked_list_add(list, &a, &node0), SL_NO_ERROR);
-  CHECK(sl_linked_list_length(list, &length), SL_NO_ERROR);
-  CHECK(length, 1);
+  CHECK(sl_is_list_empty(NULL, NULL), SL_INVALID_ARGUMENT);
+  CHECK(sl_is_list_empty(&list, NULL), SL_INVALID_ARGUMENT);
+  CHECK(sl_is_list_empty(NULL, &b), SL_INVALID_ARGUMENT);
+  CHECK(sl_is_list_empty(&list, &b), SL_NO_ERROR);
+  CHECK(b, true);
 
-  CHECK(sl_linked_list_head(NULL, NULL), SL_INVALID_ARGUMENT);
-  CHECK(sl_linked_list_head(list, NULL), SL_INVALID_ARGUMENT);
-  CHECK(sl_linked_list_head(NULL, &node1), SL_INVALID_ARGUMENT);
-  CHECK(sl_linked_list_head(list, &node1), SL_NO_ERROR);
-  CHECK(node0, node1);
+  elmt0.c = 'a';
+  CHECK(sl_list_add(NULL, NULL), SL_INVALID_ARGUMENT);
+  CHECK(sl_list_add(NULL, &elmt0.node), SL_INVALID_ARGUMENT);
+  CHECK(sl_list_add(&list,  &elmt0.node), SL_NO_ERROR);
+  CHECK(sl_is_list_empty(&list, &b), SL_NO_ERROR);
+  CHECK(b, false);
+  CHECK(list.next, &elmt0.node);
 
-  CHECK(sl_linked_list_add(list, &a, NULL), SL_NO_ERROR);
-  CHECK(sl_linked_list_length(list, &length), SL_NO_ERROR);
-  CHECK(length, 2);
+  elmt1.c = 'b';
+  CHECK(sl_list_add(&list,  &elmt1.node), SL_NO_ERROR);
+  CHECK(sl_is_list_empty(&list, &b), SL_NO_ERROR);
+  CHECK(b, false);
+  CHECK(elmt1.node.next, &elmt0.node);
+  CHECK(elmt1.node.prev, &list);
+  CHECK(elmt1.node.next->prev, &elmt1.node);
+  CHECK(list.next, &elmt1.node);
 
-  CHECK(sl_linked_list_head(list, &node0), SL_NO_ERROR);
-  CHECK(sl_next_node(NULL, NULL), SL_INVALID_ARGUMENT);
-  CHECK(sl_next_node(node0, NULL), SL_INVALID_ARGUMENT);
-  CHECK(sl_next_node(NULL, &node1), SL_INVALID_ARGUMENT);
-  CHECK(sl_next_node(node0, &node1), SL_NO_ERROR);
-  NCHECK(node1, NULL);
-  NCHECK(node0, node1);
+  elmt2.c = 'c';
+  CHECK(sl_list_add_tail(&list,  &elmt2.node), SL_NO_ERROR);
+  CHECK(sl_is_list_empty(&list, &b), SL_NO_ERROR);
+  CHECK(b, false);
+  CHECK(elmt2.node.next, &list);
+  CHECK(elmt2.node.prev, &elmt0.node);
+  CHECK(elmt2.node.prev->prev, &elmt1.node);
+  CHECK(elmt1.node.next->next, &elmt2.node);
+  CHECK(elmt0.node.next, &elmt2.node);
+  CHECK(list.next, &elmt1.node);
+  CHECK(list.prev, &elmt2.node);
 
-  CHECK(sl_next_node(node1, &node2), SL_NO_ERROR);
-  NCHECK(node0, node1);
-  NCHECK(node0, node2);
-  NCHECK(node1, node2);
-  NCHECK(node0, NULL);
-  NCHECK(node1, NULL);
-  CHECK(node2, NULL);
+  CHECK(sl_list_del(NULL), SL_INVALID_ARGUMENT);
+  CHECK(sl_list_del(&elmt0.node), SL_NO_ERROR);
+  CHECK(sl_is_list_empty(&list, &b), SL_NO_ERROR);
+  CHECK(b, false);
+  CHECK(elmt2.node.next, &list);
+  CHECK(elmt2.node.prev, &elmt1.node);
+  CHECK(elmt1.node.next, &elmt2.node);
+  CHECK(elmt1.node.prev, &list);
+  CHECK(list.next, &elmt1.node);
+  CHECK(list.prev, &elmt2.node);
 
-  CHECK(sl_next_node(node2, &node2), SL_INVALID_ARGUMENT);
-  CHECK(node2, NULL);
+  CHECK(sl_list_del(&elmt2.node), SL_NO_ERROR);
+  CHECK(sl_is_list_empty(&list, &b), SL_NO_ERROR);
+  CHECK(b, false);
+  CHECK(elmt1.node.next, &list);
+  CHECK(elmt1.node.prev, &list);
+  CHECK(list.next, &elmt1.node);
+  CHECK(list.prev, &elmt1.node);
 
-  CHECK(sl_previous_node(NULL, NULL), SL_INVALID_ARGUMENT);
-  CHECK(sl_previous_node(node1, NULL), SL_INVALID_ARGUMENT);
-  CHECK(sl_previous_node(NULL, NULL), SL_INVALID_ARGUMENT);
-  CHECK(sl_previous_node(node1, &node2), SL_NO_ERROR);
-  CHECK(node2, node0);
-  NCHECK(node2, node1);
-  NCHECK(node2, NULL);
+  CHECK(sl_list_del(&elmt1.node), SL_NO_ERROR);
+  CHECK(sl_is_list_empty(&list, &b), SL_NO_ERROR);
+  CHECK(b, true);
 
-  CHECK(sl_previous_node(node0, &node2), SL_NO_ERROR);
-  CHECK(node2, NULL);
+  CHECK(sl_list_add(&list,  &elmt2.node), SL_NO_ERROR);
+  CHECK(sl_list_add(&list,  &elmt2.node), SL_INVALID_ARGUMENT);
+  CHECK(sl_list_add(&list,  &elmt1.node), SL_NO_ERROR);
+  CHECK(sl_list_add(&list,  &elmt0.node), SL_NO_ERROR);
+  CHECK(sl_is_list_empty(&list, &b), SL_NO_ERROR);
+  CHECK(b, false);
+  CHECK(elmt2.node.next, &list);
+  CHECK(elmt2.node.prev, &elmt1.node);
+  CHECK(elmt1.node.next, &elmt2.node);
+  CHECK(elmt1.node.prev, &elmt0.node);
+  CHECK(elmt0.node.next, &elmt1.node);
+  CHECK(elmt0.node.prev, &list);
+  CHECK(list.next, &elmt0.node);
+  CHECK(list.prev, &elmt2.node);
 
-  CHECK(sl_linked_list_remove(NULL, NULL), SL_INVALID_ARGUMENT);
-  CHECK(sl_linked_list_remove(list, NULL), SL_INVALID_ARGUMENT);
-  CHECK(sl_linked_list_remove(NULL, node0), SL_INVALID_ARGUMENT);
-  CHECK(sl_linked_list_remove(list, node0), SL_NO_ERROR);
-  CHECK(sl_linked_list_length(list, &length), SL_NO_ERROR);
-  CHECK(length, 1);
-  CHECK(sl_linked_list_head(list, &node2), SL_NO_ERROR);
-  CHECK(node2, node1);
+  CHECK(sl_is_list_empty(&list1, &b), SL_NO_ERROR);
+  CHECK(b, true);
+  CHECK(sl_list_move(NULL, NULL), SL_INVALID_ARGUMENT);
+  CHECK(sl_list_move(&elmt1.node, NULL), SL_INVALID_ARGUMENT);
+  CHECK(sl_list_move(NULL, &list1), SL_INVALID_ARGUMENT);
+  CHECK(sl_list_move(&elmt1.node, &list1), SL_NO_ERROR);
+  CHECK(sl_is_list_empty(&list, &b), SL_NO_ERROR);
+  CHECK(b, false);
+  CHECK(sl_is_list_empty(&list1, &b), SL_NO_ERROR);
+  CHECK(b, false);
+  CHECK(elmt2.node.next, &list);
+  CHECK(elmt2.node.prev, &elmt0.node);
+  CHECK(elmt1.node.next, &list1);
+  CHECK(elmt1.node.prev, &list1);
+  CHECK(elmt0.node.next, &elmt2.node);
+  CHECK(elmt0.node.prev, &list);
+  CHECK(list.next, &elmt0.node);
+  CHECK(list.prev, &elmt2.node);
+  CHECK(list1.next, &elmt1.node);
+  CHECK(list1.prev, &elmt1.node);
 
-  CHECK(sl_linked_list_remove(list, node2), SL_NO_ERROR);
-  CHECK(sl_linked_list_length(list, &length), SL_NO_ERROR);
-  CHECK(length, 0);
-  CHECK(sl_linked_list_head(list, &node2), SL_NO_ERROR);
-  CHECK(node2, NULL);
+  CHECK(sl_list_move_tail(NULL, NULL), SL_INVALID_ARGUMENT);
+  CHECK(sl_list_move_tail(&elmt2.node, NULL), SL_INVALID_ARGUMENT);
+  CHECK(sl_list_move_tail(NULL, &list1), SL_INVALID_ARGUMENT);
+  CHECK(sl_list_move_tail(&elmt2.node, &list1), SL_NO_ERROR);
+  CHECK(sl_is_list_empty(&list, &b), SL_NO_ERROR);
+  CHECK(b, false);
+  CHECK(sl_is_list_empty(&list1, &b), SL_NO_ERROR);
+  CHECK(b, false);
+  CHECK(elmt2.node.next, &list1);
+  CHECK(elmt2.node.prev, &elmt1.node);
+  CHECK(elmt1.node.next, &elmt2.node);
+  CHECK(elmt1.node.prev, &list1);
+  CHECK(elmt0.node.next, &list);
+  CHECK(elmt0.node.prev, &list);
+  CHECK(list.next,&elmt0.node);
+  CHECK(list.prev, &elmt0.node);
+  CHECK(list1.next, &elmt1.node);
+  CHECK(list1.prev, &elmt2.node);
 
-  CHECK(sl_create_linked_list
-        (sizeof(int),ALIGNOF(int), &mem_default_allocator, &list1),SL_NO_ERROR);
-  CHECK(sl_linked_list_add(list1, (int[]){0}, NULL), SL_NO_ERROR);
-  CHECK(sl_linked_list_add(list1, (int[]){2}, NULL), SL_NO_ERROR);
-  CHECK(sl_linked_list_add(list1, (int[]){5}, &node0), SL_NO_ERROR);
-  CHECK(sl_linked_list_length(list1, &length), SL_NO_ERROR);
-  CHECK(length, 3);
+  CHECK(sl_list_move(&elmt0.node, &list1), SL_NO_ERROR);
+  CHECK(sl_is_list_empty(&list, &b), SL_NO_ERROR);
+  CHECK(b, true);
+  CHECK(sl_is_list_empty(&list1, &b), SL_NO_ERROR);
+  CHECK(b, false);
+  CHECK(elmt2.node.next, &list1);
+  CHECK(elmt2.node.prev, &elmt1.node);
+  CHECK(elmt1.node.next, &elmt2.node);
+  CHECK(elmt1.node.prev, &elmt0.node);
+  CHECK(elmt0.node.next, &elmt1.node);
+  CHECK(elmt0.node.prev, &list1);
+  CHECK(list1.next, &elmt0.node);
+  CHECK(list1.prev, &elmt2.node);
 
-  CHECK(sl_node_data(NULL, NULL), SL_INVALID_ARGUMENT);
-  CHECK(sl_node_data(node0, NULL), SL_INVALID_ARGUMENT);
-  CHECK(sl_node_data(NULL, &data), SL_INVALID_ARGUMENT);
-  CHECK(sl_node_data(node0, &data), SL_NO_ERROR);
-  CHECK(*(int*)data, 5);
+  i = 0;
+  SL_LIST_FOR_EACH(n, &list1) {
+    struct elmt* e = CONTAINER_OF(n, struct elmt, node);
+    CHECK(e->c, 'a' + i);
+    ++i;
+  }
+  CHECK(i, 3);
 
-  CHECK(sl_linked_list_head(list1, &node0), SL_NO_ERROR);
-  NCHECK(node0, NULL);
-  CHECK(sl_node_data(node0, &data), SL_NO_ERROR);
-  i = *(int*)data;
-  CHECK((i == 0 || i == 2 || i == 5), true);
-  CHECK(sl_next_node(node0, &node1), SL_NO_ERROR);
-  NCHECK(node0, node1);
-  CHECK(sl_node_data(node1, &data), SL_NO_ERROR);
-  i = *(int*)data;
-  CHECK((i == 0 || i == 2 || i == 5), true);
-  CHECK(sl_next_node(node1, &node2), SL_NO_ERROR);
-  NCHECK(node0, node2);
-  NCHECK(node1, node2);
-  CHECK(sl_node_data(node2, &data), SL_NO_ERROR);
-  i = *(int*)data;
-  CHECK((i == 0 || i == 2 || i == 5), true);
+  i = 3;
+  SL_LIST_FOR_EACH_REVERSE(n, &list1) {
+    struct elmt* e = CONTAINER_OF(n, struct elmt, node);
+    --i;
+    CHECK(e->c, 'a' + i);
+  }
+  CHECK(i, 0);
 
-  #ifndef NDEBUG
-  /* This test is only valid if this utest is linked with the libsl compiled in
-   * debug mode. */
-  CHECK(sl_linked_list_remove(list, node0), SL_INVALID_ARGUMENT);
-  #endif
+  i = 0;
+  SL_LIST_FOR_EACH_SAFE(n, tmp, &list1) {
+    CHECK(sl_list_move_tail(n, &list), SL_NO_ERROR);
+    struct elmt* e = CONTAINER_OF(n, struct elmt, node);
+    CHECK(e->c, 'a' + i);
+    ++i;
+  }
+  CHECK(i, 3);
+  CHECK(sl_is_list_empty(&list1, &b), SL_NO_ERROR);
+  CHECK(b, true);
+  CHECK(sl_is_list_empty(&list, &b), SL_NO_ERROR);
+  CHECK(b, false);
 
-  CHECK(sl_linked_list_remove(list1, node1), SL_NO_ERROR);
-  node1 = NULL;
-  CHECK(sl_next_node(node0, &node1), SL_NO_ERROR);
-  CHECK(node1, node2);
-  CHECK(sl_next_node(node1, &node1), SL_NO_ERROR);
-  CHECK(node1, NULL);
-  CHECK(sl_previous_node(node2, &node1), SL_NO_ERROR);
-  CHECK(node1, node0);
-  CHECK(sl_previous_node(node1, &node1), SL_NO_ERROR);
-  CHECK(node1, NULL);
+  i = 3;
+  SL_LIST_FOR_EACH_REVERSE_SAFE(n, tmp, &list) {
+    CHECK(sl_list_move(n, &list1), SL_NO_ERROR);
+    struct elmt* e = CONTAINER_OF(n, struct elmt, node);
+    --i;
+    CHECK(e->c, 'a' + i);
+  }
+  CHECK(i, 0);
+  CHECK(sl_is_list_empty(&list1, &b), SL_NO_ERROR);
+  CHECK(b, false);
+  CHECK(sl_is_list_empty(&list, &b), SL_NO_ERROR);
+  CHECK(b, true);
 
-  CHECK(sl_clear_linked_list(NULL), SL_INVALID_ARGUMENT);
-  CHECK(sl_clear_linked_list(list1), SL_NO_ERROR);
-  CHECK(sl_linked_list_length(list, &length), SL_NO_ERROR);
-  CHECK(length, 0);
-  CHECK(sl_linked_list_head(list, &node2), SL_NO_ERROR);
-  CHECK(node2, NULL);
+  i = 0;
+  SL_LIST_FOR_EACH(n, &list1) {
+    struct elmt* e = CONTAINER_OF(n, struct elmt, node);
+    CHECK(e->c, 'a' + i);
+    ++i;
+  }
+  CHECK(i, 3);
 
-  CHECK(sl_free_linked_list(NULL), SL_INVALID_ARGUMENT);
-  CHECK(sl_free_linked_list(list), SL_NO_ERROR);
-  CHECK(sl_free_linked_list(list1), SL_NO_ERROR);
+  CHECK(sl_list_move(&elmt1.node, &list1), SL_NO_ERROR);
+  CHECK(elmt2.node.next, &list1);
+  CHECK(elmt2.node.prev, &elmt0.node);
+  CHECK(elmt1.node.next, &elmt0.node);
+  CHECK(elmt1.node.prev, &list1);
+  CHECK(elmt0.node.next, &elmt2.node);
+  CHECK(elmt0.node.prev, &elmt1.node);
+  CHECK(list1.next, &elmt1.node);
+  CHECK(list1.prev, &elmt2.node);
+
+  CHECK(sl_list_move_tail(&elmt0.node, &list1), SL_NO_ERROR);
+  CHECK(elmt2.node.next, &elmt0.node);
+  CHECK(elmt2.node.prev, &elmt1.node);
+  CHECK(elmt1.node.next, &elmt2.node);
+  CHECK(elmt1.node.prev, &list1);
+  CHECK(elmt0.node.next, &list1);
+  CHECK(elmt0.node.prev, &elmt2.node);
+  CHECK(list1.next, &elmt1.node);
+  CHECK(list1.prev, &elmt0.node);
 
   CHECK(MEM_ALLOCATED_SIZE(&mem_default_allocator), 0);
 

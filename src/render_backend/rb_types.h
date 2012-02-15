@@ -22,8 +22,11 @@ enum {
  *
  ******************************************************************************/
 enum rb_tex_format {
-  RB_SRGBA,
+  RB_R,
+  RB_RGB,
   RB_RGBA,
+  RB_SRGB,
+  RB_SRGBA
 };
 
 enum rb_buffer_target {
@@ -136,6 +139,10 @@ struct rb_attrib;
  * Public render backend data structures.
  *
  ******************************************************************************/
+struct rb_config {
+  size_t max_tex_size;
+};
+
 struct rb_tex2d_desc {
   int width;
   int height;

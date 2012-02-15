@@ -4,6 +4,7 @@
 #include "renderer/rdr.h"
 #include "renderer/rdr_font.h"
 #include "renderer/rdr_system.h"
+#include "stdlib/sl.h"
 #include "stdlib/sl_hash_table.h"
 #include "sys/mem_allocator.h"
 #include "sys/ref_count.h"
@@ -228,26 +229,28 @@ static void
 fill_font_cache
   (const struct node* node,
    struct rdr_font* font,
-   const struct rdr_glyph_desc* glyph_list,
-   size_t cache_pitch,
-   size_t cache_Bpp,
-   unsigned char* cache_buffer)
+   const struct rdr_glyph_desc* glyph_list)
 {
   if(!IS_LEAF(node)) {
     struct pair* pair = NULL;
     const struct rdr_glyph_desc* glyph_desc = glyph_list + node->id;
+    const size_t cache_Bpp = font->cache_img.Bpp;
+    const size_t cache_pitch = font->cache_img.width * cache_Bpp;
+    const size_t rcp_cache_width = 1.f / (float)font->cache_img.width;
+    const size_t rcp_cache_height = 1.f / (float)font->cache_img.height;
     unsigned char* dst = NULL;
 
     SL(hash_table_find(font->glyph_htbl, &glyph_desc->character,(void**)&pair));
+    assert(pair);
     pair->glyph.width = glyph_desc->width;
-    pair->glyph.u[0] = (float)node->x;
-    pair->glyph.v[0] = (float)node->y;
-    pair->glyph.u[1] = (float)(node->x + node->width);
-    pair->glyph.v[1] = (float)(node->y + node->height);
+    pair->glyph.u[0] = (float)node->x * rcp_cache_width;
+    pair->glyph.v[0] = (float)node->y * rcp_cache_height;
+    pair->glyph.u[1] = (float)(node->x + node->width) * rcp_cache_width;
+    pair->glyph.v[1] = (float)(node->y + node->height) * rcp_cache_height;
 
     assert(glyph_desc->bitmap.bytes_per_pixel == cache_Bpp);
     dst =
-      cache_buffer
+      font->cache_img.buffer
     + (node->y == 0 ? GLYPH_BORDER : node->y) * cache_pitch
     + (node->x == 0 ? GLYPH_BORDER : node->x) * cache_Bpp;
     copy_bitmap
@@ -259,10 +262,8 @@ fill_font_cache
        glyph_desc->bitmap.height,
        cache_Bpp);
 
-    fill_font_cache
-      (node->left, font, glyph_list, cache_pitch, cache_Bpp, cache_buffer);
-    fill_font_cache
-      (node->right, font, glyph_list, cache_pitch, cache_Bpp, cache_buffer);
+    fill_font_cache(node->left, font, glyph_list);
+    fill_font_cache(node->right, font, glyph_list);
   }
 }
 
@@ -274,6 +275,46 @@ cmp_glyph(const void* a, const void* b)
   const size_t area0 = glyph0->bitmap.width * glyph0->bitmap.height;
   const size_t area1 = glyph1->bitmap.width * glyph1->bitmap.height;
   return (int)(area1 - area0);
+}
+
+static enum rb_tex_format
+Bpp_to_rb_tex_format(size_t Bpp)
+{
+  enum rb_tex_format tex_format = RB_R;
+  switch(Bpp) {
+    case 1:
+      tex_format = RB_R;
+      break;
+    case 3:
+      tex_format = RB_RGB;
+      break;
+    default:
+      assert(false);
+      break;
+  }
+  return tex_format;
+}
+
+static void
+reset_font(struct rdr_font* font)
+{
+  int rb_err = 0;
+  assert(font);
+
+  SL(hash_table_clear(font->glyph_htbl));
+
+  rb_err = font->sys->rb.tex2d_data
+    (font->sys->ctxt,
+     font->cache_tex,
+     (struct rb_tex2d_desc[]){{0, 0, 0, RB_R, 0}},
+     NULL);
+  assert(rb_err == 0);
+
+  if(font->cache_img.buffer)
+    MEM_FREE(font->sys->allocator, font->cache_img.buffer);
+  memset(&font->cache_img, 0, sizeof(font->cache_img));
+
+  font->line_space = 0;
 }
 
 static void
@@ -381,23 +422,22 @@ rdr_font_data
    size_t nb_glyphs,
    const struct rdr_glyph_desc* glyph_list)
 {
+  struct rb_tex2d_desc tex2d_desc;
   struct rdr_glyph_desc* sorted_glyphs = NULL;
   struct node* root = NULL;
   size_t Bpp = 0;
-  size_t pitch = 0;
   size_t i = 0;
   size_t cache_width = 0;
   size_t cache_height = 0;
   enum rdr_error rdr_err = RDR_NO_ERROR;
-
-  /* TODO use the real render backend texture limit. */
-  const size_t max_tex_size = 4096;
+  int rb_err = 0;
+  memset(&tex2d_desc, 0, sizeof(tex2d_desc));
 
   if(!font || (nb_glyphs && !glyph_list)) {
     rdr_err = RDR_INVALID_ARGUMENT;
     goto error;
   }
-  SL(hash_table_clear(font->glyph_htbl));
+  reset_font(font);
   font->line_space = line_space;
 
   if(0 == nb_glyphs)
@@ -417,6 +457,10 @@ rdr_font_data
   /* Create the binary tree data structure used to pack the glyphs into the
    * cache texture. */
   Bpp = sorted_glyphs[i].bitmap.bytes_per_pixel;
+  if(Bpp != 1 && Bpp != 3) {
+    rdr_err = RDR_INVALID_ARGUMENT;
+    goto error;
+  }
   compute_initial_cache_size
     (nb_glyphs, sorted_glyphs, &cache_width, &cache_height);
   root = MEM_CALLOC(font->sys->allocator, 1, sizeof(struct node));
@@ -443,7 +487,6 @@ rdr_font_data
     }
     width = sorted_glyphs[i].bitmap.width;
     height = sorted_glyphs[i].bitmap.height;
-
     /* Check whether the glyph character is already registered or not. */
     SL(hash_table_find(font->glyph_htbl, &sorted_glyphs[i].character, &data));
     if(data != NULL) {
@@ -460,10 +503,10 @@ rdr_font_data
         goto error;
       }
     }
-
     /* Pack the glyph bitmap. */
     node = insert_rect(font->sys->allocator, root, width, height);
     while(!node) {
+      const size_t max_tex_size = font->sys->cfg.max_tex_size;
       const size_t extend_x = width / 2;
       const size_t extend_y = height / 2;
       const bool can_extend_w = (cache_width + extend_x) <= max_tex_size;
@@ -483,6 +526,9 @@ rdr_font_data
       } else if(can_extend_h) {
         extend_height(root, cache_height, extend_y);
         cache_height += extend_y;
+      } else {
+        rdr_err = RDR_MEMORY_ERROR;
+        goto error;
       }
       node = insert_rect(font->sys->allocator, root, width, height);
     }
@@ -492,9 +538,7 @@ rdr_font_data
     }
     node->id = i;
   }
-
   /* Use the pack information to fill the font glyph cache. */
-  pitch = Bpp * cache_width;
   font->cache_img.Bpp = Bpp;
   font->cache_img.width = cache_width;
   font->cache_img.height = cache_height;
@@ -504,8 +548,19 @@ rdr_font_data
     rdr_err = RDR_MEMORY_ERROR;
     goto error;
   }
-  fill_font_cache
-    (root, font, sorted_glyphs, pitch, Bpp, font->cache_img.buffer);
+  fill_font_cache(root, font, sorted_glyphs);
+  /* Setup the cache texture. */
+  tex2d_desc.width = cache_width;
+  tex2d_desc.height = cache_height;
+  tex2d_desc.level = 0;
+  tex2d_desc.format = Bpp_to_rb_tex_format(Bpp);
+  tex2d_desc.compress = 0;
+  rb_err = font->sys->rb.tex2d_data
+    (font->sys->ctxt,
+     font->cache_tex,
+     &tex2d_desc,
+     (void*)font->cache_img.buffer);
+  assert(0 == rb_err);
 
 exit:
   if(root)
@@ -514,13 +569,8 @@ exit:
     MEM_FREE(font->sys->allocator, sorted_glyphs);
   return rdr_err;
 error:
-  if(font) {
-    SL(hash_table_clear(font->glyph_htbl));
-    font->line_space = 0;
-    if(font->cache_img.buffer)
-      MEM_FREE(font->sys->allocator, font->cache_img.buffer);
-    memset(&font->cache_img, 0, sizeof(font->cache_img));
-  }
+  if(font)
+    reset_font(font);
   goto exit;
 }
 
@@ -546,4 +596,6 @@ rdr_font_bitmap_cache
 
   return RDR_NO_ERROR;
 }
+
+#undef GLYPH_BORDER
 
