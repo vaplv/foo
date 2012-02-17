@@ -11,6 +11,7 @@
 #include "sys/sys.h"
 #include <assert.h>
 #include <stdbool.h>
+#include <stdlib.h>
 #include <string.h>
 
 #define GLYPH_BORDER 1
@@ -304,8 +305,7 @@ reset_font(struct rdr_font* font)
   SL(hash_table_clear(font->glyph_htbl));
 
   rb_err = font->sys->rb.tex2d_data
-    (font->sys->ctxt,
-     font->cache_tex,
+    (font->cache_tex,
      (struct rb_tex2d_desc[]){{0, 0, 0, RB_R, 0}},
      NULL);
   assert(rb_err == 0);
@@ -328,12 +328,8 @@ release_font(struct ref* ref)
 
   if(font->glyph_htbl)
     SL(free_hash_table(font->glyph_htbl));
-
-  if(font->cache_tex) {
-    int err = 0;
-    err = font->sys->rb.free_tex2d(font->sys->ctxt, font->cache_tex);
-    assert(0 == err);
-  }
+  if(font->cache_tex)
+    RBI(font->sys->rb, tex2d_ref_put(font->cache_tex));
   if(font->cache_img.buffer)
     MEM_FREE(font->sys->allocator, font->cache_img.buffer);
   sys = font->sys;
@@ -556,8 +552,7 @@ rdr_font_data
   tex2d_desc.format = Bpp_to_rb_tex_format(Bpp);
   tex2d_desc.compress = 0;
   rb_err = font->sys->rb.tex2d_data
-    (font->sys->ctxt,
-     font->cache_tex,
+    (font->cache_tex,
      &tex2d_desc,
      (void*)font->cache_img.buffer);
   assert(0 == rb_err);

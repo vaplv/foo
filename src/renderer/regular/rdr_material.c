@@ -15,12 +15,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-static const enum rb_shader_type rdr_shader_to_rb_shader_type[] = {
-  [RDR_VERTEX_SHADER] = RB_VERTEX_SHADER,
-  [RDR_GEOMETRY_SHADER] = RB_GEOMETRY_SHADER,
-  [RDR_FRAGMENT_SHADER] = RB_FRAGMENT_SHADER
-};
-
 struct rdr_material {
   struct rdr_system* sys;
   struct ref ref;
@@ -62,6 +56,27 @@ cmp_callbacks(const void* a, const void* b)
  *  Helper functions.
  *
  ******************************************************************************/
+static FINLINE enum rb_shader_type 
+rdr_shader_to_rb_shader_type(enum rdr_shader_usage usage)
+{
+  enum rb_shader_type type = RB_VERTEX_SHADER;
+  switch(usage) {
+    case RDR_VERTEX_SHADER: 
+      type = RB_VERTEX_SHADER;
+      break;
+    case RDR_GEOMETRY_SHADER:
+      type = RB_GEOMETRY_SHADER;
+      break;
+    case RDR_FRAGMENT_SHADER:
+      type = RB_FRAGMENT_SHADER;
+      break;
+    default:
+      assert(false);
+      break;
+  }
+  return type;
+}
+
 static void
 release_shaders
   (struct rdr_system* sys,
@@ -69,7 +84,6 @@ release_shaders
    struct rb_shader* shader_list[RDR_NB_SHADER_USAGES])
 {
   size_t i = 0;
-  int err = 0;
 
   assert(shader_list);
 
@@ -78,14 +92,11 @@ release_shaders
 
     if(shader !=NULL) {
       int is_attached = 0;
-      err = sys->rb.is_shader_attached(sys->ctxt, shader, &is_attached);
-      assert(err == 0);
+      RBI(sys->rb, is_shader_attached(shader, &is_attached));
       if(is_attached != 0) {
-        err = sys->rb.detach_shader(sys->ctxt, program, shader);
-        assert(err == 0);
+        RBI(sys->rb, detach_shader(program, shader));
       }
-      err = sys->rb.free_shader(sys->ctxt, shader);
-      assert(err == 0);
+      RBI(sys->rb, shader_ref_put(shader));
     }
     shader_list[i] = NULL;
   }
@@ -118,12 +129,12 @@ build_program
 
     if(src != NULL) {
       struct rb_shader* shader = NULL;
-      enum rb_shader_type type = rdr_shader_to_rb_shader_type[i];
+      enum rb_shader_type type = rdr_shader_to_rb_shader_type(i);
 
       err = sys->rb.create_shader(sys->ctxt, type, src, strlen(src), &shader);
       shader_list[i] = shader;
       if(err != 0) {
-        err = sys->rb.get_shader_log(sys->ctxt, shader, &log);
+        err = sys->rb.get_shader_log(shader, &log);
         if(err == 0) {
           char* tmp_log = NULL;
 
@@ -140,7 +151,7 @@ build_program
         goto error;
       }
 
-      err = sys->rb.attach_shader(sys->ctxt, program, shader);
+      err = sys->rb.attach_shader(program, shader);
       if(err != 0) {
         rdr_err = RDR_DRIVER_ERROR;
         goto error;
@@ -149,9 +160,9 @@ build_program
     }
   }
 
-  err = sys->rb.link_program(sys->ctxt, program);
+  err = sys->rb.link_program(program);
   if(err != 0) {
-    err = sys->rb.get_program_log(sys->ctxt, program, &log);
+    err = sys->rb.get_program_log(program, &log);
     if(err == 0) {
       char* tmp_log = NULL;
 
@@ -222,7 +233,9 @@ exit:
 
 error:
   if(sys && mtr_attrib_list) {
-    sys->rb.release_attribs(sys->ctxt, nb_mtr_attribs, mtr_attrib_list);
+    size_t i = 0;
+    for(i = 0; i < nb_mtr_attribs; ++i)
+      RBI(sys->rb, attrib_ref_put(mtr_attrib_list[i]));
     MEM_FREE(sys->allocator, mtr_attrib_list);
   }
   mtr_attrib_list = NULL;
@@ -236,17 +249,14 @@ release_attribs
    size_t nb_attribs,
    struct rb_attrib* attrib_list[])
 {
-  int err = 0;
-
   assert(sys);
 
   if(attrib_list) {
+    size_t i = 0;
     assert(attrib_list != NULL);
 
-    err = sys->rb.release_attribs
-      (sys->ctxt, nb_attribs, attrib_list);
-    assert(err == 0);
-
+    for(i = 0; i < nb_attribs; ++i) 
+      RBI(sys->rb, attrib_ref_put(attrib_list[i]));
     MEM_FREE(sys->allocator, attrib_list);
   }
 }
@@ -293,7 +303,9 @@ exit:
 
 error:
   if(sys && uniform_list) {
-    sys->rb.release_uniforms(sys->ctxt, nb_uniforms, uniform_list);
+    size_t i = 0;
+    for(i = 0; i < nb_uniforms; ++i)
+      RBI(sys->rb, uniform_ref_put(uniform_list[i]));
     MEM_FREE(sys->allocator, uniform_list);
   }
   uniform_list = NULL;
@@ -307,16 +319,13 @@ release_uniforms
    size_t nb_uniforms,
    struct rb_uniform* uniform_list[])
 {
-  int err = 0;
-
   assert(sys);
-
   if(nb_uniforms) {
+    size_t i = 0;
     assert(uniform_list != NULL);
 
-    err = sys->rb.release_uniforms
-      (sys->ctxt, nb_uniforms, uniform_list);
-    assert(err == 0);
+    for(i = 0; i < nb_uniforms; ++i)
+      RBI(sys->rb, uniform_ref_put(uniform_list[i]));
 
     MEM_FREE(sys->allocator, uniform_list);
   }
@@ -343,7 +352,6 @@ release_material(struct ref* ref)
 {
   struct rdr_material* mtr = NULL;
   struct rdr_system* sys = NULL;
-  int err = 0;
   assert(ref);
 
   mtr = CONTAINER_OF(ref, struct rdr_material, ref);
@@ -362,8 +370,7 @@ release_material(struct ref* ref)
   }
   if(mtr->program) {
     release_shaders(mtr->sys, mtr->program, mtr->shader_list);
-    err = mtr->sys->rb.free_program(mtr->sys->ctxt, mtr->program);
-    assert(err == 0);
+    RBI(mtr->sys->rb, program_ref_put(mtr->program));
   }
   sys = mtr->sys;
   MEM_FREE(sys->allocator, mtr);

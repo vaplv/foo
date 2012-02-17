@@ -1,10 +1,41 @@
 #include "render_backend/ogl3/rb_ogl3.h"
+#include "render_backend/ogl3/rb_ogl3_context.h"
+#include "render_backend/ogl3/rb_ogl3_program.h"
+#include "render_backend/ogl3/rb_ogl3_shader.h"
 #include "render_backend/rb.h"
 #include "sys/mem_allocator.h"
 #include "sys/sys.h"
 #include <stdlib.h>
 #include <string.h>
 
+/*******************************************************************************
+ *
+ * Helper functions.
+ *
+ ******************************************************************************/
+static void
+release_program(struct ref* ref)
+{
+  struct rb_context* ctxt = NULL;
+  struct rb_program* prog = NULL;
+  assert(ref);
+
+  prog = CONTAINER_OF(ref, struct rb_program, ref);
+  ctxt = prog->ctxt;
+
+  if(prog->name != 0)
+    OGL(DeleteProgram(prog->name));
+  if(prog->log)
+    MEM_FREE(ctxt->allocator, prog->log);
+  MEM_FREE(ctxt->allocator, prog);
+  RB(context_ref_put(ctxt));
+}
+
+/*******************************************************************************
+ *
+ * Program functions.
+ *
+ ******************************************************************************/
 EXPORT_SYM int
 rb_create_program(struct rb_context* ctxt, struct rb_program** out_program)
 {
@@ -17,46 +48,50 @@ rb_create_program(struct rb_context* ctxt, struct rb_program** out_program)
   program = MEM_CALLOC(ctxt->allocator, 1, sizeof(struct rb_program));
   if(!program)
     goto error;
+  ref_init(&program->ref);
+  RB(context_ref_get(ctxt));
+  program->ctxt = ctxt;
 
   program->name = OGL(CreateProgram());
   if(program->name == 0)
     goto error;
 
-  *out_program = program;
-
 exit:
+  if(out_program)
+    *out_program = program;
   return err;
 
 error:
+  if(program) {
+    RB(program_ref_put(program));
+    program = NULL;
+  }
   err = -1;
-  if(program->name != 0)
-    OGL(DeleteProgram(program->name));
-  MEM_FREE(ctxt->allocator, program);
   goto exit;
 }
 
 EXPORT_SYM int
-rb_free_program(struct rb_context* ctxt, struct rb_program* program)
+rb_program_ref_get(struct rb_program* program)
 {
-  if(!ctxt || !program)
+  if(!program)
     return -1;
-
-  if(program->ref_count > 0)
-    return -1;
-
-  OGL(DeleteProgram(program->name));
-  MEM_FREE(ctxt->allocator, program->log);
-  MEM_FREE(ctxt->allocator, program);
+  ref_get(&program->ref);
   return 0;
 }
 
 EXPORT_SYM int
-rb_attach_shader
-  (struct rb_context* ctxt,
-   struct rb_program* program,
-   struct rb_shader* shader)
+rb_program_ref_put(struct rb_program* program)
 {
-  if(!ctxt || !program || !shader || shader->is_attached)
+  if(!program)
+    return -1;
+  ref_put(&program->ref, release_program);
+  return 0;
+}
+
+EXPORT_SYM int
+rb_attach_shader(struct rb_program* program, struct rb_shader* shader)
+{
+  if(!program || !shader || shader->is_attached)
     return -1;
 
   OGL(AttachShader(program->name, shader->name));
@@ -65,12 +100,9 @@ rb_attach_shader
 }
 
 EXPORT_SYM int
-rb_detach_shader
-  (struct rb_context* ctxt,
-   struct rb_program* program,
-   struct rb_shader* shader)
+rb_detach_shader(struct rb_program* program, struct rb_shader* shader)
 {
-  if(!ctxt || !program || !shader || !shader->is_attached)
+  if(!program || !shader || !shader->is_attached)
     return -1;
 
   OGL(DetachShader(program->name, shader->name));
@@ -79,15 +111,12 @@ rb_detach_shader
 }
 
 EXPORT_SYM int
-rb_link_program(struct rb_context* ctxt, struct rb_program* program)
+rb_link_program(struct rb_program* program)
 {
   int err = 0;
   GLint status = GL_TRUE;
 
-  if(!ctxt || !program)
-    goto error;
-
-  if(program->ref_count > 0)
+  if(!program)
     goto error;
 
   OGL(LinkProgram(program->name));
@@ -97,20 +126,20 @@ rb_link_program(struct rb_context* ctxt, struct rb_program* program)
   if(!program->is_linked) {
     int log_length = 0;
 
-    if(ctxt->current_program == program->name)
-      rb_bind_program(ctxt, NULL);
+    if(program->ctxt->current_program == program->name)
+      rb_bind_program(program->ctxt, NULL);
 
     OGL(GetProgramiv(program->name, GL_INFO_LOG_LENGTH, &log_length));
 
     program->log = MEM_REALLOC
-      (ctxt->allocator, program->log, log_length*sizeof(char));
+      (program->ctxt->allocator, program->log, log_length*sizeof(char));
     if(!program->log)
       goto error;
 
     OGL(GetProgramInfoLog(program->name, log_length, NULL, program->log));
     err = -1;
   } else {
-    MEM_FREE(ctxt->allocator, program->log);
+    MEM_FREE(program->ctxt->allocator, program->log);
     program->log = NULL;
   }
 
@@ -123,12 +152,10 @@ error:
 }
 
 EXPORT_SYM int
-rb_get_program_log
-  (struct rb_context* ctxt, struct rb_program* program, const char** out_log)
+rb_get_program_log(struct rb_program* program, const char** out_log)
 {
-  if(!ctxt || !program || !out_log)
+  if(!program || !out_log)
     return -1;
-
   *out_log = program->log;
   return 0;
 }

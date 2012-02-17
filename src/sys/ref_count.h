@@ -3,7 +3,6 @@
 
 #include "sys/sys.h"
 #include <assert.h>
-#include <stdlib.h>
 
 struct ref {
   int64_t ref_count;

@@ -2,7 +2,6 @@ cmake_minimum_required(VERSION 2.6)
 
 add_library(sl SHARED
   sl_hash_table.c
-  sl_linked_list.c
   sl_logger.c
   sl_set.c
   sl_string.c

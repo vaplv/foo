@@ -8,6 +8,7 @@
 
 #ifndef NDEBUG
   #include <GL/glu.h>
+  #include <assert.h>
   #include <stdio.h>
   #define OGL(func)\
     gl##func;\
@@ -21,61 +22,6 @@
 #else
   #define OGL(func) gl##func
 #endif
-
-struct rb_context {
-  struct mem_allocator* allocator;
-  GLuint texture_binding_2d;
-  GLuint buffer_binding[2];
-  GLuint vertex_array_binding;
-  GLuint current_program;
-};
-
-struct rb_tex2d {
-  GLuint name;
-};
-
-struct rb_buffer {
-  GLuint name;
-  GLenum target;
-  GLenum usage;
-  GLsizei size;
-  enum rb_buffer_target binding;
-};
-
-struct rb_vertex_array {
-  GLuint name;
-};
-
-struct rb_shader {
-  GLuint name;
-  GLenum type;
-  int is_attached;
-  char* log;
-};
-
-struct rb_program {
-  GLuint name;
-  int is_linked;
-  int ref_count;
-  char* log;
-};
-
-struct rb_uniform {
-  GLint location;
-  GLuint index;
-  GLenum type;
-  struct rb_program* program;
-  char* name;
-  void (*set)(GLint location, int nb, const void* data);
-};
-
-struct rb_attrib {
-  GLuint index;
-  GLenum type;
-  struct rb_program* program;
-  char* name;
-  void (*set)(GLuint, const void* data);
-};
 
 static inline enum rb_type
 ogl3_to_rb_type(GLenum attrib_type)

@@ -13,10 +13,12 @@
 
 #define M_DEG_TO_RAD(x) ((x) * 3.14159 / 180.f)
 #define CHECK(func) \
-  if(func != 0) { \
-    fprintf(stderr, "error:%s:%d\n", __FILE__, __LINE__); \
-    exit(-1); \
-  } \
+  do { \
+    if(func != 0) { \
+      fprintf(stderr, "error:%s:%d\n", __FILE__, __LINE__); \
+      exit(-1); \
+    } \
+  } while(0)
 
 struct render_mesh {
   struct rb_buffer* vertex_buffer;
@@ -85,17 +87,17 @@ compute_view(float angle, float x, float y, float z, float* view)
 }
 
 static int
-free_mesh(struct rbi* rbi, struct rb_context* ctxt, struct render_mesh* mesh)
+free_mesh(struct rbi* rbi, struct render_mesh* mesh)
 {
-  if(!ctxt || !mesh)
+  if(!mesh)
     return -1;
 
   if(mesh->vertex_array)
-    rbi->free_vertex_array(ctxt, mesh->vertex_array);
+    RBI(*rbi, vertex_array_ref_put(mesh->vertex_array));
   if(mesh->vertex_buffer)
-    rbi->free_buffer(ctxt, mesh->vertex_buffer);
+    RBI(*rbi, buffer_ref_put(mesh->vertex_buffer));
   if(mesh->index_buffer)
-    rbi->free_buffer(ctxt, mesh->index_buffer);
+    RBI(*rbi, buffer_ref_put(mesh->index_buffer));
 
   free(mesh);
   return 0;
@@ -172,8 +174,8 @@ create_mesh
   CHECK(rbi->create_buffer(ctxt, &ib_desc, indices, &mesh->index_buffer));
   CHECK(rbi->create_vertex_array(ctxt, &mesh->vertex_array));
   CHECK(rbi->vertex_attrib_array
-       (ctxt, mesh->vertex_array, mesh->vertex_buffer, 2, attribs));
-  CHECK(rbi->vertex_index_array(ctxt, mesh->vertex_array, mesh->index_buffer));
+        (mesh->vertex_array, mesh->vertex_buffer, 2, attribs));
+  CHECK(rbi->vertex_index_array(mesh->vertex_array, mesh->index_buffer));
 
   *out_mesh = mesh;
 
@@ -190,15 +192,15 @@ free_shader
     return -1;
 
   if(shader->view_uniform)
-    rbi->release_uniforms(ctxt, 1, &shader->view_uniform);
+    RBI(*rbi, uniform_ref_put(shader->view_uniform));
   if(shader->proj_uniform)
-    rbi->release_uniforms(ctxt, 1, &shader->proj_uniform);
+    RBI(*rbi, uniform_ref_put(shader->proj_uniform));
   if(shader->program)
-    rbi->free_program(ctxt, shader->program);
+    RBI(*rbi, program_ref_put(shader->program));
   if(shader->vertex_shader)
-    rbi->free_shader(ctxt, shader->vertex_shader);
+    RBI(*rbi, shader_ref_put(shader->vertex_shader));
   if(shader->fragment_shader)
-    rbi->free_shader(ctxt, shader->fragment_shader);
+    RBI(*rbi, shader_ref_put(shader->fragment_shader));
 
   free(shader);
 
@@ -256,7 +258,7 @@ create_shader
   if(err != 0) {
     if(shader->vertex_shader) {
       const char* log = NULL;
-      CHECK(rbi->get_shader_log(ctxt, shader->vertex_shader, &log));
+      CHECK(rbi->get_shader_log(shader->vertex_shader, &log));
       if(log)
         fprintf(stderr, "error: vertex shader\n%s", log);
     }
@@ -269,7 +271,7 @@ create_shader
   if(err != 0) {
     if(shader->fragment_shader) {
       const char* log = NULL;
-      CHECK(rbi->get_shader_log(ctxt, shader->fragment_shader, &log));
+      CHECK(rbi->get_shader_log(shader->fragment_shader, &log));
       if(log)
         fprintf(stderr, "error: pixel shader\n%s", log);
     }
@@ -277,13 +279,13 @@ create_shader
   }
 
   CHECK(rbi->create_program(ctxt, &shader->program));
-  CHECK(rbi->attach_shader(ctxt, shader->program, shader->vertex_shader));
-  CHECK(rbi->attach_shader(ctxt, shader->program, shader->fragment_shader));
+  CHECK(rbi->attach_shader(shader->program, shader->vertex_shader));
+  CHECK(rbi->attach_shader(shader->program, shader->fragment_shader));
 
-  err = rbi->link_program(ctxt, shader->program);
+  err = rbi->link_program(shader->program);
   if(err != 0) {
     const char* log = NULL;
-    CHECK(rbi->get_program_log(ctxt, shader->program, &log));
+    CHECK(rbi->get_program_log(shader->program, &log));
     if(log)
       fprintf(stderr, "error: program link\n%s", log);
     goto error;
@@ -383,8 +385,8 @@ main(int argc UNUSED, char* argv[] UNUSED)
 
     compute_proj(M_DEG_TO_RAD(70.f), proj_ratio, 1.f, 500.f, proj_matrix);
     compute_view(angle, 0.f, -2.f, -6.f, view_matrix);
-    CHECK(rbi.uniform_data(ctxt, shader->view_uniform, 1, view_matrix));
-    CHECK(rbi.uniform_data(ctxt, shader->proj_uniform, 1, proj_matrix));
+    CHECK(rbi.uniform_data(shader->view_uniform, 1, view_matrix));
+    CHECK(rbi.uniform_data(shader->proj_uniform, 1, proj_matrix));
 
     CHECK(rbi.clear
          (ctxt, RB_CLEAR_COLOR_BIT|RB_CLEAR_DEPTH_BIT, clear_color, 1.f, 0));
@@ -402,8 +404,8 @@ main(int argc UNUSED, char* argv[] UNUSED)
 
   if(ctxt) {
     free_shader(&rbi, ctxt, shader);
-    free_mesh(&rbi, ctxt, mesh);
-    rbi.free_context(ctxt);
+    free_mesh(&rbi, mesh);
+    rbi.context_ref_put(ctxt);
     rbi_shutdown(&rbi);
   }
 

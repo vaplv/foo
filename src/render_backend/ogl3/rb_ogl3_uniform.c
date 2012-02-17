@@ -1,10 +1,24 @@
 #include "render_backend/ogl3/rb_ogl3.h"
+#include "render_backend/ogl3/rb_ogl3_context.h"
+#include "render_backend/ogl3/rb_ogl3_program.h"
 #include "render_backend/rb.h"
 #include "sys/mem_allocator.h"
+#include "sys/ref_count.h"
 #include "sys/sys.h"
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
+
+struct rb_uniform {
+  struct ref ref;
+  struct rb_context* ctxt;
+  GLint location;
+  GLuint index;
+  GLenum type;
+  struct rb_program* program;
+  char* name;
+  void (*set)(GLint location, int nb, const void* data);
+};
 
 /*******************************************************************************
  *
@@ -89,10 +103,12 @@ get_active_uniform
   uniform = MEM_CALLOC(ctxt->allocator, 1, sizeof(struct rb_uniform));
   if(!uniform)
     goto error;
-
-  uniform->index = index;
+  ref_init(&uniform->ref);
+  RB(context_ref_get(ctxt));
+  uniform->ctxt = ctxt;
+  RB(program_ref_get(program));
   uniform->program = program;
-  uniform->program->ref_count += 1;
+  uniform->index = index;
   uniform->type = uniform_type;
   uniform->set = get_uniform_setter(uniform_type);
 
@@ -114,12 +130,30 @@ exit:
   return err;
 
 error:
-  if(uniform)
-    rb_release_uniforms(ctxt, 1, &uniform);
-
-  uniform = NULL;
+  if(uniform) {
+    RB(uniform_ref_put(uniform));
+    uniform = NULL;
+  }
   err = -1;
   goto exit;
+}
+
+static void
+release_uniform(struct ref* ref)
+{
+  struct rb_context* ctxt = NULL;
+  struct rb_uniform* uniform = NULL;
+  assert(ref);
+
+  uniform = CONTAINER_OF(ref, struct rb_uniform, ref);
+  ctxt = uniform->ctxt;
+
+  if(uniform->program)
+    RB(program_ref_put(uniform->program));
+  if(uniform->name)
+    MEM_FREE(ctxt->allocator, uniform->name);
+  MEM_FREE(ctxt->allocator, uniform);
+  RB(context_ref_put(ctxt));
 }
 
 /*******************************************************************************
@@ -166,10 +200,10 @@ exit:
   return err;
 
 error:
-  if(uniform)
-    rb_release_uniforms(ctxt, 1, &uniform);
-
-  uniform = NULL;
+  if(uniform) {
+    RB(uniform_ref_put(uniform));
+    uniform = NULL;
+  }
   err = -1;
   goto exit;
 }
@@ -225,8 +259,12 @@ exit:
 
 error:
   if(dst_uniform_list) {
-    /* NOTE: attr_id <=> nb attribs in dst_attrib_list; */
-    rb_release_uniforms(ctxt, uniform_id, dst_uniform_list);
+    /* NOTE: uniform_id <=> nb uniforms in dst_uniform_list; */
+    int i = 0;
+    for(i = 0; i < uniform_id; ++i) {
+      RB(uniform_ref_put(dst_uniform_list[i]));
+      dst_uniform_list[i] = NULL;
+    }
   }
   nb_uniforms = 0;
   err = -1;
@@ -234,70 +272,45 @@ error:
 }
 
 EXPORT_SYM int
-rb_release_uniforms
-  (struct rb_context* ctxt,
-   size_t nb_uniforms,
-   struct rb_uniform* uniform_list[])
+rb_uniform_ref_get(struct rb_uniform* uniform)
 {
-  size_t i = 0;
-  int err = 0;
-
-  if(!ctxt || (nb_uniforms && !uniform_list))
-    goto error;
-
-  for(i = 0; i < nb_uniforms; ++i) {
-    struct rb_uniform* uniform = uniform_list[i];
-    if(!uniform) {
-      err = -1;
-    } else {
-      assert(uniform->name);
-      assert(uniform->program->ref_count > 0);
-
-      uniform->program->ref_count -= 1;
-      MEM_FREE(ctxt->allocator, uniform->name);
-      MEM_FREE(ctxt->allocator, uniform);
-    }
-  }
-
-exit:
-  return err;
-
-error:
-  err = -1;
-  goto exit;
+  if(!uniform)
+    return -1;
+  ref_get(&uniform->ref);
+  return 0;
 }
 
 EXPORT_SYM int
-rb_uniform_data
-  (struct rb_context* ctxt,
-   struct rb_uniform* uniform,
-   int nb,
-   const void* data)
+rb_uniform_ref_put(struct rb_uniform* uniform)
 {
-  if(!ctxt || !uniform || !data)
+  if(!uniform)
     return -1;
+  ref_put(&uniform->ref, release_uniform);
+  return 0;
+}
 
+EXPORT_SYM int
+rb_uniform_data(struct rb_uniform* uniform, int nb, const void* data)
+{
+  if(!uniform || !data)
+    return -1;
   if(nb <= 0)
     return -1;
 
   assert(uniform->set != NULL);
   OGL(UseProgram(uniform->program->name));
   uniform->set(uniform->location, nb, data);
-  OGL(UseProgram(ctxt->current_program));
+  OGL(UseProgram(uniform->ctxt->current_program));
   return 0;
 }
 
 EXPORT_SYM int
-rb_get_uniform_desc
-  (struct rb_context* ctxt,
-   struct rb_uniform* uniform,
-   struct rb_uniform_desc* out_desc)
+rb_get_uniform_desc(struct rb_uniform* uniform, struct rb_uniform_desc* desc)
 {
-  if(!ctxt || !uniform || !out_desc)
+  if(!uniform || !desc)
     return -1;
-
-  out_desc->name = uniform->name;
-  out_desc->type = ogl3_to_rb_type(uniform->type);
+  desc->name = uniform->name;
+  desc->type = ogl3_to_rb_type(uniform->type);
   return 0;
 }
 

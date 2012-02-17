@@ -1,9 +1,22 @@
 #include "render_backend/ogl3/rb_ogl3.h"
+#include "render_backend/ogl3/rb_ogl3_context.h"
+#include "render_backend/ogl3/rb_ogl3_program.h"
 #include "render_backend/rb.h"
 #include "sys/mem_allocator.h"
+#include "sys/ref_count.h"
 #include "sys/sys.h"
 #include <stdlib.h>
 #include <string.h>
+
+struct rb_attrib {
+  struct ref ref;
+  struct rb_context* ctxt;
+  GLuint index;
+  GLenum type;
+  struct rb_program* program;
+  char* name;
+  void (*set)(GLuint, const void* data);
+};
 
 /*******************************************************************************
  *
@@ -57,20 +70,22 @@ get_active_attrib
     goto error;
 
   OGL(GetActiveAttrib
-      (program->name,
-       index,
-       bufsize,
-       &attr_namelen,
-       &attr_size,
-       &attr_type,
-       buffer));
+    (program->name,
+     index,
+     bufsize,
+     &attr_namelen,
+     &attr_size,
+     &attr_type,
+     buffer));
 
   attr = MEM_CALLOC(ctxt->allocator, 1, sizeof(struct rb_attrib));
   if(!attr)
     goto error;
-
+  ref_init(&attr->ref);
+  RB(context_ref_get(ctxt));
+  attr->ctxt = ctxt;
+  RB(program_ref_get(program));
   attr->program = program;
-  attr->program->ref_count += 1;
   attr->type = attr_type;
   attr->set = get_attrib_setter(attr_type);
 
@@ -81,23 +96,40 @@ get_active_attrib
     attr->name = MEM_ALLOC(ctxt->allocator, sizeof(char) * attr_namelen);
     if(!attr->name)
       goto error;
-
     attr->name = strncpy(attr->name, buffer, attr_namelen);
     attr->index = OGL(GetAttribLocation(program->name, attr->name));
   }
 
 exit:
-  *out_attrib = attr;
+  if(out_attrib)
+    *out_attrib = attr;
   return err;
 
 error:
-  if(attr)
-    rb_release_attribs(ctxt, 1, &attr);
-
-  attr = NULL;
+  if(attr) {
+    RB(attrib_ref_put(attr));
+    attr = NULL;
+  }
   err = -1;
   goto exit;
+}
 
+static void
+release_attrib(struct ref* ref)
+{
+  struct rb_attrib* attr = NULL;
+  struct rb_context* ctxt = NULL;
+  assert(ref);
+
+  attr = CONTAINER_OF(ref, struct rb_attrib, ref);
+  ctxt = attr->ctxt;
+
+  if(attr->program)
+    RB(program_ref_put(attr->program));
+  if(attr->name)
+    MEM_FREE(ctxt->allocator, attr->name);
+  MEM_FREE(ctxt->allocator, attr);
+  RB(context_ref_put(ctxt));
 }
 
 /*******************************************************************************
@@ -154,8 +186,12 @@ exit:
 
 error:
   if(dst_attrib_list) {
+    int i = 0;
     /* NOTE: attr_id <=> nb attribs in dst_attrib_list; */
-    rb_release_attribs(ctxt, attr_id, dst_attrib_list);
+    for(i = 0; i < attr_id; ++i) {
+      RB(attrib_ref_put(dst_attrib_list[i]));
+      dst_attrib_list[i] = NULL;
+    }
   }
   nb_attribs = 0;
   err = -1;
@@ -201,71 +237,50 @@ exit:
   return err;
 
 error:
-  if(attr)
-    rb_release_attribs(ctxt, 1, &attr);
-
-  attr = NULL;
-  err = -1;
-  goto exit;
-}
-
-EXPORT_SYM int
-rb_release_attribs
-  (struct rb_context* ctxt,
-   size_t nb_attribs,
-   struct rb_attrib* attrib_list[])
-{
-  size_t i = 0;
-  int err = 0;
-
-  if(!ctxt || (nb_attribs && !attrib_list))
-    goto error;
-
-  for(i = 0; i < nb_attribs; ++i) {
-    struct rb_attrib* attr = attrib_list[i];
-    if(!attr) {
-      err = -1;
-    } else {
-      assert(attr->name);
-      assert(attr->program->ref_count > 0);
-
-      attr->program->ref_count -= 1;
-      MEM_FREE(ctxt->allocator, attr->name);
-      MEM_FREE(ctxt->allocator, attr);
-    }
+  if(attr) {
+    RB(attrib_ref_put(attr));
+    attr = NULL;
   }
-
-exit:
-  return err;
-
-error:
   err = -1;
   goto exit;
 }
 
+
 EXPORT_SYM int
-rb_attrib_data
-  (struct rb_context* ctxt,
-   struct rb_attrib* attr,
-   const void* data)
+rb_attrib_ref_get(struct rb_attrib* attr)
 {
-  if(!ctxt || !attr || !data)
+  if(!attr)
+    return -1;
+  ref_get(&attr->ref);
+  return 0;
+}
+
+EXPORT_SYM int
+rb_attrib_ref_put(struct rb_attrib* attr)
+{
+  if(!attr)
+    return -1;
+  ref_put(&attr->ref, release_attrib);
+  return 0;
+}
+
+EXPORT_SYM int
+rb_attrib_data(struct rb_attrib* attr, const void* data)
+{
+  if(!attr || !data)
     return -1;
 
   assert(attr->set != NULL);
   OGL(UseProgram(attr->program->name));
   attr->set(attr->index, data);
-  OGL(UseProgram(ctxt->current_program));
+  OGL(UseProgram(attr->ctxt->current_program));
   return 0;
 }
 
 EXPORT_SYM int
-rb_get_attrib_desc
-  (struct rb_context* ctxt,
-   const struct rb_attrib* attr,
-   struct rb_attrib_desc* desc)
+rb_get_attrib_desc(const struct rb_attrib* attr, struct rb_attrib_desc* desc)
 {
-  if(!ctxt || !attr || !desc)
+  if(!attr || !desc)
     return -1;
 
   desc->name = attr->name;

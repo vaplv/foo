@@ -127,10 +127,7 @@ unbind_all_attribs(struct rdr_model* model)
   for(i = 0; i < RDR_NB_ATTRIB_USAGES; ++i) {
     if(is_attrib_bound(model->bound_attrib_mask, i) == true) {
       err = model->sys->rb.remove_vertex_attrib
-        (model->sys->ctxt,
-         model->vertex_array,
-         1,
-         model->bound_attrib_index_list + i);
+        (model->vertex_array, 1, model->bound_attrib_index_list + i);
       if(err != 0) {
         rdr_err = RDR_DRIVER_ERROR;
         goto error;
@@ -182,7 +179,7 @@ bind_mtr_attrib_to_mesh_attrib
         buffer_attrib.type = mesh_attr->type;
 
         err = model->sys->rb.vertex_attrib_array
-          (model->sys->ctxt, model->vertex_array, mesh_data, 1, &buffer_attrib);
+          (model->vertex_array, mesh_data, 1, &buffer_attrib);
         if(err != 0) {
           rdr_err = RDR_DRIVER_ERROR;
           goto error;
@@ -243,7 +240,7 @@ setup_model_vertex_array
     struct rb_attrib* mtr_attr = mtr_attrib_list[i];
     const int saved_bound_attrib_mask = mdl->bound_attrib_mask;
 
-    err = mdl->sys->rb.get_attrib_desc(mdl->sys->ctxt, mtr_attr, &mtr_attr_desc);
+    err = mdl->sys->rb.get_attrib_desc(mtr_attr, &mtr_attr_desc);
     if(err != 0) {
       rdr_err = RDR_DRIVER_ERROR;
       goto error;
@@ -268,8 +265,7 @@ setup_model_vertex_array
     instance_attrib_list = NULL;
   }
 
-  err = mdl->sys->rb.vertex_index_array
-    (mdl->sys->ctxt, mdl->vertex_array, mesh_indices);
+  err = mdl->sys->rb.vertex_index_array(mdl->vertex_array, mesh_indices);
   if(err != 0) {
     rdr_err = RDR_DRIVER_ERROR;
     goto error;
@@ -342,8 +338,7 @@ setup_model_uniforms
     struct rb_uniform_desc uniform_desc;
     struct rb_uniform* uniform = uniform_list[i];
 
-    err = model->sys->rb.get_uniform_desc
-      (model->sys->ctxt, uniform, &uniform_desc);
+    err = model->sys->rb.get_uniform_desc(uniform, &uniform_desc);
     if(err != 0) {
       rdr_err = RDR_DRIVER_ERROR;
       goto error;
@@ -492,7 +487,6 @@ release_model(struct ref* ref)
   struct rdr_system* sys = NULL;
   struct rdr_model* mdl = NULL;
   enum rdr_error rdr_err = RDR_NO_ERROR;
-  int err = 0;
   bool b = false;
   assert(ref);
 
@@ -508,17 +502,13 @@ release_model(struct ref* ref)
   }
   RDR(is_material_callback_attached
     (mdl->material, material_callback_func, mdl, &b));
-  if(b) {
+  if(b)
     RDR(detach_material_callback(mdl->material, material_callback_func, mdl));
-  }
   RDR(is_mesh_callback_attached(mdl->mesh, mesh_callback_func, mdl, &b));
-  if(b) {
+  if(b)
     RDR(detach_mesh_callback(mdl->mesh, mesh_callback_func, mdl));
-  }
-  if(mdl->vertex_array) {
-    err = mdl->sys->rb.free_vertex_array(mdl->sys->ctxt, mdl->vertex_array);
-    assert(err == 0);
-  }
+  if(mdl->vertex_array)
+    RBI(mdl->sys->rb, vertex_array_ref_put(mdl->vertex_array));
   if(mdl->mesh)
     RDR(mesh_ref_put(mdl->mesh));
   if(mdl->material)

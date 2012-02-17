@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Render backend context.
- *
+*
  ******************************************************************************/
 RB_FUNC(
   int,
@@ -12,7 +12,13 @@ RB_FUNC(
 
 RB_FUNC(
   int,
-  free_context,
+  context_ref_get,
+    struct rb_context* ctxt
+)
+
+RB_FUNC(
+  int,
+  context_ref_put,
     struct rb_context* ctxt
 )
 
@@ -37,15 +43,19 @@ RB_FUNC(
 
 RB_FUNC(
   int,
-  free_tex2d,
-    struct rb_context* ctxt,
+  tex2d_ref_get,
+    struct rb_tex2d* tex
+)
+
+RB_FUNC(
+  int,
+  tex2d_ref_put,
     struct rb_tex2d* tex
 )
 
 RB_FUNC(
   int,
   tex2d_data,
-    struct rb_context* ctxt,
     struct rb_tex2d* tex,
     const struct rb_tex2d_desc* desc,
     void* data
@@ -66,7 +76,6 @@ RB_FUNC(
 RB_FUNC(
   int,
   buffer_data,
-    struct rb_context* ctxt,
     struct rb_buffer* buf,
     int offset,
     int size,
@@ -84,8 +93,13 @@ RB_FUNC(
 
 RB_FUNC(
   int,
-  free_buffer,
-    struct rb_context* ctxt,
+  buffer_ref_get,
+    struct rb_buffer* buf
+)
+
+RB_FUNC(
+  int,
+  buffer_ref_put,
     struct rb_buffer* buf
 )
 
@@ -110,15 +124,19 @@ RB_FUNC(
 
 RB_FUNC(
   int,
-  free_vertex_array,
-    struct rb_context* ctxt,
+  vertex_array_ref_get,
+    struct rb_vertex_array* varray
+)
+
+RB_FUNC(
+  int,
+  vertex_array_ref_put,
     struct rb_vertex_array* varray
 )
 
 RB_FUNC(
   int,
   remove_vertex_attrib,
-    struct rb_context* ctxt,
     struct rb_vertex_array* array,
     int count,
     int* list_of_attrib_indices
@@ -127,7 +145,6 @@ RB_FUNC(
 RB_FUNC(
   int,
   vertex_attrib_array,
-    struct rb_context* ctxt,
     struct rb_vertex_array* varray,
     struct rb_buffer* buf,
     int count,
@@ -137,7 +154,6 @@ RB_FUNC(
 RB_FUNC(
   int,
   vertex_index_array,
-    struct rb_context* ctxt,
     struct rb_vertex_array* varray,
     struct rb_buffer* buf
 )
@@ -159,15 +175,19 @@ RB_FUNC(
 
 RB_FUNC(
   int,
-  free_shader,
-    struct rb_context* ctxt,
+  shader_ref_get,
+    struct rb_shader* shader
+)
+
+RB_FUNC(
+  int,
+  shader_ref_put,
     struct rb_shader* shader
 )
 
 RB_FUNC(
   int,
   get_shader_log,
-    struct rb_context* ctxt,
     struct rb_shader* shader,
     const char** out_log
 )
@@ -175,7 +195,6 @@ RB_FUNC(
 RB_FUNC(
   int,
   is_shader_attached,
-    struct rb_context* ctxt,
     struct rb_shader* shader,
     int* out_is_attached
 )
@@ -183,7 +202,6 @@ RB_FUNC(
 RB_FUNC(
   int,
   shader_source,
-    struct rb_context* ctxt,
     struct rb_shader* shader,
     const char* source,
     int length /* Do not include the null character. */
@@ -197,7 +215,6 @@ RB_FUNC(
 RB_FUNC(
   int,
   attach_shader,
-    struct rb_context* ctxt,
     struct rb_program* prog,
     struct rb_shader* shader
 )
@@ -219,22 +236,25 @@ RB_FUNC(
 RB_FUNC(
   int,
   detach_shader,
-    struct rb_context* ctxt,
     struct rb_program* prog,
     struct rb_shader* shader
 )
 
 RB_FUNC(
   int,
-  free_program,
-    struct rb_context* ctxt,
+  program_ref_get,
+    struct rb_program* prog
+)
+
+RB_FUNC(
+  int,
+  program_ref_put,
     struct rb_program* prog
 )
 
 RB_FUNC(
   int,
   get_program_log,
-    struct rb_context* ctxt,
     struct rb_program* prog,
     const char** out_log
 )
@@ -242,7 +262,6 @@ RB_FUNC(
 RB_FUNC(
   int,
   link_program,
-    struct rb_context* ctxt,
     struct rb_program* prog
 )
 
@@ -272,26 +291,28 @@ RB_FUNC(
 RB_FUNC(
   int,
   get_uniform_desc,
-    struct rb_context* ctxt,
-    struct rb_uniform* prog,
-    struct rb_uniform_desc* out_desc
-)
-
-RB_FUNC(
-  int,
-  release_uniforms,
-    struct rb_context* ctxt,
-    size_t nb_uniforms,
-    struct rb_uniform* uniform_list[]
+    struct rb_uniform* uniform,
+    struct rb_uniform_desc* desc
 )
 
 RB_FUNC(
   int,
   uniform_data,
-    struct rb_context* ctxt,
-    struct rb_uniform* var,
+    struct rb_uniform* uniform,
     int count,
     const void* data
+)
+
+RB_FUNC(
+  int,
+  uniform_ref_get,
+    struct rb_uniform* uniform
+)
+
+RB_FUNC(
+  int,
+  uniform_ref_put,
+    struct rb_uniform* uniform
 )
 
 /*******************************************************************************
@@ -319,16 +340,7 @@ RB_FUNC(
 
 RB_FUNC(
   int,
-  release_attribs,
-    struct rb_context* ctxt,
-    size_t nb_attribs,
-    struct rb_attrib* attrib_list[]
-)
-
-RB_FUNC(
-  int,
   attrib_data,
-    struct rb_context* ctxt,
     struct rb_attrib* attr,
     const void* data
 )
@@ -336,9 +348,20 @@ RB_FUNC(
 RB_FUNC(
   int,
   get_attrib_desc,
-    struct rb_context* ctxt,
     const struct rb_attrib* attr,
     struct rb_attrib_desc* attr_desc
+)
+
+RB_FUNC(
+  int,
+  attrib_ref_get,
+    struct rb_attrib* attr
+)
+
+RB_FUNC(
+  int,
+  attrib_ref_put,
+    struct rb_attrib* attr
 )
 
 /*******************************************************************************

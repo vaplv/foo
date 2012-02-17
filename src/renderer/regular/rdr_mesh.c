@@ -64,27 +64,25 @@ static enum rdr_error
 set_mesh_data(struct rdr_mesh* mesh, size_t data_size, const void* data)
 {
   enum rdr_error rdr_err = RDR_NO_ERROR;
-  int err = 0;
   assert(mesh && (data || !data_size));
 
   if(mesh->data != NULL && (data_size == 0 || mesh->data_size < data_size)) {
-    err = mesh->sys->rb.free_buffer(mesh->sys->ctxt, mesh->data);
-    if(err != 0) {
-      rdr_err = RDR_DRIVER_ERROR;
-      goto error;
-    }
+    RBI(mesh->sys->rb, buffer_ref_put(mesh->data));
     mesh->data = NULL;
     mesh->data_size = 0;
   }
 
   if(data_size > 0) {
+    int err = 0;
+
     if(mesh->data == NULL) {
       const struct rb_buffer_desc desc = {
         .size = data_size,
         .target = RB_BIND_VERTEX_BUFFER,
         .usage = RB_BUFFER_USAGE_DEFAULT
       };
-      err = mesh->sys->rb.create_buffer(mesh->sys->ctxt, &desc, data, &mesh->data);
+      err = mesh->sys->rb.create_buffer
+        (mesh->sys->ctxt, &desc, data, &mesh->data);
       if(err != 0) {
         rdr_err = RDR_DRIVER_ERROR;
         goto error;
@@ -92,7 +90,7 @@ set_mesh_data(struct rdr_mesh* mesh, size_t data_size, const void* data)
 
       mesh->data_size = data_size;
     } else {
-      err = mesh->sys->rb.buffer_data(mesh->sys->ctxt, mesh->data, 0, data_size, data);
+      err = mesh->sys->rb.buffer_data(mesh->data, 0, data_size, data);
       if(err != 0) {
         rdr_err = RDR_DRIVER_ERROR;
         goto error;
@@ -120,12 +118,7 @@ set_mesh_indices
 
   if(mesh->indices != NULL
   && (nb_indices == 0 || mesh->nb_indices < nb_indices)) {
-    err = mesh->sys->rb.free_buffer(mesh->sys->ctxt, mesh->indices);
-    if(err != 0) {
-      rdr_err = RDR_DRIVER_ERROR;
-      goto error;
-    }
-
+    RBI(mesh->sys->rb, buffer_ref_put(mesh->indices));
     mesh->indices = NULL;
     mesh->nb_indices = 0;
   }
@@ -139,7 +132,8 @@ set_mesh_indices
         .target = RB_BIND_INDEX_BUFFER,
         .usage = RB_BUFFER_USAGE_DEFAULT
       };
-      err = mesh->sys->rb.create_buffer(mesh->sys->ctxt, &desc, indices, &mesh->indices);
+      err = mesh->sys->rb.create_buffer
+        (mesh->sys->ctxt, &desc, indices, &mesh->indices);
       if(err != 0) {
         rdr_err = RDR_DRIVER_ERROR;
         goto error;
@@ -147,8 +141,7 @@ set_mesh_indices
 
       mesh->nb_indices = nb_indices;
     } else {
-      err = mesh->sys->rb.buffer_data
-        (mesh->sys->ctxt, mesh->indices, 0, indices_size, indices);
+      err = mesh->sys->rb.buffer_data(mesh->indices, 0, indices_size, indices);
       if(err != 0) {
         rdr_err = RDR_DRIVER_ERROR;
         goto error;
@@ -246,7 +239,6 @@ release_mesh(struct ref* ref)
 {
   struct rdr_mesh* mesh = NULL;
   struct rdr_system* sys = NULL;
-  int err = 0;
   assert(ref);
 
   mesh = CONTAINER_OF(ref, struct rdr_mesh, ref);
@@ -257,14 +249,10 @@ release_mesh(struct ref* ref)
     assert(len == 0);
     SL(free_set(mesh->callback_set));
   }
-  if(mesh->data) {
-    err = mesh->sys->rb.free_buffer(mesh->sys->ctxt, mesh->data);
-    assert(err == 0);
-  }
-  if(mesh->indices) {
-    err = mesh->sys->rb.free_buffer(mesh->sys->ctxt, mesh->indices);
-    assert(err == 0);
-  }
+  if(mesh->data)
+    RBI(mesh->sys->rb, buffer_ref_put(mesh->data));
+  if(mesh->indices)
+    RBI(mesh->sys->rb, buffer_ref_put(mesh->indices));
   sys = mesh->sys;
   MEM_FREE(sys->allocator, mesh);
   RDR(system_ref_put(sys));
@@ -382,8 +370,7 @@ exit:
 error:
   if(mesh) {
     if(mesh->data) {
-      UNUSED int err = mesh->sys->rb.free_buffer(mesh->sys->ctxt, mesh->data);
-      assert(err == 0);
+      RBI(mesh->sys->rb, buffer_ref_put(mesh->data));
       mesh->data = NULL;
     }
     mesh->data_size = 0;
@@ -399,7 +386,6 @@ rdr_mesh_indices
    const unsigned int* indices)
 {
   enum rdr_error rdr_err = RDR_NO_ERROR;
-  int err = 0;
 
   if(!mesh || (nb_indices && !indices)) {
     rdr_err = RDR_INVALID_ARGUMENT;
@@ -420,8 +406,7 @@ exit:
 error:
   if(mesh) {
     if(mesh->indices) {
-      err = mesh->sys->rb.free_buffer(mesh->sys->ctxt, mesh->indices);
-      assert(err == 0);
+      RBI(mesh->sys->rb, buffer_ref_put(mesh->indices));
       mesh->indices = NULL;
     }
     mesh->nb_indices = 0;

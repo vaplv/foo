@@ -6,9 +6,6 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY
 add_executable(utest_sl_hash_table utest_sl_hash_table.c)
 target_link_libraries(utest_sl_hash_table sl)
 
-add_executable(utest_sl_linked_list utest_sl_linked_list.c)
-target_link_libraries(utest_sl_linked_list sl)
-
 add_executable(utest_sl_logger utest_sl_logger.c)
 target_link_libraries(utest_sl_logger sl)
 
@@ -24,10 +21,6 @@ target_link_libraries(utest_sl_vector sl)
 add_test(
   sl_hash_table
   ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/utest_sl_hash_table)
-
-add_test(
-  sl_linked_list
-  ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/utest_sl_linked_list)
 
 add_test(
   sl_logger

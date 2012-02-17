@@ -1,5 +1,6 @@
 #include "renderer/regular/rdr_error_c.h"
 #include "renderer/regular/rdr_system_c.h"
+#include "renderer/rdr.h"
 #include "renderer/rdr_system.h"
 #include "render_backend/rbi.h"
 #include "sys/sys.h"
@@ -20,8 +21,10 @@ release_system(struct ref* ref)
   assert(NULL != ref);
 
   sys = CONTAINER_OF(ref, struct rdr_system, ref);
-  err = sys->rb.free_context(sys->ctxt);
-  assert(err == 0);
+
+  if(sys->ctxt)
+    RBI(sys->rb, context_ref_put(sys->ctxt));
+
   err = rbi_shutdown(&sys->rb);
   assert(err == 0);
 
@@ -79,13 +82,7 @@ exit:
 
 error:
   if(sys) {
-    if(sys->ctxt) {
-      err = sys->rb.free_context(sys->ctxt);
-      assert(err == 0);
-    }
-    err = rbi_shutdown(&sys->rb);
-    assert(err == 0);
-    MEM_FREE(allocator, sys);
+    RDR(system_ref_put(sys));
     sys = NULL;
   }
   goto exit;

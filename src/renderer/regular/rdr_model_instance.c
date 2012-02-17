@@ -153,7 +153,7 @@ setup_uniform_data_list
     int err = 0;
 
     err = sys->rb.get_uniform_desc
-      (sys->ctxt, model_uniform_list[i].uniform, &uniform_desc);
+      (model_uniform_list[i].uniform, &uniform_desc);
     if(err != 0) {
       rdr_err = RDR_DRIVER_ERROR;
       goto error;
@@ -204,8 +204,7 @@ setup_attrib_data_list
       struct rb_attrib_desc attrib_desc;
       int err = 0;
 
-      err = sys->rb.get_attrib_desc
-        (sys->ctxt, model_attrib_list[i], &attrib_desc);
+      err = sys->rb.get_attrib_desc(model_attrib_list[i], &attrib_desc);
       if(err != 0) {
         rdr_err = RDR_DRIVER_ERROR;
         goto error;
@@ -258,7 +257,7 @@ dispatch_uniform_data
     int err = 0;
 
     err = sys->rb.get_uniform_desc
-      (sys->ctxt, model_uniform_list[i].uniform, &uniform_desc);
+      (model_uniform_list[i].uniform, &uniform_desc);
     if(err != 0) {
       rdr_err = RDR_DRIVER_ERROR;
       goto error;
@@ -296,7 +295,7 @@ dispatch_uniform_data
     }
 
     err = sys->rb.uniform_data
-      (sys->ctxt, model_uniform_list[i].uniform, 1, data);
+      (model_uniform_list[i].uniform, 1, data);
     if(err != 0) {
       rdr_err = RDR_DRIVER_ERROR;
       goto error;
@@ -329,14 +328,13 @@ dispatch_attrib_data
     struct rb_attrib_desc attrib_desc;
     int err = 0;
 
-    err = sys->rb.get_attrib_desc
-      (sys->ctxt, model_attrib_list[i], &attrib_desc);
+    err = sys->rb.get_attrib_desc(model_attrib_list[i], &attrib_desc);
     if(err != 0) {
       rdr_err = RDR_DRIVER_ERROR;
       goto error;
     }
 
-    err = sys->rb.attrib_data(sys->ctxt, model_attrib_list[i], data);
+    err = sys->rb.attrib_data(model_attrib_list[i], data);
     if(err != 0) {
       rdr_err = RDR_DRIVER_ERROR;
       goto error;
