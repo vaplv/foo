@@ -9,6 +9,12 @@
 struct rsrc_context;
 struct rsrc_font;
 struct rsrc_glyph;
+struct rsrc_glyph_desc {
+  size_t width;
+  size_t bitmap_left;
+  size_t bitmap_top;
+  wchar_t character;
+};
 
 extern enum rsrc_error
 rsrc_create_font
@@ -56,9 +62,9 @@ rsrc_glyph_bitmap
    unsigned char* buffer); /* May be NULL. */
 
 extern enum rsrc_error
-rsrc_glyph_width
+rsrc_glyph_desc
   (const struct rsrc_glyph* glyph,
-   size_t* width);
+   struct rsrc_glyph_desc* desc);
 
 
 #endif /* RSRC_FONT_H */

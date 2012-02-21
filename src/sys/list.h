@@ -61,7 +61,7 @@ del_node__(struct list_node* prev, struct list_node* next)
  *
  ******************************************************************************/
 static FINLINE void
-init_node(struct list_node* node)
+list_init(struct list_node* node)
 {
   assert(node);
   node->next = node;
@@ -108,7 +108,7 @@ list_del(struct list_node* node)
 {
   assert(node);
   del_node__(node->prev, node->next);
-  init_node(node);
+  list_init(node);
 }
 
 static FINLINE void

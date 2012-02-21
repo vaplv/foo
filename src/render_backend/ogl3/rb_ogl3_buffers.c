@@ -46,7 +46,7 @@ rb_to_ogl3_buffer_usage(enum rb_buffer_usage usage)
   GLenum ogl3_usage = GL_NONE;
 
   switch(usage) {
-    case RB_BUFFER_USAGE_DEFAULT: 
+    case RB_BUFFER_USAGE_DEFAULT:
       ogl3_usage = GL_DYNAMIC_DRAW;
       break;
     case RB_BUFFER_USAGE_IMMUTABLE:
@@ -183,7 +183,7 @@ rb_buffer_data
     mapped_mem = OGL(MapBufferRange(buffer->target, offset, size, access));
   }
   assert(mapped_mem != NULL);
-  memcpy(mapped_mem, data, size); 
+  memcpy(mapped_mem, data, size);
   unmap = OGL(UnmapBuffer(buffer->target));
   OGL(BindBuffer(buffer->target,buffer->ctxt->buffer_binding[buffer->binding]));
 

@@ -139,7 +139,7 @@ RB_FUNC(
   remove_vertex_attrib,
     struct rb_vertex_array* array,
     int count,
-    int* list_of_attrib_indices
+    const int* list_of_attrib_indices
 )
 
 RB_FUNC(

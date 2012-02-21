@@ -65,6 +65,13 @@
    (uintptr_t)(d0) < (uintptr_t)(d1) + (sz1)) || \
   ((uintptr_t)(d0) + (sz0) >= (uintptr_t)(d1) && \
    (uintptr_t)(d0) + (sz0) < (uintptr_t)(d1) + (sz1))
+
+#define LIKELY(x) \
+  __builtin_expect(x, 1)
+
+#define UNLIKELY() \
+  __builtin_expect(x, 0)
+
  
 #endif /* SYS_H */
 

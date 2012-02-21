@@ -12,6 +12,7 @@ int
 main(int argc, char** argv)
 {
   char buf[BUFSIZ];
+  struct rsrc_glyph_desc desc;
   struct rsrc_context* ctxt = NULL;
   struct rsrc_font* font = NULL;
   struct rsrc_glyph* glyph = NULL;
@@ -63,10 +64,11 @@ main(int argc, char** argv)
   CHECK(rsrc_font_glyph(NULL, L'a', &glyph), BAD_ARG);
   CHECK(rsrc_font_glyph(font, L'a', &glyph), OK);
 
-  CHECK(rsrc_glyph_width(NULL, NULL), BAD_ARG);
-  CHECK(rsrc_glyph_width(glyph, NULL), BAD_ARG);
-  CHECK(rsrc_glyph_width(NULL, &i), BAD_ARG);
-  CHECK(rsrc_glyph_width(glyph, &i), OK);
+  CHECK(rsrc_glyph_desc(NULL, NULL), BAD_ARG);
+  CHECK(rsrc_glyph_desc(glyph, NULL), BAD_ARG);
+  CHECK(rsrc_glyph_desc(NULL, &desc), BAD_ARG);
+  CHECK(rsrc_glyph_desc(glyph, &desc), OK);
+  CHECK(desc.character, L'a');
 
   CHECK(rsrc_glyph_bitmap(NULL, true, NULL, NULL, NULL, NULL), BAD_ARG);
   CHECK(rsrc_glyph_bitmap(glyph, true, NULL, NULL, NULL, NULL), OK);

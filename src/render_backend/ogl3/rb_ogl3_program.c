@@ -3,6 +3,7 @@
 #include "render_backend/ogl3/rb_ogl3_program.h"
 #include "render_backend/ogl3/rb_ogl3_shader.h"
 #include "render_backend/rb.h"
+#include "sys/list.h"
 #include "sys/mem_allocator.h"
 #include "sys/sys.h"
 #include <stdlib.h>
@@ -16,6 +17,7 @@
 static void
 release_program(struct ref* ref)
 {
+  struct list_node* node = NULL;
   struct rb_context* ctxt = NULL;
   struct rb_program* prog = NULL;
   assert(ref);
@@ -23,6 +25,10 @@ release_program(struct ref* ref)
   prog = CONTAINER_OF(ref, struct rb_program, ref);
   ctxt = prog->ctxt;
 
+  LIST_FOR_EACH(node, &prog->attached_shader_list) {
+    struct rb_shader* shader = CONTAINER_OF(node, struct rb_shader, attachment);
+    RB(detach_shader(prog, shader));
+  }
   if(prog->name != 0)
     OGL(DeleteProgram(prog->name));
   if(prog->log)
@@ -49,6 +55,7 @@ rb_create_program(struct rb_context* ctxt, struct rb_program** out_program)
   if(!program)
     goto error;
   ref_init(&program->ref);
+  list_init(&program->attached_shader_list);
   RB(context_ref_get(ctxt));
   program->ctxt = ctxt;
 
@@ -91,22 +98,36 @@ rb_program_ref_put(struct rb_program* program)
 EXPORT_SYM int
 rb_attach_shader(struct rb_program* program, struct rb_shader* shader)
 {
-  if(!program || !shader || shader->is_attached)
+  if(!program || !shader || !is_list_empty(&shader->attachment))
     return -1;
 
   OGL(AttachShader(program->name, shader->name));
-  shader->is_attached = 1;
+  list_add(&program->attached_shader_list, &shader->attachment);
   return 0;
 }
 
 EXPORT_SYM int
 rb_detach_shader(struct rb_program* program, struct rb_shader* shader)
 {
-  if(!program || !shader || !shader->is_attached)
+  if(!program || !shader || is_list_empty(&shader->attachment))
     return -1;
 
+  #ifndef NDEBUG
+  {
+    struct list_node* node = NULL;
+    int found = 0;
+    LIST_FOR_EACH(node, &program->attached_shader_list) {
+      if(node == &shader->attachment) {
+        found = 1;
+        break; 
+      }
+    }
+    if(!found)
+      return -1;
+  }
+  #endif
   OGL(DetachShader(program->name, shader->name));
-  shader->is_attached = 0;
+  list_del(&shader->attachment);
   return 0;
 }
 

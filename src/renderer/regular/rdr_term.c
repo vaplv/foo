@@ -1,5 +1,7 @@
 #include "renderer/regular/rdr_error_c.h"
+#include "renderer/regular/rdr_font_c.h"
 #include "renderer/regular/rdr_system_c.h"
+#include "renderer/regular/rdr_term_c.h"
 #include "renderer/rdr.h"
 #include "renderer/rdr_font.h"
 #include "renderer/rdr_system.h"
@@ -13,6 +15,14 @@
 #include <string.h>
 #include <wchar.h>
 
+#define VERTICES_PER_GLYPH 4
+#define INDICES_PER_GLYPH 6
+#define SIZEOF_GLYPH_VERTEX (3/*pos*/ + 2/*tex*/ + 3/*col*/) * sizeof(float)
+#define POS_ATTRIB_ID 0
+#define TEX_ATTRIB_ID 1
+#define COL_ATTRIB_ID 2
+#define NB_ATTRIBS 3
+
 struct line {
   struct list_node node;
   wchar_t* char_list;
@@ -23,8 +33,6 @@ struct screen {
   struct list_node used_line_list;
   struct line* line_list;
   wchar_t* char_buffer; /* Buffer of line chars. */
-  wchar_t* scratch; /* Work buffer. */
-  size_t scratch_len;
   size_t width;
   size_t height;
   size_t scroll_id;
@@ -32,32 +40,48 @@ struct screen {
 };
 
 struct printer {
-  struct rb_buffer* glyph_buffer;
+  struct rb_buffer_attrib attrib_list[NB_ATTRIBS];
+  struct rb_buffer* glyph_vertex_buffer;
+  struct rb_buffer* glyph_index_buffer;
   struct rb_vertex_array* varray;
   struct rb_shader* vertex_shader;
   struct rb_shader* fragment_shader;
   struct rb_program* shading_program;
-  size_t glyph_buflen;
+  struct rdr_font* font;
+  size_t max_nb_glyphs;
+  size_t nb_glyphs;
+};
+
+/* Minimal blob data structure. */
+struct blob {
+  struct mem_allocator* allocator;
+  void* buffer;
+  size_t size;
+  size_t id;
 };
 
 struct rdr_term {
   struct ref ref;
   struct rdr_system* sys;
-  struct rdr_font* font;
+  struct blob scratch;
   struct screen screen;
   struct printer printer;
 };
+
 
 /*******************************************************************************
  *
  * Embedded shader sources.
  *
  ******************************************************************************/
+#define XSTR(x) #x
+#define STR(x) XSTR(x)
+
 static const char* print_vs_source =
   "#version 330\n"
-  "in vec3 pos;\n"
-  "in vec2 tex;\n"
-  "in vec4 col; \n"
+  "layout(location =" STR(POS_ATTRIB_ID) ") in vec3 pos;\n"
+  "layout(location =" STR(TEX_ATTRIB_ID) ") in vec2 tex;\n"
+  "layout(location =" STR(COL_ATTRIB_ID) ") in vec4 col;\n"
   "smooth out vec2 glyph_tex;\n"
   "flat   out vec4 glyph_col;\n"
   "void main()\n"
@@ -78,9 +102,99 @@ static const char* print_fs_source =
   "  color = texture(glyph_cache, glyph_tex) * glyph_col;\n"
   "}\n";
 
+#undef XSTR
+#undef STR
+
 /*******************************************************************************
  *
- * Helper functions.
+ * Minimal implementation of a growable blob buffer.
+ *
+ ******************************************************************************/
+static enum rdr_error
+blob_reserve(struct blob* blob, size_t size)
+{
+  enum rdr_error rdr_err = RDR_NO_ERROR;
+  assert(blob && blob->allocator);
+
+  if(size > blob->size) {
+    if(blob->buffer) {
+      blob->buffer = MEM_REALLOC(blob->allocator, blob->buffer, size);
+    } else {
+      blob->buffer = MEM_ALLOC(blob->allocator, size);
+    }
+    if(!blob->buffer) {
+      rdr_err = RDR_MEMORY_ERROR;
+      goto error;
+    }
+    blob->size = size;
+  }
+
+exit:
+  return rdr_err;
+error:
+  if(blob->buffer) {
+    MEM_FREE(blob->allocator, blob->buffer);
+    blob->buffer = NULL;
+  }
+  blob->size = 0;
+  blob->id = 0;
+  goto exit;
+}
+
+static void
+blob_init(struct mem_allocator* allocator, struct blob* blob)
+{
+  assert(allocator && blob);
+  memset(blob, 0, sizeof(struct blob));
+  blob->allocator = allocator;
+}
+
+
+static void
+blob_release(struct blob* blob)
+{
+  assert(blob && blob->allocator);
+  MEM_FREE(blob->allocator, blob->buffer);
+  memset(blob, 0, sizeof(struct blob));
+}
+
+static FINLINE void
+blob_clear(struct blob* blob)
+{
+  assert(blob);
+  blob->id = 0;
+}
+
+static FINLINE void*
+blob_buffer(struct blob* blob)
+{
+  assert(blob);
+  return blob->buffer;
+}
+
+static enum rdr_error
+blob_push_back(struct blob* blob, const void* data, size_t size)
+{
+  enum rdr_error rdr_err = RDR_NO_ERROR;
+  assert(blob && data);
+
+  if(blob->id + size > blob->size) {
+    rdr_err = blob_reserve(blob, blob->id + size);
+    if(rdr_err != RDR_NO_ERROR)
+      goto error;
+  }
+  blob->buffer = memcpy
+    ((void*)((uintptr_t)blob->buffer + blob->id), data, size);
+  blob->id += size;
+exit:
+  return rdr_err;
+error:
+  goto exit;
+}
+
+/*******************************************************************************
+ *
+ * Screen functions.
  *
  ******************************************************************************/
 struct active_line {
@@ -119,43 +233,12 @@ new_line(struct screen* scr)
   scr->cursor = 0;
 }
 
-static int
-ensure_scratch_len
-  (struct rdr_system* sys,
-   struct screen* scr,
-   size_t len)
-{
-  int err = 0;
-
-  if(len > scr->scratch_len) {
-    scr->scratch = MEM_REALLOC
-      (sys->allocator, scr->scratch, len * sizeof(wchar_t));
-    if(!scr->scratch)
-      goto error;
-    scr->scratch_len = len;
-  }
-exit:
-  return err;
-error:
-  if(scr->scratch) {
-    MEM_FREE(sys->allocator, scr->scratch);
-  }
-  scr->scratch = NULL;
-  scr->scratch_len = 0;
-  err = -1;
-  goto exit;
-}
-
 static void
 shutdown_screen(struct rdr_system* sys, struct screen* scr)
 {
   assert(scr);
   if(scr->char_buffer)
     MEM_FREE(sys->allocator, scr->char_buffer);
-  if(scr->scratch) {
-    MEM_FREE(sys->allocator, scr->scratch);
-    scr->scratch_len = 0;
-  }
   if(scr->line_list)
     MEM_FREE(sys->allocator, scr->line_list);
   memset(scr, 0, sizeof(struct screen));
@@ -193,20 +276,14 @@ init_screen
     rdr_err = RDR_MEMORY_ERROR;
     goto error;
   }
-  scr->scratch = MEM_ALLOC(sys->allocator, BUFSIZ * sizeof(wchar_t));
-  if(!scr->scratch) {
-    rdr_err = RDR_MEMORY_ERROR;
-    goto error;
-  }
-  scr->scratch_len = BUFSIZ;
 
-  init_node(&scr->free_line_list);
-  init_node(&scr->used_line_list);
+  list_init(&scr->free_line_list);
+  list_init(&scr->used_line_list);
   for(i = 0, char_list = scr->char_buffer;
       i < total_nb_lines;
       ++i, char_list += line_width) {
     struct line* line = scr->line_list + i;
-    init_node(&line->node);
+    list_init(&line->node);
     line->char_list = char_list;
     list_add(&scr->free_line_list, &line->node);
   }
@@ -222,6 +299,129 @@ error:
   goto exit;
 }
 
+/*******************************************************************************
+ *
+ * Printer functions.
+ *
+ ******************************************************************************/
+static void
+printer_storage
+  (struct rdr_system* sys,
+   struct printer* printer,
+   size_t nb_glyphs,
+   struct blob* scratch)
+{
+  struct rb_buffer_desc buffer_desc;
+  memset(&buffer_desc, 0, sizeof(struct rb_buffer_desc));
+  assert(sys && printer);
+
+  if(printer->glyph_vertex_buffer) {
+    RBI(sys->rb, buffer_ref_put(printer->glyph_vertex_buffer));
+    printer->glyph_vertex_buffer = NULL;
+  }
+  if(printer->glyph_index_buffer) {
+    RBI(sys->rb, buffer_ref_put(printer->glyph_index_buffer));
+    printer->glyph_index_buffer = NULL;
+  }
+
+  printer->max_nb_glyphs = nb_glyphs;
+  if(0 == nb_glyphs) {
+    const int attrib_id_list[NB_ATTRIBS] = {
+      [0] = POS_ATTRIB_ID,
+      [1] = TEX_ATTRIB_ID,
+      [2] = COL_ATTRIB_ID
+    };
+    RBI(sys->rb, remove_vertex_attrib
+      (printer->varray, NB_ATTRIBS, attrib_id_list));
+  } else {
+    const size_t vertex_bufsiz =
+      nb_glyphs * VERTICES_PER_GLYPH * SIZEOF_GLYPH_VERTEX;
+    const size_t index_bufsiz =
+      nb_glyphs * INDICES_PER_GLYPH * sizeof(unsigned int);
+    unsigned int i = 0;
+
+    blob_reserve
+      (scratch, vertex_bufsiz > index_bufsiz ? vertex_bufsiz : index_bufsiz);
+
+    /* Create the vertex buffer. The vertex buffer data are going to be filled
+     * by the draw function with respect to the printed terminal lines. */
+    buffer_desc.size = vertex_bufsiz;
+    buffer_desc.target = RB_BIND_VERTEX_BUFFER;
+    buffer_desc.usage = RB_BUFFER_USAGE_DYNAMIC;
+    RBI(sys->rb, create_buffer
+      (sys->ctxt, &buffer_desc,NULL, &printer->glyph_vertex_buffer));
+
+    /* Create the immutable index buffer. Its internal data are the indices of
+     * the ordered glyphs of the vertex buffer. */
+    buffer_desc.size = index_bufsiz;
+    buffer_desc.target = RB_BIND_INDEX_BUFFER;
+    buffer_desc.usage = RB_BUFFER_USAGE_IMMUTABLE;
+    for(i = 0; i < nb_glyphs * INDICES_PER_GLYPH; i += INDICES_PER_GLYPH) {
+      const unsigned int indices[INDICES_PER_GLYPH] = {
+        0+i, 1+i, 3+i, 3+i, 1+i, 2+i
+      };
+      blob_push_back(scratch, indices, sizeof(indices));
+    }
+    RBI(sys->rb, create_buffer
+      (sys->ctxt, &buffer_desc, NULL, &printer->glyph_index_buffer));
+
+    /* Setup the vertex array. */
+    RBI(sys->rb, vertex_attrib_array
+      (printer->varray,
+       printer->glyph_vertex_buffer,
+       NB_ATTRIBS,
+       printer->attrib_list));
+    RBI(sys->rb, vertex_index_array
+      (printer->varray, printer->glyph_index_buffer));
+  }
+}
+
+static void
+printer_data
+  (struct rdr_system* sys,
+   struct printer* printer,
+   size_t nb_glyphs,
+   float* data)
+{
+  const size_t size = nb_glyphs * VERTICES_PER_GLYPH * SIZEOF_GLYPH_VERTEX;
+  assert(sys && printer && (!nb_glyphs || data));
+  assert
+    (size <= (printer->max_nb_glyphs*VERTICES_PER_GLYPH*SIZEOF_GLYPH_VERTEX));
+
+  RBI(sys->rb, buffer_data(printer->glyph_vertex_buffer, 0, size, data));
+  printer->nb_glyphs = nb_glyphs;
+}
+
+static void
+printer_draw(struct rdr_system* sys, struct printer* printer)
+{
+  struct rb_tex2d* tex = NULL;
+  struct rb_context* ctxt = NULL;
+  assert(sys && printer);
+
+  ctxt = sys->ctxt;
+  RDR(get_font_texture(printer->font, &tex));
+
+  RBI(sys->rb, bind_tex2d(ctxt, tex));
+  RBI(sys->rb, bind_vertex_array(ctxt, printer->varray));
+  RBI(sys->rb, draw_indexed
+    (ctxt, RB_TRIANGLE_LIST, printer->nb_glyphs * INDICES_PER_GLYPH));
+}
+
+static void
+printer_font
+  (struct rdr_system* sys UNUSED,
+   struct printer* printer,
+   struct rdr_font* font)
+{
+  assert(sys && printer && font);
+
+  if(printer->font)
+    RDR(font_ref_put(printer->font));
+  RDR(font_ref_get(font));
+  printer->font = font;
+}
+
 static void
 shutdown_printer(struct rdr_system* sys, struct printer* printer)
 {
@@ -230,8 +430,10 @@ shutdown_printer(struct rdr_system* sys, struct printer* printer)
 
   ctxt = sys->ctxt;
 
-  if(printer->glyph_buffer)
-    RBI(sys->rb, buffer_ref_put(printer->glyph_buffer));
+  if(printer->glyph_vertex_buffer)
+    RBI(sys->rb, buffer_ref_put(printer->glyph_vertex_buffer));
+  if(printer->glyph_index_buffer)
+    RBI(sys->rb, buffer_ref_put(printer->glyph_index_buffer));
   if(printer->varray)
     RBI(sys->rb, vertex_array_ref_put(printer->varray));
 
@@ -246,42 +448,33 @@ shutdown_printer(struct rdr_system* sys, struct printer* printer)
     RBI(sys->rb, shader_ref_put(printer->vertex_shader));
   if(printer->fragment_shader)
     RBI(sys->rb, shader_ref_put(printer->fragment_shader));
+
+  if(printer->font)
+    RDR(font_ref_put(printer->font));
 }
 
 static enum rdr_error
 init_printer(struct rdr_system* sys, struct printer* printer)
 {
   struct rb_context* ctxt = NULL;
-  struct rb_buffer_desc buffer_desc;
-  struct rb_buffer_attrib attrib_list[3];
-  const size_t sizeof_vertex = 8 * sizeof(float);
-  memset(&buffer_desc, 0, sizeof(struct rb_buffer_desc));
   assert(sys && printer);
 
   ctxt = sys->ctxt;
 
-  /* Vertex buffer. */
-  buffer_desc.size = 0;
-  buffer_desc.target = RB_BIND_VERTEX_BUFFER;
-  buffer_desc.usage = RB_BUFFER_USAGE_DYNAMIC;
-  RBI(sys->rb, create_buffer(ctxt, &buffer_desc, NULL, &printer->glyph_buffer));
-
   /* Vertex array. */
-  attrib_list[0].index = 0; /* Position .*/
-  attrib_list[0].stride = sizeof_vertex;
-  attrib_list[0].offset = 0;
-  attrib_list[0].type = RB_FLOAT3;
-  attrib_list[1].index = 1; /* Tex coord. */
-  attrib_list[1].stride = sizeof_vertex;
-  attrib_list[1].offset = 3 * sizeof(float);
-  attrib_list[1].type = RB_FLOAT2;
-  attrib_list[2].index = 2; /* Color. */
-  attrib_list[2].stride = sizeof_vertex;
-  attrib_list[2].offset = 5 * sizeof(float);
-  attrib_list[2].type = RB_FLOAT3;
+  printer->attrib_list[0].index = POS_ATTRIB_ID; /* Position .*/
+  printer->attrib_list[0].stride = SIZEOF_GLYPH_VERTEX;
+  printer->attrib_list[0].offset = 0;
+  printer->attrib_list[0].type = RB_FLOAT3;
+  printer->attrib_list[1].index = TEX_ATTRIB_ID; /* Tex coord. */
+  printer->attrib_list[1].stride = SIZEOF_GLYPH_VERTEX;
+  printer->attrib_list[1].offset = 3 * sizeof(float);
+  printer->attrib_list[1].type = RB_FLOAT2;
+  printer->attrib_list[2].index = COL_ATTRIB_ID; /* Color. */
+  printer->attrib_list[2].stride = SIZEOF_GLYPH_VERTEX;
+  printer->attrib_list[2].offset = 5 * sizeof(float);
+  printer->attrib_list[2].type = RB_FLOAT3;
   RBI(sys->rb, create_vertex_array(ctxt, &printer->varray));
-  RBI(sys->rb, vertex_attrib_array
-    (printer->varray, printer->glyph_buffer, 3, attrib_list));
 
   /* Shaders. */
   RBI(sys->rb, create_shader
@@ -308,6 +501,11 @@ init_printer(struct rdr_system* sys, struct printer* printer)
   return RDR_NO_ERROR;
 }
 
+/*******************************************************************************
+ *
+ * Helper functions.
+ *
+ ******************************************************************************/
 static void
 release_term(struct ref* ref)
 {
@@ -316,11 +514,9 @@ release_term(struct ref* ref)
   assert(NULL != ref);
 
   term = CONTAINER_OF(ref, struct rdr_term, ref);
+  blob_release(&term->scratch);
   shutdown_screen(term->sys, &term->screen);
   shutdown_printer(term->sys, &term->printer);
-  if(term->font)
-    RDR(font_ref_put(term->font));
-
   sys = term->sys;
   MEM_FREE(sys->allocator, term);
   RDR(system_ref_put(sys));
@@ -354,15 +550,17 @@ rdr_create_term
   ref_init(&term->ref);
   RDR(system_ref_get(sys));
   term->sys = sys;
-  RDR(font_ref_get(font));
-  term->font = font;
+  blob_init(term->sys->allocator, &term->scratch);
 
   rdr_err = init_screen(term->sys, &term->screen, width, height);
   if(rdr_err != RDR_NO_ERROR)
     goto error;
+
   rdr_err = init_printer(term->sys, &term->printer);
   if(rdr_err != RDR_NO_ERROR)
     goto error;
+
+  RDR(term_font(term, font));
 
 exit:
   if(out_term)
@@ -397,11 +595,24 @@ rdr_term_ref_put(struct rdr_term* term)
 EXPORT_SYM enum rdr_error
 rdr_term_font(struct rdr_term* term, struct rdr_font* font)
 {
+  size_t max_nb_glyphs = 0;
+  size_t line_space = 0;
+
   if(!term || !font)
     return RDR_INVALID_ARGUMENT;
-  RDR(font_ref_put(term->font));
-  RDR(font_ref_get(font));
-  term->font = font;
+
+  printer_font(term->sys, &term->printer, font);
+
+  /* Approximate the size of the glyph vertex buffer.  */
+  RDR(get_font_line_space(term->printer.font, &line_space));
+  if(line_space == 0) {
+    max_nb_glyphs = 0;
+  } else {
+    max_nb_glyphs =
+      term->screen.width  /* Max number of chars in a line. */
+    * term->screen.height / line_space; /* Max number of visible lines. */
+  }
+  printer_storage(term->sys, &term->printer, max_nb_glyphs, &term->scratch);
   return RDR_NO_ERROR;
 }
 
@@ -421,11 +632,12 @@ rdr_term_print(struct rdr_term* term, const wchar_t* str)
 
   /* Copy the submitted string into the mutable scratch buffer. */
   len = wcslen(str);
-  ensure_scratch_len(term->sys, &term->screen, len + 1);
-  term->screen.scratch = wcscpy(term->screen.scratch, str);
+  blob_clear(&term->scratch);
+  rdr_err = blob_push_back(&term->scratch, str, (len + 1) * sizeof(wchar_t));
+  assert(RDR_NO_ERROR == rdr_err);
+  tkn = blob_buffer(&term->scratch);
 
-  tkn = term->screen.scratch;
-  end_str = term->screen.scratch + len;
+  end_str = tkn + len;
   while(tkn < end_str) {
     bool new_line_delimiter = false;
 
@@ -496,4 +708,109 @@ rdr_term_dump(const struct rdr_term* term, size_t* out_len, wchar_t* buffer)
   }
   return RDR_NO_ERROR;
 }
+
+/*******************************************************************************
+ *
+ * Private functions.
+ *
+ ******************************************************************************/
+enum rdr_error
+rdr_term_draw(struct rdr_term* term)
+{
+  float vertex_data[SIZEOF_GLYPH_VERTEX / sizeof(float)];
+  struct list_node* node = NULL;
+  size_t line_space = 0;
+  size_t nb_glyphs = 0;
+  size_t x = 0;
+  size_t y = 0;
+  enum rdr_error rdr_err = RDR_NO_ERROR;
+  memset(&vertex_data, 0, sizeof(vertex_data));
+
+  #define SET_VERTEX_POS(data, x, y, z) data[0]=(x), data[1]=(y), data[2]=(z)
+  #define SET_VERTEX_TEX(data, u, v)    data[3]=(u), data[4]=(v)
+  #define SET_VERTEX_COL(data, r, g, b) data[5]=(r), data[6]=(g), data[7]=(b)
+
+  if(!term) {
+    rdr_err = RDR_INVALID_ARGUMENT;
+    goto error;
+  }
+
+  RDR(get_font_line_space(term->printer.font, &line_space));
+  if(!line_space)
+    goto exit;
+
+  /* Currently, the glyph is always white. */
+  SET_VERTEX_COL(vertex_data, 1.f, 1.f, 1.f);
+
+  /* Fill the scratch buffer with the glyph vertices. */
+  blob_clear(&term->scratch);
+  nb_glyphs = 0;
+  y = 0;
+  LIST_FOR_EACH(node, &term->screen.used_line_list) {
+    struct line* line = NULL;
+    size_t char_id = 0;
+
+    /* Do not draw the line that are cut by the terminal borders. */
+    y += line_space;
+    if(y > term->screen.height)
+      break;
+
+    /* Fill the scratch buffer with the glyphs of the line. */
+    line = CONTAINER_OF(node, struct line, node);
+    x = 0;
+    for(char_id = 0;
+        assert(char_id < term->screen.width), line->char_list[char_id] != '\0';
+        ++char_id) {
+      struct rdr_glyph glyph;
+      struct {
+        float x;
+        float y;
+      } translated_pos[2];
+      RDR(get_font_glyph(term->printer.font, line->char_list[char_id], &glyph));
+
+      translated_pos[0].x = glyph.pos[0].x + x;
+      translated_pos[0].y = glyph.pos[0].y + y;
+      translated_pos[1].x = glyph.pos[1].x + x;
+      translated_pos[1].y = glyph.pos[1].y + y;
+
+      /* top left. */
+      SET_VERTEX_POS(vertex_data, translated_pos[0].x, translated_pos[0].y,1.f);
+      SET_VERTEX_TEX(vertex_data, glyph.tex[0].x, glyph.tex[0].y);
+      blob_push_back(&term->scratch, vertex_data, sizeof(vertex_data));
+      /* bottom left. */
+      SET_VERTEX_POS(vertex_data, translated_pos[0].x, translated_pos[1].y,1.f);
+      SET_VERTEX_TEX(vertex_data, glyph.tex[0].x, glyph.tex[1].y);
+      blob_push_back(&term->scratch, vertex_data, sizeof(vertex_data));
+      /* bottom right. */
+      SET_VERTEX_POS(vertex_data, translated_pos[1].x, translated_pos[1].y,1.f);
+      SET_VERTEX_TEX(vertex_data, glyph.tex[1].x, glyph.tex[1].y);
+      blob_push_back(&term->scratch, vertex_data, sizeof(vertex_data));
+      /* top right. */
+      SET_VERTEX_POS(vertex_data, translated_pos[1].x, translated_pos[0].y,1.f);
+      SET_VERTEX_TEX(vertex_data, glyph.tex[1].x, glyph.tex[0].y);
+      blob_push_back(&term->scratch, vertex_data, sizeof(vertex_data));
+
+      ++nb_glyphs;
+    }
+  }
+  /* Send the glyph data to the printer and draw. */
+  printer_data
+    (term->sys, &term->printer, nb_glyphs, blob_buffer(&term->scratch));
+  printer_draw(term->sys, &term->printer);
+
+  #undef SET_VERTEX_POS
+  #undef SET_VERTEX_TEX
+  #undef SET_VERTEX_COL
+
+exit:
+  return rdr_err;
+error:
+  goto exit;
+}
+
+#undef SIZEOF_GLYPH_VERTEX
+#undef POS_ATTRIB_ID
+#undef TEX_ATTRIB_ID
+#undef COL_ATTRIB_ID
+#undef NB_ATTRIBS
 

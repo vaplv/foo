@@ -28,6 +28,9 @@ struct rsrc_font {
 
 struct rsrc_glyph {
   struct rsrc_context* ctxt;
+  wchar_t character;
+  size_t bitmap_left;
+  size_t bitmap_top;
   FT_Glyph glyph;
 };
 
@@ -249,6 +252,9 @@ rsrc_font_glyph
     goto error;
   }
   glyph->ctxt = font->ctxt;
+  glyph->character = ch;
+  glyph->bitmap_left = font->face->glyph->bitmap_left;
+  glyph->bitmap_top = font->face->glyph->bitmap_top;
   FT(Load_Glyph(font->face, (FT_ULong)glyph_index, FT_LOAD_DEFAULT));
   FT(Get_Glyph(font->face->glyph, &glyph->glyph));
 
@@ -325,13 +331,15 @@ error:
 }
 
 EXPORT_SYM enum rsrc_error
-rsrc_glyph_width(const struct rsrc_glyph* glyph, size_t* width)
+rsrc_glyph_desc(const struct rsrc_glyph* glyph, struct rsrc_glyph_desc* desc)
 {
-  if(!glyph || !width)
+  if(!glyph || !desc)
     return RSRC_INVALID_ARGUMENT;
-  *width = (glyph->glyph->advance.x) >> 16; /* 16.16 Fixed point. */
+  desc->character = glyph->character;
+  desc->bitmap_left = glyph->bitmap_left;
+  desc->bitmap_top = glyph->bitmap_top;
+  desc->width = (glyph->glyph->advance.x) >> 16; /* 16.16 Fixed point. */
   return RSRC_NO_ERROR;
-
 }
 
 /*******************************************************************************

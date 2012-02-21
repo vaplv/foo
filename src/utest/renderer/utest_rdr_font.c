@@ -88,6 +88,7 @@ main(int argc, char** argv)
   CHECK(rsrc_font_size(ft, 32, 32), RSRC_NO_ERROR);
   for(i = 0; i < total_nb_glyphs; ++i) {
     size_t width, height, Bpp;
+    struct rsrc_glyph_desc glyph_desc;
     wchar_t character = 33 + (i % nb_glyphs);
 
     CHECK(rsrc_font_glyph(ft, character, &glyph),RSRC_NO_ERROR);
@@ -104,9 +105,11 @@ main(int argc, char** argv)
     glyph_desc_list[i].bitmap.bytes_per_pixel = Bpp;
     glyph_desc_list[i].bitmap.buffer = glyph_bitmap_list[i];
 
-    CHECK(rsrc_glyph_width(glyph, &width), RSRC_NO_ERROR);
-    glyph_desc_list[i].width = width;
-    glyph_desc_list[i].character = character;
+    CHECK(rsrc_glyph_desc(glyph, &glyph_desc), RSRC_NO_ERROR);
+    glyph_desc_list[i].width = glyph_desc.width;
+    glyph_desc_list[i].character = glyph_desc.character;
+    glyph_desc_list[i].bitmap_left = glyph_desc.bitmap_left;
+    glyph_desc_list[i].bitmap_top = glyph_desc.bitmap_top;
 
     CHECK(rsrc_free_glyph(glyph), RSRC_NO_ERROR);
   }
@@ -203,3 +206,4 @@ error:
   err = -1;
   goto exit;
 }
+

@@ -16,11 +16,11 @@ main(int argc UNUSED, char** argv UNUSED)
   struct list_node* tmp = NULL;
   int i = 0;
 
-  init_node(&list);
-  init_node(&list1);
-  init_node(&elmt0.node);
-  init_node(&elmt1.node);
-  init_node(&elmt2.node);
+  list_init(&list);
+  list_init(&list1);
+  list_init(&elmt0.node);
+  list_init(&elmt1.node);
+  list_init(&elmt2.node);
 
   CHECK(is_list_empty(&list), 1);
 

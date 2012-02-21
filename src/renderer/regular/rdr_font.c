@@ -1,5 +1,6 @@
 #include "render_backend/rbi.h"
 #include "renderer/regular/rdr_error_c.h"
+#include "renderer/regular/rdr_font_c.h"
 #include "renderer/regular/rdr_system_c.h"
 #include "renderer/rdr.h"
 #include "renderer/rdr_font.h"
@@ -14,7 +15,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define GLYPH_BORDER 1
 
 struct rdr_font {
   struct ref ref;
@@ -37,11 +37,7 @@ struct rdr_font {
  ******************************************************************************/
 struct pair {
   wchar_t character;
-  struct {
-    size_t width;
-    float u[2];
-    float v[2];
-  } glyph;
+  struct rdr_glyph glyph;
 };
 
 static const void*
@@ -69,6 +65,7 @@ struct node {
   size_t id;
 };
 
+#define GLYPH_BORDER 1
 #define IS_LEAF(n) (!((n)->left || (n)->right))
 
 static struct node*
@@ -244,10 +241,14 @@ fill_font_cache
     SL(hash_table_find(font->glyph_htbl, &glyph_desc->character,(void**)&pair));
     assert(pair);
     pair->glyph.width = glyph_desc->width;
-    pair->glyph.u[0] = (float)node->x * rcp_cache_width;
-    pair->glyph.v[0] = (float)node->y * rcp_cache_height;
-    pair->glyph.u[1] = (float)(node->x + node->width) * rcp_cache_width;
-    pair->glyph.v[1] = (float)(node->y + node->height) * rcp_cache_height;
+    pair->glyph.tex[0].x = (float)node->x * rcp_cache_width;
+    pair->glyph.tex[0].y = (float)node->y * rcp_cache_height;
+    pair->glyph.tex[1].x = (float)(node->x + node->width) * rcp_cache_width;
+    pair->glyph.tex[1].y = (float)(node->y + node->height) * rcp_cache_height;
+    pair->glyph.pos[0].x = (float)glyph_desc->bitmap_left;
+    pair->glyph.pos[0].y = (float)glyph_desc->bitmap_top;
+    pair->glyph.pos[1].x = (float)glyph_desc->bitmap_left - node->width; 
+    pair->glyph.pos[1].y = (float)glyph_desc->bitmap_top - node->height;
 
     assert(glyph_desc->bitmap.bytes_per_pixel == cache_Bpp);
     dst =
@@ -338,6 +339,7 @@ release_font(struct ref* ref)
 }
 
 #undef IS_LEAF
+#undef GLYPH_BORDER
 
 /*******************************************************************************
  *
@@ -570,6 +572,15 @@ error:
 }
 
 EXPORT_SYM enum rdr_error
+rdr_get_font_line_space(struct rdr_font* font, size_t* line_space)
+{
+  if(!font || !line_space)
+    return RDR_INVALID_ARGUMENT;
+  *line_space = font->line_space;
+  return RDR_NO_ERROR;
+}
+
+EXPORT_SYM enum rdr_error
 rdr_font_bitmap_cache
   (const struct rdr_font* font,
    size_t* width,
@@ -592,5 +603,46 @@ rdr_font_bitmap_cache
   return RDR_NO_ERROR;
 }
 
-#undef GLYPH_BORDER
+/*******************************************************************************
+ *
+ * Private font functions.
+ *
+ ******************************************************************************/
+enum rdr_error
+rdr_get_font_glyph
+  (struct rdr_font* font,
+   wchar_t character,
+   struct rdr_glyph* glyph)
+{
+  struct pair* pair = NULL;
+  enum rdr_error rdr_err = RDR_NO_ERROR;
 
+  if(!font || !glyph) {
+    rdr_err = RDR_INVALID_ARGUMENT;
+    goto error;
+  }
+  SL(hash_table_find(font->glyph_htbl, &character,(void**)&pair));
+
+  /* TODO define a fallback glyph when the character is not registered. */
+  if(pair == NULL) {
+    assert(false);
+    rdr_err = RDR_INVALID_ARGUMENT;
+    goto error;
+  }
+
+  memcpy(glyph, &pair->glyph, sizeof(struct rdr_glyph));
+
+exit:
+  return rdr_err;
+error:
+  goto exit;
+}
+
+enum rdr_error
+rdr_get_font_texture(struct rdr_font* font, struct rb_tex2d** tex)
+{
+  if(!font || !tex)
+    return RDR_INVALID_ARGUMENT;
+  *tex = font->cache_tex;
+  return RDR_NO_ERROR;
+}

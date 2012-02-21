@@ -73,11 +73,11 @@ rb_create_shader
   if(!shader)
     goto error;
   ref_init(&shader->ref);
+  list_init(&shader->attachment);
   RB(context_ref_get(ctxt));
   shader->ctxt = ctxt;
 
   shader->log = NULL;
-  shader->is_attached = 0;
   shader->type = rb_to_ogl3_shader_type(type);
   shader->name = OGL(CreateShader(shader->type));
   if(shader->name == 0)
@@ -168,7 +168,7 @@ rb_is_shader_attached(struct rb_shader* shader, int* out_is_attached)
 {
   if(!shader || !out_is_attached)
     return -1;
-  *out_is_attached = shader->is_attached;
+  *out_is_attached = !is_list_empty(&shader->attachment);
   return 0;
 }
 

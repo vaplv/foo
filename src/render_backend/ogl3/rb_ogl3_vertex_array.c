@@ -161,7 +161,7 @@ EXPORT_SYM int
 rb_remove_vertex_attrib
   (struct rb_vertex_array* array,
    int count,
-   int* list_of_attrib_indices)
+   const int* list_of_attrib_indices)
 {
   int i = 0;
   int err = 0;
