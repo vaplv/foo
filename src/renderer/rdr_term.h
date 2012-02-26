@@ -2,6 +2,7 @@
 #define RDR_TERM_H
 
 #include "renderer/rdr_error.h"
+#include <stddef.h>
 
 struct rdr_font;
 struct rdr_system;

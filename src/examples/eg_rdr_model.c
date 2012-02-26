@@ -1,4 +1,5 @@
 #include "renderer/rdr.h"
+#include "renderer/rdr_frame.h"
 #include "renderer/rdr_material.h"
 #include "renderer/rdr_mesh.h"
 #include "renderer/rdr_model.h"
@@ -194,6 +195,7 @@ main(int argc, char* argv[])
   };
 
   /* Renderer data structure. */
+  struct rdr_frame* frame = NULL;
   struct rdr_system* sys = NULL;
   struct rdr_mesh* mesh = NULL;
   struct rdr_material* mtr = NULL;
@@ -251,7 +253,8 @@ main(int argc, char* argv[])
 
   RDR(create_model(sys, mesh, mtr, &model));
   RDR(create_world(sys, &world));
-  RDR(background_color(world, (float[]){0.1f, 0.1f, 0.1f}));
+  RDR(create_frame(sys, &frame));
+  RDR(background_color(frame, (float[]){0.1f, 0.1f, 0.1f}));
 
   for(i = 0; i < 27; ++i) {
     RDR(create_model_instance(sys, model, &instance_list[i]));
@@ -300,7 +303,7 @@ main(int argc, char* argv[])
     }
 
     compute_transform(M_DEG_TO_RAD(angle), 0.f, 0.f, -20.f, view.transform);
-    RDR(draw_world(world, &view));
+    RDR(frame_draw_world(frame, world, &view));
 
     if(wm_swap(device, window) != WM_NO_ERROR) {
       fprintf(stderr, "Error swaping the window.\n");

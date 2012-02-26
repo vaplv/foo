@@ -11,6 +11,7 @@
 #include "sys/mem_allocator.h"
 #include "sys/ref_count.h"
 #include "sys/sys.h"
+#include <float.h>
 #include <stdbool.h>
 #include <string.h>
 #include <wchar.h>
@@ -47,6 +48,7 @@ struct printer {
   struct rb_shader* vertex_shader;
   struct rb_shader* fragment_shader;
   struct rb_program* shading_program;
+  struct rb_sampler* sampler;
   struct rdr_font* font;
   size_t max_nb_glyphs;
   size_t nb_glyphs;
@@ -403,6 +405,8 @@ printer_draw(struct rdr_system* sys, struct printer* printer)
   RDR(get_font_texture(printer->font, &tex));
 
   RBI(sys->rb, bind_tex2d(ctxt, tex));
+  RBI(sys->rb, bind_sampler(ctxt, printer->sampler, 0));
+  RBI(sys->rb, bind_program(ctxt, printer->shading_program));
   RBI(sys->rb, bind_vertex_array(ctxt, printer->varray));
   RBI(sys->rb, draw_indexed
     (ctxt, RB_TRIANGLE_LIST, printer->nb_glyphs * INDICES_PER_GLYPH));
@@ -449,6 +453,9 @@ shutdown_printer(struct rdr_system* sys, struct printer* printer)
   if(printer->fragment_shader)
     RBI(sys->rb, shader_ref_put(printer->fragment_shader));
 
+  if(printer->sampler)
+    RBI(sys->rb, sampler_ref_put(printer->sampler));
+
   if(printer->font)
     RDR(font_ref_put(printer->font));
 }
@@ -456,6 +463,7 @@ shutdown_printer(struct rdr_system* sys, struct printer* printer)
 static enum rdr_error
 init_printer(struct rdr_system* sys, struct printer* printer)
 {
+  struct rb_sampler_desc sampler_desc;
   struct rb_context* ctxt = NULL;
   assert(sys && printer);
 
@@ -475,6 +483,17 @@ init_printer(struct rdr_system* sys, struct printer* printer)
   printer->attrib_list[2].offset = 5 * sizeof(float);
   printer->attrib_list[2].type = RB_FLOAT3;
   RBI(sys->rb, create_vertex_array(ctxt, &printer->varray));
+
+  /* Sampler. */
+  sampler_desc.filter = RB_MIN_POINT_MAG_POINT_MIP_POINT;
+  sampler_desc.address_u = RB_ADDRESS_CLAMP;
+  sampler_desc.address_v = RB_ADDRESS_CLAMP;
+  sampler_desc.address_w = RB_ADDRESS_CLAMP;
+  sampler_desc.lod_bias = 0;
+  sampler_desc.min_lod = -FLT_MAX;
+  sampler_desc.max_lod = FLT_MAX;
+  sampler_desc.max_anisotropy = 1;
+  RBI(sys->rb, create_sampler(ctxt, &sampler_desc, &printer->sampler));
 
   /* Shaders. */
   RBI(sys->rb, create_shader
@@ -715,7 +734,7 @@ rdr_term_dump(const struct rdr_term* term, size_t* out_len, wchar_t* buffer)
  *
  ******************************************************************************/
 enum rdr_error
-rdr_term_draw(struct rdr_term* term)
+rdr_draw_term(struct rdr_term* term)
 {
   float vertex_data[SIZEOF_GLYPH_VERTEX / sizeof(float)];
   struct list_node* node = NULL;

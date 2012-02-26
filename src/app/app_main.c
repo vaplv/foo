@@ -89,7 +89,6 @@ main(int argc, char** argv)
 {
   char buffer[BUFSIZ];
   struct app_args args;
-  struct mem_allocator editor_allocator;
   struct mem_allocator engine_allocator;
   struct mem_allocator game_allocator;
   struct app* app = NULL;
@@ -103,7 +102,6 @@ main(int argc, char** argv)
 
   memset(&args, 0, sizeof(struct app_args));
   
-  mem_init_proxy_allocator("editor", &editor_allocator, &mem_default_allocator);
   mem_init_proxy_allocator("engine", &engine_allocator, &mem_default_allocator);
   mem_init_proxy_allocator("game", &game_allocator, &mem_default_allocator);
  
@@ -141,9 +139,11 @@ main(int argc, char** argv)
       if(game_err != GAME_NO_ERROR)
         goto error;
 
-     app_err = app_run(app);
-      if(app_err != APP_NO_ERROR)
+      app_err = app_run(app);
+      if(app_err != APP_NO_ERROR) {
+        fprintf(stderr, "Error running the application.\n");
         goto error; 
+      }
     }
   }
 
@@ -164,7 +164,6 @@ exit:
       printf("Engine leaks summary:\n%s\n", buffer);
     }
   }
-  mem_shutdown_proxy_allocator(&editor_allocator);
   mem_shutdown_proxy_allocator(&engine_allocator);
   mem_shutdown_proxy_allocator(&game_allocator);
   return err;

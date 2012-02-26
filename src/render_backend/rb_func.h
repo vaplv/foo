@@ -31,7 +31,7 @@ RB_FUNC(
   int,
   bind_tex2d,
     struct rb_context* ctxt,
-    struct rb_tex2d* tex
+    struct rb_tex2d* tex /* May be NULL. */
 )
 
 RB_FUNC(
@@ -63,6 +63,46 @@ RB_FUNC(
 
 /*******************************************************************************
  *
+ * Sampler
+ *
+ ******************************************************************************/
+RB_FUNC(
+  int,
+  create_sampler,
+    struct rb_context* ctxt,
+    const struct rb_sampler_desc* desc,
+    struct rb_sampler** out_sampler
+)
+
+RB_FUNC(
+  int,
+  sampler_ref_get,
+    struct rb_sampler* sampler
+)
+
+RB_FUNC(
+  int,
+  sampler_ref_put,
+    struct rb_sampler*sampler
+)
+
+RB_FUNC(
+  int,
+  sampler_parameters,
+    struct rb_sampler* sampler,
+    const struct rb_sampler_desc* desc
+)
+
+RB_FUNC(
+  int,
+  bind_sampler,
+    struct rb_context* ctxt,
+    struct rb_sampler* sampler, /* May be NULL. */
+    unsigned int tex_unit
+)
+
+/*******************************************************************************
+ *
  * Buffers.
  *
  ******************************************************************************/
@@ -70,7 +110,7 @@ RB_FUNC(
   int,
   bind_buffer,
     struct rb_context* ctxt,
-    struct rb_buffer* buf
+    struct rb_buffer* buf /* May be NULL. */
 )
 
 RB_FUNC(
@@ -112,7 +152,7 @@ RB_FUNC(
   int,
   bind_vertex_array,
     struct rb_context* ctxt,
-    struct rb_vertex_array* varray
+    struct rb_vertex_array* varray /* May be NULL. */
 )
 
 RB_FUNC(
@@ -223,7 +263,7 @@ RB_FUNC(
   int,
   bind_program,
     struct rb_context* ctxt,
-    struct rb_program* prog
+    struct rb_program* prog /* May be NULL. */
 )
 
 RB_FUNC(

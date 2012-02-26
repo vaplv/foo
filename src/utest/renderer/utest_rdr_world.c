@@ -53,22 +53,6 @@ main(int argc, char** argv)
     [RDR_GEOMETRY_SHADER] = NULL,
     [RDR_FRAGMENT_SHADER] = NULL
   };
-  const struct rdr_view view = {
-    .transform = {
-      1.f, 0.f, 0.f, 0.f,
-      0.f, 1.f, 0.f, 0.f,
-      0.f, 0.f, 1.f, 0.f,
-      0.f, 0.f, 0.f, 1.f
-    },
-    .proj_ratio = win_desc.width / win_desc.height,
-    .fov_x = 1.4f,
-    .znear = 1.f,
-    .zfar = 100.f,
-    .x = 0,
-    .y = 0,
-    .width = win_desc.width,
-    .height = win_desc.height
-  };
 
   if(argc != 2) {
     printf("usage: %s RB_DRIVER\n", argv[0]);
@@ -107,11 +91,6 @@ main(int argc, char** argv)
   CHECK(rdr_add_model_instance(world, NULL), RDR_INVALID_ARGUMENT);
   CHECK(rdr_add_model_instance(NULL, inst0), RDR_INVALID_ARGUMENT);
   CHECK(rdr_add_model_instance(world, inst0), RDR_NO_ERROR);
-
-  CHECK(rdr_draw_world(NULL, NULL), RDR_INVALID_ARGUMENT);
-  CHECK(rdr_draw_world(world, NULL), RDR_INVALID_ARGUMENT);
-  CHECK(rdr_draw_world(NULL, &view), RDR_INVALID_ARGUMENT);
-  CHECK(rdr_draw_world(world, &view), RDR_NO_ERROR);
 
   CHECK(rdr_add_model_instance(world, inst1), RDR_NO_ERROR);
   CHECK(rdr_add_model_instance(world, inst2), RDR_NO_ERROR);

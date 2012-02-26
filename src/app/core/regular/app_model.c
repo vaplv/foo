@@ -102,7 +102,7 @@ setup_model(struct app_model* model)
       continue;
 
     /* Render mesh setup. */
-    rdr_err = rdr_create_mesh(model->app->rdr, &mesh);
+    rdr_err = rdr_create_mesh(model->app->rdr.system, &mesh);
     if(rdr_err != RDR_NO_ERROR) {
       app_err = rdr_to_app_error(rdr_err);
       goto error;
@@ -131,7 +131,10 @@ setup_model(struct app_model* model)
     }
     /* Render model setup. */
     rdr_err = rdr_create_model
-      (model->app->rdr, mesh, model->app->default_render_material, &rmodel);
+      (model->app->rdr.system, 
+       mesh, 
+       model->app->rdr.default_material, 
+       &rmodel);
     if(rdr_err != RDR_NO_ERROR) {
       app_err = rdr_to_app_error(rdr_err);
       goto error;
@@ -230,7 +233,7 @@ app_create_model(struct app* app, const char* path, struct app_model** model)
     app_err = sl_to_app_error(sl_err);
     goto error;
   }
-  rsrc_err = rsrc_create_geometry(app->rsrc, &mdl->geometry);
+  rsrc_err = rsrc_create_geometry(app->rsrc.context, &mdl->geometry);
   if(rsrc_err != RSRC_NO_ERROR) {
     app_err = rsrc_to_app_error(rsrc_err);
     goto error;
@@ -355,17 +358,17 @@ app_load_model(const char* path, struct app_model* model)
     app_err = APP_INVALID_ARGUMENT;
     goto error;
   }
-  assert(model->app && model->app->wavefront_obj != NULL);
+  assert(model->app && model->app->rsrc.wavefront_obj != NULL);
 
   rsrc_err = rsrc_load_wavefront_obj
-    (model->app->wavefront_obj, path);
+    (model->app->rsrc.wavefront_obj, path);
   if(rsrc_err != RSRC_NO_ERROR) {
-    APP_LOG_ERR(model->app, "Error loading the geometry `%s'\n", path);
+    APP_LOG_ERR(model->app->logger, "Error loading the geometry `%s'\n", path);
     app_err = rsrc_to_app_error(rsrc_err);
     goto error;
   }
   rsrc_err = rsrc_geometry_from_wavefront_obj
-    (model->geometry, model->app->wavefront_obj);
+    (model->geometry, model->app->rsrc.wavefront_obj);
   if(rsrc_err != RSRC_NO_ERROR) {
     app_err = rsrc_to_app_error(rsrc_err);
     goto error;
@@ -494,7 +497,7 @@ app_instantiate_model
        (model->model_list, &len, NULL, NULL, (void**)&model_lstbuf));
     for(i = 0; i < len; ++i) {
       rdr_err = rdr_create_model_instance
-        (app->rdr, model_lstbuf[i], &render_instance);
+        (app->rdr.system, model_lstbuf[i], &render_instance);
       if(rdr_err != RDR_NO_ERROR) {
         app_err = rdr_to_app_error(rdr_err);
         goto error;

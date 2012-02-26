@@ -6,6 +6,7 @@ add_library(renderer SHARED
   rdr_attrib.c
   rdr_error.c
   rdr_font.c
+  rdr_frame.c
   rdr_material.c
   rdr_mesh.c
   rdr_model.c

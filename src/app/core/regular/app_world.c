@@ -7,6 +7,7 @@
 #include "maths/simd/aosf44.h"
 #include "renderer/rdr.h"
 #include "renderer/rdr_error.h"
+#include "renderer/rdr_frame.h"
 #include "renderer/rdr_world.h"
 #include "stdlib/sl.h"
 #include "stdlib/sl_vector.h"
@@ -66,13 +67,7 @@ app_create_world(struct app* app, struct app_world** out_world)
   world->app = app;
   ref_init(&world->ref);
 
-  rdr_err = rdr_create_world(app->rdr, &world->render_world);
-  if(rdr_err != RDR_NO_ERROR) {
-    err = rdr_to_app_error(rdr_err);
-    goto error;
-  }
-  rdr_err = rdr_background_color
-    ( world->render_world, (float[]){0.1f, 0.1f, 0.1f});
+  rdr_err = rdr_create_world(app->rdr.system, &world->render_world);
   if(rdr_err != RDR_NO_ERROR) {
     err = rdr_to_app_error(rdr_err);
     goto error;
@@ -82,7 +77,6 @@ exit:
   if(out_world)
     *out_world = world;
   return err;
-
 error:
   if(world) {
     if(world->render_world)
@@ -244,7 +238,7 @@ app_draw_world(struct app_world* world, const struct app_view* view)
     goto error;
   }
 
-  WM(get_window_desc(world->app->wm, world->app->window, &win_desc));
+  WM(get_window_desc(world->app->wm.device, world->app->wm.window, &win_desc));
 
   assert(sizeof(view->transform) == sizeof(render_view.transform));
 
@@ -258,7 +252,8 @@ app_draw_world(struct app_world* world, const struct app_view* view)
   render_view.width = win_desc.width;
   render_view.height = win_desc.height;
 
-  rdr_err = rdr_draw_world(world->render_world, &render_view);
+  rdr_err = rdr_frame_draw_world
+    (world->app->rdr.frame, world->render_world, &render_view);
   if(rdr_err != RDR_NO_ERROR) {
     app_err = rdr_to_app_error(rdr_err);
     goto error;

@@ -7,6 +7,7 @@
 #include "app/core/app_view.h"
 #include "app/core/app_world.h"
 #include "renderer/rdr.h"
+#include "renderer/rdr_frame.h"
 #include "renderer/rdr_material.h"
 #include "renderer/rdr_system.h"
 #include "renderer/rdr_world.h"
@@ -19,6 +20,7 @@
 #include "stdlib/sl_vector.h"
 #include "sys/mem_allocator.h"
 #include "sys/sys.h"
+#include "window_manager/wm.h"
 #include "window_manager/wm_device.h"
 #include "window_manager/wm_error.h"
 #include "window_manager/wm_window.h"
@@ -174,115 +176,121 @@ error:
 }
 
 static enum app_error
-shutdown_window_manager(struct app* app)
+shutdown_window_manager(struct window_manager* wm, struct sl_logger* logger)
 {
   enum app_error app_err = APP_NO_ERROR;
   enum wm_error wm_err = WM_NO_ERROR;
-  assert(app != NULL);
+  assert(wm != NULL);
 
-  if(app->wm) {
-    if(app->window) {
-      wm_err = wm_free_window(app->wm, app->window);
+  if(wm->device) {
+    if(wm->window) {
+      wm_err = wm_free_window(wm->device, wm->window);
       if(wm_err != WM_NO_ERROR) {
         app_err = wm_to_app_error(wm_err);
         goto error;
       }
-      app->window = NULL;
+      wm->window = NULL;
     }
-    wm_err = wm_free_device(app->wm);
+    wm_err = wm_free_device(wm->device);
     if(wm_err != WM_NO_ERROR) {
       app_err = wm_to_app_error(wm_err);
       goto error;
     }
-    app->wm = NULL;
+    wm->device = NULL;
 
-    if(MEM_ALLOCATED_SIZE(&app->wm_allocator)) {
+    if(MEM_ALLOCATED_SIZE(&wm->allocator)) {
       char dump[BUFSIZ];
-      MEM_DUMP(&app->wm_allocator, dump, BUFSIZ);
-      APP_LOG_MSG(app, "Window manager leaks summary:\n%s\n", dump);
+      MEM_DUMP(&wm->allocator, dump, BUFSIZ);
+      if(logger)
+        APP_LOG_MSG(logger, "Window manager leaks summary:\n%s\n", dump);
     }
-    mem_shutdown_proxy_allocator(&app->wm_allocator);
+    mem_shutdown_proxy_allocator(&wm->allocator);
   }
 
 exit:
   return app_err;
-
 error:
   goto exit;
 }
 
 static enum app_error
-shutdown_renderer(struct app* app)
+shutdown_renderer(struct renderer* rdr, struct sl_logger* logger)
 {
   enum app_error app_err = APP_NO_ERROR;
   enum rdr_error rdr_err = RDR_NO_ERROR;
-  assert(app != NULL);
+  assert(rdr != NULL);
 
-  if(app->rdr) {
-    if(app->default_render_material) {
-      rdr_err = rdr_material_ref_put(app->default_render_material);
-      if(rdr_err != RDR_NO_ERROR) {
-        app_err = rdr_to_app_error(rdr_err);
-        goto error;
-      }
-      app->default_render_material = NULL;
-    }
-    rdr_err = rdr_system_ref_put(app->rdr);
+  if(rdr->default_material) {
+    rdr_err = rdr_material_ref_put(rdr->default_material);
     if(rdr_err != RDR_NO_ERROR) {
       app_err = rdr_to_app_error(rdr_err);
       goto error;
     }
-    app->rdr = NULL;
-
-    if(MEM_ALLOCATED_SIZE(&app->rdr_allocator)) {
-      char dump[BUFSIZ];
-      MEM_DUMP(&app->rdr_allocator, dump, BUFSIZ);
-      APP_LOG_MSG(app, "Renderer leaks summary:\n%s\n", dump);
-    }
-    mem_shutdown_proxy_allocator(&app->rdr_allocator);
+    rdr->default_material = NULL;
   }
+  if(rdr->frame) {
+    rdr_err = rdr_frame_ref_put(rdr->frame);
+    if(rdr_err != RDR_NO_ERROR) {
+      app_err = rdr_to_app_error(rdr_err);
+      goto error;
+    }
+    rdr->frame = NULL;
+  }
+  if(rdr->system) {
+    rdr_err = rdr_system_ref_put(rdr->system);
+    if(rdr_err != RDR_NO_ERROR) {
+      app_err = rdr_to_app_error(rdr_err);
+      goto error;
+    }
+    rdr->system = NULL;
+  }
+  if(MEM_ALLOCATED_SIZE(&rdr->allocator)) {
+    char dump[BUFSIZ];
+    MEM_DUMP(&rdr->allocator, dump, BUFSIZ);
+    if(logger)
+      APP_LOG_MSG(logger, "Renderer leaks summary:\n%s\n", dump);
+  }
+  mem_shutdown_proxy_allocator(&rdr->allocator);
 
 exit:
   return app_err;
-
 error:
   goto exit;
 }
 
 static enum app_error
-shutdown_resources(struct app* app)
+shutdown_resources(struct resources* rsrc, struct sl_logger* logger)
 {
   enum app_error app_err = APP_NO_ERROR;
   enum rsrc_error rsrc_err = RSRC_NO_ERROR;
-  assert(app != NULL);
+  assert(rsrc != NULL);
 
-  if(app->rsrc) {
-    if(app->wavefront_obj) {
-      rsrc_err = rsrc_free_wavefront_obj(app->wavefront_obj);
-      if(rsrc_err != RSRC_NO_ERROR) {
-        app_err = rsrc_to_app_error(app_err);
-        goto error;
-      }
-      app->wavefront_obj = NULL;
-    }
-    rsrc_err = rsrc_context_ref_put(app->rsrc);
+  if(rsrc->wavefront_obj) {
+    rsrc_err = rsrc_free_wavefront_obj(rsrc->wavefront_obj);
     if(rsrc_err != RSRC_NO_ERROR) {
       app_err = rsrc_to_app_error(app_err);
       goto error;
     }
-    app->rsrc = NULL;
-
-    if(MEM_ALLOCATED_SIZE(&app->rsrc_allocator)) {
-      char dump[BUFSIZ];
-      MEM_DUMP(&app->rsrc_allocator, dump, BUFSIZ);
-      APP_LOG_MSG(app, "Resource leaks summary:\n%s\n", dump);
-    }
-    mem_shutdown_proxy_allocator(&app->rsrc_allocator);
+    rsrc->wavefront_obj = NULL;
   }
+  if(rsrc->context) {
+    rsrc_err = rsrc_context_ref_put(rsrc->context);
+    if(rsrc_err != RSRC_NO_ERROR) {
+      app_err = rsrc_to_app_error(app_err);
+      goto error;
+    }
+    rsrc->context = NULL;
+  }
+  if(MEM_ALLOCATED_SIZE(&rsrc->allocator)) {
+    char dump[BUFSIZ];
+    MEM_DUMP(&rsrc->allocator, dump, BUFSIZ);
+    if(logger)
+      APP_LOG_MSG(logger, "Resource leaks summary:\n%s\n", dump);
+  }
+  mem_shutdown_proxy_allocator(&rsrc->allocator);
 
 exit:
   return app_err;
-
 error:
   goto exit;
 }
@@ -378,20 +386,19 @@ shutdown(struct app* app)
     app_err = shutdown_common(app);
     if(app_err != APP_NO_ERROR)
       goto error;
-    app_err = shutdown_resources(app);
+    app_err = shutdown_resources(&app->rsrc, app->logger);
     if(app_err != APP_NO_ERROR)
       goto error;
-    app_err = shutdown_renderer(app);
+    app_err = shutdown_renderer(&app->rdr, app->logger);
     if(app_err != APP_NO_ERROR)
       goto error;
-    app_err = shutdown_window_manager(app);
+    app_err = shutdown_window_manager(&app->wm, app->logger);
     if(app_err != APP_NO_ERROR)
       goto error;
     app_err = shutdown_sys(app);
     if(app_err != APP_NO_ERROR)
       goto error;
   }
-
 exit:
   return app_err;
 
@@ -400,7 +407,7 @@ error:
 }
 
 static enum app_error
-init_window_manager(struct app* app)
+init_window_manager(struct window_manager* wm)
 {
   const struct wm_window_desc win_desc = {
     .width = 800,
@@ -410,16 +417,16 @@ init_window_manager(struct app* app)
   enum app_error app_err = APP_NO_ERROR;
   enum app_error tmp_err = APP_NO_ERROR;
   enum wm_error wm_err = WM_NO_ERROR;
-  assert(app != NULL);
+  assert(wm != NULL);
 
   mem_init_proxy_allocator
-    ("window manager:", &app->wm_allocator, &mem_default_allocator);
-  wm_err = wm_create_device(&app->wm_allocator, &app->wm);
+    ("window manager:", &wm->allocator, &mem_default_allocator);
+  wm_err = wm_create_device(&wm->allocator, &wm->device);
   if(wm_err != WM_NO_ERROR) {
     app_err = wm_to_app_error(wm_err);
     goto error;
   }
-  wm_err = wm_create_window(app->wm, &win_desc, &app->window);
+  wm_err = wm_create_window(wm->device, &win_desc, &wm->window);
   if(wm_err != WM_NO_ERROR) {
     app_err = wm_to_app_error(wm_err);
     goto error;
@@ -427,40 +434,52 @@ init_window_manager(struct app* app)
 
 exit:
   return app_err;
-
 error:
-  tmp_err = shutdown_window_manager(app);
+  tmp_err = shutdown_window_manager(wm, NULL);
   assert(tmp_err == APP_NO_ERROR);
   goto exit;
 }
 
 static enum app_error
-init_renderer(struct app* app, const char* driver)
+init_renderer
+  (struct renderer* rdr,
+   const char* driver,
+   struct sl_logger* logger)
 {
   enum app_error app_err = APP_NO_ERROR;
   enum app_error tmp_err = APP_NO_ERROR;
   enum rdr_error rdr_err = RDR_NO_ERROR;
-  assert(app != NULL);
+  assert(rdr != NULL && logger != NULL);
 
   mem_init_proxy_allocator
-    ("renderer", &app->rdr_allocator, &mem_default_allocator);
-  rdr_err = rdr_create_system(driver, &app->rdr_allocator, &app->rdr);
+    ("renderer", &rdr->allocator, &mem_default_allocator);
+  rdr_err = rdr_create_system(driver, &rdr->allocator, &rdr->system);
   if(rdr_err != RDR_NO_ERROR) {
     app_err = rdr_to_app_error(rdr_err);
     goto error;
   }
-  rdr_err = rdr_create_material(app->rdr, &app->default_render_material);
+  rdr_err = rdr_create_frame(rdr->system, &rdr->frame);
+  if(rdr_err != RDR_NO_ERROR) {
+    app_err = rdr_to_app_error(rdr_err);
+    goto error;
+  }
+  rdr_err = rdr_background_color(rdr->frame, (float[]){0.1f, 0.1f, 0.1f});
+  if(rdr_err != RDR_NO_ERROR) {
+    app_err = rdr_to_app_error(rdr_err);
+    goto error;
+  }
+  rdr_err = rdr_create_material(rdr->system, &rdr->default_material);
   if(rdr_err != RDR_NO_ERROR) {
     app_err = rdr_to_app_error(rdr_err);
     goto error;
   }
   rdr_err = rdr_material_program
-    (app->default_render_material, default_shader_sources);
+    (rdr->default_material, default_shader_sources);
   if(rdr_err != RDR_NO_ERROR) {
     const char* log = NULL;
-    RDR(get_material_log(app->default_render_material, &log));
+    RDR(get_material_log(rdr->default_material, &log));
     if(log  != NULL)
-      APP_LOG_ERR(app, "Default render material error: \n%s", log);
+      APP_LOG_ERR(logger, "Default render material error: \n%s", log);
 
     app_err = rdr_to_app_error(rdr_err);
     goto error;
@@ -468,29 +487,28 @@ init_renderer(struct app* app, const char* driver)
 
 exit:
   return app_err;
-
 error:
-  tmp_err = shutdown_renderer(app);
+  tmp_err = shutdown_renderer(rdr, NULL);
   assert(tmp_err == APP_NO_ERROR);
   goto exit;
 }
 
 static enum app_error
-init_resources(struct app* app)
+init_resources(struct resources* rsrc)
 {
   enum app_error app_err = APP_NO_ERROR;
   enum app_error tmp_err = APP_NO_ERROR;
   enum rsrc_error rsrc_err = RSRC_NO_ERROR;
-  assert(app != NULL);
+  assert(rsrc != NULL);
 
   mem_init_proxy_allocator
-    ("resources", &app->rsrc_allocator, &mem_default_allocator);
-  rsrc_err = rsrc_create_context(&app->rsrc_allocator, &app->rsrc);
+    ("resources", &rsrc->allocator, &mem_default_allocator);
+  rsrc_err = rsrc_create_context(&rsrc->allocator, &rsrc->context);
   if(rsrc_err != RSRC_NO_ERROR) {
     app_err = rsrc_to_app_error(app_err);
     goto error;
   }
-  rsrc_err = rsrc_create_wavefront_obj(app->rsrc, &app->wavefront_obj);
+  rsrc_err = rsrc_create_wavefront_obj(rsrc->context, &rsrc->wavefront_obj);
   if(rsrc_err != RSRC_NO_ERROR) {
     app_err = rsrc_to_app_error(app_err);
     goto error;
@@ -498,9 +516,8 @@ init_resources(struct app* app)
 
 exit:
   return app_err;
-
 error:
-  tmp_err = shutdown_resources(app);
+  tmp_err = shutdown_resources(rsrc, NULL);
   assert(tmp_err == APP_NO_ERROR);
   goto exit;
 }
@@ -608,19 +625,19 @@ init(struct app* app, const char* graphic_driver)
   if(app_err != APP_NO_ERROR)
     goto error;
 
-  app_err = init_window_manager(app);
+  app_err = init_window_manager(&app->wm);
   if(app_err !=  APP_NO_ERROR) {
-    APP_LOG_ERR(app, "Error in intializing the window manager\n");
+    APP_LOG_ERR(app->logger, "Error in intializing the window manager\n");
     goto error;
   }
-  app_err = init_renderer(app, graphic_driver);
+  app_err = init_renderer(&app->rdr, graphic_driver, app->logger);
   if(app_err != APP_NO_ERROR) {
-    APP_LOG_ERR(app, "Error in initializing the renderer\n");
+    APP_LOG_ERR(app->logger, "Error in initializing the renderer\n");
     goto error;
   }
-  app_err = init_resources(app);
+  app_err = init_resources(&app->rsrc);
   if(app_err != APP_NO_ERROR) {
-    APP_LOG_ERR(app, "Error in initializing the resource module\n");
+    APP_LOG_ERR(app->logger, "Error in initializing the resource module\n");
     goto error;
   }
   app_err = init_common(app);
@@ -734,21 +751,18 @@ EXPORT_SYM enum app_error
 app_run(struct app* app)
 {
   enum app_error app_err = APP_NO_ERROR;
-  enum wm_error wm_err = WM_NO_ERROR;
 
   if(!app) {
     app_err = APP_INVALID_ARGUMENT;
     goto error;
   }
+
   app_err = app_draw_world(app->world, app->view);
   if(app_err != APP_NO_ERROR)
     goto error;
 
-  wm_err = wm_swap(app->wm, app->window);
-  if(wm_err != WM_NO_ERROR) {
-    app_err = wm_to_app_error(wm_err);
-    goto error;
-  }
+  RDR(flush_frame(app->rdr.frame));
+  WM(swap(app->wm.device, app->wm.window));
 
 exit:
   return app_err;
@@ -762,7 +776,7 @@ app_get_window_manager_device(struct app* app, struct wm_device** out_wm)
 {
   if(!app || !out_wm)
     return APP_INVALID_ARGUMENT;
-  *out_wm = app->wm;
+  *out_wm = app->wm.device;
   return APP_NO_ERROR;
 }
 

@@ -29,6 +29,22 @@ enum rb_tex_format {
   RB_SRGBA
 };
 
+enum rb_tex_filter {
+  RB_MIN_POINT_MAG_POINT_MIP_POINT,
+  RB_MIN_LINEAR_MAG_POINT_MIP_POINT,
+  RB_MIN_POINT_MAG_LINEAR_MIP_POINT,
+  RB_MIN_LINEAR_MAG_LINEAR_MIP_POINT,
+  RB_MIN_POINT_MAG_POINT_MIP_LINEAR,
+  RB_MIN_LINEAR_MAG_POINT_MIP_LINEAR,
+  RB_MIN_POINT_MAG_LINEAR_MIP_LINEAR,
+  RB_MIN_LINEAR_MAG_LINEAR_MIP_LINEAR
+};
+
+enum rb_tex_address {
+  RB_ADDRESS_WRAP,
+  RB_ADDRESS_CLAMP
+};
+
 enum rb_buffer_target {
   RB_BIND_VERTEX_BUFFER,
   RB_BIND_INDEX_BUFFER
@@ -129,6 +145,7 @@ struct rb_context;
 struct rb_tex2d;
 struct rb_buffer;
 struct rb_vertex_array;
+struct rb_sampler;
 struct rb_shader;
 struct rb_program;
 struct rb_uniform;
@@ -141,6 +158,7 @@ struct rb_attrib;
  ******************************************************************************/
 struct rb_config {
   size_t max_tex_size;
+  size_t max_tex_max_anisotropy;
 };
 
 struct rb_tex2d_desc {
@@ -149,6 +167,17 @@ struct rb_tex2d_desc {
   int level;
   enum rb_tex_format format;
   int compress;
+};
+
+struct rb_sampler_desc {
+  enum rb_tex_filter filter;
+  enum rb_tex_address address_u;
+  enum rb_tex_address address_v;
+  enum rb_tex_address address_w;
+  float lod_bias;
+  float min_lod;
+  float max_lod;
+  unsigned int max_anisotropy;
 };
 
 struct rb_buffer_desc {

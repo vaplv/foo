@@ -23,6 +23,8 @@
   #define OGL(func) gl##func
 #endif
 
+#define RB_OGL3_MAX_TEXTURE_UNITS 16
+
 static inline enum rb_type
 ogl3_to_rb_type(GLenum attrib_type)
 {

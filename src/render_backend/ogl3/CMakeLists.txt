@@ -18,6 +18,7 @@ add_library(rbogl3 SHARED
   rb_ogl3_context.c
   rb_ogl3_miscellaneous.c
   rb_ogl3_program.c
+  rb_ogl3_sampler.c
   rb_ogl3_shader.c
   rb_ogl3_texture.c
   rb_ogl3_uniform.c

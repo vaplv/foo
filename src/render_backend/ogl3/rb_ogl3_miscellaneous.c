@@ -231,6 +231,9 @@ rb_get_config(struct rb_context* ctxt, struct rb_config* config)
   OGL(GetIntegerv(GL_MAX_TEXTURE_SIZE, &i));
   assert(i > 0);
   config->max_tex_size = i;
+  OGL(GetIntegerv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &i));
+  assert(i > 0);
+  config->max_tex_max_anisotropy = i;
   return 0;
 }
 

@@ -2,6 +2,7 @@
 #include "renderer/regular/rdr_error_c.h"
 #include "renderer/regular/rdr_model_instance_c.h"
 #include "renderer/regular/rdr_system_c.h"
+#include "renderer/regular/rdr_world_c.h"
 #include "renderer/rdr.h"
 #include "renderer/rdr_model_instance.h"
 #include "renderer/rdr_system.h"
@@ -19,7 +20,6 @@
 struct rdr_world {
   struct ref ref;
   struct rdr_system* sys;
-  float bkg_color[4];
   struct sl_set* model_instance_list;
 };
 
@@ -232,7 +232,12 @@ error:
   goto exit;
 }
 
-EXPORT_SYM enum rdr_error
+/*******************************************************************************
+ *
+ * Private draw function.
+ *
+ ******************************************************************************/
+enum rdr_error
 rdr_draw_world(struct rdr_world* world, const struct rdr_view* view)
 {
   const struct rb_depth_stencil_desc depth_stencil_desc = {
@@ -250,17 +255,6 @@ rdr_draw_world(struct rdr_world* world, const struct rdr_view* view)
 
   if(!world || !view) {
     rdr_err = RDR_INVALID_ARGUMENT;
-    goto error;
-  }
-
-  err = world->sys->rb.clear
-    (world->sys->ctxt,
-     RB_CLEAR_COLOR_BIT | RB_CLEAR_DEPTH_BIT | RB_CLEAR_STENCIL_BIT,
-     world->bkg_color,
-     1.f,
-     0);
-  if(err != 0) {
-    rdr_err = RDR_DRIVER_ERROR;
     goto error;
   }
 
@@ -296,14 +290,5 @@ exit:
   return rdr_err;
 error:
   goto exit;
-}
-
-EXPORT_SYM enum rdr_error
-rdr_background_color(struct rdr_world* world, const float rgb[3])
-{
-  if(!world || !rgb)
-    return RDR_INVALID_ARGUMENT;
-  memcpy(world->bkg_color, rgb, 3 * sizeof(float));
-  return RDR_NO_ERROR;
 }
 
