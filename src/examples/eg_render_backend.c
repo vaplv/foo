@@ -123,7 +123,7 @@ create_mesh
   const struct rb_buffer_desc vb_desc = {
     .size = sizeof(vertices),
     .target = RB_BIND_VERTEX_BUFFER,
-    .usage = RB_BUFFER_USAGE_IMMUTABLE
+    .usage = RB_USAGE_IMMUTABLE
   };
 
   /* Index buffer. */
@@ -138,7 +138,7 @@ create_mesh
   const struct rb_buffer_desc ib_desc = {
     .size = sizeof(indices),
     .target = RB_BIND_INDEX_BUFFER,
-    .usage = RB_BUFFER_USAGE_IMMUTABLE
+    .usage = RB_USAGE_IMMUTABLE
   };
 
   /* Vertex attrib. */

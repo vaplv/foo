@@ -300,7 +300,7 @@ rb_uniform_data(struct rb_uniform* uniform, int nb, const void* data)
   assert(uniform->set != NULL);
   OGL(UseProgram(uniform->program->name));
   uniform->set(uniform->location, nb, data);
-  OGL(UseProgram(uniform->ctxt->current_program));
+  OGL(UseProgram(uniform->ctxt->state_cache.current_program));
   return 0;
 }
 

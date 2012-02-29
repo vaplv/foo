@@ -50,10 +50,10 @@ enum rb_buffer_target {
   RB_BIND_INDEX_BUFFER
 };
 
-enum rb_buffer_usage {
-  RB_BUFFER_USAGE_DEFAULT,
-  RB_BUFFER_USAGE_IMMUTABLE,
-  RB_BUFFER_USAGE_DYNAMIC
+enum rb_usage {
+  RB_USAGE_DEFAULT,
+  RB_USAGE_IMMUTABLE,
+  RB_USAGE_DYNAMIC
 };
 
 enum rb_type {
@@ -161,14 +161,6 @@ struct rb_config {
   size_t max_tex_max_anisotropy;
 };
 
-struct rb_tex2d_desc {
-  int width;
-  int height;
-  int level;
-  enum rb_tex_format format;
-  int compress;
-};
-
 struct rb_sampler_desc {
   enum rb_tex_filter filter;
   enum rb_tex_address address_u;
@@ -181,9 +173,18 @@ struct rb_sampler_desc {
 };
 
 struct rb_buffer_desc {
-  int size;
+  size_t size;
   enum rb_buffer_target target;
-  enum rb_buffer_usage usage;
+  enum rb_usage usage;
+};
+
+struct rb_tex2d_desc {
+  unsigned int width;
+  unsigned int height;
+  unsigned int mip_count;
+  enum rb_tex_format format;
+  enum rb_usage usage;
+  int compress;
 };
 
 struct rb_buffer_attrib {

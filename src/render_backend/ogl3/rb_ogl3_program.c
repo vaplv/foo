@@ -147,7 +147,7 @@ rb_link_program(struct rb_program* program)
   if(!program->is_linked) {
     int log_length = 0;
 
-    if(program->ctxt->current_program == program->name)
+    if(program->ctxt->state_cache.current_program == program->name)
       rb_bind_program(program->ctxt, NULL);
 
     OGL(GetProgramiv(program->name, GL_INFO_LOG_LENGTH, &log_length));
@@ -190,8 +190,8 @@ rb_bind_program(struct rb_context* ctxt, struct rb_program* program)
   if(program && !program->is_linked)
     return -1;
 
-  ctxt->current_program = program ? program->name : 0;
-  OGL(UseProgram(ctxt->current_program));
+  ctxt->state_cache.current_program = program ? program->name : 0;
+  OGL(UseProgram(ctxt->state_cache.current_program));
   return 0;
 }
 

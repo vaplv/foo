@@ -221,12 +221,6 @@ main(int argc, char* argv[])
   }
   driver_name = argv[1];
 
-  if(rdr_create_system(driver_name, NULL, &sys) != RDR_NO_ERROR) {
-    fprintf(stderr, "Invalid render backend driver: %s\n",  driver_name);
-    goto error;
-  }
-  null_driver = is_driver_null(driver_name);
-
   wm_err = wm_create_device(NULL, &device);
   if(wm_err != WM_NO_ERROR) {
     fprintf(stderr, "Error creating the window manager device.\n");
@@ -238,6 +232,12 @@ main(int argc, char* argv[])
     fprintf(stderr, "Error spawning a window.\n");
     goto error;
   }
+
+  if(rdr_create_system(driver_name, NULL, &sys) != RDR_NO_ERROR) {
+    fprintf(stderr, "Invalid render backend driver: %s\n",  driver_name);
+    goto error;
+  }
+  null_driver = is_driver_null(driver_name);
 
   err = create_mesh(sys, &mesh);
   if(err != 0) {
@@ -304,6 +304,7 @@ main(int argc, char* argv[])
 
     compute_transform(M_DEG_TO_RAD(angle), 0.f, 0.f, -20.f, view.transform);
     RDR(frame_draw_world(frame, world, &view));
+    RDR(flush_frame(frame));
 
     if(wm_swap(device, window) != WM_NO_ERROR) {
       fprintf(stderr, "Error swaping the window.\n");

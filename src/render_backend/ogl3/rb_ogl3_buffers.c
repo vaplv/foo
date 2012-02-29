@@ -1,5 +1,5 @@
 #include "render_backend/ogl3/rb_ogl3.h"
-#include "render_backend/ogl3/rb_ogl3_buffer.h"
+#include "render_backend/ogl3/rb_ogl3_buffers.h"
 #include "render_backend/ogl3/rb_ogl3_context.h"
 #include "render_backend/rb.h"
 #include "sys/mem_allocator.h"
@@ -8,30 +8,45 @@
 #include <stdlib.h>
 #include <string.h>
 
-struct ogl3_buffer_target {
-  GLenum target;
-  enum rb_buffer_target binding;
-};
-
 /*******************************************************************************
  *
  * Helper functions.
  *
  ******************************************************************************/
-static FINLINE struct ogl3_buffer_target
-rb_to_ogl3_buffer_target(enum rb_buffer_target target)
+static FINLINE enum rb_ogl3_buffer_target
+public_to_private_rb_target(enum rb_buffer_target public_target) 
 {
-  struct ogl3_buffer_target ogl3_target;
-  memset(&ogl3_target, 0, sizeof(ogl3_target));
-
-  switch(target) {
+  enum rb_ogl3_buffer_target private_target = RB_OGL3_NB_BUFFER_TARGETS;
+  switch(public_target) {
     case RB_BIND_VERTEX_BUFFER:
-      ogl3_target.binding = RB_BIND_VERTEX_BUFFER;
-      ogl3_target.target = GL_ARRAY_BUFFER;
+      private_target = RB_OGL3_BIND_VERTEX_BUFFER;
       break;
     case RB_BIND_INDEX_BUFFER:
-      ogl3_target.binding = RB_BIND_INDEX_BUFFER;
-      ogl3_target.target = GL_ELEMENT_ARRAY_BUFFER;
+      private_target = RB_OGL3_BIND_INDEX_BUFFER;
+      break;
+    default:
+      assert(0);
+      break;
+  }
+  return private_target;
+}
+
+static FINLINE GLenum
+rb_to_ogl3_buffer_target(enum rb_ogl3_buffer_target target)
+{
+  GLenum ogl3_target = GL_NONE;
+  switch(target) {
+    case RB_OGL3_BIND_VERTEX_BUFFER:
+      ogl3_target = GL_ARRAY_BUFFER;
+      break;
+    case RB_OGL3_BIND_INDEX_BUFFER:
+      ogl3_target = GL_ELEMENT_ARRAY_BUFFER;
+      break;
+    case RB_OGL3_BIND_PIXEL_READBACK_BUFFER:
+      ogl3_target = GL_PIXEL_PACK_BUFFER;
+      break;
+    case RB_OGL3_BIND_PIXEL_DOWNLOAD_BUFFER:
+      ogl3_target = GL_PIXEL_UNPACK_BUFFER;
       break;
     default:
       assert(0);
@@ -41,18 +56,18 @@ rb_to_ogl3_buffer_target(enum rb_buffer_target target)
 }
 
 static FINLINE GLenum
-rb_to_ogl3_buffer_usage(enum rb_buffer_usage usage)
+rb_to_ogl3_usage(enum rb_usage usage)
 {
   GLenum ogl3_usage = GL_NONE;
 
   switch(usage) {
-    case RB_BUFFER_USAGE_DEFAULT:
+    case RB_USAGE_DEFAULT:
       ogl3_usage = GL_DYNAMIC_DRAW;
       break;
-    case RB_BUFFER_USAGE_IMMUTABLE:
+    case RB_USAGE_IMMUTABLE:
       ogl3_usage = GL_STATIC_DRAW;
       break;
-    case RB_BUFFER_USAGE_DYNAMIC:
+    case RB_USAGE_DYNAMIC:
       ogl3_usage = GL_STREAM_DRAW;
       break;
     default:
@@ -72,6 +87,9 @@ release_buffer(struct ref* ref)
   buffer = CONTAINER_OF(ref, struct rb_buffer, ref);
   ctxt = buffer->ctxt;
 
+  if(buffer->name == ctxt->state_cache.buffer_binding[buffer->binding])
+    OGL(BindBuffer(buffer->target, 0));
+ 
   OGL(DeleteBuffers(1, &buffer->name));
   MEM_FREE(ctxt->allocator, buffer);
   RB(context_ref_put(ctxt));
@@ -85,41 +103,16 @@ release_buffer(struct ref* ref)
 EXPORT_SYM int
 rb_create_buffer
   (struct rb_context* ctxt,
-   const struct rb_buffer_desc* desc,
+   const struct rb_buffer_desc* public_desc,
    const void* init_data,
    struct rb_buffer** out_buffer)
 {
-  struct ogl3_buffer_target ogl3_target;
-  struct rb_buffer* buffer = NULL;
-  GLsizei size = 0;
-
-  if(!ctxt
-  || !desc
-  || !out_buffer
-  || (desc->size < 0)
-  || (desc->size != (size = desc->size)))
-    return -1;
-
-  buffer = MEM_ALLOC(ctxt->allocator, sizeof(struct rb_buffer));
-  if(!buffer)
-    return -1;
-  ref_init(&buffer->ref);
-  RB(context_ref_get(ctxt));
-  buffer->ctxt = ctxt;
-
-  ogl3_target = rb_to_ogl3_buffer_target(desc->target);
-  buffer->target = ogl3_target.target;
-  buffer->usage = rb_to_ogl3_buffer_usage(desc->usage);
-  buffer->size = (GLsizei)desc->size;
-  buffer->binding = ogl3_target.binding;
-
-  OGL(GenBuffers(1, &buffer->name));
-  OGL(BindBuffer(buffer->target, buffer->name));
-  OGL(BufferData(buffer->target, buffer->size, init_data, buffer->usage));
-  OGL(BindBuffer(buffer->target, ctxt->buffer_binding[buffer->binding]));
-
-  *out_buffer = buffer;
-  return 0;
+  const struct rb_ogl3_buffer_desc private_desc = {
+    .size = public_desc->size,
+    .target = public_to_private_rb_target(public_desc->target),
+    .usage = public_desc->usage
+  };
+  return rb_ogl3_create_buffer(ctxt, &private_desc,init_data, out_buffer);
 }
 
 EXPORT_SYM int
@@ -141,16 +134,12 @@ rb_buffer_ref_put(struct rb_buffer* buffer)
 }
 
 EXPORT_SYM int
-rb_bind_buffer(struct rb_context* ctxt, struct rb_buffer* buffer)
+rb_bind_buffer
+  (struct rb_context* ctxt,
+   struct rb_buffer* buffer, 
+   enum rb_buffer_target target)
 {
-  const GLint name = buffer ? buffer->name : 0;
-
-  if(!ctxt)
-    return -1;
-
-  OGL(BindBuffer(buffer->target, name));
-  ctxt->buffer_binding[buffer->binding] = name;
-  return 0;
+  return rb_ogl3_bind_buffer(ctxt, buffer, public_to_private_rb_target(target));
 }
 
 EXPORT_SYM int
@@ -167,7 +156,6 @@ rb_buffer_data
   || (offset < 0)
   || (size < 0)
   || (size != 0 && !data)
-  || (buffer->usage == rb_to_ogl3_buffer_usage(RB_BUFFER_USAGE_IMMUTABLE))
   || (buffer->size < offset + size))
     return -1;
 
@@ -185,10 +173,84 @@ rb_buffer_data
   assert(mapped_mem != NULL);
   memcpy(mapped_mem, data, size);
   unmap = OGL(UnmapBuffer(buffer->target));
-  OGL(BindBuffer(buffer->target,buffer->ctxt->buffer_binding[buffer->binding]));
+  OGL(BindBuffer
+    (buffer->target, 
+     buffer->ctxt->state_cache.buffer_binding[buffer->binding]));
 
   /* unmap == GL_FALSE must be handled by the application. TODO return a real
    * error code to differentiate this case from the error. */
   return unmap == GL_TRUE ? 0 : -1;
 }
+
+/*******************************************************************************
+ *
+ * Private functions.
+ *
+ ******************************************************************************/
+int
+rb_ogl3_create_buffer
+  (struct rb_context* ctxt,
+   const struct rb_ogl3_buffer_desc* desc,
+   const void* init_data,
+   struct rb_buffer** out_buffer)
+{
+  struct rb_buffer* buffer = NULL;
+
+  if(!ctxt
+  || !desc
+  || !out_buffer
+  || (desc->target == RB_OGL3_NB_BUFFER_TARGETS))
+    return -1;
+
+  buffer = MEM_ALLOC(ctxt->allocator, sizeof(struct rb_buffer));
+  if(!buffer)
+    return -1;
+  ref_init(&buffer->ref);
+  RB(context_ref_get(ctxt));
+  buffer->ctxt = ctxt;
+
+  buffer->target = rb_to_ogl3_buffer_target(desc->target);
+  buffer->usage = rb_to_ogl3_usage(desc->usage);
+  buffer->size = (GLsizei)desc->size;
+  buffer->binding = desc->target;
+
+  OGL(GenBuffers(1, &buffer->name));
+  OGL(BindBuffer(buffer->target, buffer->name));
+  OGL(BufferData(buffer->target, buffer->size, init_data, buffer->usage));
+  OGL(BindBuffer
+    (buffer->target, 
+     ctxt->state_cache.buffer_binding[buffer->binding]));
+
+  *out_buffer = buffer;
+  return 0;
+}
+
+int
+rb_ogl3_bind_buffer
+  (struct rb_context* ctxt,
+   struct rb_buffer* buffer,
+   enum rb_ogl3_buffer_target target)
+{
+  GLenum current_name = 0;
+  GLenum name = 0;
+  int err = 0;
+
+  if(!ctxt || (buffer && (buffer->binding != target)))
+    goto error;
+
+  current_name = ctxt->state_cache.buffer_binding[target];
+  name = buffer ? buffer->name : 0;
+
+  if(current_name != name) {
+    OGL(BindBuffer(rb_to_ogl3_buffer_target(target), name));
+    ctxt->state_cache.buffer_binding[target] = name;
+  }
+
+exit:
+  return err;
+error:
+  err = -1;
+  goto exit;
+}
+
 

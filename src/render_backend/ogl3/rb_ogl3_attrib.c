@@ -273,7 +273,7 @@ rb_attrib_data(struct rb_attrib* attr, const void* data)
   assert(attr->set != NULL);
   OGL(UseProgram(attr->program->name));
   attr->set(attr->index, data);
-  OGL(UseProgram(attr->ctxt->current_program));
+  OGL(UseProgram(attr->ctxt->state_cache.current_program));
   return 0;
 }
 

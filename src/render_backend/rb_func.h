@@ -31,13 +31,16 @@ RB_FUNC(
   int,
   bind_tex2d,
     struct rb_context* ctxt,
-    struct rb_tex2d* tex /* May be NULL. */
+    struct rb_tex2d* tex, /* May be NULL. */
+    unsigned int tex_unit
 )
 
 RB_FUNC(
   int,
   create_tex2d,
     struct rb_context* ctxt,
+    const struct rb_tex2d_desc* desc,
+    const void* init_data[],
     struct rb_tex2d** out_ctxt
 )
 
@@ -57,8 +60,8 @@ RB_FUNC(
   int,
   tex2d_data,
     struct rb_tex2d* tex,
-    const struct rb_tex2d_desc* desc,
-    void* data
+    unsigned int mip_level,
+    const void* data
 )
 
 /*******************************************************************************
@@ -110,7 +113,8 @@ RB_FUNC(
   int,
   bind_buffer,
     struct rb_context* ctxt,
-    struct rb_buffer* buf /* May be NULL. */
+    struct rb_buffer* buf, /* May be NULL. */
+    enum rb_buffer_target target /* Must be the same of the target of buf. */
 )
 
 RB_FUNC(

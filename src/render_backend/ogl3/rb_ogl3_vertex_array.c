@@ -1,5 +1,5 @@
 #include "render_backend/ogl3/rb_ogl3.h"
-#include "render_backend/ogl3/rb_ogl3_buffer.h"
+#include "render_backend/ogl3/rb_ogl3_buffers.h"
 #include "render_backend/ogl3/rb_ogl3_context.h"
 #include "render_backend/rb.h"
 #include "sys/mem_allocator.h"
@@ -101,8 +101,8 @@ rb_bind_vertex_array(struct rb_context* ctxt, struct rb_vertex_array* array)
 {
   if(!ctxt)
     return -1;
-  ctxt->vertex_array_binding = array ? array->name : 0;
-  OGL(BindVertexArray(ctxt->vertex_array_binding));
+  ctxt->state_cache.vertex_array_binding = array ? array->name : 0;
+  OGL(BindVertexArray(ctxt->state_cache.vertex_array_binding));
   return 0;
 }
 
@@ -131,7 +131,8 @@ rb_vertex_attrib_array
 
     if(attrib[i].type == RB_UNKNOWN_TYPE) {
       OGL(BindBuffer
-        (buffer->target, array->ctxt->buffer_binding[buffer->binding]));
+        (buffer->target, 
+         array->ctxt->state_cache.buffer_binding[buffer->binding]));
       goto error;
     }
 
@@ -146,8 +147,9 @@ rb_vertex_attrib_array
          (void*)offset));
   }
 
-  OGL(BindVertexArray(array->ctxt->vertex_array_binding));
-  OGL(BindBuffer(buffer->target, array->ctxt->buffer_binding[buffer->binding]));
+  OGL(BindVertexArray(array->ctxt->state_cache.vertex_array_binding));
+  OGL(BindBuffer
+    (buffer->target, array->ctxt->state_cache.buffer_binding[buffer->binding]));
 
 exit:
   return err;
@@ -180,7 +182,7 @@ rb_remove_vertex_attrib
       OGL(DisableVertexAttribArray(current_attrib));
     }
   }
-  OGL(BindVertexArray(array->ctxt->vertex_array_binding));
+  OGL(BindVertexArray(array->ctxt->state_cache.vertex_array_binding));
 
   return err;
 }
@@ -193,10 +195,10 @@ rb_vertex_index_array(struct rb_vertex_array* array, struct rb_buffer* buffer)
 
   OGL(BindVertexArray(array->name));
   OGL(BindBuffer(GL_ELEMENT_ARRAY_BUFFER, buffer ? buffer->name : 0));
-  OGL(BindVertexArray(array->ctxt->vertex_array_binding));
+  OGL(BindVertexArray(array->ctxt->state_cache.vertex_array_binding));
   OGL(BindBuffer
     (GL_ELEMENT_ARRAY_BUFFER,
-     array->ctxt->buffer_binding[RB_BIND_INDEX_BUFFER]));
+     array->ctxt->state_cache.buffer_binding[RB_OGL3_BIND_INDEX_BUFFER]));
 
   return 0;
 }

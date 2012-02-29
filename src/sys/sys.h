@@ -8,6 +8,12 @@
   #error "Unsupported compiler."
 #endif
 
+#define MAX(a, b) \
+  ((a) > (b) ? (a) : (b))
+
+#define MIN(a, b) \
+  ((a) < (b) ? (a) : (b))
+
 #define EXPORT_SYM \
   __attribute__((visibility("default")))
 

@@ -300,16 +300,14 @@ Bpp_to_rb_tex_format(size_t Bpp)
 static void
 reset_font(struct rdr_font* font)
 {
-  int rb_err = 0;
   assert(font);
 
   SL(hash_table_clear(font->glyph_htbl));
 
-  rb_err = font->sys->rb.tex2d_data
-    (font->cache_tex,
-     (struct rb_tex2d_desc[]){{0, 0, 0, RB_R, 0}},
-     NULL);
-  assert(rb_err == 0);
+  if(font->cache_tex) {
+    RBI(font->sys->rb, tex2d_ref_put(font->cache_tex));
+    font->cache_tex = NULL;
+  }
 
   if(font->cache_img.buffer)
     MEM_FREE(font->sys->allocator, font->cache_img.buffer);
@@ -352,7 +350,6 @@ rdr_create_font(struct rdr_system* sys, struct rdr_font** out_font)
   struct rdr_font* font = NULL;
   enum rdr_error rdr_err = RDR_NO_ERROR;
   enum sl_error sl_err = SL_NO_ERROR;
-  int rb_err = 0;
 
   if(!sys || !out_font) {
     rdr_err = RDR_INVALID_ARGUMENT;
@@ -379,9 +376,6 @@ rdr_create_font(struct rdr_system* sys, struct rdr_font** out_font)
     rdr_err = sl_to_rdr_error(sl_err);
     goto error;
   }
-
-  rb_err = sys->rb.create_tex2d(sys->ctxt, &font->cache_tex);
-  assert(rb_err == 0);
 
 exit:
   if(out_font)
@@ -428,7 +422,6 @@ rdr_font_data
   size_t cache_width = 0;
   size_t cache_height = 0;
   enum rdr_error rdr_err = RDR_NO_ERROR;
-  int rb_err = 0;
   memset(&tex2d_desc, 0, sizeof(tex2d_desc));
 
   if(!font || (nb_glyphs && !glyph_list)) {
@@ -550,14 +543,15 @@ rdr_font_data
   /* Setup the cache texture. */
   tex2d_desc.width = cache_width;
   tex2d_desc.height = cache_height;
-  tex2d_desc.level = 0;
+  tex2d_desc.mip_count = 1;
   tex2d_desc.format = Bpp_to_rb_tex_format(Bpp);
+  tex2d_desc.usage = RB_USAGE_IMMUTABLE;
   tex2d_desc.compress = 0;
-  rb_err = font->sys->rb.tex2d_data
-    (font->cache_tex,
-     &tex2d_desc,
-     (void*)font->cache_img.buffer);
-  assert(0 == rb_err);
+  RBI(font->sys->rb, create_tex2d
+    (font->sys->ctxt, 
+     &tex2d_desc, 
+     (const void**)&font->cache_img.buffer, 
+     &font->cache_tex));
 
 exit:
   if(root)

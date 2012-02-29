@@ -220,8 +220,8 @@ rb_bind_sampler
   if(!ctxt || tex_unit > RB_OGL3_MAX_TEXTURE_UNITS)
     goto error;
 
-  ctxt->sampler_binding[tex_unit] = sampler ? sampler->name : 0;
-  OGL(BindSampler(tex_unit, ctxt->sampler_binding[tex_unit]));
+  ctxt->state_cache.sampler_binding[tex_unit] = sampler ? sampler->name : 0;
+  OGL(BindSampler(tex_unit, ctxt->state_cache.sampler_binding[tex_unit]));
 
 exit:
   return err;

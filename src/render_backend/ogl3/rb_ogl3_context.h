@@ -10,11 +10,14 @@ struct mem_allocator;
 struct rb_context {
   struct ref ref;
   struct mem_allocator* allocator;
-  GLuint current_program;
-  GLuint buffer_binding[2];
-  GLuint sampler_binding[RB_OGL3_MAX_TEXTURE_UNITS];
-  GLuint texture_binding_2d;
-  GLuint vertex_array_binding;
+  struct state_cache {
+    GLuint buffer_binding[RB_OGL3_NB_BUFFER_TARGETS];
+    GLuint current_program;
+    GLuint sampler_binding[RB_OGL3_MAX_TEXTURE_UNITS];
+    GLuint texture_binding_2d[RB_OGL3_MAX_TEXTURE_UNITS];
+    GLuint vertex_array_binding;
+    GLenum active_texture;
+  } state_cache;
 };
 
 #endif /* RB_OGL3_CONTEXT_H */

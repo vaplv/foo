@@ -19,6 +19,7 @@
 #define VERTICES_PER_GLYPH 4
 #define INDICES_PER_GLYPH 6
 #define SIZEOF_GLYPH_VERTEX (3/*pos*/ + 2/*tex*/ + 3/*col*/) * sizeof(float)
+#define GLYPH_CACHE_TEX_UNIT 0
 #define POS_ATTRIB_ID 0
 #define TEX_ATTRIB_ID 1
 #define COL_ATTRIB_ID 2
@@ -49,6 +50,7 @@ struct printer {
   struct rb_shader* fragment_shader;
   struct rb_program* shading_program;
   struct rb_sampler* sampler;
+  struct rb_uniform* sampler_uniform;
   struct rdr_font* font;
   size_t max_nb_glyphs;
   size_t nb_glyphs;
@@ -349,7 +351,7 @@ printer_storage
      * by the draw function with respect to the printed terminal lines. */
     buffer_desc.size = vertex_bufsiz;
     buffer_desc.target = RB_BIND_VERTEX_BUFFER;
-    buffer_desc.usage = RB_BUFFER_USAGE_DYNAMIC;
+    buffer_desc.usage = RB_USAGE_DYNAMIC;
     RBI(sys->rb, create_buffer
       (sys->ctxt, &buffer_desc,NULL, &printer->glyph_vertex_buffer));
 
@@ -357,7 +359,7 @@ printer_storage
      * the ordered glyphs of the vertex buffer. */
     buffer_desc.size = index_bufsiz;
     buffer_desc.target = RB_BIND_INDEX_BUFFER;
-    buffer_desc.usage = RB_BUFFER_USAGE_IMMUTABLE;
+    buffer_desc.usage = RB_USAGE_IMMUTABLE;
     for(i = 0; i < nb_glyphs * INDICES_PER_GLYPH; i += INDICES_PER_GLYPH) {
       const unsigned int indices[INDICES_PER_GLYPH] = {
         0+i, 1+i, 3+i, 3+i, 1+i, 2+i
@@ -397,15 +399,17 @@ printer_data
 static void
 printer_draw(struct rdr_system* sys, struct printer* printer)
 {
-  struct rb_tex2d* tex = NULL;
+  struct rb_tex2d* glyph_cache = NULL;
   struct rb_context* ctxt = NULL;
   assert(sys && printer);
 
   ctxt = sys->ctxt;
-  RDR(get_font_texture(printer->font, &tex));
+  RDR(get_font_texture(printer->font, &glyph_cache));
 
-  RBI(sys->rb, bind_tex2d(ctxt, tex));
-  RBI(sys->rb, bind_sampler(ctxt, printer->sampler, 0));
+  RBI(sys->rb, bind_tex2d(ctxt, glyph_cache, GLYPH_CACHE_TEX_UNIT));
+  RBI(sys->rb, bind_sampler(ctxt, printer->sampler, GLYPH_CACHE_TEX_UNIT));
+  RBI(sys->rb, uniform_data
+    (printer->sampler_uniform, 1, (void*)(int[]){GLYPH_CACHE_TEX_UNIT}));
   RBI(sys->rb, bind_program(ctxt, printer->shading_program));
   RBI(sys->rb, bind_vertex_array(ctxt, printer->varray));
   RBI(sys->rb, draw_indexed
@@ -455,6 +459,8 @@ shutdown_printer(struct rdr_system* sys, struct printer* printer)
 
   if(printer->sampler)
     RBI(sys->rb, sampler_ref_put(printer->sampler));
+  if(printer->sampler_uniform)
+    RBI(sys->rb, uniform_ref_put(printer->sampler_uniform));
 
   if(printer->font)
     RDR(font_ref_put(printer->font));
@@ -516,6 +522,9 @@ init_printer(struct rdr_system* sys, struct printer* printer)
   RBI(sys->rb, attach_shader
     (printer->shading_program, printer->fragment_shader));
   RBI(sys->rb, link_program(printer->shading_program));
+
+  RBI(sys->rb, get_named_uniform
+    (ctxt, printer->shading_program, "glyph_cache", &printer->sampler_uniform));
 
   return RDR_NO_ERROR;
 }
@@ -827,6 +836,9 @@ error:
   goto exit;
 }
 
+#undef GLYPH_CACHE_TEX_UNIT
+#undef VERTICES_PER_GLYPH
+#undef INDICES_PER_GLYPH
 #undef SIZEOF_GLYPH_VERTEX
 #undef POS_ATTRIB_ID
 #undef TEX_ATTRIB_ID

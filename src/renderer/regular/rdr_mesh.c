@@ -79,7 +79,7 @@ set_mesh_data(struct rdr_mesh* mesh, size_t data_size, const void* data)
       const struct rb_buffer_desc desc = {
         .size = data_size,
         .target = RB_BIND_VERTEX_BUFFER,
-        .usage = RB_BUFFER_USAGE_DEFAULT
+        .usage = RB_USAGE_DEFAULT
       };
       err = mesh->sys->rb.create_buffer
         (mesh->sys->ctxt, &desc, data, &mesh->data);
@@ -130,7 +130,7 @@ set_mesh_indices
       const struct rb_buffer_desc desc = {
         .size = indices_size,
         .target = RB_BIND_INDEX_BUFFER,
-        .usage = RB_BUFFER_USAGE_DEFAULT
+        .usage = RB_USAGE_DEFAULT
       };
       err = mesh->sys->rb.create_buffer
         (mesh->sys->ctxt, &desc, indices, &mesh->indices);
