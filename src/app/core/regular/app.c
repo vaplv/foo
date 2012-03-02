@@ -182,22 +182,23 @@ shutdown_window_manager(struct window_manager* wm, struct sl_logger* logger)
   enum wm_error wm_err = WM_NO_ERROR;
   assert(wm != NULL);
 
-  if(wm->device) {
-    if(wm->window) {
-      wm_err = wm_free_window(wm->device, wm->window);
-      if(wm_err != WM_NO_ERROR) {
-        app_err = wm_to_app_error(wm_err);
-        goto error;
-      }
-      wm->window = NULL;
+  if(wm->window) {
+    wm_err = wm_window_ref_put(wm->window);
+    if(wm_err != WM_NO_ERROR) {
+      app_err = wm_to_app_error(wm_err);
+      goto error;
     }
-    wm_err = wm_free_device(wm->device);
+    wm->window = NULL;
+  }
+  if(wm->device) {
+    wm_err = wm_device_ref_put(wm->device);
     if(wm_err != WM_NO_ERROR) {
       app_err = wm_to_app_error(wm_err);
       goto error;
     }
     wm->device = NULL;
-
+  }
+  if(MEM_IS_ALLOCATOR_VALID(&wm->allocator)) {
     if(MEM_ALLOCATED_SIZE(&wm->allocator)) {
       char dump[BUFSIZ];
       MEM_DUMP(&wm->allocator, dump, BUFSIZ);
@@ -205,6 +206,7 @@ shutdown_window_manager(struct window_manager* wm, struct sl_logger* logger)
         APP_LOG_MSG(logger, "Window manager leaks summary:\n%s\n", dump);
     }
     mem_shutdown_proxy_allocator(&wm->allocator);
+    memset(&wm->allocator, 0, sizeof(struct mem_allocator));
   }
 
 exit:
@@ -244,13 +246,16 @@ shutdown_renderer(struct renderer* rdr, struct sl_logger* logger)
     }
     rdr->system = NULL;
   }
-  if(MEM_ALLOCATED_SIZE(&rdr->allocator)) {
-    char dump[BUFSIZ];
-    MEM_DUMP(&rdr->allocator, dump, BUFSIZ);
-    if(logger)
-      APP_LOG_MSG(logger, "Renderer leaks summary:\n%s\n", dump);
+  if(MEM_IS_ALLOCATOR_VALID(&rdr->allocator)) {
+    if(MEM_ALLOCATED_SIZE(&rdr->allocator)) {
+      char dump[BUFSIZ];
+      MEM_DUMP(&rdr->allocator, dump, BUFSIZ);
+      if(logger)
+        APP_LOG_MSG(logger, "Renderer leaks summary:\n%s\n", dump);
+    }
+    mem_shutdown_proxy_allocator(&rdr->allocator);
+    memset(&rdr->allocator, 0, sizeof(struct mem_allocator));
   }
-  mem_shutdown_proxy_allocator(&rdr->allocator);
 
 exit:
   return app_err;
@@ -266,7 +271,7 @@ shutdown_resources(struct resources* rsrc, struct sl_logger* logger)
   assert(rsrc != NULL);
 
   if(rsrc->wavefront_obj) {
-    rsrc_err = rsrc_free_wavefront_obj(rsrc->wavefront_obj);
+    rsrc_err = rsrc_wavefront_obj_ref_put(rsrc->wavefront_obj);
     if(rsrc_err != RSRC_NO_ERROR) {
       app_err = rsrc_to_app_error(app_err);
       goto error;
@@ -281,13 +286,16 @@ shutdown_resources(struct resources* rsrc, struct sl_logger* logger)
     }
     rsrc->context = NULL;
   }
-  if(MEM_ALLOCATED_SIZE(&rsrc->allocator)) {
-    char dump[BUFSIZ];
-    MEM_DUMP(&rsrc->allocator, dump, BUFSIZ);
-    if(logger)
-      APP_LOG_MSG(logger, "Resource leaks summary:\n%s\n", dump);
+  if(MEM_IS_ALLOCATOR_VALID(&rsrc->allocator)) {
+    if(MEM_ALLOCATED_SIZE(&rsrc->allocator)) {
+      char dump[BUFSIZ];
+      MEM_DUMP(&rsrc->allocator, dump, BUFSIZ);
+      if(logger)
+        APP_LOG_MSG(logger, "Resource leaks summary:\n%s\n", dump);
+    }
+    mem_shutdown_proxy_allocator(&rsrc->allocator);
+    memset(&rsrc->allocator, 0, sizeof(struct mem_allocator));
   }
-  mem_shutdown_proxy_allocator(&rsrc->allocator);
 
 exit:
   return app_err;
@@ -762,7 +770,7 @@ app_run(struct app* app)
     goto error;
 
   RDR(flush_frame(app->rdr.frame));
-  WM(swap(app->wm.device, app->wm.window));
+  WM(swap(app->wm.window));
 
 exit:
   return app_err;

@@ -7,6 +7,7 @@
 #include "stdlib/sl_hash_table.h"
 #include "stdlib/sl_vector.h"
 #include "sys/mem_allocator.h"
+#include "sys/ref_count.h"
 #include "sys/sys.h"
 #include <assert.h>
 #include <limits.h>
@@ -21,6 +22,7 @@ struct primitive_set {
 };
 
 struct rsrc_geometry {
+  struct ref ref;
   struct rsrc_context* ctxt;
   struct sl_vector* primitive_set_list; /* vector of vector of primitive_set. */
   struct sl_hash_table* hash_table; /* Internal hash table. */
@@ -213,6 +215,27 @@ error:
   goto exit;
 }
 
+static void
+release_geometry(struct ref* ref)
+{
+  struct rsrc_context* ctxt = NULL;
+  struct rsrc_geometry* geom = NULL;
+  assert(ref);
+
+  geom = CONTAINER_OF(ref, struct rsrc_geometry, ref);
+  ctxt = geom->ctxt;
+
+  RSRC(clear_geometry(geom));
+
+  if(geom->primitive_set_list) 
+    SL(free_vector(geom->primitive_set_list));
+  if(geom->hash_table)
+    SL(free_hash_table(geom->hash_table));
+
+  MEM_FREE(ctxt->allocator, geom);
+  RSRC(context_ref_put(ctxt));
+}
+
 /*******************************************************************************
  *
  * Implementation of the primitive list functions.
@@ -236,6 +259,7 @@ rsrc_create_geometry
     err = RSRC_MEMORY_ERROR;
     goto error;
   }
+  ref_init(&geom->ref);
   geom->ctxt = ctxt;
   RSRC(context_ref_get(ctxt));
 
@@ -280,44 +304,21 @@ error:
 }
 
 EXPORT_SYM enum rsrc_error
-rsrc_free_geometry(struct rsrc_geometry* geom)
+rsrc_geometry_ref_get(struct rsrc_geometry* geom)
 {
-  struct rsrc_context* ctxt = NULL;
-  enum rsrc_error err = RSRC_NO_ERROR;
-  enum sl_error sl_err = SL_NO_ERROR;
+  if(!geom)
+    return RSRC_INVALID_ARGUMENT;
+  ref_get(&geom->ref);
+  return RSRC_NO_ERROR;
+}
 
-  if(!geom) {
-    err = RSRC_INVALID_ARGUMENT;
-    goto error;
-  }
-
-  err = rsrc_clear_geometry(geom);
-  if(err != RSRC_NO_ERROR)
-    goto error;
-
-  if(geom->primitive_set_list) {
-    sl_err = sl_free_vector(geom->primitive_set_list);
-    if(sl_err != SL_NO_ERROR) {
-      err = sl_to_rsrc_error(sl_err);
-      goto error;
-    }
-  }
-  if(geom->hash_table) {
-    sl_err = sl_free_hash_table(geom->hash_table);
-    if(sl_err != SL_NO_ERROR) {
-      err = sl_to_rsrc_error(sl_err);
-      goto error;
-    }
-  }
-  ctxt = geom->ctxt;
-  MEM_FREE(ctxt->allocator, geom);
-  RSRC(context_ref_put(ctxt));
-
-exit:
-  return err;
-
-error:
-  goto exit;
+EXPORT_SYM enum rsrc_error
+rsrc_geometry_ref_put(struct rsrc_geometry* geom)
+{
+  if(!geom)
+    return RSRC_INVALID_ARGUMENT;
+  ref_put(&geom->ref, release_geometry);
+  return RSRC_NO_ERROR;
 }
 
 EXPORT_SYM enum rsrc_error

@@ -23,7 +23,7 @@
   #define OGL(func) gl##func
 #endif
 
-#define RB_OGL3_MAX_TEXTURE_UNITS 16 /* OpenGL 3.2 spec. */
+#define RB_OGL3_MAX_TEXTURE_UNITS 16 /* OpenGL 3.3 spec. */
 
 enum rb_ogl3_buffer_target {
   RB_OGL3_BIND_VERTEX_BUFFER,

@@ -6,6 +6,7 @@
 #include "renderer/rdr_model_instance.h"
 #include "renderer/rdr_system.h"
 #include "renderer/rdr_world.h"
+#include "window_manager/wm.h"
 #include "window_manager/wm_device.h"
 #include "window_manager/wm_window.h"
 #include "sys/sys.h"
@@ -306,7 +307,7 @@ main(int argc, char* argv[])
     RDR(frame_draw_world(frame, world, &view));
     RDR(flush_frame(frame));
 
-    if(wm_swap(device, window) != WM_NO_ERROR) {
+    if(wm_swap(window) != WM_NO_ERROR) {
       fprintf(stderr, "Error swaping the window.\n");
       goto error;
     }
@@ -329,14 +330,10 @@ exit:
     RDR(material_ref_put(mtr));
   if(sys)
     RDR(system_ref_put(sys));
-  if(window) {
-    wm_err = wm_free_window(device, window);
-    assert(wm_err == WM_NO_ERROR);
-  }
-  if(device) {
-    wm_err = wm_free_device(device);
-    assert(wm_err == WM_NO_ERROR);
-  }
+  if(window)
+    WM(window_ref_put(window));
+  if(device)
+    WM(device_ref_put(device));
   return err;
 
 error:

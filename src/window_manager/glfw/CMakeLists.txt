@@ -13,7 +13,8 @@ endif()
 
 add_library(wmglfw SHARED 
   wm_glfw_device.c
+  wm_glfw_error.c
   wm_glfw_input.c
   wm_glfw_window.c)
 
-target_link_libraries(wmglfw glfw sys)
+target_link_libraries(wmglfw glfw sl sys)

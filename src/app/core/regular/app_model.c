@@ -186,7 +186,7 @@ release_model(struct ref* ref)
   if(model->path)
     SL(free_string(model->path));
   if(model->geometry)
-    RSRC(free_geometry(model->geometry));
+    RSRC(geometry_ref_put(model->geometry));
   if(model->mesh_list)
     SL(free_vector(model->mesh_list));
   if(model->material_list)

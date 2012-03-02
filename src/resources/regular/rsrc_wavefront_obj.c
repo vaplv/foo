@@ -1002,6 +1002,46 @@ error:
   goto exit;
 }
 
+static void
+release_wavefront_obj(struct ref* ref)
+{
+  struct rsrc_wavefront_obj* wobj = NULL;
+  struct rsrc_context* ctxt = NULL;
+  enum rsrc_error err = RSRC_NO_ERROR;
+
+  assert(NULL != ref);
+
+  wobj = CONTAINER_OF(ref, struct rsrc_wavefront_obj, ref);
+
+  err = clear_wavefront_obj(wobj);
+  assert(RSRC_NO_ERROR == err);
+
+  if(wobj->position_list)
+    SL(free_vector(wobj->position_list));
+  if(wobj->normal_list)
+    SL(free_vector(wobj->normal_list));
+  if(wobj->texcoord_list)
+    SL(free_vector(wobj->texcoord_list));
+  if(wobj->point_list)
+    SL(free_vector(wobj->point_list));
+  if(wobj->line_list)
+    SL(free_vector(wobj->line_list));
+  if(wobj->face_list)
+    SL(free_vector(wobj->face_list));
+  if(wobj->group_list)
+    SL(free_vector(wobj->group_list));
+  if(wobj->smooth_group_list)
+    SL(free_vector(wobj->smooth_group_list));
+  if(wobj->mtllib_list)
+    SL(free_vector(wobj->mtllib_list));
+  if(wobj->mtl_list)
+    SL(free_vector(wobj->mtl_list));
+
+  ctxt = wobj->ctxt;
+  MEM_FREE(ctxt->allocator, wobj);
+  RSRC(context_ref_put(ctxt));
+}
+
 /*******************************************************************************
  *
  * Implementation of the public functions of the wavefront obj data structure.
@@ -1028,6 +1068,7 @@ rsrc_create_wavefront_obj
   }
   wobj->ctxt = ctxt;
   RSRC(context_ref_get(ctxt));
+  ref_init(&wobj->ref);
 
   #define CREATE_VECTOR(v, t) \
     do { \
@@ -1059,8 +1100,7 @@ exit:
 
 error:
   if(wobj) {
-    err = rsrc_free_wavefront_obj(wobj);
-    assert(err == RSRC_NO_ERROR);
+    RSRC(wavefront_obj_ref_put(wobj));
     MEM_FREE(wobj->ctxt->allocator, wobj);
     wobj = NULL;
   }
@@ -1068,54 +1108,21 @@ error:
 }
 
 EXPORT_SYM enum rsrc_error
-rsrc_free_wavefront_obj(struct rsrc_wavefront_obj* wobj)
+rsrc_wavefront_obj_ref_get(struct rsrc_wavefront_obj* wobj)
 {
-  struct rsrc_context* ctxt = NULL;
-  enum rsrc_error err = RSRC_NO_ERROR;
-  enum sl_error sl_err = SL_NO_ERROR;
+  if(!wobj)
+    return RSRC_INVALID_ARGUMENT;
+  ref_get(&wobj->ref);
+  return RSRC_NO_ERROR;
+}
 
-  if(!wobj) {
-    err = RSRC_INVALID_ARGUMENT;
-    goto error;
-  }
-
-  err = clear_wavefront_obj(wobj);
-  if(err != RSRC_NO_ERROR)
-    goto error;
-
-  #define FREE_VECTOR(v) \
-    do { \
-      if(v) { \
-        sl_err = sl_free_vector(v); \
-        if(sl_err != SL_NO_ERROR) { \
-          err = sl_to_rsrc_error(sl_err); \
-          goto error; \
-        } \
-      } \
-    } while(0)
-
-  FREE_VECTOR(wobj->position_list);
-  FREE_VECTOR(wobj->normal_list);
-  FREE_VECTOR(wobj->texcoord_list);
-  FREE_VECTOR(wobj->point_list);
-  FREE_VECTOR(wobj->line_list);
-  FREE_VECTOR(wobj->face_list);
-  FREE_VECTOR(wobj->group_list);
-  FREE_VECTOR(wobj->smooth_group_list);
-  FREE_VECTOR(wobj->mtllib_list);
-  FREE_VECTOR(wobj->mtl_list);
-
-  #undef FREE_VECTOR
-
-  ctxt = wobj->ctxt;
-  MEM_FREE(ctxt->allocator, wobj);
-  RSRC(context_ref_put(ctxt));
-
-exit:
-  return err;
-
-error:
-  goto exit;
+EXPORT_SYM enum rsrc_error
+rsrc_wavefront_obj_ref_put(struct rsrc_wavefront_obj* wobj)
+{
+  if(!wobj)
+    return RSRC_INVALID_ARGUMENT;
+  ref_put(&wobj->ref, release_wavefront_obj);
+  return RSRC_NO_ERROR;
 }
 
 EXPORT_SYM enum rsrc_error

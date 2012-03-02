@@ -168,6 +168,7 @@ rb_depth_stencil
   if(!ctxt || !desc)
     return -1;
 
+  OGL(DepthMask(desc->enable_depth_write ? GL_FALSE : GL_TRUE));
   if(desc->enable_depth_test == 0) {
     OGL(Disable(GL_DEPTH_TEST));
   } else {
@@ -175,6 +176,8 @@ rb_depth_stencil
     OGL(DepthFunc(rb_to_ogl3_comparison[desc->depth_func]));
   }
 
+  OGL(StencilMaskSeparate(GL_FRONT, desc->front_face_op.write_mask));
+  OGL(StencilMaskSeparate(GL_BACK, desc->back_face_op.write_mask));
   if(desc->enable_stencil_test == 0) {
     OGL(Disable(GL_STENCIL_TEST));
   } else {

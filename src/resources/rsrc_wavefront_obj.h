@@ -12,7 +12,11 @@ rsrc_create_wavefront_obj
    struct rsrc_wavefront_obj** out_wobj);
 
 extern enum rsrc_error
-rsrc_free_wavefront_obj
+rsrc_wavefront_obj_ref_get
+  (struct rsrc_wavefront_obj* wobj);
+
+extern enum rsrc_error
+rsrc_wavefront_obj_ref_put
   (struct rsrc_wavefront_obj* wobj);
 
 extern enum rsrc_error

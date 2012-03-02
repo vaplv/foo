@@ -96,8 +96,11 @@ main(int argc, char** argv)
   CHECK(rsrc_glyph_bitmap(glyph, false, NULL, &h, &Bpp, buffer), OK);
   CHECK(rsrc_glyph_bitmap(glyph, false, &w, &h, &Bpp, buffer), OK);
 
-  CHECK(rsrc_free_glyph(NULL), BAD_ARG);
-  CHECK(rsrc_free_glyph(glyph), OK);
+  CHECK(rsrc_glyph_ref_get(NULL), BAD_ARG);
+  CHECK(rsrc_glyph_ref_get(glyph), OK);
+  CHECK(rsrc_glyph_ref_put(NULL), BAD_ARG);
+  CHECK(rsrc_glyph_ref_put(glyph), OK);
+  CHECK(rsrc_glyph_ref_put(glyph), OK);
 
   b = true;
   for(i = 0; b && i < w*h*Bpp; ++i)
@@ -118,12 +121,15 @@ main(int argc, char** argv)
     CHECK(rsrc_glyph_bitmap(glyph, true, &w, &h, &Bpp, buffer), OK);
     NCHECK(snprintf(buf, BUFSIZ, "/tmp/%.3zu.ppm", i - 32), BUFSIZ);
     CHECK(rsrc_write_ppm(ctxt, buf, w, h, Bpp, buffer), OK);
-    CHECK(rsrc_free_glyph(glyph), OK);
+    CHECK(rsrc_glyph_ref_put(glyph), OK);
   }
   MEM_FREE(&mem_default_allocator, buffer);
 
-  CHECK(rsrc_free_font(NULL), BAD_ARG);
-  CHECK(rsrc_free_font(font), OK);
+  CHECK(rsrc_font_ref_get(NULL), BAD_ARG);
+  CHECK(rsrc_font_ref_get(font), OK);
+  CHECK(rsrc_font_ref_put(NULL), BAD_ARG);
+  CHECK(rsrc_font_ref_put(font), OK);
+  CHECK(rsrc_font_ref_put(font), OK);
 
   CHECK(rsrc_context_ref_put(ctxt), OK);
 

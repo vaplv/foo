@@ -111,7 +111,7 @@ main(int argc, char** argv)
     glyph_desc_list[i].bitmap_left = glyph_desc.bitmap_left;
     glyph_desc_list[i].bitmap_top = glyph_desc.bitmap_top;
 
-    CHECK(rsrc_free_glyph(glyph), RSRC_NO_ERROR);
+    CHECK(rsrc_glyph_ref_put(glyph), RSRC_NO_ERROR);
   }
 
   CHECK(rdr_create_system(driver_name, NULL, &sys), OK);
@@ -192,10 +192,10 @@ main(int argc, char** argv)
   for(i = 0; i < total_nb_glyphs; ++i)
     MEM_FREE(&mem_default_allocator, glyph_bitmap_list[i]);
 
-  CHECK(rsrc_free_font(ft), RSRC_NO_ERROR);
+  CHECK(rsrc_font_ref_put(ft), RSRC_NO_ERROR);
   CHECK(rsrc_context_ref_put(ctxt), RSRC_NO_ERROR);
-  CHECK(wm_free_window(device, window), WM_NO_ERROR);
-  CHECK(wm_free_device(device), WM_NO_ERROR);
+  CHECK(wm_window_ref_put(window), WM_NO_ERROR);
+  CHECK(wm_device_ref_put(device), WM_NO_ERROR);
 
   CHECK(MEM_ALLOCATED_SIZE(&mem_default_allocator), 0);
 

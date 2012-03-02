@@ -23,7 +23,11 @@ rsrc_create_font
    struct rsrc_font** out_font);
 
 extern enum rsrc_error
-rsrc_free_font
+rsrc_font_ref_get
+  (struct rsrc_font* font);
+
+extern enum rsrc_error
+rsrc_font_ref_put
   (struct rsrc_font* font);
 
 extern enum rsrc_error
@@ -49,7 +53,11 @@ rsrc_font_glyph
    struct rsrc_glyph** glyph);
 
 extern enum rsrc_error
-rsrc_free_glyph
+rsrc_glyph_ref_get
+  (struct rsrc_glyph* glyph);
+
+extern enum rsrc_error
+rsrc_glyph_ref_put
   (struct rsrc_glyph* glyph);
 
 extern enum rsrc_error

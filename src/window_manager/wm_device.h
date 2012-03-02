@@ -11,8 +11,12 @@ wm_create_device
   (struct mem_allocator* allocator, /* May be NULL. */
    struct wm_device** dev);
 
-extern enum wm_error 
-wm_free_device
+extern enum wm_error
+wm_device_ref_get
+  (struct wm_device* dev);
+
+extern enum wm_error
+wm_device_ref_put
   (struct wm_device* dev);
 
 extern enum wm_error

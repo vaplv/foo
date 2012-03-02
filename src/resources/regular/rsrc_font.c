@@ -3,6 +3,7 @@
 #include "resources/rsrc_context.h"
 #include "resources/rsrc_font.h"
 #include "sys/mem_allocator.h"
+#include "sys/ref_count.h"
 #include "sys/sys.h"
 #include <assert.h>
 #include <ft2build.h>
@@ -22,12 +23,14 @@ struct rsrc_font_library {
 };
 
 struct rsrc_font {
+  struct ref ref;
   struct rsrc_context* ctxt;
   FT_Face face;
 };
 
 struct rsrc_glyph {
-  struct rsrc_context* ctxt;
+  struct ref ref;
+  struct rsrc_font* font;
   wchar_t character;
   size_t bitmap_left;
   size_t bitmap_top;
@@ -119,6 +122,39 @@ copy_bitmap_pixel
   }
 }
 
+static void
+release_font(struct ref* ref)
+{
+  struct rsrc_context* ctxt = NULL;
+  struct rsrc_font* font = NULL;
+  assert(ref);
+
+  font = CONTAINER_OF(ref, struct rsrc_font, ref);
+  ctxt = font->ctxt;
+
+  if(font->face)
+    FT(Done_Face(font->face));
+
+  MEM_FREE(ctxt->allocator, font);
+  RSRC(context_ref_put(ctxt));
+}
+
+static void
+release_glyph(struct ref* ref)
+{
+  struct rsrc_glyph* glyph = NULL;
+  struct rsrc_font* font = NULL;
+
+  glyph = CONTAINER_OF(ref, struct rsrc_glyph, ref);
+  font = glyph->font;
+
+  if(glyph->glyph)
+    FT_Done_Glyph(glyph->glyph);
+
+  MEM_FREE(font->ctxt->allocator, glyph);
+  RSRC(font_ref_put(font));
+}
+
 /*******************************************************************************
  *
  * Public functions.
@@ -144,6 +180,7 @@ rsrc_create_font
   }
   font->ctxt = ctxt;
   RSRC(context_ref_get(ctxt));
+  ref_init(&font->ref);
 
   if(path) {
     rsrc_err = rsrc_load_font(font, path);
@@ -158,31 +195,28 @@ exit:
 
 error:
   if(font) {
-    MEM_FREE(ctxt->allocator, font);
+    RSRC(font_ref_put(font));
     font = NULL;
   }
   goto exit;
 }
 
 EXPORT_SYM enum rsrc_error
-rsrc_free_font(struct rsrc_font* font)
+rsrc_font_ref_get(struct rsrc_font* font)
 {
-  struct rsrc_context* ctxt = NULL;
-  enum rsrc_error rsrc_err = RSRC_NO_ERROR;
+  if(!font)
+    return RSRC_INVALID_ARGUMENT;
+  ref_get(&font->ref);
+  return RSRC_NO_ERROR;
+}
 
-  if(!font) {
-    rsrc_err =  RSRC_INVALID_ARGUMENT;
-    goto error;
-  }
-  FT(Done_Face(font->face));
-  ctxt = font->ctxt;
-  MEM_FREE(ctxt->allocator, font);
-  RSRC(context_ref_put(ctxt));
-
-exit:
-  return rsrc_err;
-error:
-  goto exit;
+EXPORT_SYM enum rsrc_error
+rsrc_font_ref_put(struct rsrc_font* font)
+{
+  if(!font)
+    return RSRC_INVALID_ARGUMENT;
+  ref_put(&font->ref, release_font);
+  return RSRC_NO_ERROR;
 }
 
 EXPORT_SYM enum rsrc_error
@@ -251,7 +285,9 @@ rsrc_font_glyph
     rsrc_err = RSRC_MEMORY_ERROR;
     goto error;
   }
-  glyph->ctxt = font->ctxt;
+  ref_init(&glyph->ref);
+  glyph->font = font;
+  RSRC(font_ref_get(font));
   glyph->character = ch;
   glyph->bitmap_left = font->face->glyph->bitmap_left;
   glyph->bitmap_top = font->face->glyph->bitmap_top;
@@ -264,21 +300,27 @@ exit:
   return rsrc_err;
 error:
   if(glyph) {
-    if(glyph->glyph)
-      FT_Done_Glyph(glyph->glyph);
-    MEM_FREE(glyph->ctxt->allocator, glyph);
+    RSRC(glyph_ref_put(glyph));
     glyph = NULL;
   }
   goto exit;
 }
 
 EXPORT_SYM enum rsrc_error
-rsrc_free_glyph(struct rsrc_glyph* glyph)
+rsrc_glyph_ref_get(struct rsrc_glyph* glyph)
 {
   if(!glyph)
     return RSRC_INVALID_ARGUMENT;
-  FT_Done_Glyph(glyph->glyph);
-  MEM_FREE(glyph->ctxt->allocator, glyph);
+  ref_get(&glyph->ref);
+  return RSRC_NO_ERROR;
+}
+
+EXPORT_SYM enum rsrc_error
+rsrc_glyph_ref_put(struct rsrc_glyph* glyph)
+{
+  if(!glyph)
+    return RSRC_INVALID_ARGUMENT;
+  ref_put(&glyph->ref, release_glyph);
   return RSRC_NO_ERROR;
 }
 

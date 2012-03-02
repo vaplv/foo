@@ -238,7 +238,7 @@ app_draw_world(struct app_world* world, const struct app_view* view)
     goto error;
   }
 
-  WM(get_window_desc(world->app->wm.device, world->app->wm.window, &win_desc));
+  WM(get_window_desc(world->app->wm.window, &win_desc));
 
   assert(sizeof(view->transform) == sizeof(render_view.transform));
 

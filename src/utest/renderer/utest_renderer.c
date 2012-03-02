@@ -589,9 +589,9 @@ main(int argc, char** argv)
 
 exit:
   if(window)
-    CHECK(wm_free_window(device, window), WM_NO_ERROR);
+    CHECK(wm_window_ref_put(window), WM_NO_ERROR);
   if(device)
-    CHECK(wm_free_device(device), WM_NO_ERROR);
+    CHECK(wm_device_ref_put(device), WM_NO_ERROR);
 
   CHECK(MEM_ALLOCATED_SIZE(&mem_default_allocator), 0);
 

@@ -123,8 +123,8 @@ main(int argc, char** argv)
 
   CHECK(rdr_font_ref_put(font), OK);
   CHECK(rdr_system_ref_put(sys), OK);
-  CHECK(wm_free_window(device, window), WM_NO_ERROR);
-  CHECK(wm_free_device(device), WM_NO_ERROR);
+  CHECK(wm_window_ref_put(window), WM_NO_ERROR);
+  CHECK(wm_device_ref_put(device), WM_NO_ERROR);
 
   CHECK(MEM_ALLOCATED_SIZE(&mem_default_allocator), 0);
 

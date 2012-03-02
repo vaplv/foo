@@ -10,6 +10,7 @@ struct mem_allocator;
 struct rb_context {
   struct ref ref;
   struct mem_allocator* allocator;
+  /* Basic state cache. */
   struct state_cache {
     GLuint buffer_binding[RB_OGL3_NB_BUFFER_TARGETS];
     GLuint current_program;

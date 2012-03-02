@@ -25,6 +25,9 @@ release_program(struct ref* ref)
   prog = CONTAINER_OF(ref, struct rb_program, ref);
   ctxt = prog->ctxt;
 
+  if(ctxt->state_cache.current_program == prog->name)
+    RB(bind_program(ctxt, NULL));
+
   LIST_FOR_EACH(node, &prog->attached_shader_list) {
     struct rb_shader* shader = CONTAINER_OF(node, struct rb_shader, attachment);
     RB(detach_shader(prog, shader));

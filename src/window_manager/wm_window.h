@@ -19,19 +19,20 @@ wm_create_window
    struct wm_window** out_win);
 
 extern enum wm_error 
-wm_free_window
-  (struct wm_device* dev,
-   struct wm_window* win);
+wm_window_ref_get
+  (struct wm_window* win);
+
+extern enum wm_error
+wm_window_ref_put
+  (struct wm_window* win);
 
 extern enum wm_error 
 wm_swap
-  (struct wm_device* dev,
-   struct wm_window* win);
+  (struct wm_window* win);
 
 extern enum wm_error
 wm_get_window_desc
-  (struct wm_device* dev,
-   struct wm_window* win,
+  (struct wm_window* win,
    struct wm_window_desc* win_desc);
 
 #endif /* WM_WINDOW_H */

@@ -86,6 +86,15 @@ extern struct mem_allocator mem_default_allocator;
 #define MEM_DUMP(allocator, msg, max_len) \
   ((allocator)->dump((allocator)->data, (msg), (max_len)))
 
+#define MEM_IS_ALLOCATOR_VALID(allocator) \
+  (  NULL != (allocator)->alloc \
+  && NULL != (allocator)->calloc \
+  && NULL != (allocator)->realloc \
+  && NULL != (allocator)->aligned_alloc \
+  && NULL != (allocator)->free \
+  && NULL != (allocator)->allocated_size \
+  && NULL != (allocator)->dump)
+
 /*******************************************************************************
  *
  * Proxy allocator.

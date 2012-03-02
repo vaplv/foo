@@ -92,10 +92,16 @@ release_sampler(struct ref* ref)
 {
   struct rb_context* ctxt = NULL;
   struct rb_sampler* sampler = NULL;
+  size_t i = 0;
   assert(ref);
 
   sampler = CONTAINER_OF(ref, struct rb_sampler, ref);
   ctxt = sampler->ctxt;
+
+  for(i = 0; i < RB_OGL3_MAX_TEXTURE_UNITS; ++i) {
+    if(ctxt->state_cache.sampler_binding[i] == sampler->name)
+      RB(bind_sampler(ctxt, NULL, i));
+  }
 
   OGL(DeleteSamplers(1, &sampler->name));
   MEM_FREE(ctxt->allocator, sampler);

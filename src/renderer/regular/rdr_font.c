@@ -231,12 +231,16 @@ fill_font_cache
 {
   if(!IS_LEAF(node)) {
     struct pair* pair = NULL;
+    unsigned char* dst = NULL;
     const struct rdr_glyph_desc* glyph_desc = glyph_list + node->id;
     const size_t cache_Bpp = font->cache_img.Bpp;
     const size_t cache_pitch = font->cache_img.width * cache_Bpp;
     const size_t rcp_cache_width = 1.f / (float)font->cache_img.width;
     const size_t rcp_cache_height = 1.f / (float)font->cache_img.height;
-    unsigned char* dst = NULL;
+    const size_t glyph_bmp_size = 
+      glyph_desc->bitmap.width
+    * glyph_desc->bitmap.height
+    * glyph_desc->bitmap.bytes_per_pixel;
 
     SL(hash_table_find(font->glyph_htbl, &glyph_desc->character,(void**)&pair));
     assert(pair);
@@ -250,19 +254,22 @@ fill_font_cache
     pair->glyph.pos[1].x = (float)glyph_desc->bitmap_left - node->width; 
     pair->glyph.pos[1].y = (float)glyph_desc->bitmap_top - node->height;
 
-    assert(glyph_desc->bitmap.bytes_per_pixel == cache_Bpp);
-    dst =
-      font->cache_img.buffer
-    + (node->y == 0 ? GLYPH_BORDER : node->y) * cache_pitch
-    + (node->x == 0 ? GLYPH_BORDER : node->x) * cache_Bpp;
-    copy_bitmap
-      (dst,
-       cache_pitch,
-       glyph_desc->bitmap.buffer,
-       glyph_desc->bitmap.width * cache_Bpp,
-       glyph_desc->bitmap.width,
-       glyph_desc->bitmap.height,
-       cache_Bpp);
+    /* The glyph bitmap size may be equal to zero (e.g.: the space char). */
+    if(0 != glyph_bmp_size) {
+      assert(glyph_desc->bitmap.bytes_per_pixel == cache_Bpp);
+      dst =
+        font->cache_img.buffer
+      + (node->y == 0 ? GLYPH_BORDER : node->y) * cache_pitch
+      + (node->x == 0 ? GLYPH_BORDER : node->x) * cache_Bpp;
+      copy_bitmap
+        (dst,
+         cache_pitch,
+         glyph_desc->bitmap.buffer,
+         glyph_desc->bitmap.width * cache_Bpp,
+         glyph_desc->bitmap.width,
+         glyph_desc->bitmap.height,
+         cache_Bpp);
+    }
 
     fill_font_cache(node->left, font, glyph_list);
     fill_font_cache(node->right, font, glyph_list);

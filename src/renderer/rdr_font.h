@@ -14,7 +14,7 @@ struct rdr_glyph_desc {
      size_t width;
      size_t height;
      size_t bytes_per_pixel;
-     const unsigned char* buffer;
+     unsigned char* buffer;
    } bitmap;
 };
 struct rdr_system;

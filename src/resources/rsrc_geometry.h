@@ -43,7 +43,11 @@ rsrc_create_geometry
    struct rsrc_geometry** out_geom);
 
 extern enum rsrc_error
-rsrc_free_geometry
+rsrc_geometry_ref_get
+  (struct rsrc_geometry* geom);
+
+extern enum rsrc_error
+rsrc_geometry_ref_put
   (struct rsrc_geometry* geom);
 
 extern enum rsrc_error

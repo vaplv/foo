@@ -13,6 +13,7 @@
 #include "sys/sys.h"
 #include <float.h>
 #include <stdbool.h>
+#include <limits.h>
 #include <string.h>
 #include <wchar.h>
 
@@ -51,6 +52,8 @@ struct printer {
   struct rb_program* shading_program;
   struct rb_sampler* sampler;
   struct rb_uniform* sampler_uniform;
+  struct rb_uniform* scale_uniform;
+  struct rb_uniform* bias_uniform;
   struct rdr_font* font;
   size_t max_nb_glyphs;
   size_t nb_glyphs;
@@ -59,7 +62,7 @@ struct printer {
 /* Minimal blob data structure. */
 struct blob {
   struct mem_allocator* allocator;
-  void* buffer;
+  unsigned char* buffer;
   size_t size;
   size_t id;
 };
@@ -86,13 +89,15 @@ static const char* print_vs_source =
   "layout(location =" STR(POS_ATTRIB_ID) ") in vec3 pos;\n"
   "layout(location =" STR(TEX_ATTRIB_ID) ") in vec2 tex;\n"
   "layout(location =" STR(COL_ATTRIB_ID) ") in vec4 col;\n"
+  "uniform vec3 scale;\n"
+  "uniform vec3 bias;\n"
   "smooth out vec2 glyph_tex;\n"
   "flat   out vec4 glyph_col;\n"
   "void main()\n"
   "{\n"
   "  glyph_tex = tex;\n"
   "  glyph_col = col;\n"
-  "  gl_Position = vec4(pos, 1);\n"
+  "  gl_Position = vec4(pos * scale + bias, 1);\n"
   "}\n";
 
 static const char* print_fs_source =
@@ -187,8 +192,7 @@ blob_push_back(struct blob* blob, const void* data, size_t size)
     if(rdr_err != RDR_NO_ERROR)
       goto error;
   }
-  blob->buffer = memcpy
-    ((void*)((uintptr_t)blob->buffer + blob->id), data, size);
+  memcpy(blob->buffer + blob->id, data, size);
   blob->id += size;
 exit:
   return rdr_err;
@@ -397,20 +401,50 @@ printer_data
 }
 
 static void
-printer_draw(struct rdr_system* sys, struct printer* printer)
+printer_draw
+  (struct rdr_system* sys, 
+   struct printer* printer,
+   size_t width,
+   size_t height)
 {
+  const float scale[3] = { 2.f/(float)width, 2.f/(float)height, 1.f };
+  const float bias[3] = { -1.f, -1.f, 0.f };
+  struct rb_depth_stencil_desc depth_stencil_desc;
+  struct rb_viewport_desc viewport_desc;
   struct rb_tex2d* glyph_cache = NULL;
   struct rb_context* ctxt = NULL;
+  memset(&depth_stencil_desc, 0, sizeof(depth_stencil_desc));
+  memset(&viewport_desc, 0, sizeof(viewport_desc));
   assert(sys && printer);
+  assert(width < INT_MAX && height < INT_MAX);
 
   ctxt = sys->ctxt;
   RDR(get_font_texture(printer->font, &glyph_cache));
 
+  depth_stencil_desc.enable_depth_test = 0;
+  depth_stencil_desc.enable_depth_write = 0;
+  depth_stencil_desc.enable_stencil_test = 0;
+  depth_stencil_desc.front_face_op.write_mask = 0;
+  depth_stencil_desc.back_face_op.write_mask = 0;
+  RBI(sys->rb, depth_stencil(ctxt, &depth_stencil_desc));
+
+  viewport_desc.x = 0;
+  viewport_desc.y = 0;
+  viewport_desc.width = (int)width;
+  viewport_desc.height = (int)height;
+  viewport_desc.min_depth = 0.f;
+  viewport_desc.max_depth = 1.f;
+  RBI(sys->rb, viewport(ctxt, &viewport_desc));
+
   RBI(sys->rb, bind_tex2d(ctxt, glyph_cache, GLYPH_CACHE_TEX_UNIT));
   RBI(sys->rb, bind_sampler(ctxt, printer->sampler, GLYPH_CACHE_TEX_UNIT));
+
   RBI(sys->rb, uniform_data
     (printer->sampler_uniform, 1, (void*)(int[]){GLYPH_CACHE_TEX_UNIT}));
+  RBI(sys->rb, uniform_data(printer->scale_uniform, 1, (void*)scale));
+  RBI(sys->rb, uniform_data(printer->bias_uniform, 1, (void*)bias));
   RBI(sys->rb, bind_program(ctxt, printer->shading_program));
+
   RBI(sys->rb, bind_vertex_array(ctxt, printer->varray));
   RBI(sys->rb, draw_indexed
     (ctxt, RB_TRIANGLE_LIST, printer->nb_glyphs * INDICES_PER_GLYPH));
@@ -459,8 +493,13 @@ shutdown_printer(struct rdr_system* sys, struct printer* printer)
 
   if(printer->sampler)
     RBI(sys->rb, sampler_ref_put(printer->sampler));
+
   if(printer->sampler_uniform)
     RBI(sys->rb, uniform_ref_put(printer->sampler_uniform));
+  if(printer->scale_uniform)
+    RBI(sys->rb, uniform_ref_put(printer->scale_uniform));
+  if(printer->bias_uniform)
+    RBI(sys->rb, uniform_ref_put(printer->bias_uniform));
 
   if(printer->font)
     RDR(font_ref_put(printer->font));
@@ -525,6 +564,10 @@ init_printer(struct rdr_system* sys, struct printer* printer)
 
   RBI(sys->rb, get_named_uniform
     (ctxt, printer->shading_program, "glyph_cache", &printer->sampler_uniform));
+  RBI(sys->rb, get_named_uniform
+    (ctxt, printer->shading_program, "scale", &printer->scale_uniform));
+  RBI(sys->rb, get_named_uniform
+    (ctxt, printer->shading_program, "bias", &printer->bias_uniform));
 
   return RDR_NO_ERROR;
 }
@@ -824,7 +867,8 @@ rdr_draw_term(struct rdr_term* term)
   /* Send the glyph data to the printer and draw. */
   printer_data
     (term->sys, &term->printer, nb_glyphs, blob_buffer(&term->scratch));
-  printer_draw(term->sys, &term->printer);
+  printer_draw
+    (term->sys, &term->printer, term->screen.width, term->screen.height);
 
   #undef SET_VERTEX_POS
   #undef SET_VERTEX_TEX

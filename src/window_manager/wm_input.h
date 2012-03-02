@@ -1,6 +1,8 @@
 #ifndef WM_INPUT_H
 #define WM_INPUT_H
 
+#include <wchar.h>
+
 enum wm_state {
   WM_PRESS,
   WM_RELEASE,
@@ -133,6 +135,26 @@ wm_get_mouse_position
   (struct wm_device* device,
    int* x,
    int* y);
+
+extern enum wm_error
+wm_attach_key_callback
+  (struct wm_device* device,
+   void (*func)(enum wm_key, enum wm_state));
+
+extern enum wm_error
+wm_detach_key_callback
+  (struct wm_device* device,
+   void (*func)(enum wm_key, enum wm_state));
+
+extern enum wm_error
+wm_attach_char_callback
+  (struct wm_device* device,
+   void (*func)(wchar_t, enum wm_state));
+
+extern enum wm_error
+wm_detach_char_callback
+  (struct wm_device* device,
+   void (*func)(wchar_t, enum wm_state));
 
 #endif /* WM_INPUT_H */
 

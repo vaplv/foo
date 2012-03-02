@@ -1,4 +1,5 @@
 #include "render_backend/rbi.h"
+#include "window_manager/wm.h"
 #include "window_manager/wm_device.h"
 #include "window_manager/wm_window.h"
 #include "sys/sys.h"
@@ -396,9 +397,7 @@ main(int argc UNUSED, char* argv[] UNUSED)
 
     CHECK(rbi.flush(ctxt));
 
-    wm_err = wm_swap(device, window);
-    assert(wm_err == WM_NO_ERROR);
-
+    WM(swap(window));
     angle += M_DEG_TO_RAD(0.01f);
   }
 
@@ -410,10 +409,8 @@ main(int argc UNUSED, char* argv[] UNUSED)
   }
 
   if(device) {
-    wm_err = wm_free_window(device, window);
-    assert(wm_err == WM_NO_ERROR);
-    wm_err = wm_free_device(device);
-    assert(wm_err == WM_NO_ERROR);
+    WM(window_ref_put(window));
+    WM(device_ref_put(device));
   }
 
   return 0;

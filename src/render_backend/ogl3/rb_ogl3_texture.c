@@ -109,10 +109,16 @@ release_tex2d(struct ref* ref)
 {
   struct rb_context* ctxt = NULL;
   struct rb_tex2d* tex = NULL;
+  size_t i = 0;
   assert(ref);
 
   tex = CONTAINER_OF(ref, struct rb_tex2d, ref);
   ctxt = tex->ctxt;
+
+  for(i = 0; i < RB_OGL3_MAX_TEXTURE_UNITS; ++i) {
+    if(ctxt->state_cache.texture_binding_2d[i] == tex->name)
+      RB(bind_tex2d(ctxt, NULL, i));
+  }
 
   if(tex->mip_list)
     MEM_FREE(ctxt->allocator, tex->mip_list);
@@ -258,8 +264,6 @@ rb_tex2d_data(struct rb_tex2d* tex, unsigned int level, const void* data)
 
   OGL(BindBuffer(tex->pixbuf->target, tex->pixbuf->name));
   OGL(BindTexture(GL_TEXTURE_2D, tex->name));
-  if(pixel_size != 4)
-    OGL(PixelStorei(GL_UNPACK_ALIGNMENT, 1));
 
   #define TEX_IMAGE_2D \
     OGL(TexImage2D \
@@ -290,10 +294,6 @@ rb_tex2d_data(struct rb_tex2d* tex, unsigned int level, const void* data)
   OGL(BindBuffer
     (tex->pixbuf->target,
      state_cache->buffer_binding[tex->pixbuf->binding]));
-
-  /* Restore the default alignment. */
-  if(pixel_size != 4)
-    OGL(PixelStorei(GL_UNPACK_ALIGNMENT, 4));
 
   return 0;
 }

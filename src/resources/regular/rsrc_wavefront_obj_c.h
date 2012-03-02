@@ -1,6 +1,7 @@
 #ifndef RSRC_WAVEFRONT_OBJ_C_H
 #define RSRC_WAVEFRONT_OBJ_C_H
 
+#include "sys/ref_count.h"
 #include <stdbool.h>
 #include <stddef.h>
 
@@ -40,6 +41,7 @@ struct rsrc_wavefront_obj_mtl {
 };
 
 struct rsrc_wavefront_obj {
+  struct ref ref;
   struct rsrc_context* ctxt;
   struct sl_vector* position_list; /* vector of float[3]. */
   struct sl_vector* normal_list; /* vector of float[3]. */

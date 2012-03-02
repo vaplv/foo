@@ -226,6 +226,7 @@ struct rb_blend_desc {
 
 struct rb_depth_stencil_desc {
   int enable_depth_test;
+  int enable_depth_write;
   enum rb_comparison depth_func;
   int enable_stencil_test;
   int stencil_ref;
@@ -234,6 +235,7 @@ struct rb_depth_stencil_desc {
     enum rb_stencil_op depth_fail;
     enum rb_stencil_op depth_pass;
     enum rb_comparison stencil_func;
+    unsigned int write_mask;
   } front_face_op, back_face_op;
 };
 

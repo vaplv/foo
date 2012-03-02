@@ -1,3 +1,4 @@
+#include "resources/rsrc.h"
 #include "resources/rsrc_context.h"
 #include "resources/rsrc_geometry.h"
 #include "resources/rsrc_wavefront_obj.h"
@@ -6,14 +7,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/time.h>
-
-#define CALL(func) \
-  do { \
-    if((rsrc_##func) != RSRC_NO_ERROR) { \
-      fprintf(stderr, "error:%s:%d\n", __FILE__, __LINE__); \
-      exit(-1); \
-    } \
-  } while(0)
 
 int
 main(int argc, char** argv)
@@ -37,9 +30,9 @@ main(int argc, char** argv)
     goto error;
   }
 
-  CALL(create_context(NULL, &ctxt));
-  CALL(create_wavefront_obj(ctxt, &wobj));
-  CALL(create_geometry(ctxt, &geom));
+  RSRC(create_context(NULL, &ctxt));
+  RSRC(create_wavefront_obj(ctxt, &wobj));
+  RSRC(create_geometry(ctxt, &geom));
 
   err = gettimeofday(&t0, NULL);
   assert(err == 0);
@@ -65,7 +58,7 @@ main(int argc, char** argv)
   us = (t1.tv_sec * 1000000 + t1.tv_usec) - (t0.tv_sec * 1000000 + t0.tv_usec);
   printf("Creating geometry: %.3f ms\n", us / 1000.f);
 
-  CALL(get_primitive_set_count(geom, &nb_prim_set));
+  RSRC(get_primitive_set_count(geom, &nb_prim_set));
   for(prim_set_id = 0; prim_set_id < nb_prim_set; ++prim_set_id) {
     struct rsrc_primitive_set set;
     const char* prim_name = NULL;
@@ -74,7 +67,7 @@ main(int argc, char** argv)
     unsigned short indices_per_primitive;
 
     printf("Set %zu -- ", prim_set_id);
-    CALL(get_primitive_set(geom, prim_set_id, &set));
+    RSRC(get_primitive_set(geom, prim_set_id, &set));
     switch(set.primitive_type) {
       case RSRC_POINT:
         prim_name = "Point";
@@ -129,11 +122,11 @@ main(int argc, char** argv)
 
 exit:
   if(geom)
-    CALL(free_geometry(geom));
+    RSRC(geometry_ref_put(geom));
   if(wobj)
-    CALL(free_wavefront_obj(wobj));
+    RSRC(wavefront_obj_ref_put(wobj));
   if(ctxt)
-    CALL(context_ref_put(ctxt));
+    RSRC(context_ref_put(ctxt));
 
   return err;
 

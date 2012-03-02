@@ -1,6 +1,8 @@
 #include "sys/mem_allocator.h"
+#include "sys/ref_count.h"
 #include "sys/sys.h"
 #include "window_manager/glfw/wm_glfw_device_c.h"
+#include "window_manager/wm.h"
 #include "window_manager/wm_device.h"
 #include "window_manager/wm_window.h"
 #include <GL/glfw.h>
@@ -9,9 +11,36 @@
 #include <stdlib.h>
 
 struct wm_window {
+  struct ref ref;
+  struct wm_device* device;
   bool fullscreen;
 };
 
+/*******************************************************************************
+ *
+ * Helper functions.
+ *
+ ******************************************************************************/
+static void
+release_window(struct ref* ref)
+{
+  struct wm_device* dev = NULL;
+  struct wm_window* win = NULL;
+  assert(ref);
+
+  win = CONTAINER_OF(ref, struct wm_window, ref);
+  dev = win->device;
+
+  glfwCloseWindow();
+  MEM_FREE(dev->allocator, win);
+  WM(device_ref_put(dev));
+}
+
+/*******************************************************************************
+ *
+ * Window functions.
+ *
+ ******************************************************************************/
 EXPORT_SYM enum wm_error
 wm_create_window
   (struct wm_device* device,
@@ -38,7 +67,10 @@ wm_create_window
     wm_err = WM_MEMORY_ERROR;
     goto error;
   }
+  WM(device_ref_get(device));
+  win->device = device;
   win->fullscreen = desc->fullscreen;
+  ref_init(&win->ref);
 
   width = (int)desc->width;
   height = (int)desc->height;
@@ -52,27 +84,34 @@ exit:
   return wm_err;
 error:
   if(win) {
-    MEM_FREE(device->allocator, win);
+    WM(window_ref_put(win));
     win = NULL;
   }
   goto exit;
 }
 
 EXPORT_SYM enum wm_error
-wm_free_window(struct wm_device* device, struct wm_window* win)
+wm_window_ref_get(struct wm_window* win)
 {
-  if(!device || !win)
+  if(!win)
     return WM_INVALID_ARGUMENT;
-
-  glfwCloseWindow();
-  MEM_FREE(device->allocator, win);
+  ref_get(&win->ref);
   return WM_NO_ERROR;
 }
 
 EXPORT_SYM enum wm_error
-wm_swap(struct wm_device* device UNUSED, struct wm_window* win UNUSED)
+wm_window_ref_put(struct wm_window* win)
 {
-  if(!device || !win)
+  if(!win)
+    return WM_INVALID_ARGUMENT;
+  ref_put(&win->ref, release_window);
+  return WM_NO_ERROR;
+}
+
+EXPORT_SYM enum wm_error
+wm_swap(struct wm_window* win)
+{
+  if(!win)
     return WM_INVALID_ARGUMENT;
   glfwSwapBuffers();
   return WM_NO_ERROR;
@@ -80,14 +119,13 @@ wm_swap(struct wm_device* device UNUSED, struct wm_window* win UNUSED)
 
 EXPORT_SYM enum wm_error
 wm_get_window_desc
-  (struct wm_device* dev, 
-   struct wm_window* win,
+  (struct wm_window* win,
    struct wm_window_desc* desc)
 {
   int width = 0;
   int height = 0;
 
-  if(!dev || !win || !desc)
+  if(!win || !desc)
     return WM_INVALID_ARGUMENT;
 
   glfwGetWindowSize(&width, &height);
@@ -98,3 +136,4 @@ wm_get_window_desc
   desc->fullscreen = win->fullscreen;
   return WM_NO_ERROR;
 }
+

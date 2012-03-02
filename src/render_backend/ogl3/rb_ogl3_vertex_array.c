@@ -46,6 +46,9 @@ release_vertex_array(struct ref* ref)
   varray = CONTAINER_OF(ref, struct rb_vertex_array, ref);
   ctxt = varray->ctxt;
 
+  if(ctxt->state_cache.vertex_array_binding == varray->name)
+    RB(bind_vertex_array(ctxt, NULL));
+
   OGL(DeleteBuffers(1, &varray->name));
   MEM_FREE(ctxt->allocator, varray);
   RB(context_ref_put(ctxt));
