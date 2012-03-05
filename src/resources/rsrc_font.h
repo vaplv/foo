@@ -10,9 +10,13 @@ struct rsrc_context;
 struct rsrc_font;
 struct rsrc_glyph;
 struct rsrc_glyph_desc {
+  struct {
+    int x_min;
+    int y_min;
+    int x_max;
+    int y_max;
+  } bbox;
   size_t width;
-  size_t bitmap_left;
-  size_t bitmap_top;
   wchar_t character;
 };
 
@@ -45,6 +49,11 @@ extern enum rsrc_error
 rsrc_font_line_space
   (const struct rsrc_font* font,
    size_t* line_space);
+
+extern enum rsrc_error
+rsrc_is_font_scalable
+  (const struct rsrc_font* font,
+   bool* is_scalable);
 
 extern enum rsrc_error
 rsrc_font_glyph

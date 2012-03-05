@@ -213,6 +213,7 @@ rdr_flush_frame(struct rdr_frame* frame)
   }
   frame->world_node_id = 0;
   frame->term_node_id = 0;
+  RBI(frame->sys->rb, flush(frame->sys->ctxt));
 
 exit:
   return rdr_err;

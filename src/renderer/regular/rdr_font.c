@@ -57,11 +57,15 @@ cmp_key(const void* p0, const void* p1)
  * Helper functions and data structure.
  *
  ******************************************************************************/
+#define EXTENDABLE_X 1
+#define EXTENDABLE_Y 2
+
 struct node {
   struct node* left;
   struct node* right;
   size_t x, y;
   size_t width, height;
+  int extendable_flag;
   size_t id;
 };
 
@@ -100,7 +104,7 @@ insert_rect
       node->right = MEM_CALLOC(allocator, 1, sizeof(struct node));
       assert(node->right);
 
-      if(w <= h) {
+      if(w > h) {
         /* +-----+
          * |R |  | ##: current node
          * +--+L | L : left node
@@ -110,13 +114,15 @@ insert_rect
         node->left->x = node->x + width;
         node->left->y = node->y;
         node->left->width = w;
-        node->left->height = height;
+        node->left->height = node->height;
+        node->left->extendable_flag = node->extendable_flag;
 
         node->right->x = node->x;
         node->right->y = node->y + height;
-        node->right->width = node->width;
+        node->right->width = width;
         node->right->height = h;
-      } else {
+        node->right->extendable_flag = node->extendable_flag & (~EXTENDABLE_X);
+     } else {
         /* +-------+
          * |   L   | ##: current node
          * +--+----+ L : left node
@@ -125,43 +131,46 @@ insert_rect
          */
         node->left->x = node->x;
         node->left->y = node->y + height;
-        node->left->width = width;
+        node->left->width = node->width;
         node->left->height = h;
+        node->left->extendable_flag = node->extendable_flag;
 
         node->right->x = node->x + width;
         node->right->y = node->y;
         node->right->width = w;
-        node->right->height = node->height;
+        node->right->height = height;
+        node->right->extendable_flag = node->extendable_flag & (~EXTENDABLE_Y);
       }
       node->width = width;
       node->height = height;
+      node->extendable_flag = 0;
       ret_node = node;
     }
   }
   return ret_node;
 }
 static void
-extend_width(struct node* node, size_t current_width, size_t size)
+extend_width(struct node* node, size_t size)
 {
   assert(node);
   if(!IS_LEAF(node)) {
-    extend_width(node->left, current_width, size);
-    extend_width(node->right, current_width, size);
+    extend_width(node->left, size);
+    extend_width(node->right, size);
   } else {
-    if(node->x + node->width == current_width)
+    if((node->extendable_flag & EXTENDABLE_X) != 0)
       node->width += size;
   }
 }
 
 static void
-extend_height(struct node* node, size_t current_height, size_t size)
+extend_height(struct node* node, size_t size)
 {
   assert(node);
   if(!IS_LEAF(node)) {
-    extend_height(node->left, current_height, size);
-    extend_height(node->right, current_height, size);
+    extend_height(node->left, size);
+    extend_height(node->right, size);
   } else {
-    if(node->y + node->height == current_height)
+    if((node->extendable_flag & EXTENDABLE_Y) != 0)
       node->height += size;
   }
 }
@@ -229,14 +238,19 @@ fill_font_cache
    struct rdr_font* font,
    const struct rdr_glyph_desc* glyph_list)
 {
+  assert(node && font);
   if(!IS_LEAF(node)) {
     struct pair* pair = NULL;
     unsigned char* dst = NULL;
     const struct rdr_glyph_desc* glyph_desc = glyph_list + node->id;
     const size_t cache_Bpp = font->cache_img.Bpp;
     const size_t cache_pitch = font->cache_img.width * cache_Bpp;
-    const size_t rcp_cache_width = 1.f / (float)font->cache_img.width;
-    const size_t rcp_cache_height = 1.f / (float)font->cache_img.height;
+    const float rcp_cache_width = 1.f / (float)font->cache_img.width;
+    const float rcp_cache_height = 1.f / (float)font->cache_img.height;
+    const size_t w = node->width - GLYPH_BORDER;
+    const size_t h = node->height - GLYPH_BORDER;
+    const size_t x = node->x == 0 ? GLYPH_BORDER : node->x;
+    const size_t y = node->y == 0 ? GLYPH_BORDER : node->y;
     const size_t glyph_bmp_size = 
       glyph_desc->bitmap.width
     * glyph_desc->bitmap.height
@@ -244,23 +258,22 @@ fill_font_cache
 
     SL(hash_table_find(font->glyph_htbl, &glyph_desc->character,(void**)&pair));
     assert(pair);
+
     pair->glyph.width = glyph_desc->width;
-    pair->glyph.tex[0].x = (float)node->x * rcp_cache_width;
-    pair->glyph.tex[0].y = (float)node->y * rcp_cache_height;
-    pair->glyph.tex[1].x = (float)(node->x + node->width) * rcp_cache_width;
-    pair->glyph.tex[1].y = (float)(node->y + node->height) * rcp_cache_height;
+    pair->glyph.tex[0].x = (float)x * rcp_cache_width;
+    pair->glyph.tex[0].y = (float)(y + h) * rcp_cache_height;
+    pair->glyph.tex[1].x = (float)(x + w) * rcp_cache_width;
+    pair->glyph.tex[1].y = (float)y * rcp_cache_height;
+
     pair->glyph.pos[0].x = (float)glyph_desc->bitmap_left;
     pair->glyph.pos[0].y = (float)glyph_desc->bitmap_top;
-    pair->glyph.pos[1].x = (float)glyph_desc->bitmap_left - node->width; 
-    pair->glyph.pos[1].y = (float)glyph_desc->bitmap_top - node->height;
+    pair->glyph.pos[1].x = (float)(glyph_desc->bitmap_left + w); 
+    pair->glyph.pos[1].y = (float)(glyph_desc->bitmap_top + h);
 
     /* The glyph bitmap size may be equal to zero (e.g.: the space char). */
     if(0 != glyph_bmp_size) {
       assert(glyph_desc->bitmap.bytes_per_pixel == cache_Bpp);
-      dst =
-        font->cache_img.buffer
-      + (node->y == 0 ? GLYPH_BORDER : node->y) * cache_pitch
-      + (node->x == 0 ? GLYPH_BORDER : node->x) * cache_Bpp;
+      dst = font->cache_img.buffer + y * cache_pitch + x * cache_Bpp;
       copy_bitmap
         (dst,
          cache_pitch,
@@ -270,7 +283,6 @@ fill_font_cache
          glyph_desc->bitmap.height,
          cache_Bpp);
     }
-
     fill_font_cache(node->left, font, glyph_list);
     fill_font_cache(node->right, font, glyph_list);
   }
@@ -344,7 +356,6 @@ release_font(struct ref* ref)
 }
 
 #undef IS_LEAF
-#undef GLYPH_BORDER
 
 /*******************************************************************************
  *
@@ -470,6 +481,7 @@ rdr_font_data
   root->y = 0;
   root->width = cache_width;
   root->height = cache_height;
+  root->extendable_flag = EXTENDABLE_X | EXTENDABLE_Y;
   root->id = SIZE_MAX;
 
   for(i = 0; i < nb_glyphs; ++i) {
@@ -505,24 +517,24 @@ rdr_font_data
     node = insert_rect(font->sys->allocator, root, width, height);
     while(!node) {
       const size_t max_tex_size = font->sys->cfg.max_tex_size;
-      const size_t extend_x = width / 2;
-      const size_t extend_y = height / 2;
+      const size_t extend_x = MAX(width / 2, 1);
+      const size_t extend_y = MAX(height / 2, 1);
       const bool can_extend_w = (cache_width + extend_x) <= max_tex_size;
       const bool can_extend_h = (cache_height + extend_y) <= max_tex_size;
       const bool extend_w = can_extend_w && cache_width < cache_height;
       const bool extend_h = can_extend_h && !extend_w;
 
       if(extend_w) {
-        extend_width(root, cache_width, extend_x);
+        extend_width(root, extend_x);
         cache_width += extend_x;
       } else if(extend_h) {
-        extend_height(root, cache_height, extend_y);
+        extend_height(root, extend_y);
         cache_height += extend_y;
       } else if(can_extend_w) {
-        extend_width(root, cache_width, extend_x);
+        extend_width(root, extend_x);
         cache_width += extend_x;
       } else if(can_extend_h) {
-        extend_height(root, cache_height, extend_y);
+        extend_height(root, extend_y);
         cache_height += extend_y;
       } else {
         rdr_err = RDR_MEMORY_ERROR;
@@ -647,3 +659,6 @@ rdr_get_font_texture(struct rdr_font* font, struct rb_tex2d** tex)
   *tex = font->cache_tex;
   return RDR_NO_ERROR;
 }
+
+#undef GLYPH_BORDER
+

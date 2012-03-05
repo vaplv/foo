@@ -43,16 +43,22 @@ main(int argc, char** argv)
   CHECK(rsrc_load_font(NULL, path), BAD_ARG);
   CHECK(rsrc_load_font(font, path), OK);
 
-  CHECK(rsrc_font_size(NULL, 0, 0), BAD_ARG);
-  CHECK(rsrc_font_size(font, 0, 0), BAD_ARG);
-  CHECK(rsrc_font_size(NULL, 32, 0), BAD_ARG);
-  CHECK(rsrc_font_size(font, 32, 0), BAD_ARG);
-  CHECK(rsrc_font_size(NULL, 0, 64), BAD_ARG);
-  CHECK(rsrc_font_size(font, 0, 64), BAD_ARG);
-  CHECK(rsrc_font_size(NULL, 32, 64), BAD_ARG);
-  CHECK(rsrc_font_size(font, 32, 64), OK);
+  CHECK(rsrc_is_font_scalable(NULL, NULL), BAD_ARG);
+  CHECK(rsrc_is_font_scalable(font, NULL), BAD_ARG);
+  CHECK(rsrc_is_font_scalable(NULL, &b), BAD_ARG);
+  CHECK(rsrc_is_font_scalable(font, &b), OK);
 
-  CHECK(rsrc_font_size(font, 16, 16), OK);
+  if(b) {
+    CHECK(rsrc_font_size(NULL, 0, 0), BAD_ARG);
+    CHECK(rsrc_font_size(font, 0, 0), BAD_ARG);
+    CHECK(rsrc_font_size(NULL, 32, 0), BAD_ARG);
+    CHECK(rsrc_font_size(font, 32, 0), BAD_ARG);
+    CHECK(rsrc_font_size(NULL, 0, 64), BAD_ARG);
+    CHECK(rsrc_font_size(font, 0, 64), BAD_ARG);
+    CHECK(rsrc_font_size(NULL, 32, 64), BAD_ARG);
+    CHECK(rsrc_font_size(font, 32, 64), OK);
+    CHECK(rsrc_font_size(font, 16, 16), OK);
+  }
 
   CHECK(rsrc_font_line_space(NULL, NULL), BAD_ARG);
   CHECK(rsrc_font_line_space(font, NULL), BAD_ARG);

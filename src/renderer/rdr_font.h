@@ -8,8 +8,8 @@ struct rdr_font;
 struct rdr_glyph_desc {
    wchar_t character;
    size_t width;
-   size_t bitmap_left;
-   size_t bitmap_top;
+   int bitmap_left;
+   int bitmap_top;
    struct {
      size_t width;
      size_t height;

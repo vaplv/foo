@@ -159,6 +159,12 @@ rb_create_tex2d
   tex->ctxt = ctxt;
   OGL(GenTextures(1, &tex->name));
 
+  OGL(BindTexture(GL_TEXTURE_2D, tex->name));
+  OGL(TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, desc->mip_count - 1));
+  OGL(BindTexture
+    (GL_TEXTURE_2D, 
+     ctxt->state_cache.texture_binding_2d[ctxt->state_cache.active_texture]));
+
   tex->mip_count = desc->mip_count;
   tex->mip_list =  MEM_CALLOC
     (ctxt->allocator, tex->mip_count, sizeof(struct mip_level));

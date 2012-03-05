@@ -139,7 +139,6 @@ glfw_to_wm_key(int key)
     if(wm_to_glfw_key_lut[i] == key)
       return (enum wm_key)i;
   }
-  assert(false);
   return WM_KEY_UNKNOWN;
 }
 
@@ -170,7 +169,7 @@ glfw_key_callback(int key, int action)
   const enum wm_state wm_state = glfw_to_wm_state(action);
   assert(NULL != g_device);
 
-  SL(set_buffer(g_device->key_clbk_list, &nb_clbk, 0, 0, (void**)clbk_list));
+  SL(set_buffer(g_device->key_clbk_list, &nb_clbk, 0, 0, (void**)&clbk_list));
   for(i = 0; i < nb_clbk; ++i)
     ((void (*)(enum wm_key, enum wm_state))clbk_list[i].func)(wm_key, wm_state);
 }
@@ -185,7 +184,7 @@ glfw_char_callback(int character, int action)
   const enum wm_state wm_state = glfw_to_wm_state(action);
   assert(NULL != g_device);
 
-  SL(set_buffer(g_device->char_clbk_list, &nb_clbk, 0, 0, (void**)clbk_list));
+  SL(set_buffer(g_device->char_clbk_list, &nb_clbk, 0, 0, (void**)&clbk_list));
   for(i = 0; i < nb_clbk; ++i)
     ((void (*)(wchar_t, enum wm_state))clbk_list[i].func)(ch, wm_state);
 }

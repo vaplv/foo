@@ -32,8 +32,12 @@ struct rsrc_glyph {
   struct ref ref;
   struct rsrc_font* font;
   wchar_t character;
-  size_t bitmap_left;
-  size_t bitmap_top;
+  struct {
+    int x_min;
+    int y_min;
+    int x_max;
+    int y_max;
+  } bbox;
   FT_Glyph glyph;
 };
 
@@ -235,7 +239,8 @@ rsrc_load_font(struct rsrc_font* font, const char* path)
     goto error;
   }
   /* Set a default char size of 16pt for a resolution of 96x96dpi. */
-  FT(Set_Char_Size(font->face, 0, 16*64, 0, 96));
+  if(FT_IS_SCALABLE(font->face))
+    FT(Set_Char_Size(font->face, 0, 16*64, 0, 96));
 
 exit:
   return rsrc_err;
@@ -248,6 +253,8 @@ rsrc_font_size(struct rsrc_font* font, size_t width, size_t height)
 {
   if(!font || !width || !height)
     return RSRC_INVALID_ARGUMENT;
+  if(!FT_IS_SCALABLE(font->face))
+     return RSRC_INVALID_CALL;
   FT(Set_Pixel_Sizes(font->face, width, height));
   return RSRC_NO_ERROR;
 }
@@ -257,7 +264,22 @@ rsrc_font_line_space(const struct rsrc_font* font, size_t* line_space)
 {
   if(!font || !line_space)
     return RSRC_INVALID_ARGUMENT;
-  *line_space = font->face->height;
+
+  if(FT_IS_SCALABLE(font->face)) {
+    *line_space = font->face->size->metrics.height / 64;
+  } else {
+    assert(font->face->num_fixed_sizes != 0);
+    *line_space = font->face->available_sizes[0].height;
+  }
+  return RSRC_NO_ERROR;
+}
+
+EXPORT_SYM enum rsrc_error
+rsrc_is_font_scalable(const struct rsrc_font* font, bool* is_scalable)
+{
+  if(!font || !is_scalable)
+    return RSRC_INVALID_ARGUMENT;
+  *is_scalable = FT_IS_SCALABLE(font->face);
   return RSRC_NO_ERROR;
 }
 
@@ -267,6 +289,7 @@ rsrc_font_glyph
    wchar_t ch, 
    struct rsrc_glyph** out_glyph)
 {
+  FT_BBox box; 
   struct rsrc_glyph* glyph = NULL;
   FT_UInt glyph_index = 0;
   enum rsrc_error rsrc_err = RSRC_NO_ERROR;
@@ -289,10 +312,15 @@ rsrc_font_glyph
   glyph->font = font;
   RSRC(font_ref_get(font));
   glyph->character = ch;
-  glyph->bitmap_left = font->face->glyph->bitmap_left;
-  glyph->bitmap_top = font->face->glyph->bitmap_top;
+
   FT(Load_Glyph(font->face, (FT_ULong)glyph_index, FT_LOAD_DEFAULT));
   FT(Get_Glyph(font->face->glyph, &glyph->glyph));
+
+  FT_Glyph_Get_CBox(glyph->glyph, FT_GLYPH_BBOX_PIXELS, &box);
+  glyph->bbox.x_min = box.xMin;
+  glyph->bbox.y_min = box.yMin;
+  glyph->bbox.x_max = box.xMax;
+  glyph->bbox.y_max = box.yMax;
 
 exit:
   if(out_glyph)
@@ -378,8 +406,10 @@ rsrc_glyph_desc(const struct rsrc_glyph* glyph, struct rsrc_glyph_desc* desc)
   if(!glyph || !desc)
     return RSRC_INVALID_ARGUMENT;
   desc->character = glyph->character;
-  desc->bitmap_left = glyph->bitmap_left;
-  desc->bitmap_top = glyph->bitmap_top;
+  desc->bbox.x_min = glyph->bbox.x_min;
+  desc->bbox.y_min = glyph->bbox.y_min;
+  desc->bbox.x_max = glyph->bbox.x_max;
+  desc->bbox.y_max = glyph->bbox.y_max;
   desc->width = (glyph->glyph->advance.x) >> 16; /* 16.16 Fixed point. */
   return RSRC_NO_ERROR;
 }

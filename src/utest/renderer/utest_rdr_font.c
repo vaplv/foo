@@ -40,6 +40,7 @@ main(int argc, char** argv)
   size_t i = 0;
   int err = 0;
   bool null_driver = false; 
+  bool b = false;
 
   /* Resources data. */
   unsigned char* glyph_bitmap_list[total_nb_glyphs];
@@ -85,7 +86,9 @@ main(int argc, char** argv)
   CHECK(wm_create_window(device, &win_desc, &window), WM_NO_ERROR);
   CHECK(rsrc_create_context(NULL, &ctxt), RSRC_NO_ERROR);
   CHECK(rsrc_create_font(ctxt, font_name, &ft), RSRC_NO_ERROR);
-  CHECK(rsrc_font_size(ft, 32, 32), RSRC_NO_ERROR);
+  CHECK(rsrc_is_font_scalable(ft, &b), RSRC_NO_ERROR);
+  if(b) 
+    CHECK(rsrc_font_size(ft, 24, 24), RSRC_NO_ERROR);
   for(i = 0; i < total_nb_glyphs; ++i) {
     size_t width, height, Bpp;
     struct rsrc_glyph_desc glyph_desc;
@@ -108,8 +111,8 @@ main(int argc, char** argv)
     CHECK(rsrc_glyph_desc(glyph, &glyph_desc), RSRC_NO_ERROR);
     glyph_desc_list[i].width = glyph_desc.width;
     glyph_desc_list[i].character = glyph_desc.character;
-    glyph_desc_list[i].bitmap_left = glyph_desc.bitmap_left;
-    glyph_desc_list[i].bitmap_top = glyph_desc.bitmap_top;
+    glyph_desc_list[i].bitmap_left = glyph_desc.bbox.x_min;
+    glyph_desc_list[i].bitmap_top = glyph_desc.bbox.y_min;
 
     CHECK(rsrc_glyph_ref_put(glyph), RSRC_NO_ERROR);
   }

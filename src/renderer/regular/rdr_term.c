@@ -88,27 +88,28 @@ static const char* print_vs_source =
   "#version 330\n"
   "layout(location =" STR(POS_ATTRIB_ID) ") in vec3 pos;\n"
   "layout(location =" STR(TEX_ATTRIB_ID) ") in vec2 tex;\n"
-  "layout(location =" STR(COL_ATTRIB_ID) ") in vec4 col;\n"
+  "layout(location =" STR(COL_ATTRIB_ID) ") in vec3 col;\n"
   "uniform vec3 scale;\n"
   "uniform vec3 bias;\n"
   "smooth out vec2 glyph_tex;\n"
-  "flat   out vec4 glyph_col;\n"
+  "flat   out vec3 glyph_col;\n"
   "void main()\n"
   "{\n"
   "  glyph_tex = tex;\n"
   "  glyph_col = col;\n"
-  "  gl_Position = vec4(pos * scale + bias, 1);\n"
+  "  gl_Position = vec4(pos * scale + bias, 1.f);\n"
   "}\n";
 
 static const char* print_fs_source =
   "#version 330\n"
   "uniform sampler2D glyph_cache;\n"
   "smooth in vec2 glyph_tex;\n"
-  "flat   in vec4 glyph_col;\n"
+  "flat   in vec3 glyph_col;\n"
   "out vec4 color;\n"
   "void main()\n"
   "{\n"
-  "  color = texture(glyph_cache, glyph_tex) * glyph_col;\n"
+  "  float val = texture(glyph_cache, glyph_tex).r;\n"
+  "  color = vec4(val * glyph_col, val);\n"
   "}\n";
 
 #undef XSTR
@@ -357,21 +358,25 @@ printer_storage
     buffer_desc.target = RB_BIND_VERTEX_BUFFER;
     buffer_desc.usage = RB_USAGE_DYNAMIC;
     RBI(sys->rb, create_buffer
-      (sys->ctxt, &buffer_desc,NULL, &printer->glyph_vertex_buffer));
+      (sys->ctxt, &buffer_desc, NULL, &printer->glyph_vertex_buffer));
 
     /* Create the immutable index buffer. Its internal data are the indices of
      * the ordered glyphs of the vertex buffer. */
     buffer_desc.size = index_bufsiz;
     buffer_desc.target = RB_BIND_INDEX_BUFFER;
     buffer_desc.usage = RB_USAGE_IMMUTABLE;
-    for(i = 0; i < nb_glyphs * INDICES_PER_GLYPH; i += INDICES_PER_GLYPH) {
+    blob_clear(scratch);
+    for(i = 0; i < nb_glyphs * VERTICES_PER_GLYPH; i += VERTICES_PER_GLYPH) {
       const unsigned int indices[INDICES_PER_GLYPH] = {
         0+i, 1+i, 3+i, 3+i, 1+i, 2+i
       };
       blob_push_back(scratch, indices, sizeof(indices));
     }
     RBI(sys->rb, create_buffer
-      (sys->ctxt, &buffer_desc, NULL, &printer->glyph_index_buffer));
+      (sys->ctxt, 
+       &buffer_desc, 
+       blob_buffer(scratch), 
+       &printer->glyph_index_buffer));
 
     /* Setup the vertex array. */
     RBI(sys->rb, vertex_attrib_array
@@ -409,6 +414,7 @@ printer_draw
 {
   const float scale[3] = { 2.f/(float)width, 2.f/(float)height, 1.f };
   const float bias[3] = { -1.f, -1.f, 0.f };
+  struct rb_blend_desc blend_desc;
   struct rb_depth_stencil_desc depth_stencil_desc;
   struct rb_viewport_desc viewport_desc;
   struct rb_tex2d* glyph_cache = NULL;
@@ -420,6 +426,15 @@ printer_draw
 
   ctxt = sys->ctxt;
   RDR(get_font_texture(printer->font, &glyph_cache));
+
+  blend_desc.enable = 1;
+  blend_desc.src_blend_RGB = RB_BLEND_SRC_ALPHA;
+  blend_desc.src_blend_Alpha = RB_BLEND_ZERO;
+  blend_desc.dst_blend_RGB = RB_BLEND_ONE_MINUS_SRC_ALPHA;
+  blend_desc.dst_blend_Alpha = RB_BLEND_ONE;
+  blend_desc.blend_op_RGB = RB_BLEND_OP_ADD;
+  blend_desc.blend_op_Alpha = RB_BLEND_OP_ADD;
+  RBI(sys->rb, blend(ctxt, &blend_desc));
 
   depth_stencil_desc.enable_depth_test = 0;
   depth_stencil_desc.enable_depth_write = 0;
@@ -439,15 +454,22 @@ printer_draw
   RBI(sys->rb, bind_tex2d(ctxt, glyph_cache, GLYPH_CACHE_TEX_UNIT));
   RBI(sys->rb, bind_sampler(ctxt, printer->sampler, GLYPH_CACHE_TEX_UNIT));
 
+  RBI(sys->rb, bind_program(ctxt, printer->shading_program));
   RBI(sys->rb, uniform_data
     (printer->sampler_uniform, 1, (void*)(int[]){GLYPH_CACHE_TEX_UNIT}));
   RBI(sys->rb, uniform_data(printer->scale_uniform, 1, (void*)scale));
   RBI(sys->rb, uniform_data(printer->bias_uniform, 1, (void*)bias));
-  RBI(sys->rb, bind_program(ctxt, printer->shading_program));
 
   RBI(sys->rb, bind_vertex_array(ctxt, printer->varray));
   RBI(sys->rb, draw_indexed
     (ctxt, RB_TRIANGLE_LIST, printer->nb_glyphs * INDICES_PER_GLYPH));
+
+  blend_desc.enable = 0;
+  RBI(sys->rb, blend(ctxt, &blend_desc));
+  RBI(sys->rb, bind_tex2d(ctxt, NULL, GLYPH_CACHE_TEX_UNIT));
+  RBI(sys->rb, bind_sampler(ctxt, NULL, GLYPH_CACHE_TEX_UNIT));
+  RBI(sys->rb, bind_program(ctxt, NULL));
+  RBI(sys->rb, bind_vertex_array(ctxt, NULL));
 }
 
 static void
@@ -845,23 +867,24 @@ rdr_draw_term(struct rdr_term* term)
       translated_pos[1].y = glyph.pos[1].y + y;
 
       /* top left. */
-      SET_VERTEX_POS(vertex_data, translated_pos[0].x, translated_pos[0].y,1.f);
+      SET_VERTEX_POS(vertex_data, translated_pos[0].x, translated_pos[0].y,0.f);
       SET_VERTEX_TEX(vertex_data, glyph.tex[0].x, glyph.tex[0].y);
       blob_push_back(&term->scratch, vertex_data, sizeof(vertex_data));
       /* bottom left. */
-      SET_VERTEX_POS(vertex_data, translated_pos[0].x, translated_pos[1].y,1.f);
+      SET_VERTEX_POS(vertex_data, translated_pos[0].x, translated_pos[1].y,0.f);
       SET_VERTEX_TEX(vertex_data, glyph.tex[0].x, glyph.tex[1].y);
       blob_push_back(&term->scratch, vertex_data, sizeof(vertex_data));
       /* bottom right. */
-      SET_VERTEX_POS(vertex_data, translated_pos[1].x, translated_pos[1].y,1.f);
+      SET_VERTEX_POS(vertex_data, translated_pos[1].x, translated_pos[1].y,0.f);
       SET_VERTEX_TEX(vertex_data, glyph.tex[1].x, glyph.tex[1].y);
       blob_push_back(&term->scratch, vertex_data, sizeof(vertex_data));
       /* top right. */
-      SET_VERTEX_POS(vertex_data, translated_pos[1].x, translated_pos[0].y,1.f);
+      SET_VERTEX_POS(vertex_data, translated_pos[1].x, translated_pos[0].y,0.f);
       SET_VERTEX_TEX(vertex_data, glyph.tex[1].x, glyph.tex[0].y);
       blob_push_back(&term->scratch, vertex_data, sizeof(vertex_data));
 
       ++nb_glyphs;
+      x += glyph.width;
     }
   }
   /* Send the glyph data to the printer and draw. */

@@ -16,11 +16,21 @@
 #define LAST_CHAR 126
 #define NB_CHARS (LAST_CHAR + 1) - FIRST_CHAR
 
+static int g_exit = 0; 
+
 static void
-char_clbk(wchar_t ch, enum wm_state state)
+char_clbk(wchar_t ch, enum wm_state state UNUSED)
 {
   assert(state != WM_STATE_UNKNOWN);
-  wprintf(L"TERM: %c", ch);
+  wprintf(L"TERM: %c\n", ch);
+}
+
+static void
+key_clbk(enum wm_key key, enum wm_state state UNUSED)
+{
+  if(key == WM_KEY_ESC) {
+    g_exit = 1;
+  }
 }
 
 int
@@ -44,6 +54,7 @@ main(int argc, char** argv)
   const char* font_name = NULL;
   size_t line_space = 0;
   size_t i = 0;
+  bool b = false;
 
   if(argc != 3) {
     printf("usage: %s RB_DRIVER FONT\n", argv[0]);
@@ -55,7 +66,9 @@ main(int argc, char** argv)
   /* Setup the render font. */
   RSRC(create_context(NULL, &ctxt));
   RSRC(create_font(ctxt, font_name, &rfont));
-  RSRC(font_size(rfont, 16, 16));
+  if(RSRC(is_font_scalable(rfont, &b)), b)
+    RSRC(font_size(rfont, 16, 16));
+
   for(i = 0; i < NB_CHARS; ++i) {
     struct rsrc_glyph* glyph = NULL;
     struct rsrc_glyph_desc glyph_desc;
@@ -70,11 +83,11 @@ main(int argc, char** argv)
     RSRC(glyph_desc(glyph, &glyph_desc));
     glyph_desc_list[i].width = glyph_desc.width;
     glyph_desc_list[i].character = glyph_desc.character;
-    glyph_desc_list[i].bitmap_left = glyph_desc.bitmap_left;
-    glyph_desc_list[i].bitmap_top = glyph_desc.bitmap_top;
+    glyph_desc_list[i].bitmap_left = glyph_desc.bbox.x_min;
+    glyph_desc_list[i].bitmap_top = glyph_desc.bbox.y_min;
 
     /* Get glyph bitmap. */
-    RSRC(glyph_bitmap(glyph, false, &width, &height, &Bpp, NULL));
+    RSRC(glyph_bitmap(glyph, true, &width, &height, &Bpp, NULL));
     glyph_desc_list[i].bitmap.width = width;
     glyph_desc_list[i].bitmap.height = height;
     glyph_desc_list[i].bitmap.bytes_per_pixel = Bpp;
@@ -82,7 +95,7 @@ main(int argc, char** argv)
     size = width * height * Bpp;
     if(0 != size) {
       unsigned char* buffer = MEM_CALLOC(&mem_default_allocator, 1, size);
-      RSRC(glyph_bitmap(glyph, false, NULL, NULL, NULL, buffer));
+      RSRC(glyph_bitmap(glyph, true, NULL, NULL, NULL, buffer));
       glyph_desc_list[i].bitmap.buffer = buffer;
     }
 
@@ -96,9 +109,11 @@ main(int argc, char** argv)
   WM(create_device(NULL, &dev));
   WM(create_window(dev, &win_desc, &win));
   WM(attach_char_callback(dev, &char_clbk));
+  WM(attach_key_callback(dev, &key_clbk));
 
   RDR(create_system(driver_name, NULL, &sys));
   RDR(create_frame(sys, &frame));
+  RDR(background_color(frame, (float[]){0.05f, 0.05f, 0.05f}));
   RDR(create_font(sys, &font));
   RDR(font_data(font, line_space, NB_CHARS, glyph_desc_list));
   for(i = 0; i < NB_CHARS; ++i) {
@@ -106,14 +121,20 @@ main(int argc, char** argv)
   }
 
   RDR(create_term(sys, font, win_desc.width, win_desc.height, &term));
+  RDR(term_print
+    (term, 
+     L"\"My definition of fragile code is, suppose you want to add a feature; "
+     L"good code, there is one place where you add this feature and it fits; "
+     L"fragile code, you've got to touch ten places\"\n(Ken Thompson)\n"));
   RDR(term_print(term, L"Hello"));
   RDR(term_print(term, L" world!\n"));
   RDR(term_print(term, L"$"));
 
-  while(1) {
+  while(!g_exit) {
     WM(flush_events(dev));
     RDR(frame_draw_term(frame, term));
     RDR(flush_frame(frame));
+    WM(swap(win));
   }
 
   RDR(font_ref_put(font));

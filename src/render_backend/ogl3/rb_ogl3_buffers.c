@@ -199,7 +199,8 @@ rb_ogl3_create_buffer
   if(!ctxt
   || !desc
   || !out_buffer
-  || (desc->target == RB_OGL3_NB_BUFFER_TARGETS))
+  || (desc->target == RB_OGL3_NB_BUFFER_TARGETS)
+  || (desc->usage == RB_USAGE_IMMUTABLE && init_data == NULL))
     return -1;
 
   buffer = MEM_ALLOC(ctxt->allocator, sizeof(struct rb_buffer));
