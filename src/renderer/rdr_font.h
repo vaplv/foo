@@ -45,6 +45,11 @@ rdr_get_font_line_space
    size_t* line_space);
 
 extern enum rdr_error
+rdr_get_min_font_glyph_width
+  (struct rdr_font* font,
+   size_t* min_glyph_width);
+
+extern enum rdr_error
 rdr_font_bitmap_cache
   (const struct rdr_font* font,
    size_t* width, /* May be NULL. */

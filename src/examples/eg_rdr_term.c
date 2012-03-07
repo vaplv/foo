@@ -16,7 +16,7 @@
 #define LAST_CHAR 126
 #define NB_CHARS (LAST_CHAR + 1) - FIRST_CHAR
 
-static int g_exit = 0; 
+static int g_exit = 0;
 
 static void
 char_clbk(wchar_t ch, enum wm_state state UNUSED)
@@ -67,7 +67,7 @@ main(int argc, char** argv)
   RSRC(create_context(NULL, &ctxt));
   RSRC(create_font(ctxt, font_name, &rfont));
   if(RSRC(is_font_scalable(rfont, &b)), b)
-    RSRC(font_size(rfont, 16, 16));
+    RSRC(font_size(rfont, 18, 18));
 
   for(i = 0; i < NB_CHARS; ++i) {
     struct rsrc_glyph* glyph = NULL;
@@ -122,7 +122,7 @@ main(int argc, char** argv)
 
   RDR(create_term(sys, font, win_desc.width, win_desc.height, &term));
   RDR(term_print
-    (term, 
+    (term,
      L"\"My definition of fragile code is, suppose you want to add a feature; "
      L"good code, there is one place where you add this feature and it fits; "
      L"fragile code, you've got to touch ten places\"\n(Ken Thompson)\n"));

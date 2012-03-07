@@ -29,6 +29,7 @@
 struct line {
   struct list_node node;
   wchar_t* char_list;
+  size_t free_space; /* In Pixels. */
 };
 
 struct screen {
@@ -36,8 +37,8 @@ struct screen {
   struct list_node used_line_list;
   struct line* line_list;
   wchar_t* char_buffer; /* Buffer of line chars. */
-  size_t width;
-  size_t height;
+  size_t line_len; /* Number of char per lines. Include the NULL Char. */
+  size_t lines_per_screen;
   size_t scroll_id;
   size_t cursor;
 };
@@ -55,8 +56,8 @@ struct printer {
   struct rb_uniform* scale_uniform;
   struct rb_uniform* bias_uniform;
   struct rdr_font* font;
-  size_t max_nb_glyphs;
-  size_t nb_glyphs;
+  size_t max_nb_glyphs; /* Maximum number glyphs that the printer can draw. */
+  size_t nb_glyphs; /* Number of glyphs currently drawn by the printer. */
 };
 
 /* Minimal blob data structure. */
@@ -70,6 +71,8 @@ struct blob {
 struct rdr_term {
   struct ref ref;
   struct rdr_system* sys;
+  size_t width; /* In pixels. */
+  size_t height; /* In Pixels. */
   struct blob scratch;
   struct screen screen;
   struct printer printer;
@@ -206,73 +209,59 @@ error:
  * Screen functions.
  *
  ******************************************************************************/
-struct active_line {
-  wchar_t* freebuf;
-  size_t freelen;
-};
-
-static struct active_line
+static struct line*
 active_line(struct screen* scr)
 {
-  struct active_line active_line;
   struct line* line = NULL;
   struct list_node* node = NULL;
 
   node = list_head(&scr->used_line_list);
   line = CONTAINER_OF(node, struct line, node);
-  active_line.freebuf = line->char_list + scr->cursor;
-  active_line.freelen = scr->width - scr->cursor;
-  return active_line;
+  return line;
 }
 
 static void
-new_line(struct screen* scr)
-{
-  struct line* line = NULL;
-  struct list_node* node = NULL;
-
-  if(is_list_empty(&scr->free_line_list)) {
-    node = list_tail(&scr->used_line_list);
-  } else {
-    node = list_head(&scr->free_line_list);
-  }
-  list_move(node, &scr->used_line_list);
-  line = CONTAINER_OF(node, struct line, node);
-  line->char_list[0] = L'\0';
-  scr->cursor = 0;
-}
-
-static void
-shutdown_screen(struct rdr_system* sys, struct screen* scr)
+reset_screen(struct rdr_system* sys, struct screen* scr)
 {
   assert(scr);
-  if(scr->char_buffer)
+  if(scr->char_buffer) {
     MEM_FREE(sys->allocator, scr->char_buffer);
-  if(scr->line_list)
+    scr->char_buffer = NULL;
+  }
+  if(scr->line_list) {
     MEM_FREE(sys->allocator, scr->line_list);
+    scr->line_list = NULL;
+  }
   memset(scr, 0, sizeof(struct screen));
+  list_init(&scr->free_line_list);
+  list_init(&scr->used_line_list);
 }
 
 static enum rdr_error
-init_screen
+screen_storage
   (struct rdr_system* sys,
    struct screen* scr,
-   size_t width,
-   size_t height)
+   size_t chars_per_line,
+   size_t lines_per_screen)
 {
-  wchar_t* char_list = NULL;
- /* Arbitrary set the max number of saved lines to 4 times the height of the
-  * terminal. */
-  const size_t total_nb_lines = height * 4;
-  const size_t line_width = width + 1; /* +1 <=> null char. */
+  wchar_t* char_list;
+  /* Arbitrary set the max number of saved lines to 4 times the number of
+   * printed lines per screen. */
+  const size_t total_nb_lines = lines_per_screen * 4;
+  /* +1 <=> null char. */
+  const size_t line_len = chars_per_line + (chars_per_line != 0);
   size_t i = 0;
   enum rdr_error rdr_err = RDR_NO_ERROR;
-  assert(scr);
+  assert(sys && scr);
 
-  if(!width || !height) {
-    rdr_err = RDR_INVALID_ARGUMENT;
-    goto error;
-  }
+  reset_screen(sys, scr);
+  scr->line_len = line_len;
+  scr->lines_per_screen = lines_per_screen;
+  scr->scroll_id = 0;
+
+  if(!chars_per_line || !lines_per_screen)
+    goto exit;
+
   scr->line_list = MEM_ALLOC
     (sys->allocator, total_nb_lines * sizeof(struct line));
   if(!scr->line_list) {
@@ -280,31 +269,24 @@ init_screen
     goto error;
   }
   scr->char_buffer = MEM_ALLOC
-    (sys->allocator, total_nb_lines * line_width * sizeof(wchar_t));
+    (sys->allocator, total_nb_lines * line_len * sizeof(wchar_t));
   if(!scr->char_buffer) {
     rdr_err = RDR_MEMORY_ERROR;
     goto error;
   }
-
-  list_init(&scr->free_line_list);
-  list_init(&scr->used_line_list);
   for(i = 0, char_list = scr->char_buffer;
       i < total_nb_lines;
-      ++i, char_list += line_width) {
+      ++i, char_list += line_len) {
     struct line* line = scr->line_list + i;
     list_init(&line->node);
     line->char_list = char_list;
     list_add(&scr->free_line_list, &line->node);
   }
-  scr->width = width;
-  scr->height = height;
-  scr->scroll_id = 0;
-  new_line(scr);
 
 exit:
   return rdr_err;
 error:
-  shutdown_screen(sys, scr);
+  reset_screen(sys, scr);
   goto exit;
 }
 
@@ -373,9 +355,9 @@ printer_storage
       blob_push_back(scratch, indices, sizeof(indices));
     }
     RBI(sys->rb, create_buffer
-      (sys->ctxt, 
-       &buffer_desc, 
-       blob_buffer(scratch), 
+      (sys->ctxt,
+       &buffer_desc,
+       blob_buffer(scratch),
        &printer->glyph_index_buffer));
 
     /* Setup the vertex array. */
@@ -407,7 +389,7 @@ printer_data
 
 static void
 printer_draw
-  (struct rdr_system* sys, 
+  (struct rdr_system* sys,
    struct printer* printer,
    size_t width,
    size_t height)
@@ -600,6 +582,27 @@ init_printer(struct rdr_system* sys, struct printer* printer)
  *
  ******************************************************************************/
 static void
+new_line(struct rdr_term* term)
+{
+  struct line* line = NULL;
+  struct list_node* node = NULL;
+
+  if(!term->screen.line_list)
+    return;
+
+  if(is_list_empty(&term->screen.free_line_list)) {
+    node = list_tail(&term->screen.used_line_list);
+  } else {
+    node = list_head(&term->screen.free_line_list);
+  }
+  list_move(node, &term->screen.used_line_list);
+  line = CONTAINER_OF(node, struct line, node);
+  line->char_list[0] = L'\0';
+  line->free_space = term->width;
+  term->screen.cursor = 0;
+}
+
+static void
 release_term(struct ref* ref)
 {
   struct rdr_term* term = NULL;
@@ -608,7 +611,7 @@ release_term(struct ref* ref)
 
   term = CONTAINER_OF(ref, struct rdr_term, ref);
   blob_release(&term->scratch);
-  shutdown_screen(term->sys, &term->screen);
+  reset_screen(term->sys, &term->screen);
   shutdown_printer(term->sys, &term->printer);
   sys = term->sys;
   MEM_FREE(sys->allocator, term);
@@ -631,7 +634,7 @@ rdr_create_term
   struct rdr_term* term = NULL;
   enum rdr_error rdr_err = RDR_NO_ERROR;
 
-  if(!sys || !font || !out_term) {
+  if(!sys || !font || !out_term || !width || !height) {
     rdr_err = RDR_INVALID_ARGUMENT;
     goto error;
   }
@@ -644,10 +647,8 @@ rdr_create_term
   RDR(system_ref_get(sys));
   term->sys = sys;
   blob_init(term->sys->allocator, &term->scratch);
-
-  rdr_err = init_screen(term->sys, &term->screen, width, height);
-  if(rdr_err != RDR_NO_ERROR)
-    goto error;
+  term->width = width;
+  term->height = height;
 
   rdr_err = init_printer(term->sys, &term->printer);
   if(rdr_err != RDR_NO_ERROR)
@@ -688,8 +689,11 @@ rdr_term_ref_put(struct rdr_term* term)
 EXPORT_SYM enum rdr_error
 rdr_term_font(struct rdr_term* term, struct rdr_font* font)
 {
-  size_t max_nb_glyphs = 0;
+  size_t chars_per_line = 0;
+  size_t lines_per_screen = 0;
   size_t line_space = 0;
+  size_t max_nb_glyphs = 0;
+  size_t min_glyph_width = 0;
 
   if(!term || !font)
     return RDR_INVALID_ARGUMENT;
@@ -698,14 +702,24 @@ rdr_term_font(struct rdr_term* term, struct rdr_font* font)
 
   /* Approximate the size of the glyph vertex buffer.  */
   RDR(get_font_line_space(term->printer.font, &line_space));
-  if(line_space == 0) {
-    max_nb_glyphs = 0;
+  RDR(get_min_font_glyph_width(term->printer.font, &min_glyph_width));
+
+  if(0 == min_glyph_width) {
+    chars_per_line = 0;
   } else {
-    max_nb_glyphs =
-      term->screen.width  /* Max number of chars in a line. */
-    * term->screen.height / line_space; /* Max number of visible lines. */
+    chars_per_line =
+      (term->width / min_glyph_width) + ((term->width % min_glyph_width) != 0);
   }
+  if(0 == line_space) {
+    lines_per_screen = 0;
+  } else {
+    lines_per_screen =
+      (term->height / line_space) + ((term->height % line_space) != 0);
+  }
+  max_nb_glyphs = chars_per_line * lines_per_screen;
   printer_storage(term->sys, &term->printer, max_nb_glyphs, &term->scratch);
+  screen_storage(term->sys, &term->screen, chars_per_line, lines_per_screen);
+  new_line(term);
   return RDR_NO_ERROR;
 }
 
@@ -723,49 +737,64 @@ rdr_term_print(struct rdr_term* term, const wchar_t* str)
     goto error;
   }
 
-  /* Copy the submitted string into the mutable scratch buffer. */
-  len = wcslen(str);
-  blob_clear(&term->scratch);
-  rdr_err = blob_push_back(&term->scratch, str, (len + 1) * sizeof(wchar_t));
-  assert(RDR_NO_ERROR == rdr_err);
-  tkn = blob_buffer(&term->scratch);
+  if(0 != term->screen.lines_per_screen) {
+    /* Copy the submitted string into the mutable scratch buffer. */
+    len = wcslen(str);
+    blob_clear(&term->scratch);
+    rdr_err = blob_push_back(&term->scratch, str, (len + 1) * sizeof(wchar_t));
+    assert(RDR_NO_ERROR == rdr_err);
+    tkn = blob_buffer(&term->scratch);
 
-  end_str = tkn + len;
-  while(tkn < end_str) {
-    bool new_line_delimiter = false;
+    end_str = tkn + len;
+    while(tkn < end_str) {
+      bool new_line_delimiter = false;
 
-    ptr = wcschr(tkn, L'\n');
-    if(ptr) {
-      new_line_delimiter = true;
-      *ptr = L'\0';
+      ptr = wcschr(tkn, L'\n');
+      if(ptr) {
+        new_line_delimiter = true;
+        *ptr = L'\0';
+      }
+      len = wcslen(tkn);
+      while(len) {
+        struct line* line = active_line(&term->screen);
+        wchar_t* dst = line->char_list + term->screen.cursor;
+        size_t char_id = 0;
+
+        for(char_id = 0; L'\0' != tkn[char_id]; ++char_id) {
+          struct rdr_glyph glyph;
+          RDR(get_font_glyph(term->printer.font, tkn[char_id], &glyph));
+          if(glyph.width > line->free_space)
+            break;
+          line->free_space -= glyph.width;
+        }
+
+        /* The char_id should lie into the char_list buffer. */
+        assert
+          ( (uintptr_t)(dst + char_id)
+          < (uintptr_t)(line->char_list + term->screen.line_len));
+
+        /* We ensure that the dst and src memory are not overlapping. */
+        assert
+          (!IS_MEMORY_OVERLAPPED
+           (tkn,
+            char_id * sizeof(wchar_t),
+            dst,
+            char_id * sizeof(wchar_t)));
+
+        memcpy(dst, tkn, char_id * sizeof(wchar_t));
+        dst[char_id] = L'\0';
+        term->screen.cursor += char_id;
+        tkn += char_id;
+        len -= char_id;
+
+        if(len != 0)
+          new_line(term);
+      }
+      if(new_line_delimiter)
+        new_line(term);
+      ++tkn;
     }
-    len = wcslen(tkn);
-    while(len) {
-      struct active_line line = active_line(&term->screen);
-      const size_t nb_chars = line.freelen > len ? len : line.freelen;
-
-      /* We ensure that the dst and src memory are not overlapping. */
-      assert
-        (!IS_MEMORY_OVERLAPPED
-         (tkn,
-          nb_chars * sizeof(wchar_t),
-          line.freebuf,
-          nb_chars * sizeof(wchar_t)));
-
-      memcpy(line.freebuf, tkn, nb_chars * sizeof(wchar_t));
-      line.freebuf[len] = L'\0';
-      term->screen.cursor += nb_chars;
-      tkn += nb_chars;
-      len -= nb_chars;
-
-      if(len != 0)
-        new_line(&term->screen);
-    }
-    if(new_line_delimiter)
-      new_line(&term->screen);
-    ++tkn;
   }
-
 exit:
   return rdr_err;
 error:
@@ -778,7 +807,7 @@ rdr_term_dump(const struct rdr_term* term, size_t* out_len, wchar_t* buffer)
   if(!term)
     return RDR_INVALID_ARGUMENT;
 
-  if(out_len || buffer) {
+  if(term->screen.lines_per_screen && (out_len || buffer)) {
     struct list_node* node = NULL;
     wchar_t* b = buffer;
     size_t len = 0;
@@ -845,14 +874,15 @@ rdr_draw_term(struct rdr_term* term)
 
     /* Do not draw the line that are cut by the terminal borders. */
     y += line_space;
-    if(y > term->screen.height)
+    if(y > term->height)
       break;
 
     /* Fill the scratch buffer with the glyphs of the line. */
     line = CONTAINER_OF(node, struct line, node);
     x = 0;
     for(char_id = 0;
-        assert(char_id < term->screen.width), line->char_list[char_id] != '\0';
+        assert(char_id < term->screen.line_len),
+        line->char_list[char_id] != '\0';
         ++char_id) {
       struct rdr_glyph glyph;
       struct {
@@ -891,7 +921,7 @@ rdr_draw_term(struct rdr_term* term)
   printer_data
     (term->sys, &term->printer, nb_glyphs, blob_buffer(&term->scratch));
   printer_draw
-    (term->sys, &term->printer, term->screen.width, term->screen.height);
+    (term->sys, &term->printer, term->width, term->height);
 
   #undef SET_VERTEX_POS
   #undef SET_VERTEX_TEX

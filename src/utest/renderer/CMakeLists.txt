@@ -16,7 +16,7 @@ add_executable(utest_renderer utest_renderer.c)
 target_link_libraries(utest_renderer wmglfw renderer)
 
 add_executable(utest_rdr_term utest_rdr_term.c)
-target_link_libraries(utest_rdr_term wmglfw renderer)
+target_link_libraries(utest_rdr_term wmglfw renderer rsrc)
 
 add_test(
   renderer_null
@@ -53,12 +53,14 @@ add_test(
 add_test(
   rdr_term_null
   ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/utest_rdr_term
-  ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/librbnull.so)
+  ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/librbnull.so
+  ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/../etc/fonts/freefont-ttf/FreeSans.ttf)
 
 add_test(
   rdr_term_ogl3
   ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/utest_rdr_term
-  ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/librbogl3.so)
+  ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/librbogl3.so
+  ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/../etc/fonts/freefont-ttf/FreeSans.ttf)
 
 add_test(
   rdr_world_null

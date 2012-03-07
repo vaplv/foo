@@ -37,7 +37,7 @@ rdr_term_print
 extern enum rdr_error
 rdr_term_dump
   (const struct rdr_term* term,
-   size_t* len, /* May be NULL. */
+   size_t* len, /* May be NULL. Include the null char. */
    wchar_t* buffer); /* May be NULL. */
 
 #endif /* RDR_TERM_H */

@@ -28,6 +28,7 @@ struct rdr_font {
     unsigned char* buffer;
   } cache_img;
   size_t line_space;
+  size_t min_glyph_width;
 };
 
 /*******************************************************************************
@@ -448,6 +449,9 @@ rdr_font_data
   }
   reset_font(font);
   font->line_space = line_space;
+  font->min_glyph_width = SIZE_MAX;
+  for(i = 0; i < nb_glyphs; ++i)
+    font->min_glyph_width = MIN(font->min_glyph_width, glyph_list[i].width);
 
   if(0 == nb_glyphs)
     goto exit;
@@ -465,7 +469,7 @@ rdr_font_data
 
   /* Create the binary tree data structure used to pack the glyphs into the
    * cache texture. */
-  Bpp = sorted_glyphs[i].bitmap.bytes_per_pixel;
+  Bpp = sorted_glyphs[0].bitmap.bytes_per_pixel;
   if(Bpp != 1 && Bpp != 3) {
     rdr_err = RDR_INVALID_ARGUMENT;
     goto error;
@@ -590,6 +594,15 @@ rdr_get_font_line_space(struct rdr_font* font, size_t* line_space)
   if(!font || !line_space)
     return RDR_INVALID_ARGUMENT;
   *line_space = font->line_space;
+  return RDR_NO_ERROR;
+}
+
+EXPORT_SYM enum rdr_error
+rdr_get_min_font_glyph_width(struct rdr_font* font, size_t* width)
+{
+  if(!font || !width)
+    return RDR_INVALID_ARGUMENT;
+  *width = font->min_glyph_width;
   return RDR_NO_ERROR;
 }
 

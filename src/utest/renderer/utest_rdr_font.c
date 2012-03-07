@@ -37,7 +37,9 @@ main(int argc, char** argv)
   const size_t total_nb_glyphs = nb_glyphs + nb_duplicated_glyphs;
   size_t width, height, Bpp;
   const unsigned char* bmp_cache = NULL;
+  size_t min_width = 0;
   size_t i = 0;
+  size_t j = 0;
   int err = 0;
   bool null_driver = false; 
   bool b = false;
@@ -69,7 +71,6 @@ main(int argc, char** argv)
   file = fopen(driver_name, "r");
   if(!file) {
     fprintf(stderr, "Invalid driver %s\n", driver_name);
-    fclose(file);
     goto error;
   }
   fclose(file);
@@ -77,7 +78,6 @@ main(int argc, char** argv)
   file = fopen(driver_name, "r");
   if(!file) {
     fprintf(stderr, "Invalid font name %s\n", font_name);
-    fclose(file);
     goto error;
   }
   fclose(file);
@@ -89,6 +89,8 @@ main(int argc, char** argv)
   CHECK(rsrc_is_font_scalable(ft, &b), RSRC_NO_ERROR);
   if(b) 
     CHECK(rsrc_font_size(ft, 24, 24), RSRC_NO_ERROR);
+
+  min_width = SIZE_MAX;
   for(i = 0; i < total_nb_glyphs; ++i) {
     size_t width, height, Bpp;
     struct rsrc_glyph_desc glyph_desc;
@@ -109,6 +111,7 @@ main(int argc, char** argv)
     glyph_desc_list[i].bitmap.buffer = glyph_bitmap_list[i];
 
     CHECK(rsrc_glyph_desc(glyph, &glyph_desc), RSRC_NO_ERROR);
+    min_width = MIN(glyph_desc.width, min_width);
     glyph_desc_list[i].width = glyph_desc.width;
     glyph_desc_list[i].character = glyph_desc.character;
     glyph_desc_list[i].bitmap_left = glyph_desc.bbox.x_min;
@@ -168,7 +171,19 @@ main(int argc, char** argv)
    
   CHECK(rdr_font_data(NULL, 0, 0, NULL), BAD_ARG);
   CHECK(rdr_font_data(font, 0, 0, NULL), OK);
+
   CHECK(rsrc_font_line_space(ft, &i), RSRC_NO_ERROR);
+
+  CHECK(rdr_get_font_line_space(NULL, NULL), BAD_ARG);
+  CHECK(rdr_get_font_line_space(font, NULL), BAD_ARG);
+  CHECK(rdr_get_font_line_space(NULL, &j), BAD_ARG);
+  CHECK(rdr_get_font_line_space(font, &j), OK);
+
+  CHECK(rdr_get_min_font_glyph_width(NULL, NULL), BAD_ARG);
+  CHECK(rdr_get_min_font_glyph_width(font, NULL), BAD_ARG);
+  CHECK(rdr_get_min_font_glyph_width(NULL, &j), BAD_ARG);
+  CHECK(rdr_get_min_font_glyph_width(font, &j), OK);
+
   if(null_driver) {
     CHECK(rdr_font_data(font, i, nb_glyphs, glyph_desc_list), MEM_ERROR);
   } else {
@@ -182,6 +197,11 @@ main(int argc, char** argv)
     CHECK(rsrc_write_ppm
       (ctxt, "/tmp/font_cache.ppm", width, height, Bpp, bmp_cache), 
       RSRC_NO_ERROR);
+
+    CHECK(rdr_get_font_line_space(font, &j), OK);
+    CHECK(j, i);
+    CHECK(rdr_get_min_font_glyph_width(font, &j), OK);
+    CHECK(j, min_width);
   }
 
   CHECK(rdr_font_ref_get(NULL), BAD_ARG);
