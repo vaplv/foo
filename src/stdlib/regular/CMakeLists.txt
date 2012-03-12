@@ -5,6 +5,7 @@ add_library(sl SHARED
   sl_logger.c
   sl_set.c
   sl_string.c
+  sl_wstring.c
   sl_vector.c)
 
 target_link_libraries(sl sys)

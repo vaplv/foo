@@ -41,7 +41,7 @@ main(int argc, char** argv)
   size_t i = 0;
   size_t j = 0;
   int err = 0;
-  bool null_driver = false; 
+  bool null_driver = false;
   bool b = false;
 
   /* Resources data. */
@@ -87,7 +87,7 @@ main(int argc, char** argv)
   CHECK(rsrc_create_context(NULL, &ctxt), RSRC_NO_ERROR);
   CHECK(rsrc_create_font(ctxt, font_name, &ft), RSRC_NO_ERROR);
   CHECK(rsrc_is_font_scalable(ft, &b), RSRC_NO_ERROR);
-  if(b) 
+  if(b)
     CHECK(rsrc_font_size(ft, 24, 24), RSRC_NO_ERROR);
 
   min_width = SIZE_MAX;
@@ -168,7 +168,7 @@ main(int argc, char** argv)
   CHECK(width, 0);
   CHECK(height, 0);
   CHECK(Bpp, 0);
-   
+
   CHECK(rdr_font_data(NULL, 0, 0, NULL), BAD_ARG);
   CHECK(rdr_font_data(font, 0, 0, NULL), OK);
 
@@ -184,25 +184,21 @@ main(int argc, char** argv)
   CHECK(rdr_get_min_font_glyph_width(NULL, &j), BAD_ARG);
   CHECK(rdr_get_min_font_glyph_width(font, &j), OK);
 
-  if(null_driver) {
-    CHECK(rdr_font_data(font, i, nb_glyphs, glyph_desc_list), MEM_ERROR);
-  } else {
-    CHECK(rdr_font_data(font, i, nb_glyphs, glyph_desc_list), OK);
-    CHECK(rdr_font_bitmap_cache(font, &width, &height, &Bpp, &bmp_cache), OK);
-    NCHECK(bmp_cache, NULL);
-    NCHECK(width, 0);
-    NCHECK(height, 0);
-    NCHECK(Bpp, 0);
+  CHECK(rdr_font_data(font, i, nb_glyphs, glyph_desc_list), OK);
+  CHECK(rdr_font_bitmap_cache(font, &width, &height, &Bpp, &bmp_cache), OK);
+  NCHECK(bmp_cache, NULL);
+  NCHECK(width, 0);
+  NCHECK(height, 0);
+  NCHECK(Bpp, 0);
 
-    CHECK(rsrc_write_ppm
-      (ctxt, "/tmp/font_cache.ppm", width, height, Bpp, bmp_cache), 
-      RSRC_NO_ERROR);
+  CHECK(rsrc_write_ppm
+    (ctxt, "/tmp/font_cache.ppm", width, height, Bpp, bmp_cache),
+     RSRC_NO_ERROR);
 
-    CHECK(rdr_get_font_line_space(font, &j), OK);
-    CHECK(j, i);
-    CHECK(rdr_get_min_font_glyph_width(font, &j), OK);
-    CHECK(j, min_width);
-  }
+  CHECK(rdr_get_font_line_space(font, &j), OK);
+  CHECK(j, i);
+  CHECK(rdr_get_min_font_glyph_width(font, &j), OK);
+  CHECK(j, min_width);
 
   CHECK(rdr_font_ref_get(NULL), BAD_ARG);
   CHECK(rdr_font_ref_get(font), OK);

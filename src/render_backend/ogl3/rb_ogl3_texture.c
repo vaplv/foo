@@ -148,7 +148,11 @@ rb_create_tex2d
   unsigned int i = 0;
   int err = 0;
 
-  if(!ctxt || !desc || !init_data || !out_tex || !desc->mip_count)
+  if(!ctxt 
+  || !desc 
+  || !init_data 
+  || !out_tex 
+  || !desc->mip_count)
     goto error;
 
   tex = MEM_ALLOC(ctxt->allocator, sizeof(struct rb_tex2d));

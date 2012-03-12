@@ -15,6 +15,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define DEFAULT_CHAR ((wchar_t)~0)
 
 struct rdr_font {
   struct ref ref;
@@ -336,6 +337,63 @@ reset_font(struct rdr_font* font)
   font->line_space = 0;
 }
 
+static enum rdr_error
+create_default_glyph
+  (struct mem_allocator* allocator,
+   size_t width, 
+   size_t height,
+   size_t Bpp,
+   struct rdr_glyph_desc* glyph)
+{
+  unsigned char* buffer = NULL;
+  const size_t size = width * height * Bpp;
+  enum rdr_error rdr_err = RDR_NO_ERROR;
+
+  assert(glyph && allocator);
+  glyph->character = DEFAULT_CHAR;
+  glyph->width = width;
+  glyph->bitmap_left = 0;
+  glyph->bitmap_top = 0;
+  glyph->bitmap.width = width;
+  glyph->bitmap.height = height;
+  glyph->bitmap.bytes_per_pixel = Bpp;
+  if(size) {
+    buffer = MEM_CALLOC(allocator, 1, size);
+    if(NULL == buffer) {
+      rdr_err =  RDR_MEMORY_ERROR;
+      goto error;
+    } else {
+      const size_t pitch = width * Bpp;
+      size_t y = 0;
+      memset(buffer, 255, pitch);
+      memset(buffer + (height - 1) * pitch, 255, pitch);
+      for(y = 1; y < height - 1; ++y) {
+        memset(buffer + y * pitch, 255, Bpp);
+        memset(buffer + y * pitch + (width - 1) * Bpp, 255, Bpp);
+      }
+    }
+  }
+exit:
+  if(glyph)
+    glyph->bitmap.buffer = buffer;
+  return rdr_err;
+error: 
+  if(buffer)
+    MEM_FREE(allocator, buffer);
+  goto exit;
+}
+
+static void
+free_default_glyph
+  (struct mem_allocator* allocator, 
+   struct rdr_glyph_desc* glyph)
+{
+  assert(allocator && glyph);
+  if(glyph->bitmap.buffer)
+    MEM_FREE(allocator, glyph->bitmap.buffer);
+  memset(glyph, 0, sizeof(struct rdr_glyph_desc));
+}
+
 static void
 release_font(struct ref* ref)
 {
@@ -434,27 +492,43 @@ rdr_font_data
    const struct rdr_glyph_desc* glyph_list)
 {
   struct rb_tex2d_desc tex2d_desc;
+  struct rdr_glyph_desc default_glyph; 
   struct rdr_glyph_desc* sorted_glyphs = NULL;
   struct node* root = NULL;
   size_t Bpp = 0;
-  size_t i = 0;
   size_t cache_width = 0;
   size_t cache_height = 0;
+  size_t i = 0;
+  size_t max_bmp_width = 0;
+  size_t max_bmp_height = 0;
   enum rdr_error rdr_err = RDR_NO_ERROR;
   memset(&tex2d_desc, 0, sizeof(tex2d_desc));
+  memset(&default_glyph, 0, sizeof(default_glyph));
 
   if(!font || (nb_glyphs && !glyph_list)) {
     rdr_err = RDR_INVALID_ARGUMENT;
     goto error;
   }
+  if(0 == nb_glyphs)
+    goto exit;
+
   reset_font(font);
   font->line_space = line_space;
   font->min_glyph_width = SIZE_MAX;
-  for(i = 0; i < nb_glyphs; ++i)
+  for(i = 0; i < nb_glyphs; ++i) {
     font->min_glyph_width = MIN(font->min_glyph_width, glyph_list[i].width);
-
-  if(0 == nb_glyphs)
-    goto exit;
+    max_bmp_width = MAX(max_bmp_width, glyph_list[i].bitmap.width);
+    max_bmp_height = MAX(max_bmp_height, glyph_list[i].bitmap.height);
+  }
+  Bpp = glyph_list[0].bitmap.bytes_per_pixel;
+  if(Bpp != 1 && Bpp != 3) {
+    rdr_err = RDR_INVALID_ARGUMENT;
+    goto error;
+  }
+  rdr_err = create_default_glyph
+    (font->sys->allocator, max_bmp_width, max_bmp_height, Bpp, &default_glyph);
+  if(RDR_NO_ERROR != rdr_err)
+    goto error;
 
   /* Sort the input glyphs in descending order with respect to their
    * bitmap size. */
@@ -469,11 +543,6 @@ rdr_font_data
 
   /* Create the binary tree data structure used to pack the glyphs into the
    * cache texture. */
-  Bpp = sorted_glyphs[0].bitmap.bytes_per_pixel;
-  if(Bpp != 1 && Bpp != 3) {
-    rdr_err = RDR_INVALID_ARGUMENT;
-    goto error;
-  }
   compute_initial_cache_size
     (nb_glyphs, sorted_glyphs, &cache_width, &cache_height);
   root = MEM_CALLOC(font->sys->allocator, 1, sizeof(struct node));
@@ -577,6 +646,8 @@ rdr_font_data
      &font->cache_tex));
 
 exit:
+  if(font)
+    free_default_glyph(font->sys->allocator, &default_glyph);
   if(root)
     free_binary_tree(font->sys->allocator, root);
   if(sorted_glyphs)

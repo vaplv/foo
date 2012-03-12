@@ -72,6 +72,11 @@
   ((uintptr_t)(d0) + (sz0) >= (uintptr_t)(d1) && \
    (uintptr_t)(d0) + (sz0) < (uintptr_t)(d1) + (sz1))
 
+#define CONCAT__(a, b) a ## b
+#define CONCAT(a, b) \
+  CONCAT__(a, b)
+
+
 #define LIKELY(x) \
   __builtin_expect(x, 1)
 

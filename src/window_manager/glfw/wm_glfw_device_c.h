@@ -9,10 +9,9 @@ struct sl_set;
 typedef void (*wm_callback_t)(void);
 #define WM_CALLBACK(func) ((wm_callback_t)func)
 
-/* Encapsulate the callback func into a structure to avoid the alignment and
- * cast issues of a function pointer into an void* collection. */
 struct callback { 
   wm_callback_t func; 
+  void* data;
 };
 
 struct wm_device {

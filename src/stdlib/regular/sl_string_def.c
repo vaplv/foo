@@ -1,0 +1,423 @@
+#include "sys/mem_allocator.h"
+#include "sys/sys.h"
+#include <assert.h>
+#include <string.h>
+
+#define SL_STRING_STD 0
+#define SL_STRING_WIDE 1
+
+#if (SL_STRING_TYPE == SL_STRING_STD)
+  #define SL_NULL_CHAR '\0'
+  #define SL_STRNCPY strncpy
+  #define SL_STRLEN strlen
+#elif (SL_STRING_TYPE == SL_STRING_WIDE)
+  #define SL_NULL_CHAR L'\0'
+  #define SL_STRNCPY wcsncpy
+  #define SL_STRLEN wcslen
+#else
+#endif
+
+#undef SL_STRING_STD
+#undef SL_STRING_WIDE
+
+#include "stdlib/sl_string_def.h"
+
+#define STR_BUFFER_SIZE 16
+#define STR_ALLOC_GRANULARITY 32
+
+SL_STRING(SL_STRING_TYPE) {
+  struct mem_allocator* allocator;
+  size_t allocated;
+  size_t len;
+  SL_STRING_CHAR(SL_STRING_TYPE)* cstr;
+  SL_STRING_CHAR(SL_STRING_TYPE) buffer[STR_BUFFER_SIZE];
+};
+
+/*******************************************************************************
+ *
+ * Helper functions.
+ *
+ ******************************************************************************/
+static enum sl_error
+ensure_allocated(SL_STRING(SL_STRING_TYPE)* str, size_t size, bool keep_old)
+{
+  SL_STRING_CHAR(SL_STRING_TYPE)* buffer = NULL;
+  enum sl_error sl_err = SL_NO_ERROR;
+
+  assert(str);
+  if(size * sizeof(SL_STRING_CHAR(SL_STRING_TYPE)) > str->allocated) {
+    const size_t mod = size % STR_ALLOC_GRANULARITY;
+    size_t new_size = 0;
+
+    if(0 == mod) {
+      new_size = size;
+    } else {
+      new_size = size - mod + STR_ALLOC_GRANULARITY;
+    }
+    buffer = MEM_ALLOC
+      (str->allocator,
+       new_size * sizeof(SL_STRING_CHAR(SL_STRING_TYPE)));
+    if(!buffer) {
+      sl_err = SL_MEMORY_ERROR;
+      goto error;
+    }
+    str->allocated = new_size * sizeof(SL_STRING_CHAR(SL_STRING_TYPE));
+    if(keep_old) {
+      SL_STRNCPY(buffer, str->cstr, new_size - 1);
+      buffer[new_size - 1] = SL_NULL_CHAR;
+    }
+    if(str->cstr != str->buffer) {
+      MEM_FREE(str->allocator, str->cstr);
+    }
+    str->cstr = buffer;
+  }
+
+exit:
+  return SL_NO_ERROR;
+error:
+  if(buffer)
+    MEM_FREE(str->allocator, buffer);
+  goto exit;
+}
+
+/*******************************************************************************
+ *
+ * String functions.
+ *
+ ******************************************************************************/
+EXPORT_SYM enum sl_error
+SL_CREATE_STRING(SL_STRING_TYPE)
+  (const SL_STRING_CHAR(SL_STRING_TYPE)* val,
+   struct mem_allocator* specific_allocator,
+   SL_STRING(SL_STRING_TYPE)** out_str)
+{
+  struct mem_allocator* allocator = NULL;
+  SL_STRING(SL_STRING_TYPE)* str = NULL;
+  enum sl_error sl_err = SL_NO_ERROR;
+
+  if(!out_str) {
+    sl_err = SL_INVALID_ARGUMENT;
+    goto error;
+  }
+  allocator = specific_allocator ? specific_allocator : &mem_default_allocator;
+  str = MEM_CALLOC(allocator, 1, sizeof(SL_STRING(SL_STRING_TYPE)));
+  if(!str) {
+    sl_err = SL_MEMORY_ERROR;
+    goto error;
+  }
+  str->allocator = allocator;
+  str->allocated = STR_BUFFER_SIZE;
+  str->len = 0;
+  str->cstr = str->buffer;
+  str->buffer[0] = SL_NULL_CHAR;
+  if(val) {
+    sl_err = SL_STRING_SET(SL_STRING_TYPE)(str, val);
+    if(sl_err != SL_NO_ERROR)
+      goto error;
+  }
+
+exit:
+  if(out_str)
+    *out_str = str;
+  return sl_err;
+error:
+  if(str) {
+    if(str->cstr != str->buffer)
+      MEM_FREE(allocator, str->cstr);
+    MEM_FREE(allocator, str);
+    str = NULL;
+  }
+  goto exit;
+}
+
+EXPORT_SYM enum sl_error
+SL_FREE_STRING(SL_STRING_TYPE)(SL_STRING(SL_STRING_TYPE)* str)
+{
+  if(!str)
+    return SL_INVALID_ARGUMENT;
+  if(str->cstr != str->buffer)
+    MEM_FREE(str->allocator, str->cstr);
+  MEM_FREE(str->allocator, str);
+  return SL_NO_ERROR;
+}
+
+EXPORT_SYM enum sl_error
+SL_CLEAR_STRING(SL_STRING_TYPE)(SL_STRING(SL_STRING_TYPE)* str)
+{
+  if(!str)
+    return SL_INVALID_ARGUMENT;
+  str->len = 0;
+  str->cstr[0] = SL_NULL_CHAR;
+  return SL_NO_ERROR;
+}
+
+EXPORT_SYM enum sl_error
+SL_IS_STRING_EMPTY(SL_STRING_TYPE)
+  (SL_STRING(SL_STRING_TYPE)* str,
+   bool* is_empty)
+{
+  if(!str || !is_empty)
+    return SL_INVALID_ARGUMENT;
+  *is_empty = str->cstr[0] == SL_NULL_CHAR;
+  return SL_NO_ERROR;
+}
+
+EXPORT_SYM enum sl_error
+SL_STRING_SET(SL_STRING_TYPE)
+  (SL_STRING(SL_STRING_TYPE)* str,
+   const SL_STRING_CHAR(SL_STRING_TYPE)* val)
+{
+  size_t val_len = 0;
+  enum sl_error sl_err = SL_NO_ERROR;
+
+  if(!str || !val) {
+    sl_err = SL_INVALID_ARGUMENT;
+    goto error;
+  }
+  val_len = SL_STRLEN(val);
+  sl_err = ensure_allocated(str, val_len + 1, false);
+  if(sl_err != SL_NO_ERROR)
+    goto error;
+  str->len = val_len;
+  SL_STRNCPY(str->cstr, val, val_len + 1);
+
+exit:
+  return sl_err;
+error:
+  goto exit;
+}
+
+EXPORT_SYM enum sl_error
+SL_STRING_GET(SL_STRING_TYPE)
+  (SL_STRING(SL_STRING_TYPE)* str,
+   const SL_STRING_CHAR(SL_STRING_TYPE)** cstr)
+{
+  if(!str || !cstr)
+    return SL_INVALID_ARGUMENT;
+  *cstr = str->cstr;
+  return SL_NO_ERROR;
+}
+
+EXPORT_SYM enum sl_error
+SL_STRING_LENGTH(SL_STRING_TYPE)
+  (SL_STRING(SL_STRING_TYPE)* str,
+   size_t* len)
+{
+  if(!str || !len)
+    return SL_INVALID_ARGUMENT;
+  *len = str->len;
+  return SL_NO_ERROR;
+}
+
+EXPORT_SYM enum sl_error
+SL_STRING_INSERT(SL_STRING_TYPE)
+  (SL_STRING(SL_STRING_TYPE)* str,
+   size_t id,
+   const SL_STRING_CHAR(SL_STRING_TYPE)* cstr)
+{
+  size_t len = 0;
+  enum sl_error sl_err = SL_NO_ERROR;
+
+  if(!str
+  || !cstr
+  || id > str->len
+  || IS_MEMORY_OVERLAPPED(str->cstr, str->allocated, cstr, SL_STRLEN(cstr)+1)) {
+    sl_err = SL_INVALID_ARGUMENT;
+    goto error;
+  }
+  if(id == str->len) {
+    sl_err = SL_STRING_APPEND(SL_STRING_TYPE)(str, cstr);
+    if(sl_err != SL_NO_ERROR)
+      goto error;
+  } else {
+    len = SL_STRLEN(cstr);
+    sl_err = ensure_allocated(str, len + str->len + 1, true);
+    if(sl_err != SL_NO_ERROR)
+      goto error;
+    memcpy
+      (str->cstr + id + len,
+       str->cstr + id,
+       (str->len - id) * sizeof(SL_STRING_CHAR(SL_STRING_TYPE)));
+    memcpy(str->cstr+id, cstr, len * sizeof(SL_STRING_CHAR(SL_STRING_TYPE)));
+    str->len = str->len + len;
+    str->cstr[str->len] = SL_NULL_CHAR;
+  }
+
+exit:
+  return sl_err;
+error:
+  goto exit;
+}
+
+EXPORT_SYM enum sl_error
+SL_STRING_INSERT_CHAR(SL_STRING_TYPE)
+  (SL_STRING(SL_STRING_TYPE)* str,
+   size_t id,
+   SL_STRING_CHAR(SL_STRING_TYPE) ch)
+{
+  enum sl_error sl_err = SL_NO_ERROR;
+
+  if(!str || id > str->len) {
+    sl_err = SL_INVALID_ARGUMENT;
+    goto error;
+  }
+  if(id == str->len) {
+    sl_err = SL_STRING_APPEND_CHAR(SL_STRING_TYPE)(str, ch);
+    if(sl_err != SL_NO_ERROR)
+      goto error;
+  } else {
+    sl_err = ensure_allocated(str, str->len + 2, true);
+    if(sl_err != SL_NO_ERROR)
+      goto error;
+    memcpy
+      (str->cstr + id + 1,
+       str->cstr + id,
+       (str->len - id) * sizeof(SL_STRING_CHAR(SL_STRING_TYPE)));
+    str->cstr[id] = ch;
+    ++str->len;
+    str->cstr[str->len] = SL_NULL_CHAR;
+  }
+
+exit:
+  return sl_err;
+error:
+  goto exit;
+}
+
+EXPORT_SYM enum sl_error
+SL_STRING_APPEND(SL_STRING_TYPE)
+  (SL_STRING(SL_STRING_TYPE)* str,
+   const SL_STRING_CHAR(SL_STRING_TYPE)* cstr)
+{
+  enum sl_error sl_err = SL_NO_ERROR;
+  size_t len = 0;
+
+  if(!str
+  || !cstr
+  || IS_MEMORY_OVERLAPPED(str->cstr, str->allocated, cstr, SL_STRLEN(cstr)+1)) {
+    sl_err = SL_INVALID_ARGUMENT;
+    goto error;
+  }
+  len = SL_STRLEN(cstr);
+  sl_err = ensure_allocated(str, len + str->len + 1, true);
+  if(sl_err != SL_NO_ERROR)
+    goto error;
+  memcpy
+    (str->cstr + str->len, cstr, len * sizeof(SL_STRING_CHAR(SL_STRING_TYPE)));
+  str->len = str->len + len;
+  str->cstr[str->len] = SL_NULL_CHAR;
+
+exit:
+  return sl_err;
+error:
+  goto exit;
+}
+
+EXPORT_SYM enum sl_error
+SL_STRING_APPEND_CHAR(SL_STRING_TYPE)
+  (SL_STRING(SL_STRING_TYPE)* str,
+   SL_STRING_CHAR(SL_STRING_TYPE) ch)
+{
+  enum sl_error sl_err = SL_NO_ERROR;
+
+  if(!str) {
+    sl_err = SL_INVALID_ARGUMENT;
+    goto error;
+  }
+  sl_err = ensure_allocated(str, str->len + 2, true);
+  if(sl_err != SL_NO_ERROR)
+    goto error;
+  str->cstr[str->len] = ch;
+  ++str->len;
+  str->cstr[str->len] = SL_NULL_CHAR;
+
+exit:
+  return sl_err;
+error:
+  goto exit;
+}
+
+EXPORT_SYM enum sl_error
+SL_STRING_ERASE(SL_STRING_TYPE)
+  (SL_STRING(SL_STRING_TYPE)* str,
+   size_t id,
+   size_t len)
+{
+  enum sl_error sl_err = SL_NO_ERROR;
+
+  if(!str || id >= str->len) {
+    sl_err = SL_INVALID_ARGUMENT;
+    goto error;
+  }
+  if(1 == len) {
+    sl_err = SL_STRING_ERASE_CHAR(SL_STRING_TYPE)(str, id);
+    if(sl_err != SL_NO_ERROR)
+      goto error;
+  } else {
+    if(len >= str->len - id) {
+      str->len = id;
+    } else {
+      const size_t idplen = id + len;
+      memcpy
+        (str->cstr + id,
+         str->cstr + idplen,
+         (str->len - idplen) * sizeof(SL_STRING_CHAR(SL_STRING_TYPE)));
+      str->len -= len;
+    }
+    str->cstr[str->len] = SL_NULL_CHAR;
+  }
+
+exit:
+  return sl_err;
+error:
+  goto exit;
+}
+
+EXPORT_SYM enum sl_error
+SL_STRING_ERASE_CHAR(SL_STRING_TYPE)
+  (SL_STRING(SL_STRING_TYPE)* str,
+   size_t id)
+{
+  size_t new_len = 0;
+  enum sl_error sl_err = SL_NO_ERROR;
+
+  if(!str || id >= str->len) {
+    sl_err = SL_INVALID_ARGUMENT;
+    goto error;
+  }
+  new_len = str->len - 1;
+  if(id != new_len) {
+    const size_t idp1 = id + 1;
+    memcpy
+      (str->cstr + id,
+       str->cstr + idp1,
+       (str->len - idp1) * sizeof(SL_STRING_CHAR(SL_STRING_TYPE)));
+  }
+  str->len = new_len;
+  str->cstr[str->len] = SL_NULL_CHAR;
+
+exit:
+  return sl_err;
+error:
+  goto exit;
+}
+
+EXPORT_SYM enum sl_error
+SL_STRING_CAPACITY(SL_STRING_TYPE)
+  (SL_STRING(SL_STRING_TYPE)* str,
+   size_t capacity)
+{
+  enum sl_error sl_err = SL_NO_ERROR;
+  if(!str) {
+    sl_err = SL_INVALID_ARGUMENT;
+  } else {
+    sl_err = ensure_allocated
+      (str, capacity / sizeof(SL_STRING_CHAR(SL_STRING_TYPE)), true);
+  }
+  return sl_err;
+}
+
+#undef SL_NULL_CHAR
+#undef SL_STRNCPY
+#undef SL_STRLEN
+

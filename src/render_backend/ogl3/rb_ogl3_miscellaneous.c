@@ -1,7 +1,9 @@
 #include "render_backend/ogl3/rb_ogl3.h"
+#include "render_backend/ogl3/rb_ogl3_context.h"
 #include "render_backend/rb.h"
 #include "sys/sys.h"
 #include <stdlib.h>
+#include <string.h>
 
 static const GLenum rb_to_ogl3_primitive_type[] = {
   [RB_TRIANGLE_LIST] = GL_TRIANGLES,
@@ -227,16 +229,9 @@ rb_rasterizer(struct rb_context* ctxt, const struct rb_rasterizer_desc* desc)
 EXPORT_SYM int
 rb_get_config(struct rb_context* ctxt, struct rb_config* config)
 {
-  int i = 0;
   if(!ctxt || !config)
     return -1;
-
-  OGL(GetIntegerv(GL_MAX_TEXTURE_SIZE, &i));
-  assert(i > 0);
-  config->max_tex_size = i;
-  OGL(GetIntegerv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &i));
-  assert(i > 0);
-  config->max_tex_max_anisotropy = i;
+  memcpy(config, &ctxt->config, sizeof(struct rb_config));
   return 0;
 }
 

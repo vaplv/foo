@@ -12,6 +12,18 @@
  *
  ******************************************************************************/
 static void
+setup_config(struct rb_config* cfg)
+{
+  int i = 0;
+  OGL(GetIntegerv(GL_MAX_TEXTURE_SIZE, &i));
+  assert(i > 0);
+  cfg->max_tex_size = (size_t)i;
+  OGL(GetIntegerv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &i));
+  assert(i > 0);
+  cfg->max_tex_max_anisotropy = (size_t)i;
+}
+
+static void
 release_context(struct ref* ref)
 {
   struct rb_context* ctxt = NULL;
@@ -44,6 +56,8 @@ rb_create_context
     goto error;
   ctxt->allocator = allocator;
   ref_init(&ctxt->ref);
+
+  setup_config(&ctxt->config);
 
 exit:
   if(ctxt)

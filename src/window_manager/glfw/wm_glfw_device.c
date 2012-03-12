@@ -17,11 +17,15 @@ struct wm_device* g_device = NULL;
  *
  ******************************************************************************/
 static int
-compare_callbacks(const void* ptr0, const void* ptr1)
+compare_callbacks(const void* a, const void* b)
 {
-  const uintptr_t a = (uintptr_t)(((struct callback*)ptr0)->func);
-  const uintptr_t b = (uintptr_t)(((struct callback*)ptr1)->func);
-  return -(a < b) | (a > b);
+  struct callback* cbk0 = (struct callback*)a;
+  struct callback* cbk1 = (struct callback*)b;
+  const uintptr_t p0[2] = {(uintptr_t)cbk0->func, (uintptr_t)cbk0->data};
+  const uintptr_t p1[2] = {(uintptr_t)cbk1->func, (uintptr_t)cbk1->data};
+  const int inf = (p0[0] < p1[0]) | ((p0[0] == p1[0]) & (p0[1] < p1[1]));
+  const int sup = (p0[0] > p1[0]) | ((p0[0] == p1[0]) & (p0[1] > p1[1]));
+  return -(inf) | (sup);
 }
 
 static void

@@ -19,17 +19,31 @@
 static int g_exit = 0;
 
 static void
-char_clbk(wchar_t ch, enum wm_state state UNUSED)
+char_clbk(wchar_t ch, enum wm_state state, void* data)
 {
-  assert(state != WM_STATE_UNKNOWN);
-  wprintf(L"TERM: %c\n", ch);
+  assert(data);
+  if(state == WM_PRESS) {
+    struct rdr_term* term = data;
+    if(ch >= FIRST_CHAR && ch <= LAST_CHAR)
+      RDR(term_write_char(term, ch));
+  }
 }
 
 static void
-key_clbk(enum wm_key key, enum wm_state state UNUSED)
+key_clbk(enum wm_key key, enum wm_state state, void* data)
 {
-  if(key == WM_KEY_ESC) {
-    g_exit = 1;
+  assert(data);
+  if(state == WM_PRESS) {
+    struct rdr_term* term = data;
+    if(key == WM_KEY_ESC) {
+      g_exit = 1;
+    } else if(key == WM_KEY_ENTER) {
+      RDR(term_write_return(term));
+    } else if(key == WM_KEY_BACKSPACE) {
+      RDR(term_write_backspace(term));
+    } else if(key == WM_KEY_TAB) {
+      RDR(term_write_tab(term));
+    }
   }
 }
 
@@ -108,8 +122,6 @@ main(int argc, char** argv)
 
   WM(create_device(NULL, &dev));
   WM(create_window(dev, &win_desc, &win));
-  WM(attach_char_callback(dev, &char_clbk));
-  WM(attach_key_callback(dev, &key_clbk));
 
   RDR(create_system(driver_name, NULL, &sys));
   RDR(create_frame(sys, &frame));
@@ -121,14 +133,17 @@ main(int argc, char** argv)
   }
 
   RDR(create_term(sys, font, win_desc.width, win_desc.height, &term));
-  RDR(term_print
+  RDR(term_write_string(term, L"Hello"));
+  RDR(term_write_string(term, L" world!\n"));
+  RDR(term_write_string
     (term,
      L"\"My definition of fragile code is, suppose you want to add a feature; "
      L"good code, there is one place where you add this feature and it fits; "
-     L"fragile code, you've got to touch ten places\"\n(Ken Thompson)\n"));
-  RDR(term_print(term, L"Hello"));
-  RDR(term_print(term, L" world!\n"));
-  RDR(term_print(term, L"$"));
+     L"fragile code, you've got to touch ten places\" (Ken Thompson)\n"));
+  RDR(term_write_string(term, L"$"));
+
+  WM(attach_char_callback(dev, &char_clbk, term));
+  WM(attach_key_callback(dev, &key_clbk, term));
 
   while(!g_exit) {
     WM(flush_events(dev));

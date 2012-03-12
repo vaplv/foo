@@ -30,9 +30,31 @@ rdr_term_font
    struct rdr_font* font);
 
 extern enum rdr_error
-rdr_term_print
+rdr_term_translate_cursor
+  (struct rdr_term* term,
+   int x);
+
+extern enum rdr_error
+rdr_term_write_string
   (struct rdr_term* term,
    const wchar_t* str);
+
+extern enum rdr_error
+rdr_term_write_char
+  (struct rdr_term* term,
+   wchar_t ch);
+
+extern enum rdr_error
+rdr_term_write_backspace
+  (struct rdr_term* term);
+
+extern enum rdr_error
+rdr_term_write_tab
+  (struct rdr_term* term);
+
+extern enum rdr_error
+rdr_term_write_return
+  (struct rdr_term* term);
 
 extern enum rdr_error
 rdr_term_dump

@@ -170,8 +170,10 @@ glfw_key_callback(int key, int action)
   assert(NULL != g_device);
 
   SL(set_buffer(g_device->key_clbk_list, &nb_clbk, 0, 0, (void**)&clbk_list));
-  for(i = 0; i < nb_clbk; ++i)
-    ((void (*)(enum wm_key, enum wm_state))clbk_list[i].func)(wm_key, wm_state);
+  for(i = 0; i < nb_clbk; ++i) {
+    ((void (*)(enum wm_key, enum wm_state, void*))clbk_list[i].func)
+      (wm_key, wm_state, clbk_list[i].data);
+  }
 }
 
 static void
@@ -185,8 +187,10 @@ glfw_char_callback(int character, int action)
   assert(NULL != g_device);
 
   SL(set_buffer(g_device->char_clbk_list, &nb_clbk, 0, 0, (void**)&clbk_list));
-  for(i = 0; i < nb_clbk; ++i)
-    ((void (*)(wchar_t, enum wm_state))clbk_list[i].func)(ch, wm_state);
+  for(i = 0; i < nb_clbk; ++i) {
+    ((void (*)(wchar_t, enum wm_state, void*))clbk_list[i].func)
+      (ch, wm_state, clbk_list[i].data);
+  }
 }
 
 /*******************************************************************************
@@ -274,7 +278,8 @@ wm_get_mouse_position
 EXPORT_SYM enum wm_error
 wm_attach_key_callback
   (struct wm_device* device,
-   void (*func)(enum wm_key, enum wm_state))
+   void (*func)(enum wm_key, enum wm_state, void*),
+   void* data)
 {
   size_t len = 0;
   enum sl_error sl_err = SL_NO_ERROR;
@@ -291,7 +296,7 @@ wm_attach_key_callback
     glfwSetKeyCallback(glfw_key_callback);
 
   sl_err = sl_set_insert
-    (device->key_clbk_list, (struct callback[]){{WM_CALLBACK(func)}});
+    (device->key_clbk_list, (struct callback[]){{WM_CALLBACK(func), data}});
   if(sl_err != SL_NO_ERROR) {
     wm_err = sl_to_wm_error(sl_err);
     goto error;
@@ -306,7 +311,8 @@ error:
 EXPORT_SYM enum wm_error
 wm_detach_key_callback
   (struct wm_device* device,
-   void (*func)(enum wm_key, enum wm_state))
+   void (*func)(enum wm_key, enum wm_state, void*),
+   void* data)
 {
   size_t len = 0;
   enum sl_error sl_err = SL_NO_ERROR;
@@ -317,7 +323,7 @@ wm_detach_key_callback
     goto error;
   }
   sl_err = sl_set_remove
-    (device->key_clbk_list, (struct callback[]){{WM_CALLBACK(func)}});
+    (device->key_clbk_list, (struct callback[]){{WM_CALLBACK(func), data}});
   if(sl_err != SL_NO_ERROR) {
     wm_err = sl_to_wm_error(sl_err);
     goto error;
@@ -336,7 +342,8 @@ error:
 EXPORT_SYM enum wm_error
 wm_attach_char_callback
   (struct wm_device* device,
-   void (*func)(wchar_t, enum wm_state))
+   void (*func)(wchar_t, enum wm_state, void*),
+   void* data)
 {
   size_t len = 0;
   enum sl_error sl_err = SL_NO_ERROR;
@@ -353,7 +360,7 @@ wm_attach_char_callback
     glfwSetCharCallback(glfw_char_callback);
 
   sl_err = sl_set_insert
-    (device->char_clbk_list, (struct callback[]){{WM_CALLBACK(func)}});
+    (device->char_clbk_list, (struct callback[]){{WM_CALLBACK(func), data}});
   if(sl_err != SL_NO_ERROR) {
     wm_err = sl_to_wm_error(sl_err);
     goto error;
@@ -369,7 +376,8 @@ error:
 EXPORT_SYM enum wm_error
 wm_detach_char_callback
   (struct wm_device* device,
-   void (*func)(wchar_t, enum wm_state))
+   void (*func)(wchar_t, enum wm_state, void*),
+   void* data)
 {
   size_t len = 0;
   enum sl_error sl_err = SL_NO_ERROR;
@@ -380,7 +388,7 @@ wm_detach_char_callback
     goto error;
   }
   sl_err = sl_set_remove
-    (device->char_clbk_list, (struct callback[]){{WM_CALLBACK(func)}});
+    (device->char_clbk_list, (struct callback[]){{WM_CALLBACK(func), data}});
   if(sl_err != SL_NO_ERROR) {
     wm_err = sl_to_wm_error(sl_err);
     goto error;

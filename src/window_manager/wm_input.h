@@ -139,22 +139,26 @@ wm_get_mouse_position
 extern enum wm_error
 wm_attach_key_callback
   (struct wm_device* device,
-   void (*func)(enum wm_key, enum wm_state));
+   void (*func)(enum wm_key, enum wm_state, void* data),
+   void* data); /* May be NULL. */
 
 extern enum wm_error
 wm_detach_key_callback
   (struct wm_device* device,
-   void (*func)(enum wm_key, enum wm_state));
+   void (*func)(enum wm_key, enum wm_state, void* data),
+   void* data); /* May be NULL. */
 
 extern enum wm_error
 wm_attach_char_callback
   (struct wm_device* device,
-   void (*func)(wchar_t, enum wm_state));
+   void (*func)(wchar_t, enum wm_state, void* data),
+   void* data);
 
 extern enum wm_error
 wm_detach_char_callback
   (struct wm_device* device,
-   void (*func)(wchar_t, enum wm_state));
+   void (*func)(wchar_t, enum wm_state, void* data),
+   void* data);
 
 #endif /* WM_INPUT_H */
 

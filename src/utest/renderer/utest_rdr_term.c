@@ -12,13 +12,16 @@
 #define BAD_ARG RDR_INVALID_ARGUMENT
 #define OK RDR_NO_ERROR
 
+STATIC_ASSERT(BUFSIZ >= 128, Unexpected_constant);
+
 int
 main(int argc, char** argv)
 {
   const wchar_t char_list[] = {
     L' ', L'a', L'b', L'c', L'd', L'e', L'f', L'g', L'h', L'i', L'j', L'k',
     L'l', L'm', L'n', L'o', L'p', L'q', L'r', L's', L't', L'u', L'v', L'w',
-    L'x', L'y', L'z'
+    L'x', L'y', L'z', L'0', L'1', L'2', L'3', L'4', L'5', L'6', L'7', L'8',
+    L'9'
   };
   wchar_t buffer[BUFSIZ];
   const char* driver_name = NULL;
@@ -26,6 +29,7 @@ main(int argc, char** argv)
   const size_t nb_chars = sizeof(char_list) / sizeof(wchar_t);
   size_t line_space = 0;
   size_t i = 0;
+  size_t max_glyph_width = 0;
   int err = 0;
   bool is_font_scalable = false;
 
@@ -58,8 +62,9 @@ main(int argc, char** argv)
   CHECK(rsrc_create_font(ctxt, font_name, &ft), RSRC_NO_ERROR);
   CHECK(rsrc_is_font_scalable(ft, &is_font_scalable), RSRC_NO_ERROR);
   if(is_font_scalable)
-    CHECK(rsrc_font_size(ft, 8, 8), RSRC_NO_ERROR);
+    CHECK(rsrc_font_size(ft, 18, 18), RSRC_NO_ERROR);
 
+  max_glyph_width = 0;
   for(i = 0; i < nb_chars; ++i) {
     struct rsrc_glyph* glyph = NULL;
     struct rsrc_glyph_desc glyph_desc;
@@ -72,10 +77,13 @@ main(int argc, char** argv)
 
     /* Get glyph desc. */
     CHECK(rsrc_glyph_desc(glyph, &glyph_desc), RSRC_NO_ERROR);
+    max_glyph_width = MAX(max_glyph_width, glyph_desc.width);
+
     glyph_desc_list[i].width = glyph_desc.width;
     glyph_desc_list[i].character = glyph_desc.character;
     glyph_desc_list[i].bitmap_left = glyph_desc.bbox.x_min;
     glyph_desc_list[i].bitmap_top = glyph_desc.bbox.y_min;
+
     /* Get glyph bitmap. */
     CHECK(rsrc_glyph_bitmap(glyph, true, &width, &height, &Bpp, NULL),
           RSRC_NO_ERROR);
@@ -134,45 +142,79 @@ main(int argc, char** argv)
   CHECK(rdr_create_term(NULL, NULL, 80, 25, &term), BAD_ARG);
   CHECK(rdr_create_term(sys, NULL, 80, 25, &term), BAD_ARG);
   CHECK(rdr_create_term(NULL, font, 80, 25, &term), BAD_ARG);
-  CHECK(rdr_create_term(sys, font, 80, 25, &term), OK);
+  CHECK(rdr_create_term(sys, font, max_glyph_width * 80, 25, &term), OK);
 
   CHECK(rdr_term_font(NULL, NULL), BAD_ARG);
   CHECK(rdr_term_font(term, NULL), BAD_ARG);
   CHECK(rdr_term_font(NULL, font), BAD_ARG);
   CHECK(rdr_term_font(term, font), OK);
 
-  CHECK(rdr_term_print(NULL, NULL), BAD_ARG);
-  CHECK(rdr_term_print(term, NULL), BAD_ARG);
-  CHECK(rdr_term_print(NULL, L"pouet"), BAD_ARG);
-  CHECK(rdr_term_print(term, L"pouet"), OK);
+  CHECK(rdr_term_write_backspace(NULL), BAD_ARG);
+  CHECK(rdr_term_write_backspace(term), OK);
+  CHECK(rdr_term_write_backspace(term), OK);
+
+  CHECK(rdr_term_write_char(NULL, L'a'), BAD_ARG);
+  CHECK(rdr_term_write_char(term, L'a'), OK);
 
   i = 0;
   CHECK(rdr_term_dump(NULL, NULL, NULL), BAD_ARG);
   CHECK(rdr_term_dump(term, NULL, NULL), OK);
   CHECK(rdr_term_dump(term, &i, NULL), OK);
+  CHECK(i, 2);
+  CHECK(rdr_term_dump(term, &i, buffer), OK);
+  CHECK(i, 2);
+  CHECK(wcscmp(buffer, L"a"), 0);
+  CHECK(rdr_term_dump(term, NULL, buffer), OK);
+  CHECK(wcscmp(buffer, L"a"), 0);
 
-  /* We can't ensure for non scalable font that the text is not wrapped.
-   * Consequently we can't easily predict the dump result. */
-  if(is_font_scalable) {
-    CHECK(i, 6);
-    CHECK(i <= BUFSIZ, true);
-    CHECK(rdr_term_dump(term, NULL, buffer), OK);
-    CHECK(wcscmp(buffer, L"pouet"), 0);
+  CHECK(rdr_term_write_char(term, L'a'), OK);
+  CHECK(rdr_term_write_char(term, L'b'), OK);
+  CHECK(rdr_term_write_char(term, L' '), OK);
+  CHECK(rdr_term_write_char(term, L'c'), OK);
+  CHECK(rdr_term_write_char(term, L'd'), OK);
+  CHECK(rdr_term_dump(term, &i, buffer), OK);
+  CHECK(i, 7);
+  CHECK(wcscmp(buffer, L"aab cd"), 0);
 
-    CHECK(rdr_term_print(term, L"\n pouet"), OK);
-    CHECK(rdr_term_dump(term, &i, NULL), OK);
-    CHECK(i <= BUFSIZ, true);
-    CHECK(rdr_term_dump(term, &i, buffer), OK);
-    CHECK(i, 13);
-    CHECK(wcscmp(buffer, L"pouet\n pouet"), 0);
+  CHECK(rdr_term_write_backspace(term), OK);
+  CHECK(rdr_term_write_backspace(term), OK);
+  CHECK(rdr_term_dump(term, &i, buffer), OK);
+  CHECK(i, 5);
+  CHECK(wcscmp(buffer, L"aab "), 0);
+  CHECK(rdr_term_write_backspace(term), OK);
+  CHECK(rdr_term_write_backspace(term), OK);
+  CHECK(rdr_term_write_backspace(term), OK);
+  CHECK(rdr_term_write_backspace(term), OK);
+  CHECK(rdr_term_dump(term, &i, buffer), OK);
+  CHECK(i, 1);
+  CHECK(wcscmp(buffer, L""), 0);
+  CHECK(rdr_term_write_backspace(term), OK);
+  CHECK(rdr_term_dump(term, &i, buffer), OK);
+  CHECK(i, 1);
+  CHECK(wcscmp(buffer, L""), 0);
+ 
+  CHECK(rdr_term_write_string(NULL, NULL), BAD_ARG);
+  CHECK(rdr_term_write_string(term, NULL), BAD_ARG);
+  CHECK(rdr_term_write_string(NULL, L"test"), BAD_ARG);
+  CHECK(rdr_term_write_string(term, L"test"), OK);
+  CHECK(rdr_term_dump(term, NULL, buffer), OK);
+  CHECK(wcscmp(buffer, L"test"), 0);
 
-    CHECK(rdr_term_print(term, L"\ntest\n"), OK);
-    CHECK(rdr_term_dump(term, &i, NULL), OK);
-    CHECK(i <= BUFSIZ, true);
-    CHECK(rdr_term_dump(term, &i, buffer), OK);
-    CHECK(i, 19);
-    CHECK(wcscmp(buffer, L"pouet\n pouet\ntest\n"), 0);
-  }
+  CHECK(rdr_term_write_return(NULL), BAD_ARG);
+  CHECK(rdr_term_write_return(term), OK);
+  CHECK(rdr_term_dump(term, NULL, buffer), OK);
+  CHECK(wcscmp(buffer, L"test\n"), 0);
+
+  CHECK(rdr_term_write_string(term, L"foo"), OK);
+  CHECK(rdr_term_dump(term, NULL, buffer), OK);
+  CHECK(wcscmp(buffer, L"test\nfoo"), 0);
+  CHECK(rdr_term_write_string(term, L" 0123\n456"), OK);
+  CHECK(rdr_term_dump(term, &i, buffer), OK);
+  CHECK(wcslen(buffer) + 1, i);
+  CHECK(wcscmp(buffer, L"test\nfoo 0123\n456"), 0);
+
+  CHECK(rdr_term_write_tab(NULL), BAD_ARG);
+  CHECK(rdr_term_write_tab(term), OK);
 
   CHECK(rdr_term_ref_get(NULL), BAD_ARG);
   CHECK(rdr_term_ref_get(term), OK);

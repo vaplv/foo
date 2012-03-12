@@ -31,6 +31,7 @@ release_window(struct ref* ref)
   win = CONTAINER_OF(ref, struct wm_window, ref);
   dev = win->device;
 
+  glfwDisable(GLFW_KEY_REPEAT);
   glfwCloseWindow();
   MEM_FREE(dev->allocator, win);
   WM(device_ref_put(dev));
@@ -77,6 +78,7 @@ wm_create_window
   mode = desc->fullscreen ? GLFW_FULLSCREEN : GLFW_WINDOW;
   if(glfwOpenWindow(width, height, 8, 8, 8, 8, 24, 8, mode) == GL_FALSE)
     return WM_INTERNAL_ERROR;
+  glfwEnable(GLFW_KEY_REPEAT);
 
 exit:
   if(out_win)
