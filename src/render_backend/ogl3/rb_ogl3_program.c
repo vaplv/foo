@@ -18,6 +18,7 @@ static void
 release_program(struct ref* ref)
 {
   struct list_node* node = NULL;
+  struct list_node* tmp = NULL;
   struct rb_context* ctxt = NULL;
   struct rb_program* prog = NULL;
   assert(ref);
@@ -28,7 +29,7 @@ release_program(struct ref* ref)
   if(ctxt->state_cache.current_program == prog->name)
     RB(bind_program(ctxt, NULL));
 
-  LIST_FOR_EACH(node, &prog->attached_shader_list) {
+  LIST_FOR_EACH_SAFE(node, tmp, &prog->attached_shader_list) {
     struct rb_shader* shader = CONTAINER_OF(node, struct rb_shader, attachment);
     RB(detach_shader(prog, shader));
   }
@@ -106,6 +107,7 @@ rb_attach_shader(struct rb_program* program, struct rb_shader* shader)
 
   OGL(AttachShader(program->name, shader->name));
   list_add(&program->attached_shader_list, &shader->attachment);
+  RB(shader_ref_get(shader));
   return 0;
 }
 
@@ -131,6 +133,7 @@ rb_detach_shader(struct rb_program* program, struct rb_shader* shader)
   #endif
   OGL(DetachShader(program->name, shader->name));
   list_del(&shader->attachment);
+  RB(shader_ref_put(shader));
   return 0;
 }
 

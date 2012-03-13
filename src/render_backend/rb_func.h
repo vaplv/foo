@@ -439,10 +439,18 @@ RB_FUNC(
 
 RB_FUNC(
   int,
+  draw,
+    struct rb_context* ctxt,
+    enum rb_primitive_type prim_type,
+    unsigned int count
+)
+
+RB_FUNC(
+  int,
   draw_indexed,
     struct rb_context* ctxt,
     enum rb_primitive_type prim_type,
-    int count
+    unsigned int count
 )
 
 RB_FUNC(

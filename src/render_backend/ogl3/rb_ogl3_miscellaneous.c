@@ -73,14 +73,26 @@ static const GLenum rb_to_ogl3_face_orientation[] = {
 
 EXPORT_SYM int
 rb_draw_indexed
-  (struct rb_context* ctxt, enum rb_primitive_type prim_type, int count)
+  (struct rb_context* ctxt, 
+   enum rb_primitive_type prim_type, 
+   unsigned int count)
 {
-  if(!ctxt || count < 0)
+  if(!ctxt)
     return -1;
-
   OGL(DrawElements
     (rb_to_ogl3_primitive_type[prim_type], count, GL_UNSIGNED_INT, NULL));
+  return 0;
+}
 
+EXPORT_SYM int
+rb_draw
+  (struct rb_context* ctxt, 
+   enum rb_primitive_type prim_type, 
+   unsigned int count)
+{
+  if(!ctxt)
+    return -1;
+  OGL(DrawArrays(rb_to_ogl3_primitive_type[prim_type], 0, count));
   return 0;
 }
 
@@ -100,21 +112,17 @@ rb_clear
   if((flag & RB_CLEAR_COLOR_BIT) != 0) {
     if(!color)
       return -1;
-
     clear_flag |= GL_COLOR_BUFFER_BIT;
     OGL(ClearColor(color[0], color[1], color[2], color[3]));
   }
-
   if((flag & RB_CLEAR_DEPTH_BIT) != 0) {
     clear_flag |= GL_DEPTH_BUFFER_BIT;
     OGL(ClearDepth(depth));
   }
-
   if((flag & RB_CLEAR_STENCIL_BIT) != 0) {
     clear_flag |= GL_STENCIL_BUFFER_BIT;
     OGL(ClearStencil(stencil));
   }
-
   OGL(Clear(clear_flag));
 
   return 0;

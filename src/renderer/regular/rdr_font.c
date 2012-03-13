@@ -11,6 +11,7 @@
 #include "sys/ref_count.h"
 #include "sys/sys.h"
 #include <assert.h>
+#include <limits.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
@@ -30,6 +31,7 @@ struct rdr_font {
   } cache_img;
   size_t line_space;
   size_t min_glyph_width;
+  int min_glyph_pos_y;
 };
 
 /*******************************************************************************
@@ -513,10 +515,15 @@ rdr_font_data
     goto exit;
 
   reset_font(font);
+
+  /* Retrieve global font metrics. */
   font->line_space = line_space;
   font->min_glyph_width = SIZE_MAX;
+  font->min_glyph_pos_y = INT_MAX;
   for(i = 0; i < nb_glyphs; ++i) {
     font->min_glyph_width = MIN(font->min_glyph_width, glyph_list[i].width);
+    font->min_glyph_pos_y = 
+      MIN(font->min_glyph_pos_y, glyph_list[i].bitmap_left);
     max_bmp_width = MAX(max_bmp_width, glyph_list[i].bitmap.width);
     max_bmp_height = MAX(max_bmp_height, glyph_list[i].bitmap.height);
   }
@@ -532,13 +539,16 @@ rdr_font_data
 
   /* Sort the input glyphs in descending order with respect to their
    * bitmap size. */
-  sorted_glyphs = MEM_CALLOC
-    (font->sys->allocator, nb_glyphs, sizeof(struct rdr_glyph_desc));
+  sorted_glyphs = MEM_CALLOC /* +1 <=> default glyph. */
+    (font->sys->allocator, nb_glyphs + 1, sizeof(struct rdr_glyph_desc));
   if(!sorted_glyphs) {
     rdr_err = RDR_MEMORY_ERROR;
     goto error;
   }
-  memcpy(sorted_glyphs, glyph_list, sizeof(struct rdr_glyph_desc)*nb_glyphs);
+  memcpy(sorted_glyphs, &default_glyph, sizeof(struct rdr_glyph_desc));
+  memcpy(sorted_glyphs + 1, glyph_list, sizeof(struct rdr_glyph_desc)*nb_glyphs);
+  ++nb_glyphs; /* Take into account the default glyph. */
+
   qsort(sorted_glyphs, nb_glyphs, sizeof(struct rdr_glyph_desc), cmp_glyph);
 
   /* Create the binary tree data structure used to pack the glyphs into the
@@ -660,20 +670,13 @@ error:
 }
 
 EXPORT_SYM enum rdr_error
-rdr_get_font_line_space(struct rdr_font* font, size_t* line_space)
+rdr_get_font_metrics(struct rdr_font* font, struct rdr_font_metrics* metrics)
 {
-  if(!font || !line_space)
+  if(!font || !metrics)
     return RDR_INVALID_ARGUMENT;
-  *line_space = font->line_space;
-  return RDR_NO_ERROR;
-}
-
-EXPORT_SYM enum rdr_error
-rdr_get_min_font_glyph_width(struct rdr_font* font, size_t* width)
-{
-  if(!font || !width)
-    return RDR_INVALID_ARGUMENT;
-  *width = font->min_glyph_width;
+  metrics->line_space = font->line_space;
+  metrics->min_glyph_width = font->min_glyph_width;
+  metrics->min_glyph_pos_y = font->min_glyph_pos_y;
   return RDR_NO_ERROR;
 }
 
@@ -720,13 +723,11 @@ rdr_get_font_glyph
   }
   SL(hash_table_find(font->glyph_htbl, &character,(void**)&pair));
 
-  /* TODO define a fallback glyph when the character is not registered. */
   if(pair == NULL) {
-    assert(false);
-    rdr_err = RDR_INVALID_ARGUMENT;
-    goto error;
+    SL(hash_table_find
+      (font->glyph_htbl, (wchar_t[]){DEFAULT_CHAR}, (void**)&pair));
+    assert(NULL != pair);
   }
-
   memcpy(glyph, &pair->glyph, sizeof(struct rdr_glyph));
 
 exit:

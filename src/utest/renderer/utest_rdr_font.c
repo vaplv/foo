@@ -39,7 +39,6 @@ main(int argc, char** argv)
   const unsigned char* bmp_cache = NULL;
   size_t min_width = 0;
   size_t i = 0;
-  size_t j = 0;
   int err = 0;
   bool null_driver = false;
   bool b = false;
@@ -56,6 +55,7 @@ main(int argc, char** argv)
     .width = 800, .height = 600, .fullscreen = false
   };
   /* Renderer data. */
+  struct rdr_font_metrics metrics;
   struct rdr_glyph_desc glyph_desc_list[total_nb_glyphs];
   struct rdr_font* font = NULL;
   struct rdr_system* sys = NULL;
@@ -174,15 +174,10 @@ main(int argc, char** argv)
 
   CHECK(rsrc_font_line_space(ft, &i), RSRC_NO_ERROR);
 
-  CHECK(rdr_get_font_line_space(NULL, NULL), BAD_ARG);
-  CHECK(rdr_get_font_line_space(font, NULL), BAD_ARG);
-  CHECK(rdr_get_font_line_space(NULL, &j), BAD_ARG);
-  CHECK(rdr_get_font_line_space(font, &j), OK);
-
-  CHECK(rdr_get_min_font_glyph_width(NULL, NULL), BAD_ARG);
-  CHECK(rdr_get_min_font_glyph_width(font, NULL), BAD_ARG);
-  CHECK(rdr_get_min_font_glyph_width(NULL, &j), BAD_ARG);
-  CHECK(rdr_get_min_font_glyph_width(font, &j), OK);
+  CHECK(rdr_get_font_metrics(NULL, NULL), BAD_ARG);
+  CHECK(rdr_get_font_metrics(font, NULL), BAD_ARG);
+  CHECK(rdr_get_font_metrics(NULL, &metrics), BAD_ARG);
+  CHECK(rdr_get_font_metrics(font, &metrics), OK);
 
   CHECK(rdr_font_data(font, i, nb_glyphs, glyph_desc_list), OK);
   CHECK(rdr_font_bitmap_cache(font, &width, &height, &Bpp, &bmp_cache), OK);
@@ -195,10 +190,9 @@ main(int argc, char** argv)
     (ctxt, "/tmp/font_cache.ppm", width, height, Bpp, bmp_cache),
      RSRC_NO_ERROR);
 
-  CHECK(rdr_get_font_line_space(font, &j), OK);
-  CHECK(j, i);
-  CHECK(rdr_get_min_font_glyph_width(font, &j), OK);
-  CHECK(j, min_width);
+  CHECK(rdr_get_font_metrics(font, &metrics), OK);
+  CHECK(metrics.line_space, i);
+  CHECK(metrics.min_glyph_width, min_width);
 
   CHECK(rdr_font_ref_get(NULL), BAD_ARG);
   CHECK(rdr_font_ref_get(font), OK);

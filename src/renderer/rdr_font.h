@@ -17,6 +17,11 @@ struct rdr_glyph_desc {
      unsigned char* buffer;
    } bitmap;
 };
+struct rdr_font_metrics {
+  size_t line_space;
+  size_t min_glyph_width;
+  int min_glyph_pos_y;
+};
 struct rdr_system;
 
 extern enum rdr_error
@@ -40,14 +45,9 @@ rdr_font_data
    const struct rdr_glyph_desc* glyph_list);
 
 extern enum rdr_error
-rdr_get_font_line_space
+rdr_get_font_metrics
   (struct rdr_font* font,
-   size_t* line_space);
-
-extern enum rdr_error
-rdr_get_min_font_glyph_width
-  (struct rdr_font* font,
-   size_t* min_glyph_width);
+   struct rdr_font_metrics* metrics);
 
 extern enum rdr_error
 rdr_font_bitmap_cache
