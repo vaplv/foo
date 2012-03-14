@@ -57,6 +57,10 @@ rdr_term_write_return
   (struct rdr_term* term);
 
 extern enum rdr_error
+rdr_term_write_suppr
+  (struct rdr_term* term);
+
+extern enum rdr_error
 rdr_term_dump
   (const struct rdr_term* term,
    size_t* len, /* May be NULL. Include the null char. */

@@ -523,7 +523,7 @@ rdr_font_data
   for(i = 0; i < nb_glyphs; ++i) {
     font->min_glyph_width = MIN(font->min_glyph_width, glyph_list[i].width);
     font->min_glyph_pos_y = 
-      MIN(font->min_glyph_pos_y, glyph_list[i].bitmap_left);
+      MIN(font->min_glyph_pos_y, glyph_list[i].bitmap_top);
     max_bmp_width = MAX(max_bmp_width, glyph_list[i].bitmap.width);
     max_bmp_height = MAX(max_bmp_height, glyph_list[i].bitmap.height);
   }

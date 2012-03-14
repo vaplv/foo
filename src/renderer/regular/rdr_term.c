@@ -489,15 +489,15 @@ printer_draw_cursor
   scale_bias[0] = cursor_width * two_rcp_width;
   scale_bias[1] = metrics.line_space * two_rcp_height;
   scale_bias[2] = cursor_x * two_rcp_width - 1.f;
-  scale_bias[3] = (cursor_y + metrics.min_glyph_pos_y) * two_rcp_width - 1.f;
+  scale_bias[3] = (cursor_y + metrics.min_glyph_pos_y) * two_rcp_height - 1.f;
 
   blend_desc.enable = 1;
-  blend_desc.src_blend_RGB = RB_BLEND_ONE_MINUS_DST_ALPHA;
+  blend_desc.src_blend_RGB = RB_BLEND_ONE;
   blend_desc.src_blend_Alpha = RB_BLEND_ZERO;
   blend_desc.dst_blend_RGB = RB_BLEND_DST_ALPHA;
   blend_desc.dst_blend_Alpha = RB_BLEND_ONE;
-  blend_desc.blend_op_RGB = RB_BLEND_OP_ADD;
-  blend_desc.blend_op_Alpha = RB_BLEND_OP_ADD;
+  blend_desc.blend_op_RGB = RB_BLEND_OP_SUB;
+  blend_desc.blend_op_Alpha = RB_BLEND_OP_SUB;
   RBI(sys->rb, blend(sys->ctxt, &blend_desc));
 
   RBI(sys->rb, bind_program(sys->ctxt, cursor->shading_program));
@@ -529,9 +529,9 @@ printer_draw_text
 
   blend_desc.enable = 1;
   blend_desc.src_blend_RGB = RB_BLEND_SRC_ALPHA;
-  blend_desc.src_blend_Alpha = RB_BLEND_ZERO;
+  blend_desc.src_blend_Alpha = RB_BLEND_ONE;
   blend_desc.dst_blend_RGB = RB_BLEND_ONE_MINUS_SRC_ALPHA;
-  blend_desc.dst_blend_Alpha = RB_BLEND_ONE;
+  blend_desc.dst_blend_Alpha = RB_BLEND_ZERO;
   blend_desc.blend_op_RGB = RB_BLEND_OP_ADD;
   blend_desc.blend_op_Alpha = RB_BLEND_OP_ADD;
   RBI(sys->rb, blend(sys->ctxt, &blend_desc));
@@ -1114,6 +1114,28 @@ rdr_term_write_return(struct rdr_term* term)
 }
 
 EXPORT_SYM enum rdr_error
+rdr_term_write_suppr(struct rdr_term* term)
+{
+  size_t len = 0;
+  enum rdr_error rdr_err = RDR_NO_ERROR;
+  if(!term) {
+    rdr_err = RDR_INVALID_ARGUMENT;
+    goto error;
+  }
+  if(0 == term->screen.lines_per_screen)
+    goto exit;
+  SL(wstring_length(active_line(&term->screen)->string, &len));
+  if(term->screen.cursor != len) {
+    ++term->screen.cursor;
+    rdr_err = rdr_term_write_backspace(term);
+  }
+exit:
+  return rdr_err;
+error:
+  goto exit;
+}
+
+EXPORT_SYM enum rdr_error
 rdr_term_dump(const struct rdr_term* term, size_t* out_len, wchar_t* buffer)
 {
   if(!term)
@@ -1154,12 +1176,14 @@ rdr_term_dump(const struct rdr_term* term, size_t* out_len, wchar_t* buffer)
 enum rdr_error
 rdr_draw_term(struct rdr_term* term)
 {
+  struct line* edit_line = NULL;
   struct rdr_font_metrics metrics;
+  struct rdr_glyph glyph;
   struct {
     size_t width;
     size_t x;
     size_t y;
-  } cursor;
+  } cursor = { 0, 0, 0 };
   float vertex_data[SIZEOF_GLYPH_VERTEX / sizeof(float)];
   struct list_node* node = NULL;
   size_t nb_glyphs = 0;
@@ -1181,6 +1205,7 @@ rdr_draw_term(struct rdr_term* term)
   if(!metrics.line_space)
     goto exit;
 
+
   /* Currently, the glyph is always white. */
   SET_VERTEX_COL(vertex_data, 1.f, 1.f, 1.f);
 
@@ -1188,7 +1213,7 @@ rdr_draw_term(struct rdr_term* term)
   blob_clear(&term->scratch);
   nb_glyphs = 0;
   y = metrics.line_space / 2;
-  cursor.y = y; /* Th cursor is always printed on the first used line. */
+  edit_line = active_line(&term->screen);
   LIST_FOR_EACH(node, &term->screen.used_line_list) {
     struct line* line = NULL;
     const wchar_t* cstr = NULL;
@@ -1212,7 +1237,6 @@ rdr_draw_term(struct rdr_term* term)
     x = 0;
     y += wrap * metrics.line_space;
     while(cstr[id] != L'\0') {
-      struct rdr_glyph glyph;
       struct { float x; float y; } translated_pos[2];
       size_t adjusted_width = 0;
 
@@ -1233,13 +1257,14 @@ rdr_draw_term(struct rdr_term* term)
           x = 0;
           y -= metrics.line_space;
         }
+
+        if(edit_line == line && id == term->screen.cursor) {
+          cursor.width = MAX(glyph.width, glyph.pos[1].x - glyph.pos[0].x);
+          cursor.x = x + glyph.pos[0].x;
+          cursor.y = y;
+        }
         ++id;
       } while(y + metrics.line_space > term->height);
-
-      if(y == cursor.y && id == term->screen.cursor) {
-        cursor.width = glyph.width;
-        cursor.x = x;
-      }
 
       translated_pos[0].x = glyph.pos[0].x + (float)x;
       translated_pos[0].y = glyph.pos[0].y + (float)y;
@@ -1265,6 +1290,12 @@ rdr_draw_term(struct rdr_term* term)
 
       ++nb_glyphs;
       x += adjusted_width;
+    }
+    if(edit_line == line && id == term->screen.cursor) {
+      RDR(get_font_glyph(term->font, L' ', &glyph));
+      cursor.width = glyph.width;
+      cursor.x = x;
+      cursor.y = y;
     }
     y += (wrap + 1) * metrics.line_space;
   }

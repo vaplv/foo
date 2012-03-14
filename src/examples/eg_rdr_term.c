@@ -11,6 +11,7 @@
 #include "window_manager/wm_input.h"
 #include "window_manager/wm_window.h"
 #include "sys/mem_allocator.h"
+#include <limits.h>
 
 #define FIRST_CHAR 32
 #define LAST_CHAR 126
@@ -43,6 +44,16 @@ key_clbk(enum wm_key key, enum wm_state state, void* data)
       RDR(term_write_backspace(term));
     } else if(key == WM_KEY_TAB) {
       RDR(term_write_tab(term));
+    } else if(key == WM_KEY_RIGHT) {
+      RDR(term_translate_cursor(term, 1));
+    } else if(key == WM_KEY_LEFT) {
+      RDR(term_translate_cursor(term, -1));
+    } else if(key == WM_KEY_END) {
+      RDR(term_translate_cursor(term, INT_MAX));
+    } else if(key == WM_KEY_HOME) {
+      RDR(term_translate_cursor(term, -INT_MAX));
+    } else if(key == WM_KEY_DEL) {
+      RDR(term_write_suppr(term));
     }
   }
 }
