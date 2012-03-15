@@ -325,6 +325,70 @@ main(int argc UNUSED, char** argv UNUSED)
   CHECK(((int*)data)[3], 3);
   CHECK(((int*)data)[4], 4);
 
+  CHECK(sl_vector_insert_n(NULL, 4, 0, NULL), BAD_ARG);
+  CHECK(sl_vector_insert_n(vec, 4, 0, NULL), BAD_ARG);
+  CHECK(sl_vector_insert_n(NULL, 4, 0, (int[]){-4}), BAD_ARG);
+  CHECK(sl_vector_insert_n(vec, 4, 0, (int[]){-4}), OK);
+  CHECK(sl_vector_length(vec, &len), OK);
+  CHECK(len, 5);
+  CHECK(sl_vector_buffer(vec, &len, NULL, NULL, &data), OK);
+  CHECK(len, 5);
+  CHECK(((int*)data)[0], 0);
+  CHECK(((int*)data)[1], 1);
+  CHECK(((int*)data)[2], 2);
+  CHECK(((int*)data)[3], 3);
+  CHECK(((int*)data)[4], 4);
+
+  CHECK(sl_vector_insert_n(vec, 4, 3, (int[]){-4}), OK);
+  CHECK(sl_vector_length(vec, &len), OK);
+  CHECK(len, 8);
+  CHECK(sl_vector_buffer(vec, &len, NULL, NULL, &data), OK);
+  CHECK(len, 8);
+  CHECK(((int*)data)[0], 0);
+  CHECK(((int*)data)[1], 1);
+  CHECK(((int*)data)[2], 2);
+  CHECK(((int*)data)[3], 3);
+  CHECK(((int*)data)[4], -4);
+  CHECK(((int*)data)[5], -4);
+  CHECK(((int*)data)[6], -4);
+  CHECK(((int*)data)[7], 4);
+
+  CHECK(sl_vector_insert_n(vec, len, 2, (int[]){5}), OK);
+  CHECK(sl_vector_length(vec, &len), OK);
+  CHECK(len, 10);
+  CHECK(sl_vector_buffer(vec, &len, NULL, NULL, &data), OK);
+  CHECK(len, 10);
+  CHECK(((int*)data)[0], 0);
+  CHECK(((int*)data)[1], 1);
+  CHECK(((int*)data)[2], 2);
+  CHECK(((int*)data)[3], 3);
+  CHECK(((int*)data)[4], -4);
+  CHECK(((int*)data)[5], -4);
+  CHECK(((int*)data)[6], -4);
+  CHECK(((int*)data)[7], 4);
+  CHECK(((int*)data)[8], 5);
+  CHECK(((int*)data)[9], 5);
+
+  CHECK(sl_vector_insert_n(vec, 0, 4, (int[]){-1}), OK);
+  CHECK(sl_vector_length(vec, &len), OK);
+  CHECK(len, 14);
+  CHECK(sl_vector_buffer(vec, &len, NULL, NULL, &data), OK);
+  CHECK(len, 14);
+  CHECK(((int*)data)[0], -1);
+  CHECK(((int*)data)[1], -1);
+  CHECK(((int*)data)[2], -1);
+  CHECK(((int*)data)[3], -1);
+  CHECK(((int*)data)[4], 0);
+  CHECK(((int*)data)[5], 1);
+  CHECK(((int*)data)[6], 2);
+  CHECK(((int*)data)[7], 3);
+  CHECK(((int*)data)[8], -4);
+  CHECK(((int*)data)[9], -4);
+  CHECK(((int*)data)[10], -4);
+  CHECK(((int*)data)[11], 4);
+  CHECK(((int*)data)[12], 5);
+  CHECK(((int*)data)[13], 5);
+
   CHECK(sl_free_vector(NULL), BAD_ARG);
   CHECK(sl_free_vector(vec), OK);
 

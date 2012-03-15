@@ -26,7 +26,7 @@ char_clbk(wchar_t ch, enum wm_state state, void* data)
   if(state == WM_PRESS) {
     struct rdr_term* term = data;
     if(ch >= FIRST_CHAR && ch <= LAST_CHAR)
-      RDR(term_write_char(term, ch));
+      RDR(term_write_char(term, ch, RDR_TERM_COLOR_WHITE));
   }
 }
 
@@ -144,14 +144,15 @@ main(int argc, char** argv)
   }
 
   RDR(create_term(sys, font, win_desc.width, win_desc.height, &term));
-  RDR(term_write_string(term, L"Hello"));
-  RDR(term_write_string(term, L" world!\n"));
+  RDR(term_write_string(term, L"Hello", RDR_TERM_COLOR_GREEN));
+  RDR(term_write_string(term, L" world!\n", RDR_TERM_COLOR_RED));
   RDR(term_write_string
     (term,
      L"\"My definition of fragile code is, suppose you want to add a feature; "
      L"good code, there is one place where you add this feature and it fits; "
-     L"fragile code, you've got to touch ten places\" (Ken Thompson)\n"));
-  RDR(term_write_string(term, L"$"));
+     L"fragile code, you've got to touch ten places\" (Ken Thompson)\n",
+     RDR_TERM_COLOR_WHITE));
+  RDR(term_write_string(term, L"$", RDR_TERM_COLOR_BRIGHT_GREEN));
 
   WM(attach_char_callback(dev, &char_clbk, term));
   WM(attach_key_callback(dev, &key_clbk, term));

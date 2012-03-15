@@ -4,6 +4,24 @@
 #include "renderer/rdr_error.h"
 #include <stddef.h>
 
+/* Built-in terminal colors. */
+static const unsigned char RDR_TERM_COLOR_BLACK[3]={0x00, 0x00, 0x00};
+static const unsigned char RDR_TERM_COLOR_RED[3]={0xCD, 0x00, 0x00};
+static const unsigned char RDR_TERM_COLOR_GREEN[3]={0x00, 0xCD, 0x00};
+static const unsigned char RDR_TERM_COLOR_YELLOW[3]={0xCD, 0xCD, 0x00};
+static const unsigned char RDR_TERM_COLOR_BLUE[3]={0x00, 0x00, 0xEE};
+static const unsigned char RDR_TERM_COLOR_MAGENTA[3]={0xCD, 0x00, 0xCD};
+static const unsigned char RDR_TERM_COLOR_CYAN[3]={0x00, 0xCD, 0xCD};
+static const unsigned char RDR_TERM_COLOR_WHITE[3]={0xE5, 0xE5, 0xE5};
+static const unsigned char RDR_TERM_COLOR_BRIGHT_BLACK[3]={0x7F, 0x7F, 0x7F};
+static const unsigned char RDR_TERM_COLOR_BRIGHT_RED[3]={0xFF, 0x00, 0x00};
+static const unsigned char RDR_TERM_COLOR_BRIGHT_GREEN[3]={0x00, 0xFF, 0x00};
+static const unsigned char RDR_TERM_COLOR_BRIGHT_YELLOW[3]={0xFF, 0xFF, 0x00};
+static const unsigned char RDR_TERM_COLOR_BRIGHT_BLUE[3]={0x5C, 0x5C, 0xFF};
+static const unsigned char RDR_TERM_COLOR_BRIGHT_MAGENTA[3]={0xFF, 0x00, 0xFF};
+static const unsigned char RDR_TERM_COLOR_BRIGHT_CYAN[3]={0x00, 0xFF, 0xFF};
+static const unsigned char RDR_TERM_COLOR_BRIGHT_WHITE[3]={0xFF, 0xFF, 0xFF};
+
 struct rdr_font;
 struct rdr_system;
 struct rdr_term;
@@ -37,12 +55,14 @@ rdr_term_translate_cursor
 extern enum rdr_error
 rdr_term_write_string
   (struct rdr_term* term,
-   const wchar_t* str);
+   const wchar_t* str,
+   const unsigned char color[3]);
 
 extern enum rdr_error
 rdr_term_write_char
   (struct rdr_term* term,
-   wchar_t ch);
+   wchar_t ch,
+   const unsigned char color[3]);
 
 extern enum rdr_error
 rdr_term_write_backspace

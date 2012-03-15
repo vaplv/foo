@@ -7,6 +7,7 @@
 #include "utest/utest.h"
 #include "window_manager/wm_device.h"
 #include "window_manager/wm_window.h"
+#include <limits.h>
 #include <wchar.h>
 
 #define BAD_ARG RDR_INVALID_ARGUMENT
@@ -153,8 +154,8 @@ main(int argc, char** argv)
   CHECK(rdr_term_write_backspace(term), OK);
   CHECK(rdr_term_write_backspace(term), OK);
 
-  CHECK(rdr_term_write_char(NULL, L'a'), BAD_ARG);
-  CHECK(rdr_term_write_char(term, L'a'), OK);
+  CHECK(rdr_term_write_char(NULL, L'a', RDR_TERM_COLOR_WHITE), BAD_ARG);
+  CHECK(rdr_term_write_char(term, L'a', RDR_TERM_COLOR_WHITE), OK);
 
   i = 0;
   CHECK(rdr_term_dump(NULL, NULL, NULL), BAD_ARG);
@@ -167,11 +168,11 @@ main(int argc, char** argv)
   CHECK(rdr_term_dump(term, NULL, buffer), OK);
   CHECK(wcscmp(buffer, L"a"), 0);
 
-  CHECK(rdr_term_write_char(term, L'a'), OK);
-  CHECK(rdr_term_write_char(term, L'b'), OK);
-  CHECK(rdr_term_write_char(term, L' '), OK);
-  CHECK(rdr_term_write_char(term, L'c'), OK);
-  CHECK(rdr_term_write_char(term, L'd'), OK);
+  CHECK(rdr_term_write_char(term, L'a', RDR_TERM_COLOR_WHITE), OK);
+  CHECK(rdr_term_write_char(term, L'b', RDR_TERM_COLOR_WHITE), OK);
+  CHECK(rdr_term_write_char(term, L' ', RDR_TERM_COLOR_WHITE), OK);
+  CHECK(rdr_term_write_char(term, L'c', RDR_TERM_COLOR_WHITE), OK);
+  CHECK(rdr_term_write_char(term, L'd', RDR_TERM_COLOR_WHITE), OK);
   CHECK(rdr_term_dump(term, &i, buffer), OK);
   CHECK(i, 7);
   CHECK(wcscmp(buffer, L"aab cd"), 0);
@@ -193,10 +194,10 @@ main(int argc, char** argv)
   CHECK(i, 1);
   CHECK(wcscmp(buffer, L""), 0);
  
-  CHECK(rdr_term_write_string(NULL, NULL), BAD_ARG);
-  CHECK(rdr_term_write_string(term, NULL), BAD_ARG);
-  CHECK(rdr_term_write_string(NULL, L"test"), BAD_ARG);
-  CHECK(rdr_term_write_string(term, L"test"), OK);
+  CHECK(rdr_term_write_string(NULL, NULL, RDR_TERM_COLOR_WHITE), BAD_ARG);
+  CHECK(rdr_term_write_string(term, NULL, RDR_TERM_COLOR_WHITE), BAD_ARG);
+  CHECK(rdr_term_write_string(NULL, L"test", RDR_TERM_COLOR_WHITE), BAD_ARG);
+  CHECK(rdr_term_write_string(term, L"test", RDR_TERM_COLOR_WHITE), OK);
   CHECK(rdr_term_dump(term, NULL, buffer), OK);
   CHECK(wcscmp(buffer, L"test"), 0);
 
@@ -205,13 +206,43 @@ main(int argc, char** argv)
   CHECK(rdr_term_dump(term, NULL, buffer), OK);
   CHECK(wcscmp(buffer, L"test\n"), 0);
 
-  CHECK(rdr_term_write_string(term, L"foo"), OK);
+  CHECK(rdr_term_write_string(term, L"foo", RDR_TERM_COLOR_WHITE), OK);
   CHECK(rdr_term_dump(term, NULL, buffer), OK);
   CHECK(wcscmp(buffer, L"test\nfoo"), 0);
-  CHECK(rdr_term_write_string(term, L" 0123\n456"), OK);
+  CHECK(rdr_term_write_string(term, L" 0123\n456", RDR_TERM_COLOR_WHITE), OK);
   CHECK(rdr_term_dump(term, &i, buffer), OK);
   CHECK(wcslen(buffer) + 1, i);
   CHECK(wcscmp(buffer, L"test\nfoo 0123\n456"), 0);
+
+  CHECK(rdr_term_translate_cursor(NULL, -1), BAD_ARG);
+  CHECK(rdr_term_translate_cursor(term, -1), OK);
+  CHECK(rdr_term_write_string(term, L"FOO", RDR_TERM_COLOR_WHITE), OK);
+  CHECK(rdr_term_dump(term, &i, buffer), OK);
+  CHECK(wcslen(buffer) + 1, i);
+  CHECK(wcscmp(buffer, L"test\nfoo 0123\n45FOO6"), 0);
+
+  CHECK(rdr_term_write_char(term, L'X', RDR_TERM_COLOR_WHITE), OK);
+  CHECK(rdr_term_dump(term, &i, buffer), OK);
+  CHECK(wcslen(buffer) + 1, i);
+  CHECK(wcscmp(buffer, L"test\nfoo 0123\n45FOOX6"), 0);
+ 
+  CHECK(rdr_term_translate_cursor(term, -2), OK);
+  CHECK(rdr_term_write_char(term, L'x', RDR_TERM_COLOR_WHITE), OK);
+  CHECK(rdr_term_dump(term, &i, buffer), OK);
+  CHECK(wcslen(buffer) + 1, i);
+  CHECK(wcscmp(buffer, L"test\nfoo 0123\n45FOxOX6"), 0);
+
+  CHECK(rdr_term_translate_cursor(term, -INT_MAX), OK);
+  CHECK(rdr_term_write_string(term, L"___", RDR_TERM_COLOR_WHITE), OK);
+  CHECK(rdr_term_dump(term, &i, buffer), OK);
+  CHECK(wcslen(buffer) + 1, i);
+  CHECK(wcscmp(buffer, L"test\nfoo 0123\n___45FOxOX6"), 0);
+
+  CHECK(rdr_term_translate_cursor(term, INT_MAX), OK);
+  CHECK(rdr_term_write_string(term, L"789", RDR_TERM_COLOR_WHITE), OK);
+  CHECK(rdr_term_dump(term, &i, buffer), OK);
+  CHECK(wcslen(buffer) + 1, i);
+  CHECK(wcscmp(buffer, L"test\nfoo 0123\n___45FOxOX6789"), 0);
 
   CHECK(rdr_term_write_tab(NULL), BAD_ARG);
   CHECK(rdr_term_write_tab(term), OK);

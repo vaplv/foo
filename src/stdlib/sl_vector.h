@@ -38,6 +38,13 @@ sl_vector_insert
    const void* data);
 
 extern enum sl_error
+sl_vector_insert_n
+  (struct sl_vector* vector,
+   size_t id,
+   size_t count,
+   const void* data);
+
+extern enum sl_error
 sl_vector_remove
   (struct sl_vector* vector,
    size_t id);
