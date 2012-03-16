@@ -251,18 +251,13 @@ rdr_draw_world(struct rdr_world* world, const struct rdr_view* view)
   enum rdr_error rdr_err = RDR_NO_ERROR;
   enum sl_error sl_err = SL_NO_ERROR;
   size_t nb_instances = 0;
-  int err = 0;
 
   if(!world || !view) {
     rdr_err = RDR_INVALID_ARGUMENT;
     goto error;
   }
 
-  err = world->sys->rb.depth_stencil(world->sys->ctxt, &depth_stencil_desc);
-  if(err != 0) {
-    rdr_err = RDR_DRIVER_ERROR;
-    goto error;
-  }
+  RBI(world->sys->rb, depth_stencil(world->sys->ctxt, &depth_stencil_desc));
 
   sl_err = sl_set_buffer
     (world->model_instance_list,

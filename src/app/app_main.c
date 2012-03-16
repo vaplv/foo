@@ -14,7 +14,8 @@ parse_args
   (int argc, 
    char** argv, 
    const char** model_path,
-   const char** render_driver_path)
+   const char** render_driver_path,
+   const char** term_font_path)
 {
   int err = 0;
   int i = 0;
@@ -24,8 +25,11 @@ parse_args
   if(argc == 1)
     goto usage;
 
-  while(-1 != (i = getopt(argc, argv, "r:m:h"))) {
+  while(-1 != (i = getopt(argc, argv, "f:r:m:h"))) {
     switch(i) {
+      case 'f':
+        *term_font_path = optarg;
+        break;
       case 'h':
         goto usage;
         break;
@@ -51,7 +55,8 @@ exit:
   return err;
 usage:
   printf
-    ("Usage: %s -r RENDER_DRIVER [-m MODEL]\n"
+    ("Usage: %s -r RENDER_DRIVER [-f TERM_FONT] [-m MODEL]\n"
+     "  -f  Define the TERM_FONT to use.\n" 
      "  -m  Load MODEL at the launch of the application.\n"
      "  -r  Define the RENDER_DRIVER to use.\n",
      argv[0]);
@@ -93,6 +98,7 @@ main(int argc, char** argv)
   struct mem_allocator game_allocator;
   struct app* app = NULL;
   struct game* game = NULL;
+  const char* term_font_path = NULL;
   const char* model_path = NULL;
   const char* render_driver_path = NULL;
   enum app_error app_err = APP_NO_ERROR;
@@ -107,7 +113,7 @@ main(int argc, char** argv)
  
   /* Parse the argument list. */
   err = parse_args
-    (argc, argv, &model_path, &render_driver_path);
+    (argc, argv, &model_path, &render_driver_path, &term_font_path);
   if(err == 1) {
     err = 0;
     goto exit;
@@ -120,6 +126,7 @@ main(int argc, char** argv)
   args.allocator = &engine_allocator;
   args.model = model_path;
   args.render_driver = render_driver_path;
+  args.term_font = term_font_path;
   app_err = app_init(&args, &app);
   if(app_err != APP_NO_ERROR) {
     fprintf(stderr, "Error in initializing the engine.\n");

@@ -7,11 +7,14 @@
 #include "app/core/app_view.h"
 #include "app/core/app_world.h"
 #include "renderer/rdr.h"
+#include "renderer/rdr_font.h"
 #include "renderer/rdr_frame.h"
 #include "renderer/rdr_material.h"
 #include "renderer/rdr_system.h"
+#include "renderer/rdr_term.h"
 #include "renderer/rdr_world.h"
 #include "resources/rsrc_context.h"
+#include "resources/rsrc_font.h"
 #include "resources/rsrc_geometry.h"
 #include "resources/rsrc_wavefront_obj.h"
 #include "stdlib/sl.h"
@@ -32,6 +35,14 @@
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
+#include <wchar.h>
+
+#define DEFAULT_WIN_WIDTH 800
+#define DEFAULT_WIN_HEIGHT 600
+
+static const wchar_t* default_charset =
+  L"0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+  L" &~\"#'{([-|`_\\^@)]=}+$%*,?;.:/!<>";
 
 static const char* default_shader_sources[] = {
   [RDR_VERTEX_SHADER] =
@@ -64,7 +75,6 @@ static const char* default_shader_sources[] = {
     "}\n",
   [RDR_GEOMETRY_SHADER] = NULL
 };
-
 
 /*******************************************************************************
  *
@@ -105,8 +115,27 @@ std_log_func(const char* msg, void* data UNUSED)
   if(strncasecmp(msg, APP_ERR_PREFIX, sizeof(APP_ERR_PREFIX)-1) == 0) {
     fprintf(stdout, "\033[31m%s\033[0m", msg);
   } else {
-    fprintf(stdout, "%s\n", msg);
+    fprintf(stdout, "%s", msg);
   }
+}
+
+static void
+term_log_func(const char* msg, void* data) 
+{
+  struct app* app = data;
+  wchar_t buffer[BUFSIZ];
+
+  buffer[BUFSIZ - 1] = L'\0';
+  assert(app);
+  if(strncasecmp(msg, APP_ERR_PREFIX, sizeof(APP_ERR_PREFIX)-1)==0) {
+    msg += sizeof(APP_ERR_PREFIX) - 1;
+    RDR(term_write_string(app->rdr.term, L"error: ", RDR_TERM_COLOR_RED));
+  } else if(strncasecmp(msg, APP_WARN_PREFIX, sizeof(APP_WARN_PREFIX) - 1)==0) {
+    msg += sizeof(APP_WARN_PREFIX) - 1;
+    RDR(term_write_string(app->rdr.term, L"warning: ", RDR_TERM_COLOR_YELLOW));
+  } 
+  mbstowcs(buffer, msg, BUFSIZ - 1);
+  RDR(term_write_string(app->rdr.term, buffer, RDR_TERM_COLOR_WHITE));
 }
 
 static int
@@ -222,30 +251,36 @@ shutdown_renderer(struct renderer* rdr, struct sl_logger* logger)
   enum rdr_error rdr_err = RDR_NO_ERROR;
   assert(rdr != NULL);
 
+  #define CALL(func) \
+    do { \
+      if((rdr_err = func) != RDR_NO_ERROR) { \
+        app_err = rdr_to_app_error(rdr_err); \
+        goto error; \
+      } \
+    } while(0)
+
   if(rdr->default_material) {
-    rdr_err = rdr_material_ref_put(rdr->default_material);
-    if(rdr_err != RDR_NO_ERROR) {
-      app_err = rdr_to_app_error(rdr_err);
-      goto error;
-    }
+    CALL(rdr_material_ref_put(rdr->default_material));
     rdr->default_material = NULL;
   }
+  if(rdr->term_font) {
+    CALL(rdr_font_ref_put(rdr->term_font));
+    rdr->term_font = NULL;
+  }
   if(rdr->frame) {
-    rdr_err = rdr_frame_ref_put(rdr->frame);
-    if(rdr_err != RDR_NO_ERROR) {
-      app_err = rdr_to_app_error(rdr_err);
-      goto error;
-    }
+    CALL(rdr_frame_ref_put(rdr->frame));
     rdr->frame = NULL;
   }
+  if(rdr->term) {
+    CALL(rdr_term_ref_put(rdr->term));
+    rdr->term = NULL;
+  }
   if(rdr->system) {
-    rdr_err = rdr_system_ref_put(rdr->system);
-    if(rdr_err != RDR_NO_ERROR) {
-      app_err = rdr_to_app_error(rdr_err);
-      goto error;
-    }
+    CALL(rdr_system_ref_put(rdr->system));
     rdr->system = NULL;
   }
+  #undef CALL
+
   if(MEM_IS_ALLOCATOR_VALID(&rdr->allocator)) {
     if(MEM_ALLOCATED_SIZE(&rdr->allocator)) {
       char dump[BUFSIZ];
@@ -270,22 +305,28 @@ shutdown_resources(struct resources* rsrc, struct sl_logger* logger)
   enum rsrc_error rsrc_err = RSRC_NO_ERROR;
   assert(rsrc != NULL);
 
+  #define CALL(func) \
+    do { \
+      if(RSRC_NO_ERROR != (rsrc_err = func)) { \
+        app_err = rsrc_to_app_error(rsrc_err); \
+        goto error; \
+      } \
+    } while(0)
+
   if(rsrc->wavefront_obj) {
-    rsrc_err = rsrc_wavefront_obj_ref_put(rsrc->wavefront_obj);
-    if(rsrc_err != RSRC_NO_ERROR) {
-      app_err = rsrc_to_app_error(app_err);
-      goto error;
-    }
+    CALL(rsrc_wavefront_obj_ref_put(rsrc->wavefront_obj));
     rsrc->wavefront_obj = NULL;
   }
   if(rsrc->context) {
-    rsrc_err = rsrc_context_ref_put(rsrc->context);
-    if(rsrc_err != RSRC_NO_ERROR) {
-      app_err = rsrc_to_app_error(app_err);
-      goto error;
-    }
+    CALL(rsrc_context_ref_put(rsrc->context));
     rsrc->context = NULL;
   }
+  if(rsrc->font) {
+    CALL(rsrc_font_ref_put(rsrc->font));
+    rsrc->font = NULL;
+  }
+  #undef CALL
+
   if(MEM_IS_ALLOCATOR_VALID(&rsrc->allocator)) {
     if(MEM_ALLOCATED_SIZE(&rsrc->allocator)) {
       char dump[BUFSIZ];
@@ -317,7 +358,7 @@ shutdown_common(struct app* app)
    * container at each iteration rather than retrieving its internal buffer and
    * iterating onto it. In addition, each object may by referenced by another
    * one. For instance the model_instance keep a reference onto the
-   * instantieted model. Consequently, we cannot ensure that an object list is
+   * instantiated model. Consequently, we cannot ensure that an object list is
    * empty exepted when all the created object are released. */
   for(type_id = 0; type_id < APP_NB_OBJECT_TYPES; ++type_id) {
     if(app->object_list[type_id]) {
@@ -353,12 +394,10 @@ shutdown_common(struct app* app)
       app->callback_list[i] = NULL;
     }
   }
-  if(app->world) {
+  if(app->world)
     APP(world_ref_put(app->world));
-  }
-  if(app->view) {
+  if(app->view)
     APP(view_ref_put(app->view));
-  }
   return app_err;
 }
 
@@ -391,25 +430,16 @@ shutdown(struct app* app)
   enum app_error app_err = APP_NO_ERROR;
 
   if(app) {
-    app_err = shutdown_common(app);
-    if(app_err != APP_NO_ERROR)
-      goto error;
-    app_err = shutdown_resources(&app->rsrc, app->logger);
-    if(app_err != APP_NO_ERROR)
-      goto error;
-    app_err = shutdown_renderer(&app->rdr, app->logger);
-    if(app_err != APP_NO_ERROR)
-      goto error;
-    app_err = shutdown_window_manager(&app->wm, app->logger);
-    if(app_err != APP_NO_ERROR)
-      goto error;
-    app_err = shutdown_sys(app);
-    if(app_err != APP_NO_ERROR)
-      goto error;
+    #define CALL(func) if((app_err = func) != APP_NO_ERROR) goto error
+    CALL(shutdown_common(app));
+    CALL(shutdown_resources(&app->rsrc, app->logger));
+    CALL(shutdown_renderer(&app->rdr, app->logger));
+    CALL(shutdown_window_manager(&app->wm, app->logger));
+    CALL(shutdown_sys(app));
+    #undef CALL
   }
 exit:
   return app_err;
-
 error:
   goto exit;
 }
@@ -418,8 +448,8 @@ static enum app_error
 init_window_manager(struct window_manager* wm)
 {
   const struct wm_window_desc win_desc = {
-    .width = 800,
-    .height = 600,
+    .width = DEFAULT_WIN_WIDTH,
+    .height = DEFAULT_WIN_HEIGHT,
     .fullscreen = false
   };
   enum app_error app_err = APP_NO_ERROR;
@@ -461,26 +491,25 @@ init_renderer
 
   mem_init_proxy_allocator
     ("renderer", &rdr->allocator, &mem_default_allocator);
-  rdr_err = rdr_create_system(driver, &rdr->allocator, &rdr->system);
-  if(rdr_err != RDR_NO_ERROR) {
-    app_err = rdr_to_app_error(rdr_err);
-    goto error;
-  }
-  rdr_err = rdr_create_frame(rdr->system, &rdr->frame);
-  if(rdr_err != RDR_NO_ERROR) {
-    app_err = rdr_to_app_error(rdr_err);
-    goto error;
-  }
-  rdr_err = rdr_background_color(rdr->frame, (float[]){0.1f, 0.1f, 0.1f});
-  if(rdr_err != RDR_NO_ERROR) {
-    app_err = rdr_to_app_error(rdr_err);
-    goto error;
-  }
-  rdr_err = rdr_create_material(rdr->system, &rdr->default_material);
-  if(rdr_err != RDR_NO_ERROR) {
-    app_err = rdr_to_app_error(rdr_err);
-    goto error;
-  }
+  #define CALL(func) \
+    do { \
+      if((rdr_err = func) != RDR_NO_ERROR) { \
+        app_err = rdr_to_app_error(rdr_err); \
+        goto error; \
+      } \
+    } while(0)
+  CALL(rdr_create_system(driver, &rdr->allocator, &rdr->system));
+  CALL(rdr_create_frame(rdr->system, &rdr->frame));
+  CALL(rdr_background_color(rdr->frame, (float[]){0.1f, 0.1f, 0.1f}));
+  CALL(rdr_create_material(rdr->system, &rdr->default_material));
+  CALL(rdr_create_font(rdr->system, &rdr->term_font));
+  CALL(rdr_create_term
+    (rdr->system,
+     rdr->term_font,
+     DEFAULT_WIN_WIDTH,
+     DEFAULT_WIN_HEIGHT,
+     &rdr->term));
+
   rdr_err = rdr_material_program
     (rdr->default_material, default_shader_sources);
   if(rdr_err != RDR_NO_ERROR) {
@@ -488,10 +517,10 @@ init_renderer
     RDR(get_material_log(rdr->default_material, &log));
     if(log  != NULL)
       APP_LOG_ERR(logger, "Default render material error: \n%s", log);
-
     app_err = rdr_to_app_error(rdr_err);
     goto error;
   }
+  #undef CALL
 
 exit:
   return app_err;
@@ -511,17 +540,18 @@ init_resources(struct resources* rsrc)
 
   mem_init_proxy_allocator
     ("resources", &rsrc->allocator, &mem_default_allocator);
-  rsrc_err = rsrc_create_context(&rsrc->allocator, &rsrc->context);
-  if(rsrc_err != RSRC_NO_ERROR) {
-    app_err = rsrc_to_app_error(app_err);
-    goto error;
-  }
-  rsrc_err = rsrc_create_wavefront_obj(rsrc->context, &rsrc->wavefront_obj);
-  if(rsrc_err != RSRC_NO_ERROR) {
-    app_err = rsrc_to_app_error(app_err);
-    goto error;
-  }
 
+  #define CALL(func) \
+    do { \
+      if((rsrc_err = func) != RSRC_NO_ERROR) { \
+        app_err = rsrc_to_app_error(rsrc_err); \
+        goto error; \
+      } \
+    } while(0)
+  CALL(rsrc_create_context(&rsrc->allocator, &rsrc->context));
+  CALL(rsrc_create_wavefront_obj(rsrc->context, &rsrc->wavefront_obj));
+  CALL(rsrc_create_font(rsrc->context, NULL, &rsrc->font));
+  #undef CALL
 exit:
   return app_err;
 error:
@@ -598,21 +628,24 @@ init_sys(struct app* app)
   enum app_error tmp_err = APP_NO_ERROR;
   assert(app);
 
-  sl_err = sl_create_logger(app->allocator, &app->logger);
-  if(sl_err != SL_NO_ERROR) {
-    app_err = sl_to_app_error(sl_err);
-    goto error;
-  }
+  #define CALL(func) \
+    do { \
+      if(SL_NO_ERROR != (sl_err = func)) { \
+        app_err = sl_to_app_error(sl_err); \
+        goto error; \
+      } \
+    } while(0)
+
+  CALL(sl_create_logger(app->allocator, &app->logger));
 
   STATIC_ASSERT(sizeof(void*) >= 4, Unexpected_pointer_size);
   log_stream.data = (void*)0xDEADBEEF;
   log_stream.func = std_log_func;
-  sl_err = sl_logger_add_stream(app->logger, &log_stream);
-  if(sl_err != SL_NO_ERROR) {
-    app_err = sl_to_app_error(sl_err);
-    goto error;
-  }
+  CALL(sl_logger_add_stream(app->logger, &log_stream));
 
+  log_stream.data = app;
+  log_stream.func = term_log_func;
+  CALL(sl_logger_add_stream(app->logger, &log_stream));
 exit:
   return app_err;
 
@@ -710,9 +743,15 @@ app_init(struct app_args* args, struct app** out_app)
   if(app_err != APP_NO_ERROR)
     goto error;
 
+  if(args->term_font) {
+    app_err = app_terminal_font(app, args->term_font); 
+    if(app_err != APP_NO_ERROR)
+      goto error;
+  }
+
   if(args->model) {
     /* Create the model and add an instance of it to the world. */
-   if(APP_NO_ERROR == app_create_model(app, args->model, &mdl)) {
+    if(APP_NO_ERROR == app_create_model(app, args->model, &mdl)) {
       app_err = app_instantiate_model(app, mdl, &mdl_instance);
       if(app_err != APP_NO_ERROR)
         goto error;
@@ -769,12 +808,106 @@ app_run(struct app* app)
   if(app_err != APP_NO_ERROR)
     goto error;
 
+  RDR(frame_draw_term(app->rdr.frame, app->rdr.term));
   RDR(flush_frame(app->rdr.frame));
   WM(swap(app->wm.window));
 
 exit:
   return app_err;
 
+error:
+  goto exit;
+}
+
+EXPORT_SYM enum app_error
+app_terminal_font(struct app* app, const char* path)
+{
+  struct rdr_glyph_desc* glyph_desc_list = NULL;
+  enum app_error app_err = APP_NO_ERROR;
+  enum rdr_error rdr_err = RDR_NO_ERROR;
+  enum rsrc_error rsrc_err = RSRC_NO_ERROR;
+  size_t nb_chars = 0;
+  size_t i = 0;
+
+  if(!app || !path) {
+    app_err = APP_INVALID_ARGUMENT;
+    goto error;
+  }
+  rsrc_err = rsrc_load_font(app->rsrc.font, path);
+  if(RSRC_NO_ERROR != rsrc_err) {
+    APP_LOG_ERR(app->logger, "Error loading font `%s'.\n", path);
+    app_err = rsrc_to_app_error(rsrc_err);
+    goto error;
+  }
+
+  nb_chars = wcslen(default_charset);
+  if(nb_chars) {
+    size_t line_space = 0;
+
+    glyph_desc_list = MEM_CALLOC
+      (&app->rdr.allocator, nb_chars, sizeof(struct rdr_glyph_desc));
+    for(i = 0; i < nb_chars; ++i) {
+      struct rsrc_glyph_desc glyph_desc;
+      struct rsrc_glyph* glyph = NULL;
+      size_t width = 0;
+      size_t height = 0;
+      size_t Bpp = 0;
+      size_t size = 0;
+
+      rsrc_err = rsrc_font_glyph(app->rsrc.font, default_charset[i], &glyph);
+      if(RSRC_NO_ERROR != rsrc_err) {
+        APP_LOG_WARN
+          (app->logger,
+           "Character `%c' not found in font `%s'.\n",
+           default_charset[i],
+           path);
+      } else {
+        /* Get glyph desc. */
+        RSRC(glyph_desc(glyph, &glyph_desc));
+        glyph_desc_list[i].width = glyph_desc.width;
+        glyph_desc_list[i].character = glyph_desc.character;
+        glyph_desc_list[i].bitmap_left = glyph_desc.bbox.x_min;
+        glyph_desc_list[i].bitmap_top = glyph_desc.bbox.y_min;
+        /* Get glyph bitmap. */
+        RSRC(glyph_bitmap(glyph, true, &width, &height, &Bpp, NULL));
+        glyph_desc_list[i].bitmap.width = width;
+        glyph_desc_list[i].bitmap.height = height;
+        glyph_desc_list[i].bitmap.bytes_per_pixel = Bpp;
+        glyph_desc_list[i].bitmap.buffer = NULL;
+        size = width * height * Bpp;
+        if(size) {
+          unsigned char* buffer = MEM_ALLOC(&app->rdr.allocator, size);
+          if(!buffer) {
+            app_err = APP_MEMORY_ERROR;
+            goto error;
+          }
+          RSRC(glyph_bitmap(glyph, true, NULL, NULL, NULL, buffer));
+          glyph_desc_list[i].bitmap.buffer = buffer;
+        }
+        RSRC(glyph_ref_put(glyph));
+      }
+    }
+    RSRC(font_line_space(app->rsrc.font, &line_space));
+
+    rdr_err = rdr_font_data
+      (app->rdr.term_font, line_space, nb_chars, glyph_desc_list);
+    if(RDR_NO_ERROR != rdr_err) {
+      APP_LOG_ERR
+        (app->logger,
+         "Error setting-up render data of the font `%s'.\n",
+         path);
+      app_err = rdr_to_app_error(rdr_err);
+      goto error;
+    }
+  }
+exit:
+  if(glyph_desc_list) {
+    nb_chars =  wcslen(default_charset);
+    for(i = 0; i < nb_chars; ++i)
+      MEM_FREE(&app->rdr.allocator, glyph_desc_list[i].bitmap.buffer);
+    MEM_FREE(&app->rdr.allocator, glyph_desc_list);
+  }
+  return app_err;
 error:
   goto exit;
 }

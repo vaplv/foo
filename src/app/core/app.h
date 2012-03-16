@@ -13,6 +13,7 @@
 #endif /* NDEBUG */
 
 struct app_args {
+  const char* term_font;
   const char* render_driver;
   const char* model;
   struct mem_allocator* allocator; /* May be NULL. */
@@ -53,6 +54,11 @@ app_ref_put
 extern enum app_error
 app_run
   (struct app* app);
+
+extern enum app_error
+app_terminal_font
+  (struct app* app,
+   const char* path);
 
 extern enum app_error
 app_get_window_manager_device

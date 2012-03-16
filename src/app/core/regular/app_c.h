@@ -17,6 +17,10 @@
 #define APP_LOG_ERR(logger, ...) \
   SL(logger_print((logger), APP_ERR_PREFIX __VA_ARGS__))
 
+#define APP_WARN_PREFIX "warning: "
+#define APP_LOG_WARN(logger, ...) \
+  SL(logger_print((logger), APP_WARN_PREFIX __VA_ARGS__))
+
 enum app_object_type {
   APP_MODEL,
   APP_MODEL_INSTANCE,
@@ -30,8 +34,10 @@ struct app_world;
 struct rdr_frame;
 struct rdr_material;
 struct rdr_system;
+struct rdr_term;
 struct rdr_world;
 struct rsrc_context;
+struct rsrc_font;
 struct rsrc_wavefront_obj;
 struct sl_logger;
 struct sl_vector;
@@ -48,8 +54,10 @@ struct app {
   struct sl_set* object_list[APP_NB_OBJECT_TYPES];
 
   struct renderer {
+    struct rdr_font* term_font;
     struct rdr_frame* frame;
     struct rdr_material* default_material;
+    struct rdr_term* term;
     struct rdr_system* system;
     struct mem_allocator allocator;
   } rdr;
@@ -63,6 +71,7 @@ struct app {
   struct resources {
     struct rsrc_context* context;
     struct rsrc_wavefront_obj* wavefront_obj;
+    struct rsrc_font* font;
     struct mem_allocator allocator;
   } rsrc;
 };

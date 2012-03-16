@@ -847,6 +847,52 @@ wrap_count
 }
 
 static void
+setup_font(struct rdr_term* term)
+{
+  struct rdr_font_metrics metrics;
+  size_t chars_per_line = 0;
+  size_t lines_per_screen = 0;
+  size_t max_nb_glyphs = 0;
+
+  assert(term);
+
+  /* Approximate the size of the glyph vertex buffer.  */
+  RDR(get_font_metrics(term->font, &metrics));
+
+  if(0 == metrics.min_glyph_width) {
+    chars_per_line = 0;
+  } else {
+    chars_per_line =
+      (term->width / metrics.min_glyph_width)
+    + ((term->width % metrics.min_glyph_width) != 0);
+  }
+  if(0 == metrics.line_space) {
+    lines_per_screen = 0;
+  } else {
+    lines_per_screen =
+      (term->height / metrics.line_space)
+    + ((term->height % metrics.line_space) != 0);
+  }
+  max_nb_glyphs = chars_per_line * lines_per_screen;
+  printer_storage
+    (term->sys,
+     &term->printer,
+     max_nb_glyphs,
+     metrics.min_glyph_pos_y,
+     &term->scratch);
+  screen_storage(term->sys, &term->screen, lines_per_screen);
+  new_line(&term->screen);
+}
+
+static void
+on_font_data_updated(struct rdr_font* font, void* data)
+{
+  struct rdr_term* term = data;
+  assert(font && term && term->font == font);
+  setup_font(term);
+}
+
+static void
 release_term(struct ref* ref)
 {
   struct rdr_term* term = NULL;
@@ -940,46 +986,40 @@ rdr_term_ref_put(struct rdr_term* term)
 EXPORT_SYM enum rdr_error
 rdr_term_font(struct rdr_term* term, struct rdr_font* font)
 {
-  struct rdr_font_metrics metrics;
-  size_t chars_per_line = 0;
-  size_t lines_per_screen = 0;
-  size_t max_nb_glyphs = 0;
+  enum rdr_error rdr_err = RDR_NO_ERROR;
+  struct rdr_font* old_font = NULL;
 
-  if(!term || !font)
-    return RDR_INVALID_ARGUMENT;
+  if(!term || !font) {
+    rdr_err = RDR_INVALID_ARGUMENT;
+    goto error;
+  }
 
-  if(term->font)
+  if(font != term->font) {
+    old_font = term->font;
+    RDR(font_ref_get(font));
+    term->font = font;
+
+    rdr_err = rdr_font_attach_callback
+      (font, RDR_FONT_SIGNAL_UPDATE_DATA, on_font_data_updated, term);
+    if(rdr_err != RDR_NO_ERROR)
+      goto error;
+    setup_font(term);
+  }
+
+exit:
+  if(old_font) {
+    RDR(font_ref_put(old_font));
+    RDR(font_detach_callback
+      (font, RDR_FONT_SIGNAL_UPDATE_DATA, on_font_data_updated, term));
+  }
+  return rdr_err;
+error:
+  if(old_font && old_font != term->font) {
     RDR(font_ref_put(term->font));
-  RDR(font_ref_get(font));
-  term->font = font;
-
-  /* Approximate the size of the glyph vertex buffer.  */
-  RDR(get_font_metrics(term->font, &metrics));
-
-  if(0 == metrics.min_glyph_width) {
-    chars_per_line = 0;
-  } else {
-    chars_per_line =
-      (term->width / metrics.min_glyph_width)
-    + ((term->width % metrics.min_glyph_width) != 0);
+    term->font = old_font;
+    old_font = NULL;
   }
-  if(0 == metrics.line_space) {
-    lines_per_screen = 0;
-  } else {
-    lines_per_screen =
-      (term->height / metrics.line_space)
-    + ((term->height % metrics.line_space) != 0);
-  }
-  max_nb_glyphs = chars_per_line * lines_per_screen;
-  printer_storage
-    (term->sys,
-     &term->printer,
-     max_nb_glyphs,
-     metrics.min_glyph_pos_y,
-     &term->scratch);
-  screen_storage(term->sys, &term->screen, lines_per_screen);
-  new_line(&term->screen);
-  return RDR_NO_ERROR;
+  goto exit;
 }
 
 EXPORT_SYM enum rdr_error
@@ -1313,21 +1353,21 @@ rdr_draw_term(struct rdr_term* term)
       translated_pos[1].x = glyph.pos[1].x + (float)x;
       translated_pos[1].y = glyph.pos[1].y + (float)y;
 
-      /* top left. */
-      SET_VERTEX_POS(vertex_data, translated_pos[0].x, translated_pos[0].y,0.f);
-      SET_VERTEX_TEX(vertex_data, glyph.tex[0].x, glyph.tex[0].y);
-      blob_push_back(&term->scratch, vertex_data, sizeof(vertex_data));
       /* bottom left. */
       SET_VERTEX_POS(vertex_data, translated_pos[0].x, translated_pos[1].y,0.f);
       SET_VERTEX_TEX(vertex_data, glyph.tex[0].x, glyph.tex[1].y);
       blob_push_back(&term->scratch, vertex_data, sizeof(vertex_data));
-      /* bottom right. */
-      SET_VERTEX_POS(vertex_data, translated_pos[1].x, translated_pos[1].y,0.f);
-      SET_VERTEX_TEX(vertex_data, glyph.tex[1].x, glyph.tex[1].y);
+      /* top left. */
+      SET_VERTEX_POS(vertex_data, translated_pos[0].x, translated_pos[0].y,0.f);
+      SET_VERTEX_TEX(vertex_data, glyph.tex[0].x, glyph.tex[0].y);
       blob_push_back(&term->scratch, vertex_data, sizeof(vertex_data));
       /* top right. */
       SET_VERTEX_POS(vertex_data, translated_pos[1].x, translated_pos[0].y,0.f);
       SET_VERTEX_TEX(vertex_data, glyph.tex[1].x, glyph.tex[0].y);
+      blob_push_back(&term->scratch, vertex_data, sizeof(vertex_data));
+      /* bottom right. */
+      SET_VERTEX_POS(vertex_data, translated_pos[1].x, translated_pos[1].y,0.f);
+      SET_VERTEX_TEX(vertex_data, glyph.tex[1].x, glyph.tex[1].y);
       blob_push_back(&term->scratch, vertex_data, sizeof(vertex_data));
 
       ++nb_glyphs;

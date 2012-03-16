@@ -7,6 +7,7 @@
 #include "renderer/rdr_system.h"
 #include "stdlib/sl.h"
 #include "stdlib/sl_hash_table.h"
+#include "stdlib/sl_set.h"
 #include "sys/mem_allocator.h"
 #include "sys/ref_count.h"
 #include "sys/sys.h"
@@ -20,6 +21,7 @@
 
 struct rdr_font {
   struct ref ref;
+  struct sl_set* callback_list[RDR_NB_FONT_SIGNALS];
   struct rdr_system* sys;
   struct sl_hash_table* glyph_htbl;
   struct rb_tex2d* cache_tex;
@@ -58,6 +60,28 @@ cmp_key(const void* p0, const void* p1)
 
 /*******************************************************************************
  *
+ * Callbacks.
+ *
+ ******************************************************************************/
+struct callback {
+  void (*func)(struct rdr_font*, void*);
+  void* data;
+};
+
+static int
+compare_callbacks(const void* a, const void* b)
+{
+  struct callback* cbk0 = (struct callback*)a;
+  struct callback* cbk1 = (struct callback*)b;
+  const uintptr_t p0[2] = {(uintptr_t)cbk0->func, (uintptr_t)cbk0->data};
+  const uintptr_t p1[2] = {(uintptr_t)cbk1->func, (uintptr_t)cbk1->data};
+  const int inf = (p0[0] < p1[0]) | ((p0[0] == p1[0]) & (p0[1] < p1[1]));
+  const int sup = (p0[0] > p1[0]) | ((p0[0] == p1[0]) & (p0[1] > p1[1]));
+  return -(inf) | (sup);
+}
+
+/*******************************************************************************
+ *
  * Helper functions and data structure.
  *
  ******************************************************************************/
@@ -75,6 +99,20 @@ struct node {
 
 #define GLYPH_BORDER 1
 #define IS_LEAF(n) (!((n)->left || (n)->right))
+
+static void
+invoke_callbacks(struct rdr_font* font, enum rdr_font_signal signal)
+{
+  struct callback* clbks = NULL;
+  size_t len = 0;
+  size_t i = 0;
+  assert(font && signal < RDR_NB_FONT_SIGNALS);
+
+  SL(set_buffer(font->callback_list[signal], &len, NULL, NULL, (void**)&clbks));
+  for(i = 0; i < len; ++i) {
+    clbks[i].func(font, clbks[i].data);
+  }
+}
 
 static struct node*
 insert_rect
@@ -255,7 +293,7 @@ fill_font_cache
     const size_t h = node->height - GLYPH_BORDER;
     const size_t x = node->x == 0 ? GLYPH_BORDER : node->x;
     const size_t y = node->y == 0 ? GLYPH_BORDER : node->y;
-    const size_t glyph_bmp_size = 
+    const size_t glyph_bmp_size =
       glyph_desc->bitmap.width
     * glyph_desc->bitmap.height
     * glyph_desc->bitmap.bytes_per_pixel;
@@ -271,7 +309,7 @@ fill_font_cache
 
     pair->glyph.pos[0].x = (float)glyph_desc->bitmap_left;
     pair->glyph.pos[0].y = (float)glyph_desc->bitmap_top;
-    pair->glyph.pos[1].x = (float)(glyph_desc->bitmap_left + w); 
+    pair->glyph.pos[1].x = (float)(glyph_desc->bitmap_left + w);
     pair->glyph.pos[1].y = (float)(glyph_desc->bitmap_top + h);
 
     /* The glyph bitmap size may be equal to zero (e.g.: the space char). */
@@ -337,12 +375,13 @@ reset_font(struct rdr_font* font)
   memset(&font->cache_img, 0, sizeof(font->cache_img));
 
   font->line_space = 0;
+  invoke_callbacks(font, RDR_FONT_SIGNAL_UPDATE_DATA);
 }
 
 static enum rdr_error
 create_default_glyph
   (struct mem_allocator* allocator,
-   size_t width, 
+   size_t width,
    size_t height,
    size_t Bpp,
    struct rdr_glyph_desc* glyph)
@@ -379,7 +418,7 @@ exit:
   if(glyph)
     glyph->bitmap.buffer = buffer;
   return rdr_err;
-error: 
+error:
   if(buffer)
     MEM_FREE(allocator, buffer);
   goto exit;
@@ -387,7 +426,7 @@ error:
 
 static void
 free_default_glyph
-  (struct mem_allocator* allocator, 
+  (struct mem_allocator* allocator,
    struct rdr_glyph_desc* glyph)
 {
   assert(allocator && glyph);
@@ -401,12 +440,18 @@ release_font(struct ref* ref)
 {
   struct rdr_font* font = NULL;
   struct rdr_system* sys = NULL;
+  size_t i = 0;
   assert(NULL != ref);
 
   font = CONTAINER_OF(ref, struct rdr_font, ref);
 
   if(font->glyph_htbl)
     SL(free_hash_table(font->glyph_htbl));
+  for(i = 0; i < RDR_NB_FONT_SIGNALS; ++i) {
+    if(font->callback_list[i]) {
+      SL(free_set(font->callback_list[i]));
+    }
+  }
   if(font->cache_tex)
     RBI(font->sys->rb, tex2d_ref_put(font->cache_tex));
   if(font->cache_img.buffer)
@@ -429,6 +474,7 @@ rdr_create_font(struct rdr_system* sys, struct rdr_font** out_font)
   struct rdr_font* font = NULL;
   enum rdr_error rdr_err = RDR_NO_ERROR;
   enum sl_error sl_err = SL_NO_ERROR;
+  size_t i = 0;
 
   if(!sys || !out_font) {
     rdr_err = RDR_INVALID_ARGUMENT;
@@ -454,6 +500,19 @@ rdr_create_font(struct rdr_system* sys, struct rdr_font** out_font)
   if(sl_err != SL_NO_ERROR) {
     rdr_err = sl_to_rdr_error(sl_err);
     goto error;
+  }
+
+  for(i = 0; i < RDR_NB_FONT_SIGNALS; ++i) {
+    sl_err = sl_create_set
+      (sizeof(struct callback),
+       ALIGNOF(struct callback),
+       compare_callbacks,
+       font->sys->allocator,
+       &font->callback_list[i]);
+    if(sl_err != SL_NO_ERROR) {
+      rdr_err = sl_to_rdr_error(sl_err);
+      goto error;
+    }
   }
 
 exit:
@@ -494,7 +553,7 @@ rdr_font_data
    const struct rdr_glyph_desc* glyph_list)
 {
   struct rb_tex2d_desc tex2d_desc;
-  struct rdr_glyph_desc default_glyph; 
+  struct rdr_glyph_desc default_glyph;
   struct rdr_glyph_desc* sorted_glyphs = NULL;
   struct node* root = NULL;
   size_t Bpp = 0;
@@ -522,7 +581,7 @@ rdr_font_data
   font->min_glyph_pos_y = INT_MAX;
   for(i = 0; i < nb_glyphs; ++i) {
     font->min_glyph_width = MIN(font->min_glyph_width, glyph_list[i].width);
-    font->min_glyph_pos_y = 
+    font->min_glyph_pos_y =
       MIN(font->min_glyph_pos_y, glyph_list[i].bitmap_top);
     max_bmp_width = MAX(max_bmp_width, glyph_list[i].bitmap.width);
     max_bmp_height = MAX(max_bmp_height, glyph_list[i].bitmap.height);
@@ -650,10 +709,12 @@ rdr_font_data
   tex2d_desc.usage = RB_USAGE_IMMUTABLE;
   tex2d_desc.compress = 0;
   RBI(font->sys->rb, create_tex2d
-    (font->sys->ctxt, 
-     &tex2d_desc, 
-     (const void**)&font->cache_img.buffer, 
+    (font->sys->ctxt,
+     &tex2d_desc,
+     (const void**)&font->cache_img.buffer,
      &font->cache_tex));
+
+  invoke_callbacks(font, RDR_FONT_SIGNAL_UPDATE_DATA);
 
 exit:
   if(font)
@@ -743,6 +804,89 @@ rdr_get_font_texture(struct rdr_font* font, struct rb_tex2d** tex)
     return RDR_INVALID_ARGUMENT;
   *tex = font->cache_tex;
   return RDR_NO_ERROR;
+}
+
+enum rdr_error
+rdr_font_attach_callback
+  (const struct rdr_font* font,
+   enum rdr_font_signal signal,
+   void (*callback)(struct rdr_font*, void*),
+   void* data)
+{
+  enum rdr_error rdr_err = RDR_NO_ERROR;
+  enum sl_error sl_err = SL_NO_ERROR;
+
+  if(!font || signal >= RDR_NB_FONT_SIGNALS || !callback) {
+    rdr_err =  RDR_INVALID_ARGUMENT;
+    goto error;
+  }
+  sl_err = sl_set_insert
+    (font->callback_list[signal], (struct callback[]){{callback, data}});
+  if(sl_err != SL_NO_ERROR) {
+    rdr_err = sl_to_rdr_error(sl_err);
+    goto error;
+  }
+exit:
+  return rdr_err;
+error:
+  goto exit;
+}
+
+enum rdr_error
+rdr_font_detach_callback
+  (const struct rdr_font* font,
+   enum rdr_font_signal signal,
+   void (*callback)(struct rdr_font*, void*),
+   void* data)
+{
+  enum rdr_error rdr_err = RDR_NO_ERROR;
+  enum sl_error sl_err = SL_NO_ERROR;
+
+  if(!font || signal >= RDR_NB_FONT_SIGNALS || !callback) {
+    rdr_err =  RDR_INVALID_ARGUMENT;
+    goto error;
+  }
+  sl_err = sl_set_remove
+    (font->callback_list[signal], (struct callback[]){{callback, data}});
+  if(sl_err != SL_NO_ERROR) {
+    rdr_err = sl_to_rdr_error(sl_err);
+    goto error;
+  }
+exit:
+  return rdr_err;
+error:
+  goto exit;
+}
+
+enum rdr_error
+rdr_is_font_callback_attached
+  (const struct rdr_font* font,
+   enum rdr_font_signal signal,
+   void (*callback)(struct rdr_font*, void*),
+   void* data,
+   bool* is_attached)
+{
+  enum rdr_error rdr_err = RDR_NO_ERROR;
+  enum sl_error sl_err = SL_NO_ERROR;
+  size_t len = 0;
+  size_t id = 0;
+
+  if(!font || signal >= RDR_NB_FONT_SIGNALS || !callback || !is_attached) {
+    rdr_err =  RDR_INVALID_ARGUMENT;
+    goto error;
+  }
+  sl_err = sl_set_find
+    (font->callback_list[signal], (struct callback[]){{callback, data}}, &id);
+  if(sl_err != SL_NO_ERROR) {
+    rdr_err = sl_to_rdr_error(sl_err);
+    goto error;
+  }
+  SL(set_buffer(font->callback_list[signal], &len, NULL, NULL, NULL));
+  *is_attached = len != id;
+exit:
+  return rdr_err;
+error:
+  goto exit;
 }
 
 #undef GLYPH_BORDER

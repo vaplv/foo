@@ -155,7 +155,7 @@ rb_create_tex2d
   || !desc->mip_count)
     goto error;
 
-  tex = MEM_ALLOC(ctxt->allocator, sizeof(struct rb_tex2d));
+  tex = MEM_CALLOC(ctxt->allocator, 1, sizeof(struct rb_tex2d));
   if(!tex)
     goto error;
   ref_init(&tex->ref);
@@ -190,19 +190,21 @@ rb_create_tex2d
     size += tex->mip_list[i].width * tex->mip_list[i].height * pixel_size;
   }
 
-  /* Create the pixel buffer. */
-  buffer_desc.usage = RB_USAGE_DEFAULT;
-  buffer_desc.target = RB_OGL3_BIND_PIXEL_DOWNLOAD_BUFFER;
-  buffer_desc.size = size;
-  err = rb_ogl3_create_buffer(ctxt, &buffer_desc, NULL, &tex->pixbuf);
-  if(0 != err)
-    goto error;
-
-  /* Setup the texture data. */
-  for(i = 0; i < desc->mip_count; ++i) {
-    if(init_data[i])
-      RB(tex2d_data(tex, i, init_data[i]));
+  /* Create the pixel buffer if the texture data usage is dynamic (<=> improve
+   * streaming performances). */
+  if(desc->usage == RB_USAGE_DYNAMIC) {
+    buffer_desc.usage = desc->usage;
+    buffer_desc.target = RB_OGL3_BIND_PIXEL_DOWNLOAD_BUFFER;
+    buffer_desc.size = size;
+    err = rb_ogl3_create_buffer(ctxt, &buffer_desc, NULL, &tex->pixbuf);
+    if(0 != err)
+      goto error;
   }
+
+  /* Setup the texture data. Note that even though the data is NULL we call the
+   * tex2d_data function in order to allocate the texture internal storage. */
+  for(i = 0; i < desc->mip_count; ++i)
+    RB(tex2d_data(tex, i, init_data[i]));
 
 exit:
   if(out_tex)
@@ -270,12 +272,7 @@ rb_tex2d_data(struct rb_tex2d* tex, unsigned int level, const void* data)
   pixel_size = sizeof_ogl3_format(tex->format);
   mip_size = mip_level->width * mip_level->height * pixel_size;
 
-  RB(buffer_data(tex->pixbuf, mip_level->pixbuf_offset, mip_size, data));
-
-  OGL(BindBuffer(tex->pixbuf->target, tex->pixbuf->name));
-  OGL(BindTexture(GL_TEXTURE_2D, tex->name));
-
-  #define TEX_IMAGE_2D \
+  #define TEX_IMAGE_2D(data) \
     OGL(TexImage2D \
       (GL_TEXTURE_2D, \
        level, \
@@ -285,25 +282,32 @@ rb_tex2d_data(struct rb_tex2d* tex, unsigned int level, const void* data)
        0, \
        tex->format, \
        GL_UNSIGNED_BYTE, \
-       BUFFER_OFFSET(mip_level->pixbuf_offset)))
+       data))
 
-  /* We assume that the default pixel storage alignment is set to 4. */
-  if(pixel_size == 4) {
-    TEX_IMAGE_2D;
-  }  else {
-    OGL(PixelStorei(GL_UNPACK_ALIGNMENT, 1));
-    TEX_IMAGE_2D;
-    OGL(PixelStorei(GL_UNPACK_ALIGNMENT, 4));
+  OGL(BindTexture(GL_TEXTURE_2D, tex->name));
+
+  if(NULL == tex->pixbuf || NULL == data) {
+    TEX_IMAGE_2D(data);
+  } else {
+    RB(buffer_data(tex->pixbuf, mip_level->pixbuf_offset, mip_size, data));
+    OGL(BindBuffer(tex->pixbuf->target, tex->pixbuf->name));
+    /* We assume that the default pixel storage alignment is set to 4. */
+    if(pixel_size == 4) {
+      TEX_IMAGE_2D(BUFFER_OFFSET(mip_level->pixbuf_offset));
+    }  else {
+      OGL(PixelStorei(GL_UNPACK_ALIGNMENT, 1));
+      TEX_IMAGE_2D(BUFFER_OFFSET(mip_level->pixbuf_offset));
+      OGL(PixelStorei(GL_UNPACK_ALIGNMENT, 4));
+    }
+    OGL(BindBuffer
+      (tex->pixbuf->target,
+       state_cache->buffer_binding[tex->pixbuf->binding]));
   }
-
-  #undef TEX_IMAGE_2D
-
   OGL(BindTexture
     (GL_TEXTURE_2D,
      state_cache->texture_binding_2d[state_cache->active_texture]));
-  OGL(BindBuffer
-    (tex->pixbuf->target,
-     state_cache->buffer_binding[tex->pixbuf->binding]));
+
+  #undef TEX_IMAGE_2D
 
   return 0;
 }

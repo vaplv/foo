@@ -44,6 +44,8 @@ key_clbk(enum wm_key key, enum wm_state state, void* data)
       RDR(term_write_backspace(term));
     } else if(key == WM_KEY_TAB) {
       RDR(term_write_tab(term));
+    } else if(key == WM_KEY_DEL) {
+      RDR(term_write_suppr(term));
     } else if(key == WM_KEY_RIGHT) {
       RDR(term_translate_cursor(term, 1));
     } else if(key == WM_KEY_LEFT) {
@@ -52,9 +54,7 @@ key_clbk(enum wm_key key, enum wm_state state, void* data)
       RDR(term_translate_cursor(term, INT_MAX));
     } else if(key == WM_KEY_HOME) {
       RDR(term_translate_cursor(term, -INT_MAX));
-    } else if(key == WM_KEY_DEL) {
-      RDR(term_write_suppr(term));
-    }
+    }  
   }
 }
 

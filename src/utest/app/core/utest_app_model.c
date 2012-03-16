@@ -24,7 +24,7 @@ cbk(struct app_model* model, void* data)
 int
 main(int argc, char** argv)
 {
-  struct app_args args = { NULL, NULL, NULL };
+  struct app_args args = { NULL, NULL, NULL, NULL };
   struct app* app = NULL;
   struct app_model* model = NULL;
   struct app_model* model2 = NULL;

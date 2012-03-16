@@ -193,7 +193,7 @@ main(int argc, char** argv)
   CHECK(rdr_term_dump(term, &i, buffer), OK);
   CHECK(i, 1);
   CHECK(wcscmp(buffer, L""), 0);
- 
+
   CHECK(rdr_term_write_string(NULL, NULL, RDR_TERM_COLOR_WHITE), BAD_ARG);
   CHECK(rdr_term_write_string(term, NULL, RDR_TERM_COLOR_WHITE), BAD_ARG);
   CHECK(rdr_term_write_string(NULL, L"test", RDR_TERM_COLOR_WHITE), BAD_ARG);
@@ -225,7 +225,7 @@ main(int argc, char** argv)
   CHECK(rdr_term_dump(term, &i, buffer), OK);
   CHECK(wcslen(buffer) + 1, i);
   CHECK(wcscmp(buffer, L"test\nfoo 0123\n45FOOX6"), 0);
- 
+
   CHECK(rdr_term_translate_cursor(term, -2), OK);
   CHECK(rdr_term_write_char(term, L'x', RDR_TERM_COLOR_WHITE), OK);
   CHECK(rdr_term_dump(term, &i, buffer), OK);
