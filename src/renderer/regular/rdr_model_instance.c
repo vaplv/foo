@@ -444,10 +444,18 @@ release_model_instance(struct ref* ref)
     SL(free_set(instance->callback_set));
   }
   RDR(is_model_callback_attached
-    (instance->model, model_callback_func, instance, &b));
-  if(b)
-    RDR(detach_model_callback(instance->model, model_callback_func, instance));
-
+    (instance->model, 
+     RDR_MODEL_SIGNAL_UPDATE_DATA, 
+     model_callback_func, 
+     instance, 
+     &b));
+  if(b) {
+    RDR(detach_model_callback
+      (instance->model, 
+       RDR_MODEL_SIGNAL_UPDATE_DATA, 
+       model_callback_func, 
+       instance));
+  }
   if(instance->uniform_buffer)
     MEM_FREE(instance->sys->allocator, instance->uniform_buffer);
   if(instance->attrib_buffer)
@@ -513,25 +521,19 @@ rdr_create_model_instance
     rdr_err = sl_to_rdr_error(sl_err);
     goto error;
   }
-
-  rdr_err = rdr_attach_model_callback(model, &model_callback_func, instance);
-  if(rdr_err != RDR_NO_ERROR)
-    goto error;
-  rdr_err = rdr_get_model_desc(model, &model_desc);
-  if(rdr_err != RDR_NO_ERROR)
-    goto error;
-  rdr_err = setup_model_instance_buffers(instance, &model_desc);
-  if(rdr_err != RDR_NO_ERROR)
-    goto error;
-  rdr_err = rdr_model_instance_transform(instance, identity);
-  if(rdr_err != RDR_NO_ERROR)
-    goto error;
-  rdr_err = rdr_model_instance_material_density(instance, RDR_OPAQUE);
-  if(rdr_err != RDR_NO_ERROR)
-    goto error;
-  rdr_err = rdr_model_instance_rasterizer(instance, &default_raster);
-  if(rdr_err != RDR_NO_ERROR)
-    goto error;
+  #define CALL(func) \
+    do { \
+      if(RDR_NO_ERROR != (rdr_err = func)) \
+        goto error; \
+    } while(0)
+  CALL(rdr_attach_model_callback
+    (model, RDR_MODEL_SIGNAL_UPDATE_DATA, &model_callback_func, instance));
+  CALL(rdr_get_model_desc(model, &model_desc));
+  CALL(setup_model_instance_buffers(instance, &model_desc));
+  CALL(rdr_model_instance_transform(instance, identity));
+  CALL(rdr_model_instance_material_density(instance, RDR_OPAQUE));
+  CALL(rdr_model_instance_rasterizer(instance, &default_raster));
+  #undef CALL
 
 exit:
   if(out_instance)

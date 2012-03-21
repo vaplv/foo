@@ -257,7 +257,7 @@ rdr_draw_world(struct rdr_world* world, const struct rdr_view* view)
     goto error;
   }
 
-  RBI(world->sys->rb, depth_stencil(world->sys->ctxt, &depth_stencil_desc));
+  RBI(&world->sys->rb, depth_stencil(world->sys->ctxt, &depth_stencil_desc));
 
   sl_err = sl_set_buffer
     (world->model_instance_list,

@@ -1,7 +1,9 @@
 #include "app/core/regular/app_c.h"
+#include "app/core/regular/app_command_c.h"
 #include "app/core/regular/app_error_c.h"
 #include "app/core/regular/app_world_c.h"
 #include "app/core/app.h"
+#include "app/core/app_command.h"
 #include "app/core/app_model.h"
 #include "app/core/app_model_instance.h"
 #include "app/core/app_view.h"
@@ -120,7 +122,7 @@ std_log_func(const char* msg, void* data UNUSED)
 }
 
 static void
-term_log_func(const char* msg, void* data) 
+term_log_func(const char* msg, void* data)
 {
   struct app* app = data;
   wchar_t buffer[BUFSIZ];
@@ -133,7 +135,7 @@ term_log_func(const char* msg, void* data)
   } else if(strncasecmp(msg, APP_WARN_PREFIX, sizeof(APP_WARN_PREFIX) - 1)==0) {
     msg += sizeof(APP_WARN_PREFIX) - 1;
     RDR(term_write_string(app->rdr.term, L"warning: ", RDR_TERM_COLOR_YELLOW));
-  } 
+  }
   mbstowcs(buffer, msg, BUFSIZ - 1);
   RDR(term_write_string(app->rdr.term, buffer, RDR_TERM_COLOR_WHITE));
 }
@@ -387,7 +389,6 @@ shutdown_common(struct app* app)
       app->object_list[type_id] = NULL;
     }
   }
-
   for(i = 0; i < APP_NB_SIGNALS; ++i) {
     if(NULL != app->callback_list[i]) {
       SL(free_set(app->callback_list[i]));
@@ -431,6 +432,7 @@ shutdown(struct app* app)
 
   if(app) {
     #define CALL(func) if((app_err = func) != APP_NO_ERROR) goto error
+    CALL(app_shutdown_command_system(app));
     CALL(shutdown_common(app));
     CALL(shutdown_resources(&app->rsrc, app->logger));
     CALL(shutdown_renderer(&app->rdr, app->logger));
@@ -593,15 +595,12 @@ init_common(struct app* app)
       goto error;
     }
   }
-
   app_err = app_create_world(app, &app->world);
   if(app_err != APP_NO_ERROR)
     goto error;
-
   app_err = app_create_view(app, &app->view);
   if(app_err != APP_NO_ERROR)
     goto error;
-
   app_err = app_look_at
     (app->view,
      (float[]){10.f, 10.f, 10.f},
@@ -668,26 +667,30 @@ init(struct app* app, const char* graphic_driver)
 
   app_err = init_window_manager(&app->wm);
   if(app_err !=  APP_NO_ERROR) {
-    APP_LOG_ERR(app->logger, "Error in intializing the window manager\n");
+    APP_LOG_ERR(app->logger, "Error intializing window manager\n");
     goto error;
   }
   app_err = init_renderer(&app->rdr, graphic_driver, app->logger);
   if(app_err != APP_NO_ERROR) {
-    APP_LOG_ERR(app->logger, "Error in initializing the renderer\n");
+    APP_LOG_ERR(app->logger, "Error initializing renderer\n");
     goto error;
   }
   app_err = init_resources(&app->rsrc);
   if(app_err != APP_NO_ERROR) {
-    APP_LOG_ERR(app->logger, "Error in initializing the resource module\n");
+    APP_LOG_ERR(app->logger, "Error initializing resource module\n");
     goto error;
   }
   app_err = init_common(app);
   if(app_err != APP_NO_ERROR)
     goto error;
+  app_err = app_init_command_system(app);
+  if(app_err != APP_NO_ERROR) {
+    APP_LOG_ERR(app->logger, "Error intializing command system\n");
+    goto error;
+  }
 
 exit:
   return app_err;
-
 error:
   tmp_err = shutdown(app);
   assert(tmp_err == APP_NO_ERROR);
@@ -744,7 +747,7 @@ app_init(struct app_args* args, struct app** out_app)
     goto error;
 
   if(args->term_font) {
-    app_err = app_terminal_font(app, args->term_font); 
+    app_err = app_terminal_font(app, args->term_font);
     if(app_err != APP_NO_ERROR)
       goto error;
   }

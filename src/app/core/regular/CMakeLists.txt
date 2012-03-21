@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 2.6)
 
 add_library(appcore SHARED 
   app.c
+  app_command.c
   app_error.c
   app_model.c
   app_model_instance.c

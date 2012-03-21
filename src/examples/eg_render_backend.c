@@ -94,11 +94,11 @@ free_mesh(struct rbi* rbi, struct render_mesh* mesh)
     return -1;
 
   if(mesh->vertex_array)
-    RBI(*rbi, vertex_array_ref_put(mesh->vertex_array));
+    RBI(rbi, vertex_array_ref_put(mesh->vertex_array));
   if(mesh->vertex_buffer)
-    RBI(*rbi, buffer_ref_put(mesh->vertex_buffer));
+    RBI(rbi, buffer_ref_put(mesh->vertex_buffer));
   if(mesh->index_buffer)
-    RBI(*rbi, buffer_ref_put(mesh->index_buffer));
+    RBI(rbi, buffer_ref_put(mesh->index_buffer));
 
   free(mesh);
   return 0;
@@ -193,15 +193,15 @@ free_shader
     return -1;
 
   if(shader->view_uniform)
-    RBI(*rbi, uniform_ref_put(shader->view_uniform));
+    RBI(rbi, uniform_ref_put(shader->view_uniform));
   if(shader->proj_uniform)
-    RBI(*rbi, uniform_ref_put(shader->proj_uniform));
+    RBI(rbi, uniform_ref_put(shader->proj_uniform));
   if(shader->program)
-    RBI(*rbi, program_ref_put(shader->program));
+    RBI(rbi, program_ref_put(shader->program));
   if(shader->vertex_shader)
-    RBI(*rbi, shader_ref_put(shader->vertex_shader));
+    RBI(rbi, shader_ref_put(shader->vertex_shader));
   if(shader->fragment_shader)
-    RBI(*rbi, shader_ref_put(shader->fragment_shader));
+    RBI(rbi, shader_ref_put(shader->fragment_shader));
 
   free(shader);
 

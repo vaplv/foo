@@ -97,9 +97,6 @@ struct rdr_term {
  * Embedded shader sources.
  *
  ******************************************************************************/
-#define XSTR(x) #x
-#define STR(x) XSTR(x)
-
 static const char* print_vs_source =
   "#version 330\n"
   "layout(location =" STR(POS_ATTRIB_ID) ") in vec3 pos;\n"
@@ -115,9 +112,6 @@ static const char* print_vs_source =
   "  glyph_col = col;\n"
   "  gl_Position = vec4(pos * scale + bias, 1.f);\n"
   "}\n";
-
-#undef XSTR
-#undef STR
 
 static const char* print_fs_source =
   "#version 330\n"
@@ -399,11 +393,11 @@ printer_storage
   printer->cursor.y = min_glyph_pos_y;
 
   if(printer->text.glyph_vertex_buffer) {
-    RBI(sys->rb, buffer_ref_put(printer->text.glyph_vertex_buffer));
+    RBI(&sys->rb, buffer_ref_put(printer->text.glyph_vertex_buffer));
     printer->text.glyph_vertex_buffer = NULL;
   }
   if(printer->text.glyph_index_buffer) {
-    RBI(sys->rb, buffer_ref_put(printer->text.glyph_index_buffer));
+    RBI(&sys->rb, buffer_ref_put(printer->text.glyph_index_buffer));
     printer->text.glyph_index_buffer = NULL;
   }
 
@@ -415,7 +409,7 @@ printer_storage
       [2] = COL_ATTRIB_ID
     };
     STATIC_ASSERT(3 == NB_ATTRIBS, Unexpected_constant);
-    RBI(sys->rb, remove_vertex_attrib
+    RBI(&sys->rb, remove_vertex_attrib
       (printer->text.varray, NB_ATTRIBS, attrib_id_list));
   } else {
     const size_t vertex_bufsiz =
@@ -432,7 +426,7 @@ printer_storage
     buffer_desc.size = vertex_bufsiz;
     buffer_desc.target = RB_BIND_VERTEX_BUFFER;
     buffer_desc.usage = RB_USAGE_DYNAMIC;
-    RBI(sys->rb, create_buffer
+    RBI(&sys->rb, create_buffer
       (sys->ctxt, &buffer_desc, NULL, &printer->text.glyph_vertex_buffer));
 
     /* Create the immutable index buffer. Its internal data are the indices of
@@ -447,19 +441,19 @@ printer_storage
       };
       blob_push_back(scratch, indices, sizeof(indices));
     }
-    RBI(sys->rb, create_buffer
+    RBI(&sys->rb, create_buffer
       (sys->ctxt,
        &buffer_desc,
        blob_buffer(scratch),
        &printer->text.glyph_index_buffer));
 
     /* Setup the vertex array. */
-    RBI(sys->rb, vertex_attrib_array
+    RBI(&sys->rb, vertex_attrib_array
       (printer->text.varray,
        printer->text.glyph_vertex_buffer,
        NB_ATTRIBS,
        printer->text.attrib_list));
-    RBI(sys->rb, vertex_index_array
+    RBI(&sys->rb, vertex_index_array
       (printer->text.varray, printer->text.glyph_index_buffer));
   }
 }
@@ -477,7 +471,7 @@ printer_data
     (  size
     <= (printer->text.max_nb_glyphs*VERTICES_PER_GLYPH*SIZEOF_GLYPH_VERTEX));
 
-  RBI(sys->rb, buffer_data(printer->text.glyph_vertex_buffer, 0, size, data));
+  RBI(&sys->rb, buffer_data(printer->text.glyph_vertex_buffer, 0, size, data));
   printer->text.nb_glyphs = nb_glyphs;
 }
 
@@ -513,18 +507,18 @@ printer_draw_cursor
   blend_desc.dst_blend_Alpha = RB_BLEND_ONE;
   blend_desc.blend_op_RGB = RB_BLEND_OP_SUB;
   blend_desc.blend_op_Alpha = RB_BLEND_OP_SUB;
-  RBI(sys->rb, blend(sys->ctxt, &blend_desc));
+  RBI(&sys->rb, blend(sys->ctxt, &blend_desc));
 
-  RBI(sys->rb, bind_program(sys->ctxt, cursor->shading_program));
-  RBI(sys->rb, uniform_data(cursor->scale_bias_uniform, 1, (void*)scale_bias));
-  RBI(sys->rb, bind_vertex_array(sys->ctxt, cursor->varray));
+  RBI(&sys->rb, bind_program(sys->ctxt, cursor->shading_program));
+  RBI(&sys->rb, uniform_data(cursor->scale_bias_uniform, 1, (void*)scale_bias));
+  RBI(&sys->rb, bind_vertex_array(sys->ctxt, cursor->varray));
 
-  RBI(sys->rb, draw(sys->ctxt, RB_TRIANGLE_STRIP, 4));
+  RBI(&sys->rb, draw(sys->ctxt, RB_TRIANGLE_STRIP, 4));
 
   blend_desc.enable = 0;
-  RBI(sys->rb, blend(sys->ctxt, &blend_desc));
-  RBI(sys->rb, bind_program(sys->ctxt, NULL));
-  RBI(sys->rb, bind_vertex_array(sys->ctxt, NULL));
+  RBI(&sys->rb, blend(sys->ctxt, &blend_desc));
+  RBI(&sys->rb, bind_program(sys->ctxt, NULL));
+  RBI(&sys->rb, bind_vertex_array(sys->ctxt, NULL));
 }
 
 static void
@@ -549,29 +543,29 @@ printer_draw_text
   blend_desc.dst_blend_Alpha = RB_BLEND_ZERO;
   blend_desc.blend_op_RGB = RB_BLEND_OP_ADD;
   blend_desc.blend_op_Alpha = RB_BLEND_OP_ADD;
-  RBI(sys->rb, blend(sys->ctxt, &blend_desc));
+  RBI(&sys->rb, blend(sys->ctxt, &blend_desc));
 
   RDR(get_font_texture(font, &glyph_cache));
 
-  RBI(sys->rb, bind_tex2d(sys->ctxt, glyph_cache, GLYPH_CACHE_TEX_UNIT));
-  RBI(sys->rb, bind_sampler(sys->ctxt, text->sampler, GLYPH_CACHE_TEX_UNIT));
+  RBI(&sys->rb, bind_tex2d(sys->ctxt, glyph_cache, GLYPH_CACHE_TEX_UNIT));
+  RBI(&sys->rb, bind_sampler(sys->ctxt, text->sampler, GLYPH_CACHE_TEX_UNIT));
 
-  RBI(sys->rb, bind_program(sys->ctxt, text->shading_program));
-  RBI(sys->rb, uniform_data
+  RBI(&sys->rb, bind_program(sys->ctxt, text->shading_program));
+  RBI(&sys->rb, uniform_data
     (text->sampler_uniform, 1, (void*)(int[]){GLYPH_CACHE_TEX_UNIT}));
-  RBI(sys->rb, uniform_data(text->scale_uniform, 1, (void*)scale));
-  RBI(sys->rb, uniform_data(text->bias_uniform, 1, (void*)bias));
+  RBI(&sys->rb, uniform_data(text->scale_uniform, 1, (void*)scale));
+  RBI(&sys->rb, uniform_data(text->bias_uniform, 1, (void*)bias));
 
-  RBI(sys->rb, bind_vertex_array(sys->ctxt, text->varray));
-  RBI(sys->rb, draw_indexed
+  RBI(&sys->rb, bind_vertex_array(sys->ctxt, text->varray));
+  RBI(&sys->rb, draw_indexed
     (sys->ctxt, RB_TRIANGLE_LIST, text->nb_glyphs * INDICES_PER_GLYPH));
 
   blend_desc.enable = 0;
-  RBI(sys->rb, blend(sys->ctxt, &blend_desc));
-  RBI(sys->rb, bind_program(sys->ctxt, NULL));
-  RBI(sys->rb, bind_vertex_array(sys->ctxt, NULL));
-  RBI(sys->rb, bind_tex2d(sys->ctxt, NULL, GLYPH_CACHE_TEX_UNIT));
-  RBI(sys->rb, bind_sampler(sys->ctxt, NULL, GLYPH_CACHE_TEX_UNIT));
+  RBI(&sys->rb, blend(sys->ctxt, &blend_desc));
+  RBI(&sys->rb, bind_program(sys->ctxt, NULL));
+  RBI(&sys->rb, bind_vertex_array(sys->ctxt, NULL));
+  RBI(&sys->rb, bind_tex2d(sys->ctxt, NULL, GLYPH_CACHE_TEX_UNIT));
+  RBI(&sys->rb, bind_sampler(sys->ctxt, NULL, GLYPH_CACHE_TEX_UNIT));
 }
 
 static void
@@ -597,7 +591,7 @@ printer_draw
   depth_stencil_desc.enable_stencil_test = 0;
   depth_stencil_desc.front_face_op.write_mask = 0;
   depth_stencil_desc.back_face_op.write_mask = 0;
-  RBI(sys->rb, depth_stencil(sys->ctxt, &depth_stencil_desc));
+  RBI(&sys->rb, depth_stencil(sys->ctxt, &depth_stencil_desc));
 
   viewport_desc.x = 0;
   viewport_desc.y = 0;
@@ -605,7 +599,7 @@ printer_draw
   viewport_desc.height = (int)height;
   viewport_desc.min_depth = 0.f;
   viewport_desc.max_depth = 1.f;
-  RBI(sys->rb, viewport(sys->ctxt, &viewport_desc));
+  RBI(&sys->rb, viewport(sys->ctxt, &viewport_desc));
 
   printer_draw_text(sys, font, &printer->text, width, height);
   printer_draw_cursor
@@ -628,19 +622,19 @@ shutdown_printer_cursor(struct rdr_system* sys, struct cursor* cursor)
   ctxt = sys->ctxt;
 
   if(cursor->vertex_buffer)
-    RBI(sys->rb, buffer_ref_put(cursor->vertex_buffer));
+    RBI(&sys->rb, buffer_ref_put(cursor->vertex_buffer));
   if(cursor->varray)
-    RBI(sys->rb, vertex_array_ref_put(cursor->varray));
+    RBI(&sys->rb, vertex_array_ref_put(cursor->varray));
 
   if(cursor->shading_program)
-    RBI(sys->rb, program_ref_put(cursor->shading_program));
+    RBI(&sys->rb, program_ref_put(cursor->shading_program));
   if(cursor->vertex_shader)
-    RBI(sys->rb, shader_ref_put(cursor->vertex_shader));
+    RBI(&sys->rb, shader_ref_put(cursor->vertex_shader));
   if(cursor->fragment_shader)
-    RBI(sys->rb, shader_ref_put(cursor->fragment_shader));
+    RBI(&sys->rb, shader_ref_put(cursor->fragment_shader));
 
   if(cursor->scale_bias_uniform)
-    RBI(sys->rb, uniform_ref_put(cursor->scale_bias_uniform));
+    RBI(&sys->rb, uniform_ref_put(cursor->scale_bias_uniform));
 }
 
 static void
@@ -652,28 +646,28 @@ shutdown_printer_text(struct rdr_system* sys, struct text* text)
   ctxt = sys->ctxt;
 
   if(text->glyph_vertex_buffer)
-    RBI(sys->rb, buffer_ref_put(text->glyph_vertex_buffer));
+    RBI(&sys->rb, buffer_ref_put(text->glyph_vertex_buffer));
   if(text->glyph_index_buffer)
-    RBI(sys->rb, buffer_ref_put(text->glyph_index_buffer));
+    RBI(&sys->rb, buffer_ref_put(text->glyph_index_buffer));
   if(text->varray)
-    RBI(sys->rb, vertex_array_ref_put(text->varray));
+    RBI(&sys->rb, vertex_array_ref_put(text->varray));
 
   if(text->shading_program)
-    RBI(sys->rb, program_ref_put(text->shading_program));
+    RBI(&sys->rb, program_ref_put(text->shading_program));
   if(text->vertex_shader)
-    RBI(sys->rb, shader_ref_put(text->vertex_shader));
+    RBI(&sys->rb, shader_ref_put(text->vertex_shader));
   if(text->fragment_shader)
-    RBI(sys->rb, shader_ref_put(text->fragment_shader));
+    RBI(&sys->rb, shader_ref_put(text->fragment_shader));
 
   if(text->sampler)
-    RBI(sys->rb, sampler_ref_put(text->sampler));
+    RBI(&sys->rb, sampler_ref_put(text->sampler));
 
   if(text->sampler_uniform)
-    RBI(sys->rb, uniform_ref_put(text->sampler_uniform));
+    RBI(&sys->rb, uniform_ref_put(text->sampler_uniform));
   if(text->scale_uniform)
-    RBI(sys->rb, uniform_ref_put(text->scale_uniform));
+    RBI(&sys->rb, uniform_ref_put(text->scale_uniform));
   if(text->bias_uniform)
-    RBI(sys->rb, uniform_ref_put(text->bias_uniform));
+    RBI(&sys->rb, uniform_ref_put(text->bias_uniform));
 }
 
 static void
@@ -697,7 +691,7 @@ init_printer_cursor(struct rdr_system* sys, struct cursor* cursor)
   buffer_desc.size = sizeof(vertices);
   buffer_desc.target = RB_BIND_VERTEX_BUFFER;
   buffer_desc.usage = RB_USAGE_IMMUTABLE;
-  RBI(sys->rb, create_buffer
+  RBI(&sys->rb, create_buffer
     (sys->ctxt, &buffer_desc, vertices, &cursor->vertex_buffer));
 
   /* Vertex array. */
@@ -705,18 +699,18 @@ init_printer_cursor(struct rdr_system* sys, struct cursor* cursor)
   attrib.stride = 2 * sizeof(float);
   attrib.offset = 0;
   attrib.type = RB_FLOAT2;
-  RBI(sys->rb, create_vertex_array(sys->ctxt, &cursor->varray));
-  RBI(sys->rb, vertex_attrib_array
+  RBI(&sys->rb, create_vertex_array(sys->ctxt, &cursor->varray));
+  RBI(&sys->rb, vertex_attrib_array
     (cursor->varray, cursor->vertex_buffer, 1, &attrib));
 
   /* Shaders. */
-  RBI(sys->rb, create_shader
+  RBI(&sys->rb, create_shader
     (sys->ctxt,
      RB_VERTEX_SHADER,
      cursor_vs_source,
      strlen(cursor_vs_source),
      &cursor->vertex_shader));
-  RBI(sys->rb, create_shader
+  RBI(&sys->rb, create_shader
     (sys->ctxt,
      RB_FRAGMENT_SHADER,
      cursor_fs_source,
@@ -724,12 +718,12 @@ init_printer_cursor(struct rdr_system* sys, struct cursor* cursor)
      &cursor->fragment_shader));
 
   /* Shading program. */
-  RBI(sys->rb, create_program(sys->ctxt, &cursor->shading_program));
-  RBI(sys->rb, attach_shader(cursor->shading_program, cursor->vertex_shader));
-  RBI(sys->rb, attach_shader(cursor->shading_program, cursor->fragment_shader));
-  RBI(sys->rb, link_program(cursor->shading_program));
+  RBI(&sys->rb, create_program(sys->ctxt, &cursor->shading_program));
+  RBI(&sys->rb, attach_shader(cursor->shading_program, cursor->vertex_shader));
+  RBI(&sys->rb, attach_shader(cursor->shading_program, cursor->fragment_shader));
+  RBI(&sys->rb, link_program(cursor->shading_program));
 
-  RBI(sys->rb, get_named_uniform
+  RBI(&sys->rb, get_named_uniform
     (sys->ctxt,
      cursor->shading_program,
      "scale_bias",
@@ -758,7 +752,7 @@ init_printer_text(struct rdr_system* sys, struct text* text)
   text->attrib_list[2].stride = SIZEOF_GLYPH_VERTEX;
   text->attrib_list[2].offset = 5 * sizeof(float);
   text->attrib_list[2].type = RB_FLOAT3;
-  RBI(sys->rb, create_vertex_array(ctxt, &text->varray));
+  RBI(&sys->rb, create_vertex_array(ctxt, &text->varray));
 
   /* Sampler. */
   sampler_desc.filter = RB_MIN_POINT_MAG_POINT_MIP_POINT;
@@ -769,16 +763,16 @@ init_printer_text(struct rdr_system* sys, struct text* text)
   sampler_desc.min_lod = -FLT_MAX;
   sampler_desc.max_lod = FLT_MAX;
   sampler_desc.max_anisotropy = 1;
-  RBI(sys->rb, create_sampler(ctxt, &sampler_desc, &text->sampler));
+  RBI(&sys->rb, create_sampler(ctxt, &sampler_desc, &text->sampler));
 
   /* Shaders. */
-  RBI(sys->rb, create_shader
+  RBI(&sys->rb, create_shader
     (ctxt,
      RB_VERTEX_SHADER,
      print_vs_source,
      strlen(print_vs_source),
      &text->vertex_shader));
-  RBI(sys->rb, create_shader
+  RBI(&sys->rb, create_shader
     (ctxt,
      RB_FRAGMENT_SHADER,
      print_fs_source,
@@ -786,16 +780,16 @@ init_printer_text(struct rdr_system* sys, struct text* text)
      &text->fragment_shader));
 
   /* Shading program. */
-  RBI(sys->rb, create_program(ctxt, &text->shading_program));
-  RBI(sys->rb, attach_shader(text->shading_program, text->vertex_shader));
-  RBI(sys->rb, attach_shader(text->shading_program, text->fragment_shader));
-  RBI(sys->rb, link_program(text->shading_program));
+  RBI(&sys->rb, create_program(ctxt, &text->shading_program));
+  RBI(&sys->rb, attach_shader(text->shading_program, text->vertex_shader));
+  RBI(&sys->rb, attach_shader(text->shading_program, text->fragment_shader));
+  RBI(&sys->rb, link_program(text->shading_program));
 
-  RBI(sys->rb, get_named_uniform
+  RBI(&sys->rb, get_named_uniform
     (ctxt, text->shading_program, "glyph_cache", &text->sampler_uniform));
-  RBI(sys->rb, get_named_uniform
+  RBI(&sys->rb, get_named_uniform
     (ctxt, text->shading_program, "scale", &text->scale_uniform));
-  RBI(sys->rb, get_named_uniform
+  RBI(&sys->rb, get_named_uniform
     (ctxt, text->shading_program, "bias", &text->bias_uniform));
 }
 
@@ -885,7 +879,7 @@ setup_font(struct rdr_term* term)
 }
 
 static void
-on_font_data_updated(struct rdr_font* font, void* data)
+on_font_data_updated(struct rdr_font* font UNUSED, void* data)
 {
   struct rdr_term* term = data;
   assert(font && term && term->font == font);

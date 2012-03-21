@@ -76,13 +76,14 @@
 #define CONCAT(a, b) \
   CONCAT__(a, b)
 
-
 #define LIKELY(x) \
   __builtin_expect(x, 1)
 
 #define UNLIKELY() \
   __builtin_expect(x, 0)
 
+#define STR__(x) #x
+#define STR(x) STR__(x)
  
 #endif /* SYS_H */
 

@@ -16,9 +16,9 @@ struct rbi {
 
 #ifndef NDEBUG
   #include <assert.h>
-  #define RBI(rbi, func) assert(0 == (rbi).func)
+  #define RBI(rbi, func) assert(0 == (rbi)->func)
 #else
-  #define RBI(rbi, func) ((rbi).func)
+  #define RBI(rbi, func) ((rbi)->func)
 #endif
 
 extern int rbi_init(const char* library, struct rbi*);

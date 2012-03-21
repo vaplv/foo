@@ -41,21 +41,16 @@ struct rdr_font {
  * Glyph hash table.
  *
  ******************************************************************************/
-struct pair {
-  wchar_t character;
-  struct rdr_glyph glyph;
-};
-
-static const void*
-get_key(const void* pair)
+static size_t
+hash(const void* key)
 {
-  return (const void*)(&((const struct pair*)pair)->character);
+  return sl_hash(key, sizeof(wchar_t));
 }
 
-static int
-cmp_key(const void* p0, const void* p1)
+static bool
+eq_key(const void* p0, const void* p1)
 {
-  return *(const wchar_t*)p0 - *(const wchar_t*)p1;
+  return *(const wchar_t*)p0 == *(const wchar_t*)p1;
 }
 
 /*******************************************************************************
@@ -282,7 +277,7 @@ fill_font_cache
 {
   assert(node && font);
   if(!IS_LEAF(node)) {
-    struct pair* pair = NULL;
+    struct rdr_glyph* glyph;
     unsigned char* dst = NULL;
     const struct rdr_glyph_desc* glyph_desc = glyph_list + node->id;
     const size_t cache_Bpp = font->cache_img.Bpp;
@@ -298,19 +293,20 @@ fill_font_cache
     * glyph_desc->bitmap.height
     * glyph_desc->bitmap.bytes_per_pixel;
 
-    SL(hash_table_find(font->glyph_htbl, &glyph_desc->character,(void**)&pair));
-    assert(pair);
+    SL(hash_table_find
+      (font->glyph_htbl, &glyph_desc->character,(void**)&glyph));
+    assert(glyph);
 
-    pair->glyph.width = glyph_desc->width;
-    pair->glyph.tex[0].x = (float)x * rcp_cache_width;
-    pair->glyph.tex[0].y = (float)(y + h) * rcp_cache_height;
-    pair->glyph.tex[1].x = (float)(x + w) * rcp_cache_width;
-    pair->glyph.tex[1].y = (float)y * rcp_cache_height;
+    glyph->width = glyph_desc->width;
+    glyph->tex[0].x = (float)x * rcp_cache_width;
+    glyph->tex[0].y = (float)(y + h) * rcp_cache_height;
+    glyph->tex[1].x = (float)(x + w) * rcp_cache_width;
+    glyph->tex[1].y = (float)y * rcp_cache_height;
 
-    pair->glyph.pos[0].x = (float)glyph_desc->bitmap_left;
-    pair->glyph.pos[0].y = (float)glyph_desc->bitmap_top;
-    pair->glyph.pos[1].x = (float)(glyph_desc->bitmap_left + w);
-    pair->glyph.pos[1].y = (float)(glyph_desc->bitmap_top + h);
+    glyph->pos[0].x = (float)glyph_desc->bitmap_left;
+    glyph->pos[0].y = (float)glyph_desc->bitmap_top;
+    glyph->pos[1].x = (float)(glyph_desc->bitmap_left + w);
+    glyph->pos[1].y = (float)(glyph_desc->bitmap_top + h);
 
     /* The glyph bitmap size may be equal to zero (e.g.: the space char). */
     if(0 != glyph_bmp_size) {
@@ -366,7 +362,7 @@ reset_font(struct rdr_font* font)
   SL(hash_table_clear(font->glyph_htbl));
 
   if(font->cache_tex) {
-    RBI(font->sys->rb, tex2d_ref_put(font->cache_tex));
+    RBI(&font->sys->rb, tex2d_ref_put(font->cache_tex));
     font->cache_tex = NULL;
   }
 
@@ -453,7 +449,7 @@ release_font(struct ref* ref)
     }
   }
   if(font->cache_tex)
-    RBI(font->sys->rb, tex2d_ref_put(font->cache_tex));
+    RBI(&font->sys->rb, tex2d_ref_put(font->cache_tex));
   if(font->cache_img.buffer)
     MEM_FREE(font->sys->allocator, font->cache_img.buffer);
   sys = font->sys;
@@ -490,11 +486,12 @@ rdr_create_font(struct rdr_system* sys, struct rdr_font** out_font)
   RDR(system_ref_get(sys));
 
   sl_err = sl_create_hash_table
-    (sizeof(struct pair),
-     ALIGNOF(struct pair),
-     sizeof(wchar_t),
-     cmp_key,
-     get_key,
+    (sizeof(wchar_t),
+     ALIGNOF(wchar_t),
+     sizeof(struct rdr_glyph),
+     ALIGNOF(struct rdr_glyph),
+     hash,
+     eq_key,
      font->sys->allocator,
      &font->glyph_htbl);
   if(sl_err != SL_NO_ERROR) {
@@ -644,12 +641,13 @@ rdr_font_data
     if(data != NULL) {
       continue;
     } else {
-      struct pair pair;
+      wchar_t character = 0;
+      struct rdr_glyph glyph;
       enum sl_error sl_err = SL_NO_ERROR;
+      memset(&glyph, 0, sizeof(glyph));
 
-      memset(&pair, 0, sizeof(pair));
-      pair.character = sorted_glyphs[i].character;
-      sl_err = sl_hash_table_insert(font->glyph_htbl, (void*)&pair);
+      character = sorted_glyphs[i].character;
+      sl_err = sl_hash_table_insert(font->glyph_htbl, &character, &glyph);
       if(sl_err != SL_NO_ERROR) {
         rdr_err = sl_to_rdr_error(sl_err);
         goto error;
@@ -708,7 +706,7 @@ rdr_font_data
   tex2d_desc.format = Bpp_to_rb_tex_format(Bpp);
   tex2d_desc.usage = RB_USAGE_IMMUTABLE;
   tex2d_desc.compress = 0;
-  RBI(font->sys->rb, create_tex2d
+  RBI(&font->sys->rb, create_tex2d
     (font->sys->ctxt,
      &tex2d_desc,
      (const void**)&font->cache_img.buffer,
@@ -773,23 +771,23 @@ enum rdr_error
 rdr_get_font_glyph
   (struct rdr_font* font,
    wchar_t character,
-   struct rdr_glyph* glyph)
+   struct rdr_glyph* dst_glyph)
 {
-  struct pair* pair = NULL;
+  struct rdr_glyph* glyph = NULL;
   enum rdr_error rdr_err = RDR_NO_ERROR;
 
-  if(!font || !glyph) {
+  if(!font || !dst_glyph) {
     rdr_err = RDR_INVALID_ARGUMENT;
     goto error;
   }
-  SL(hash_table_find(font->glyph_htbl, &character,(void**)&pair));
+  SL(hash_table_find(font->glyph_htbl, &character,(void**)&glyph));
 
-  if(pair == NULL) {
+  if(glyph == NULL) {
     SL(hash_table_find
-      (font->glyph_htbl, (wchar_t[]){DEFAULT_CHAR}, (void**)&pair));
-    assert(NULL != pair);
+      (font->glyph_htbl, (wchar_t[]){DEFAULT_CHAR}, (void**)&glyph));
+    assert(NULL != glyph);
   }
-  memcpy(glyph, &pair->glyph, sizeof(struct rdr_glyph));
+  memcpy(dst_glyph, glyph, sizeof(struct rdr_glyph));
 
 exit:
   return rdr_err;

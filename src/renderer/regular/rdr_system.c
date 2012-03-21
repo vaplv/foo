@@ -23,7 +23,7 @@ release_system(struct ref* ref)
   sys = CONTAINER_OF(ref, struct rdr_system, ref);
 
   if(sys->ctxt)
-    RBI(sys->rb, context_ref_put(sys->ctxt));
+    RBI(&sys->rb, context_ref_put(sys->ctxt));
 
   err = rbi_shutdown(&sys->rb);
   assert(err == 0);

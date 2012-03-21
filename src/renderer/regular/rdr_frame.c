@@ -193,7 +193,7 @@ rdr_flush_frame(struct rdr_frame* frame)
     goto error;
   }
 
-  RBI(frame->sys->rb, clear
+  RBI(&frame->sys->rb, clear
     (frame->sys->ctxt,
      RB_CLEAR_COLOR_BIT | RB_CLEAR_DEPTH_BIT | RB_CLEAR_STENCIL_BIT,
      frame->bkg_color,
@@ -213,7 +213,7 @@ rdr_flush_frame(struct rdr_frame* frame)
   }
   frame->world_node_id = 0;
   frame->term_node_id = 0;
-  RBI(frame->sys->rb, flush(frame->sys->ctxt));
+  RBI(&frame->sys->rb, flush(frame->sys->ctxt));
 
 exit:
   return rdr_err;

@@ -12,6 +12,9 @@ target_link_libraries(utest_app_model appcore)
 add_executable(utest_app_world utest_app_world.c)
 target_link_libraries(utest_app_world appcore)
 
+add_executable(utest_app_command utest_app_command.c)
+target_link_libraries(utest_app_command appcore)
+
 add_test(
   app_null
   ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/utest_app
@@ -20,6 +23,16 @@ add_test(
 add_test(
   app_ogl3
   ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/utest_app
+  ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/librbogl3.so)
+
+add_test(
+  app_command_null
+  ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/utest_app_command
+  ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/librbnull.so)
+
+add_test(
+  app_command_ogl3
+  ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/utest_app_command
   ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/librbogl3.so)
 
 add_test(

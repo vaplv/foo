@@ -23,7 +23,7 @@ struct rdr_material {
   struct rb_attrib** attrib_list;
   struct rb_uniform** uniform_list;
   char* log;
-  struct sl_set* callback_set;
+  struct sl_set* callback_set[RDR_NB_MATERIAL_SIGNALS];
   size_t nb_attribs;
   size_t nb_uniforms;
   bool is_linked;
@@ -92,11 +92,11 @@ release_shaders
 
     if(shader !=NULL) {
       int is_attached = 0;
-      RBI(sys->rb, is_shader_attached(shader, &is_attached));
+      RBI(&sys->rb, is_shader_attached(shader, &is_attached));
       if(is_attached != 0) {
-        RBI(sys->rb, detach_shader(program, shader));
+        RBI(&sys->rb, detach_shader(program, shader));
       }
-      RBI(sys->rb, shader_ref_put(shader));
+      RBI(&sys->rb, shader_ref_put(shader));
     }
     shader_list[i] = NULL;
   }
@@ -235,7 +235,7 @@ error:
   if(sys && mtr_attrib_list) {
     size_t i = 0;
     for(i = 0; i < nb_mtr_attribs; ++i)
-      RBI(sys->rb, attrib_ref_put(mtr_attrib_list[i]));
+      RBI(&sys->rb, attrib_ref_put(mtr_attrib_list[i]));
     MEM_FREE(sys->allocator, mtr_attrib_list);
   }
   mtr_attrib_list = NULL;
@@ -256,7 +256,7 @@ release_attribs
     assert(attrib_list != NULL);
 
     for(i = 0; i < nb_attribs; ++i) 
-      RBI(sys->rb, attrib_ref_put(attrib_list[i]));
+      RBI(&sys->rb, attrib_ref_put(attrib_list[i]));
     MEM_FREE(sys->allocator, attrib_list);
   }
 }
@@ -305,7 +305,7 @@ error:
   if(sys && uniform_list) {
     size_t i = 0;
     for(i = 0; i < nb_uniforms; ++i)
-      RBI(sys->rb, uniform_ref_put(uniform_list[i]));
+      RBI(&sys->rb, uniform_ref_put(uniform_list[i]));
     MEM_FREE(sys->allocator, uniform_list);
   }
   uniform_list = NULL;
@@ -325,7 +325,7 @@ release_uniforms
     assert(uniform_list != NULL);
 
     for(i = 0; i < nb_uniforms; ++i)
-      RBI(sys->rb, uniform_ref_put(uniform_list[i]));
+      RBI(&sys->rb, uniform_ref_put(uniform_list[i]));
 
     MEM_FREE(sys->allocator, uniform_list);
   }
@@ -333,14 +333,14 @@ release_uniforms
 
 
 static void
-invoke_callbacks(struct rdr_material* mtr)
+invoke_callbacks(struct rdr_material* mtr, enum rdr_material_signal sig)
 {
   struct callback* buffer = NULL;
   size_t len = 0;
   size_t i = 0;
   assert(mtr);
 
-  SL(set_buffer(mtr->callback_set, &len, NULL, NULL, (void**)&buffer));
+  SL(set_buffer(mtr->callback_set[sig], &len, NULL, NULL, (void**)&buffer));
   for(i = 0; i < len; ++i) {
     struct callback* clbk = buffer + i;
     clbk->func(mtr, clbk->data);
@@ -352,15 +352,18 @@ release_material(struct ref* ref)
 {
   struct rdr_material* mtr = NULL;
   struct rdr_system* sys = NULL;
+  size_t i = 0;
   assert(ref);
 
   mtr = CONTAINER_OF(ref, struct rdr_material, ref);
 
-  if(mtr->callback_set) {
-    size_t len = 0;
-    SL(set_buffer(mtr->callback_set, &len, NULL, NULL, NULL));
-    assert(0 == len);
-    SL(free_set(mtr->callback_set));
+  for(i = 0; i < RDR_NB_MATERIAL_SIGNALS; ++i) {
+    if(mtr->callback_set[i]) {
+      size_t len = 0;
+      SL(set_buffer(mtr->callback_set[i], &len, NULL, NULL, NULL));
+      assert(0 == len);
+      SL(free_set(mtr->callback_set[i]));
+    }
   }
   release_attribs(mtr->sys, mtr->nb_attribs, mtr->attrib_list);
   release_uniforms(mtr->sys, mtr->nb_uniforms, mtr->uniform_list);
@@ -370,7 +373,7 @@ release_material(struct ref* ref)
   }
   if(mtr->program) {
     release_shaders(mtr->sys, mtr->program, mtr->shader_list);
-    RBI(mtr->sys->rb, program_ref_put(mtr->program));
+    RBI(&mtr->sys->rb, program_ref_put(mtr->program));
   }
   sys = mtr->sys;
   MEM_FREE(sys->allocator, mtr);
@@ -386,6 +389,7 @@ EXPORT_SYM enum rdr_error
 rdr_create_material(struct rdr_system* sys, struct rdr_material** out_mtr)
 {
   struct rdr_material* mtr = NULL;
+  size_t i = 0;
   enum rdr_error rdr_err = RDR_NO_ERROR;
   enum sl_error sl_err = SL_NO_ERROR;
   int err = 0;
@@ -410,15 +414,17 @@ rdr_create_material(struct rdr_system* sys, struct rdr_material** out_mtr)
     goto error;
   }
 
-  sl_err = sl_create_set
-    (sizeof(struct callback),
-     ALIGNOF(struct callback),
-     cmp_callbacks,
-     mtr->sys->allocator,
-     &mtr->callback_set);
-  if(sl_err != SL_NO_ERROR) {
-    rdr_err = sl_to_rdr_error(sl_err);
-    goto error;
+  for(i = 0; i < RDR_NB_MATERIAL_SIGNALS; ++i) {
+    sl_err = sl_create_set
+      (sizeof(struct callback),
+       ALIGNOF(struct callback),
+       cmp_callbacks,
+       mtr->sys->allocator,
+       &mtr->callback_set[i]);
+    if(sl_err != SL_NO_ERROR) {
+      rdr_err = sl_to_rdr_error(sl_err);
+      goto error;
+    }
   }
 
 exit:
@@ -510,7 +516,7 @@ rdr_material_program
 
 exit:
   if(mtr)
-    invoke_callbacks(mtr);
+    invoke_callbacks(mtr, RDR_MATERIAL_SIGNAL_UPDATE_PROGRAM);
   return rdr_err;
 error:
   goto exit;
@@ -594,30 +600,33 @@ rdr_is_material_linked(struct rdr_material* mtr, bool* is_material_linked)
 enum rdr_error
 rdr_attach_material_callback
   (struct rdr_material* mtr,
+   enum rdr_material_signal sig,
    void (*func)(struct rdr_material*, void*),
    void* data)
 {
-  if(!mtr || !func)
+  if(!mtr || !func || sig >= RDR_NB_MATERIAL_SIGNALS)
     return  RDR_INVALID_ARGUMENT;
-  SL(set_insert(mtr->callback_set, (struct callback[]){{func, data}}));
+  SL(set_insert(mtr->callback_set[sig], (struct callback[]){{func, data}}));
   return RDR_NO_ERROR;
 }
 
 enum rdr_error
 rdr_detach_material_callback
   (struct rdr_material* mtr,
+   enum rdr_material_signal sig,
    void (*func)(struct rdr_material*, void*),
    void* data)
 {
-  if(!mtr || !func)
+  if(!mtr || !func || sig >= RDR_NB_MATERIAL_SIGNALS)
     return RDR_INVALID_ARGUMENT;
-  SL(set_remove(mtr->callback_set, (struct callback[]){{func, data}}));
+  SL(set_remove(mtr->callback_set[sig], (struct callback[]){{func, data}}));
   return RDR_NO_ERROR;
 }
 
 enum rdr_error
 rdr_is_material_callback_attached
   (struct rdr_material* mtr,
+   enum rdr_material_signal sig,
    void (*func)(struct rdr_material*, void* data),
    void* data,
    bool* is_attached)
@@ -625,10 +634,10 @@ rdr_is_material_callback_attached
   size_t i = 0;
   size_t len = 0;
 
-  if(!mtr || !func || !is_attached)
+  if(!mtr || !func || !is_attached || sig >= RDR_NB_MATERIAL_SIGNALS)
     return RDR_INVALID_ARGUMENT;
-  SL(set_find(mtr->callback_set, (struct callback[]){{func, data}}, &i));
-  SL(set_buffer(mtr->callback_set, &len, NULL, NULL, NULL));
+  SL(set_find(mtr->callback_set[sig], (struct callback[]){{func, data}}, &i));
+  SL(set_buffer(mtr->callback_set[sig], &len, NULL, NULL, NULL));
   *is_attached = (i != len);
   return RDR_NO_ERROR;
 }

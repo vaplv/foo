@@ -12,6 +12,11 @@ enum rdr_uniform_usage {
   RDR_REGULAR_UNIFORM
 };
 
+enum rdr_model_signal {
+  RDR_MODEL_SIGNAL_UPDATE_DATA,
+  RDR_NB_MODEL_SIGNALS
+};
+
 struct rb_uniform;
 struct rb_attrib;
 struct rdr_model;
@@ -44,18 +49,21 @@ rdr_get_model_desc
 extern enum rdr_error
 rdr_attach_model_callback
   (struct rdr_model* model,
+   enum rdr_model_signal signal,
    void (*func)(struct rdr_model*, void*),
    void* data);
 
 extern enum rdr_error
 rdr_detach_model_callback
   (struct rdr_model* model,
+   enum rdr_model_signal signal,
    void (*func)(struct rdr_model*,void*),
    void* data);
 
 extern enum rdr_error
 rdr_is_model_callback_attached
   (struct rdr_model* model,
+   enum rdr_model_signal signal,
    void (*func)(struct rdr_model*,void*),
    void* data,
    bool* is_attached);

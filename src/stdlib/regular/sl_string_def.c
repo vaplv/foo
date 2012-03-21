@@ -189,7 +189,7 @@ error:
 
 EXPORT_SYM enum sl_error
 SL_STRING_GET(SL_STRING_TYPE)
-  (SL_STRING(SL_STRING_TYPE)* str,
+  (const SL_STRING(SL_STRING_TYPE)* str,
    const SL_STRING_CHAR(SL_STRING_TYPE)** cstr)
 {
   if(!str || !cstr)

@@ -53,6 +53,11 @@ struct app {
   struct sl_set* callback_list[APP_NB_SIGNALS];
   struct sl_set* object_list[APP_NB_OBJECT_TYPES];
 
+  struct command_system {
+    struct sl_hash_table* htbl; /* htbl of commands. */
+    char scratch[1024];
+  } cmd;
+
   struct renderer {
     struct rdr_font* term_font;
     struct rdr_frame* frame;

@@ -46,7 +46,7 @@ struct rdr_model {
   struct rdr_mesh* mesh;
   struct rdr_material* material;
   /* List of callbacks to invoke when the model desc has changed. */
-  struct sl_set* callback_set;
+  struct sl_set* callback_set[RDR_NB_MODEL_SIGNALS];
   /* Array of instance attribs, i.e. attribs not bound to a mesh attrib. */
   struct rb_attrib** instance_attrib_list;
   size_t nb_instance_attribs;
@@ -486,6 +486,7 @@ release_model(struct ref* ref)
 {
   struct rdr_system* sys = NULL;
   struct rdr_model* mdl = NULL;
+  size_t i = 0;
   enum rdr_error rdr_err = RDR_NO_ERROR;
   bool b = false;
   assert(ref);
@@ -494,21 +495,35 @@ release_model(struct ref* ref)
   rdr_err = reset_model(mdl);
   assert(rdr_err == RDR_NO_ERROR);
 
-  if(mdl->callback_set) {
-    size_t len = 0;
-    SL(set_buffer(mdl->callback_set, &len, NULL, NULL, NULL));
-    assert(len == 0);
-    SL(free_set(mdl->callback_set));
+  for(i = 0; i < RDR_NB_MODEL_SIGNALS; ++i) {
+    if(mdl->callback_set[i]) {
+      size_t len = 0;
+      SL(set_buffer(mdl->callback_set[i], &len, NULL, NULL, NULL));
+      assert(len == 0);
+      SL(free_set(mdl->callback_set[i]));
+    }
   }
   RDR(is_material_callback_attached
-    (mdl->material, material_callback_func, mdl, &b));
-  if(b)
-    RDR(detach_material_callback(mdl->material, material_callback_func, mdl));
-  RDR(is_mesh_callback_attached(mdl->mesh, mesh_callback_func, mdl, &b));
-  if(b)
-    RDR(detach_mesh_callback(mdl->mesh, mesh_callback_func, mdl));
+    (mdl->material, 
+     RDR_MATERIAL_SIGNAL_UPDATE_PROGRAM, 
+     material_callback_func, 
+     mdl, 
+     &b));
+  if(b) {
+    RDR(detach_material_callback
+      (mdl->material, 
+       RDR_MATERIAL_SIGNAL_UPDATE_PROGRAM, 
+       material_callback_func, 
+       mdl));
+  }
+  RDR(is_mesh_callback_attached
+    (mdl->mesh, RDR_MESH_SIGNAL_UPDATE_DATA, mesh_callback_func, mdl, &b));
+  if(b) {
+    RDR(detach_mesh_callback
+      (mdl->mesh, RDR_MESH_SIGNAL_UPDATE_DATA, mesh_callback_func, mdl));
+  }
   if(mdl->vertex_array)
-    RBI(mdl->sys->rb, vertex_array_ref_put(mdl->vertex_array));
+    RBI(&mdl->sys->rb, vertex_array_ref_put(mdl->vertex_array));
   if(mdl->mesh)
     RDR(mesh_ref_put(mdl->mesh));
   if(mdl->material)
@@ -520,14 +535,14 @@ release_model(struct ref* ref)
 }
 
 static void
-invoke_callbacks(struct rdr_model* mdl)
+invoke_callbacks(struct rdr_model* mdl, enum rdr_model_signal signal)
 {
   struct callback* buffer = NULL;
   size_t len = 0;
   size_t i = 0;
   assert(mdl);
 
-  SL(set_buffer(mdl->callback_set, &len, NULL, NULL, (void**)&buffer));
+  SL(set_buffer(mdl->callback_set[signal], &len, NULL, NULL, (void**)&buffer));
   for(i = 0; i < len; ++i) {
     struct callback* clbk = buffer + i;
     clbk->func(mdl, clbk->data);
@@ -543,7 +558,7 @@ generic_callback_func(struct rdr_model* mdl)
 
   rdr_err = reset_model(mdl);
   assert(rdr_err == RDR_NO_ERROR);
-  invoke_callbacks(mdl);
+  invoke_callbacks(mdl, RDR_MODEL_SIGNAL_UPDATE_DATA);
 }
 
 static void
@@ -571,6 +586,7 @@ rdr_create_model
    struct rdr_model** out_model)
 {
   struct rdr_model* model = NULL;
+  size_t i = 0;
   enum rdr_error rdr_err = RDR_NO_ERROR;
   enum sl_error sl_err = SL_NO_ERROR;
   int err = 0;
@@ -589,17 +605,18 @@ rdr_create_model
   RDR(system_ref_get(sys));
   model->sys = sys;
 
-  sl_err = sl_create_set
-    (sizeof(struct callback),
-     ALIGNOF(struct callback),
-     cmp_callbacks,
-     model->sys->allocator,
-     &model->callback_set);
-  if(sl_err != SL_NO_ERROR) {
-    rdr_err = sl_to_rdr_error(sl_err);
-    goto error;
+  for(i = 0; i < RDR_NB_MODEL_SIGNALS; ++i) {
+    sl_err = sl_create_set
+      (sizeof(struct callback),
+       ALIGNOF(struct callback),
+       cmp_callbacks,
+       model->sys->allocator,
+       &model->callback_set[i]);
+    if(sl_err != SL_NO_ERROR) {
+      rdr_err = sl_to_rdr_error(sl_err);
+      goto error;
+    }
   }
-
   err = model->sys->rb.create_vertex_array
     (model->sys->ctxt, &model->vertex_array);
   if(err != 0) {
@@ -607,19 +624,21 @@ rdr_create_model
     goto error;
   }
 
-  rdr_err = rdr_model_mesh(model, mesh);
-  if(rdr_err != RDR_NO_ERROR)
-    goto error;
-  rdr_err = rdr_attach_mesh_callback(mesh, &mesh_callback_func, model);
-  if(rdr_err != RDR_NO_ERROR)
-    goto error;
-  rdr_err = rdr_model_material(model, material);
-  if(rdr_err != RDR_NO_ERROR)
-    goto error;
-  rdr_err = rdr_attach_material_callback
-    (material, &material_callback_func, model);
-  if(rdr_err != RDR_NO_ERROR)
-    goto error;
+  #define CALL(func) \
+    do { \
+      if(RDR_NO_ERROR != (rdr_err = func)) \
+        goto error; \
+    } while(0)
+  CALL(rdr_model_mesh(model, mesh));
+  CALL(rdr_attach_mesh_callback
+    (mesh, RDR_MESH_SIGNAL_UPDATE_DATA, &mesh_callback_func, model));
+  CALL(rdr_model_material(model, material));
+  CALL(rdr_attach_material_callback
+    (material, 
+     RDR_MATERIAL_SIGNAL_UPDATE_PROGRAM, 
+     &material_callback_func, 
+     model));
+  #undef CALL
 
 exit:
   if(out_model)
@@ -688,7 +707,7 @@ rdr_model_mesh
 
 exit:
   if(mesh_has_changed)
-    invoke_callbacks(model);
+    invoke_callbacks(model, RDR_MODEL_SIGNAL_UPDATE_DATA);
   return rdr_err;
 
 error:
@@ -747,7 +766,7 @@ rdr_model_material
 
 exit:
   if(material_has_changed)
-    invoke_callbacks(model);
+    invoke_callbacks(model, RDR_MODEL_SIGNAL_UPDATE_DATA);
   return rdr_err;
 
 error:
@@ -848,30 +867,33 @@ error:
 enum rdr_error
 rdr_attach_model_callback
   (struct rdr_model* model,
+   enum rdr_model_signal sig,
    void (*func)(struct rdr_model*, void*),
    void* data)
 {
-  if(!model || !func)
+  if(!model || !func || sig >= RDR_NB_MODEL_SIGNALS)
     return  RDR_INVALID_ARGUMENT;
-  SL(set_insert(model->callback_set, (struct callback[]){{func, data}}));
+  SL(set_insert(model->callback_set[sig], (struct callback[]){{func, data}}));
   return RDR_NO_ERROR;
 }
 
 enum rdr_error
 rdr_detach_model_callback
   (struct rdr_model* model,
+   enum rdr_model_signal sig,
    void (*func)(struct rdr_model*, void*),
    void* data)
 {
-  if(!model || !func)
+  if(!model || !func || sig >= RDR_NB_MODEL_SIGNALS)
     return RDR_INVALID_ARGUMENT;
-  SL(set_remove(model->callback_set, (struct callback[]){{func, data}}));
+  SL(set_remove(model->callback_set[sig], (struct callback[]){{func, data}}));
   return RDR_NO_ERROR;
 }
 
 enum rdr_error
 rdr_is_model_callback_attached
   (struct rdr_model* model,
+   enum rdr_model_signal sig,
    void (*func)(struct rdr_model*, void* data),
    void* data,
    bool* is_attached)
@@ -879,10 +901,10 @@ rdr_is_model_callback_attached
   size_t i = 0;
   size_t len = 0;
 
-  if(!model || !func || !is_attached)
+  if(!model || !func || !is_attached || sig >= RDR_NB_MODEL_SIGNALS)
     return RDR_INVALID_ARGUMENT;
-  SL(set_find(model->callback_set, (struct callback[]){{func, data}}, &i));
-  SL(set_buffer(model->callback_set, &len, NULL, NULL, NULL));
+  SL(set_find(model->callback_set[sig], (struct callback[]){{func, data}}, &i));
+  SL(set_buffer(model->callback_set[sig], &len, NULL, NULL, NULL));
   *is_attached = (i != len);
   return RDR_NO_ERROR;
 }

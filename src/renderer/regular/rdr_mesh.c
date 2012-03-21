@@ -26,7 +26,7 @@ struct rdr_mesh {
   struct rdr_system* sys;
   struct rb_buffer* data;
   struct rb_buffer* indices;
-  struct sl_set* callback_set;
+  struct sl_set* callback_set[RDR_NB_MESH_SIGNALS];
   size_t data_size;
   size_t vertex_size;
   size_t nb_indices;
@@ -67,7 +67,7 @@ set_mesh_data(struct rdr_mesh* mesh, size_t data_size, const void* data)
   assert(mesh && (data || !data_size));
 
   if(mesh->data != NULL && (data_size == 0 || mesh->data_size < data_size)) {
-    RBI(mesh->sys->rb, buffer_ref_put(mesh->data));
+    RBI(&mesh->sys->rb, buffer_ref_put(mesh->data));
     mesh->data = NULL;
     mesh->data_size = 0;
   }
@@ -118,7 +118,7 @@ set_mesh_indices
 
   if(mesh->indices != NULL
   && (nb_indices == 0 || mesh->nb_indices < nb_indices)) {
-    RBI(mesh->sys->rb, buffer_ref_put(mesh->indices));
+    RBI(&mesh->sys->rb, buffer_ref_put(mesh->indices));
     mesh->indices = NULL;
     mesh->nb_indices = 0;
   }
@@ -220,14 +220,14 @@ error:
 }
 
 static void
-invoke_callbacks(struct rdr_mesh* mesh)
+invoke_callbacks(struct rdr_mesh* mesh, enum rdr_mesh_signal sig)
 {
   struct callback* buffer = NULL;
   size_t len = 0;
   size_t i = 0;
   assert(mesh);
 
-  SL(set_buffer(mesh->callback_set, &len, NULL, NULL, (void**)&buffer));
+  SL(set_buffer(mesh->callback_set[sig], &len, NULL, NULL, (void**)&buffer));
   for(i = 0; i < len; ++i) {
     struct callback* clbk = buffer + i;
     clbk->func(mesh, clbk->data);
@@ -239,20 +239,23 @@ release_mesh(struct ref* ref)
 {
   struct rdr_mesh* mesh = NULL;
   struct rdr_system* sys = NULL;
+  size_t i = 0;
   assert(ref);
 
   mesh = CONTAINER_OF(ref, struct rdr_mesh, ref);
 
-  if(mesh->callback_set) {
-    size_t len = 0;
-    SL(set_buffer(mesh->callback_set, &len, NULL, NULL, NULL));
-    assert(len == 0);
-    SL(free_set(mesh->callback_set));
+  for(i = 0; i < RDR_NB_MESH_SIGNALS; ++i) {
+    if(mesh->callback_set[i]) {
+      size_t len = 0;
+      SL(set_buffer(mesh->callback_set[i], &len, NULL, NULL, NULL));
+      assert(len == 0);
+      SL(free_set(mesh->callback_set[i]));
+    }
   }
   if(mesh->data)
-    RBI(mesh->sys->rb, buffer_ref_put(mesh->data));
+    RBI(&mesh->sys->rb, buffer_ref_put(mesh->data));
   if(mesh->indices)
-    RBI(mesh->sys->rb, buffer_ref_put(mesh->indices));
+    RBI(&mesh->sys->rb, buffer_ref_put(mesh->indices));
   sys = mesh->sys;
   MEM_FREE(sys->allocator, mesh);
   RDR(system_ref_put(sys));
@@ -267,6 +270,7 @@ EXPORT_SYM enum rdr_error
 rdr_create_mesh(struct rdr_system* sys, struct rdr_mesh** out_mesh)
 {
   struct rdr_mesh* mesh = NULL;
+  size_t i = 0;
   enum rdr_error rdr_err = RDR_NO_ERROR;
   enum sl_error sl_err = SL_NO_ERROR;
 
@@ -284,15 +288,17 @@ rdr_create_mesh(struct rdr_system* sys, struct rdr_mesh** out_mesh)
   RDR(system_ref_get(sys));
   unregister_all_mesh_attribs(mesh);
 
-  sl_err = sl_create_set
-    (sizeof(struct callback),
-     ALIGNOF(struct callback),
-     cmp_callbacks,
-     mesh->sys->allocator,
-     &mesh->callback_set);
-  if(sl_err != SL_NO_ERROR) {
-    rdr_err = sl_to_rdr_error(sl_err);
-    goto error;
+  for(i = 0; i < RDR_NB_MESH_SIGNALS; ++i) {
+    sl_err = sl_create_set
+      (sizeof(struct callback),
+       ALIGNOF(struct callback),
+       cmp_callbacks,
+       mesh->sys->allocator,
+       &mesh->callback_set[i]);
+    if(sl_err != SL_NO_ERROR) {
+      rdr_err = sl_to_rdr_error(sl_err);
+      goto error;
+    }
   }
 
 exit:
@@ -361,20 +367,20 @@ rdr_mesh_data
   rdr_err = register_mesh_attribs(mesh, nb_attribs, list_of_attribs);
   if(rdr_err != RDR_NO_ERROR)
     goto error;
+  invoke_callbacks(mesh, RDR_MESH_SIGNAL_UPDATE_DATA);
 
 exit:
-  if(mesh)
-    invoke_callbacks(mesh);
   return rdr_err;
 
 error:
   if(mesh) {
     if(mesh->data) {
-      RBI(mesh->sys->rb, buffer_ref_put(mesh->data));
+      RBI(&mesh->sys->rb, buffer_ref_put(mesh->data));
       mesh->data = NULL;
     }
     mesh->data_size = 0;
     unregister_all_mesh_attribs(mesh);
+    invoke_callbacks(mesh, RDR_MESH_SIGNAL_UPDATE_DATA);
   }
   goto exit;
 }
@@ -399,17 +405,21 @@ rdr_mesh_indices
   rdr_err = set_mesh_indices(mesh, nb_indices, indices);
   if(rdr_err != RDR_NO_ERROR)
     goto error;
+  invoke_callbacks(mesh, RDR_MESH_SIGNAL_UPDATE_INDICES);
 
 exit:
+  if(mesh) {
+  }
   return rdr_err;
 
 error:
   if(mesh) {
     if(mesh->indices) {
-      RBI(mesh->sys->rb, buffer_ref_put(mesh->indices));
+      RBI(&mesh->sys->rb, buffer_ref_put(mesh->indices));
       mesh->indices = NULL;
     }
     mesh->nb_indices = 0;
+    invoke_callbacks(mesh, RDR_MESH_SIGNAL_UPDATE_INDICES);
   }
   goto exit;
 }
@@ -484,30 +494,33 @@ rdr_get_mesh_indexed_data
 enum rdr_error
 rdr_attach_mesh_callback
   (struct rdr_mesh* mesh,
+   enum rdr_mesh_signal sig,
    void (*func)(struct rdr_mesh*, void*),
    void* data)
 {
-  if(!mesh || !func)
+  if(!mesh || !func || sig >= RDR_NB_MESH_SIGNALS)
     return  RDR_INVALID_ARGUMENT;
-  SL(set_insert(mesh->callback_set, (struct callback[]){{func, data}}));
+  SL(set_insert(mesh->callback_set[sig], (struct callback[]){{func, data}}));
   return RDR_NO_ERROR;
 }
 
 enum rdr_error
 rdr_detach_mesh_callback
   (struct rdr_mesh* mesh,
+   enum rdr_mesh_signal sig,
    void (*func)(struct rdr_mesh*, void*),
    void* data)
 {
-  if(!mesh || !func)
+  if(!mesh || !func || sig >= RDR_NB_MESH_SIGNALS)
     return RDR_INVALID_ARGUMENT;
-  SL(set_remove(mesh->callback_set, (struct callback[]){{func, data}}));
+  SL(set_remove(mesh->callback_set[sig], (struct callback[]){{func, data}}));
   return RDR_NO_ERROR;
 }
 
 enum rdr_error
 rdr_is_mesh_callback_attached
   (struct rdr_mesh* mesh,
+   enum rdr_mesh_signal sig,
    void (*func)(struct rdr_mesh*, void* data),
    void* data,
    bool* is_attached)
@@ -515,10 +528,10 @@ rdr_is_mesh_callback_attached
   size_t i = 0;
   size_t len = 0;
 
-  if(!mesh || !func || !is_attached)
+  if(!mesh || !func || !is_attached || sig >= RDR_NB_MESH_SIGNALS)
     return RDR_INVALID_ARGUMENT;
-  SL(set_find(mesh->callback_set, (struct callback[]){{func, data}}, &i));
-  SL(set_buffer(mesh->callback_set, &len, NULL, NULL, NULL));
+  SL(set_find(mesh->callback_set[sig], (struct callback[]){{func, data}}, &i));
+  SL(set_buffer(mesh->callback_set[sig], &len, NULL, NULL, NULL));
   *is_attached = (i != len);
   return RDR_NO_ERROR;
 }

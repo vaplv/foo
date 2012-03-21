@@ -33,34 +33,24 @@ struct rsrc_geometry {
  * Vertex pair data type.
  *
  ******************************************************************************/
-struct pair {
-  struct vvtvn {
-    size_t v;
-    size_t vt;
-    size_t vn;
-  } key;
-  unsigned int index;
+struct vvtvn {
+  size_t v;
+  size_t vt;
+  size_t vn;
 };
 
-static const void*
-get_key(const void* pair)
+static size_t
+hash(const void* key)
 {
-  return (const void*)(&((const struct pair*)pair)->key);
+  return sl_hash(key, sizeof(struct vvtvn));
 }
 
-static int
+static bool
 compare(const void* p0, const void* p1)
 {
   const struct vvtvn* a = (const struct vvtvn*)p0;
   const struct vvtvn* b = (const struct vvtvn*)p1;
-  const int eq_v = a->v == b->v;
-  const int eq_vt = a->vt == b->vt;
-  const int lt =
-    (a->v < b->v) | ((eq_v & (a->vt < b->vt)) | (eq_vt & (a->vn < b->vn)));
-  const int gt =
-    (a->v > b->v) | ((eq_v & (a->vt > b->vt)) | (eq_vt & (a->vn > b->vn)));
-
-  return -lt | gt;
+  return (a->v == b->v) & (a->vt == b->vt) & (a->vn == b->vn);
 }
 
 /*******************************************************************************
@@ -152,16 +142,16 @@ build_triangle_list
     }
 
     for(vert_id = 0; vert_id < nb_verts; ++vert_id) {
-      struct pair* pair = NULL;
+      unsigned int* index = NULL;
       const struct vvtvn key = {
         .v = face_verts[vert_id].v,
         .vt = face_verts[vert_id].vt,
         .vn = face_verts[vert_id].vn
       };
 
-      SL_FUNC(hash_table_find(tbl, (const void*)&key, (void**)&pair));
-      if(pair != NULL) {
-        SL_FUNC(vector_push_back(indices, (void*)&pair->index));
+      SL_FUNC(hash_table_find(tbl, (const void*)&key, (void**)&index));
+      if(index != NULL) {
+        SL_FUNC(vector_push_back(indices, (void*)index));
       } else {
         float face_vertex[8];
         memset(&face_vertex, 0, sizeof(face_vertex));
@@ -181,7 +171,8 @@ build_triangle_list
 
         SL_FUNC(vector_push_back(data, (void*)&face_vertex));
         SL_FUNC(vector_push_back(indices, (void*)&nb_indices));
-        SL_FUNC(hash_table_insert(tbl, (struct pair[]){{key, nb_indices}}));
+        SL_FUNC(hash_table_insert
+          (tbl, (struct vvtvn[]){key}, (unsigned int[]){nb_indices}));
 
         if(nb_indices == UINT_MAX) {
           err = RSRC_OVERFOW_ERROR;
@@ -274,11 +265,12 @@ rsrc_create_geometry
   }
 
   sl_err = sl_create_hash_table
-    (sizeof(struct pair),
-     ALIGNOF(struct pair),
-     sizeof(struct vvtvn),
+    (sizeof(struct vvtvn),
+     ALIGNOF(struct vvtvn),
+     sizeof(unsigned int),
+     ALIGNOF(unsigned int),
+     hash,
      compare,
-     get_key,
      geom->ctxt->allocator,
      &geom->hash_table);
   if(sl_err != SL_NO_ERROR) {

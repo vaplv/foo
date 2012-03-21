@@ -5,6 +5,11 @@
 #include "renderer/rdr_error.h"
 #include <stdbool.h>
 
+enum rdr_material_signal {
+  RDR_MATERIAL_SIGNAL_UPDATE_PROGRAM,
+  RDR_NB_MATERIAL_SIGNALS
+};
+
 struct rb_attrib;
 struct rb_uniform;
 struct rdr_system;
@@ -35,18 +40,21 @@ rdr_is_material_linked
 extern enum rdr_error
 rdr_attach_material_callback
   (struct rdr_material* mtr,
+   enum rdr_material_signal sig,
    void (*func)(struct rdr_material*, void*),
    void* data);
 
 extern enum rdr_error
 rdr_detach_material_callback
   (struct rdr_material* mtr,
+   enum rdr_material_signal sig,
    void (*func)(struct rdr_material*, void*),
    void* data);
 
 extern enum rdr_error
 rdr_is_material_callback_attached
   (struct rdr_material* mtr,
+   enum rdr_material_signal sig,
    void (*func)(struct rdr_material*, void*),
    void* data,
    bool* is_attached);
