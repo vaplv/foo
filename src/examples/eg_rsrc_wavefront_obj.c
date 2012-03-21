@@ -113,7 +113,7 @@ main(int argc, char** argv)
     }
     assert(set.sizeof_data % sizeof_vertex == 0);
     printf("Vertex count: %zu\n", set.sizeof_data / sizeof_vertex);
-    total_nb_vertices = set.sizeof_data / sizeof_vertex;
+    total_nb_vertices += set.sizeof_data / sizeof_vertex;
   }
   printf("Total vertex count: %zd\n", total_nb_vertices);
   printf("Total point count: %zd\n", total_nb_points);

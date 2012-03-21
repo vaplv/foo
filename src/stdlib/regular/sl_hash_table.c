@@ -9,7 +9,12 @@
 
 struct entry {
   struct entry* next;
-  struct sl_pair pair;
+  struct {
+    union data {
+      void* ptr;
+      char value[sizeof(void*)];
+    } key, data;
+  } pair;
 };
 
 struct sl_hash_table {
@@ -24,6 +29,10 @@ struct sl_hash_table {
   size_t nb_buckets;
   size_t nb_used_buckets;
   size_t nb_elements;
+  /* Define whether the key/data of an entry is stored in allocated memory
+   * space or not. */
+  bool alloc_key;
+  bool alloc_data;
 };
 
 /* We assume that an uint<32|64>_t can be encoded in a size_t. */
@@ -182,8 +191,15 @@ murmur_hash2_64(const void* data, size_t len, uint64_t seed)
  * Helper functions
  *
  ******************************************************************************/
+static FINLINE void*
+get(union data* data, bool is_data_allocated) 
+{
+  assert(data);
+  return is_data_allocated ? data->ptr : data->value;
+}
+
 static FINLINE size_t
-compute_hash(size_t (*hash_fcn)(const void*), const void* key, size_t max_hash)
+compute_bucket(size_t (*hash_fcn)(const void*), const void* key, size_t max_hash)
 {
   size_t hash = 0;
   /* We assume that the size is a power of two. */
@@ -200,7 +216,8 @@ rehash
    size_t dst_length,
    struct entry** src,
    size_t src_length,
-   size_t (*hash_fcn)(const void*))
+   size_t (*hash_fcn)(const void*),
+   bool is_key_allocated)
 {
   size_t i = 0;
 
@@ -210,9 +227,10 @@ rehash
     struct entry* entry = src[i];
     while(entry) {
       struct entry* next = entry->next;
-      const size_t hash = compute_hash(hash_fcn, entry->pair.key, dst_length);
-      entry->next = dst[hash];
-      dst[hash] = entry;
+      const size_t bucket = compute_bucket
+        (hash_fcn, get(&entry->pair.key, is_key_allocated), dst_length);
+      entry->next = dst[bucket];
+      dst[bucket] = entry;
       entry = next;
     }
   }
@@ -264,6 +282,12 @@ sl_create_hash_table
   table->hash_fcn = hash_fcn;
   table->eq_key = eq_key;
   table->allocator = allocator;
+  #if 1
+  table->alloc_key = key_alignment > ALIGNOF(void*) || key_size > sizeof(void*);
+  table->alloc_data = data_alignment > ALIGNOF(void*) || data_size > sizeof(void*);
+  #else
+  table->alloc_key = table->alloc_data = true;
+  #endif
 exit:
   if(out_hash_table)
     *out_hash_table = table;
@@ -310,7 +334,7 @@ sl_hash_table_insert
   #define HASH_TABLE_BASE_SIZE 32
 
   struct entry* entry = NULL;
-  size_t hash = 0;
+  size_t bucket = 0;
   size_t previous_nb_used_buckets = 0;
   enum sl_error err = SL_NO_ERROR;
   bool is_inserted = false;
@@ -339,25 +363,35 @@ sl_hash_table_insert
     err = SL_MEMORY_ERROR;
     goto error;
   }
-  entry->pair.data = MEM_ALIGNED_ALLOC
-    (table->allocator, table->data_size, table->data_alignment);
-  if(entry->pair.data == NULL) {
-    err = SL_MEMORY_ERROR;
-    goto error;
+  if(table->alloc_data == false) {
+    assert(IS_ALIGNED(entry->pair.data.value, table->data_alignment));
+    memcpy(entry->pair.data.value, data, table->data_size);
+  } else {
+    entry->pair.data.ptr = MEM_ALIGNED_ALLOC
+      (table->allocator, table->data_size, table->data_alignment);
+    if(entry->pair.data.ptr == NULL) {
+      err = SL_MEMORY_ERROR;
+      goto error;
+    }
+    memcpy(entry->pair.data.ptr, data, table->data_size);
   }
-  entry->pair.data = memcpy(entry->pair.data, data, table->data_size);
-  entry->pair.key = MEM_ALIGNED_ALLOC
-    (table->allocator, table->key_size, table->key_alignment);
-  if(entry->pair.key == NULL) {
-    err = SL_MEMORY_ERROR;
-    goto error;
+  if(table->alloc_key == false) {
+    assert(IS_ALIGNED(entry->pair.key.value, table->key_alignment));
+    memcpy(entry->pair.key.value, key, table->key_size);
+  } else {
+    entry->pair.key.ptr = MEM_ALIGNED_ALLOC
+      (table->allocator, table->key_size, table->key_alignment);
+    if(entry->pair.key.ptr == NULL) {
+      err = SL_MEMORY_ERROR;
+      goto error;
+    }
+    memcpy(entry->pair.key.ptr, key, table->key_size);
   }
-  entry->pair.key = memcpy(entry->pair.key, key, table->key_size);
 
-  hash = compute_hash(table->hash_fcn, key, table->nb_buckets);
-  entry->next = table->buffer[hash];
-  table->nb_used_buckets += (table->buffer[hash] == NULL);
-  table->buffer[hash] = entry;
+  bucket = compute_bucket(table->hash_fcn, key, table->nb_buckets);
+  entry->next = table->buffer[bucket];
+  table->nb_used_buckets += (table->buffer[bucket] == NULL);
+  table->buffer[bucket] = entry;
   ++table->nb_elements;
   is_inserted = true;
 
@@ -366,15 +400,15 @@ exit:
 error:
   if(is_inserted) {
     assert(entry);
-    table->buffer[hash] = entry->next;
+    table->buffer[bucket] = entry->next;
     table->nb_used_buckets = previous_nb_used_buckets;
     --table->nb_elements;
   }
   if(entry) {
-    if(entry->pair.data)
-      MEM_FREE(table->allocator, entry->pair.data);
-    if(entry->pair.key)
-      MEM_FREE(table->allocator, entry->pair.key);
+    if(table->alloc_data && entry->pair.data.ptr)
+      MEM_FREE(table->allocator, entry->pair.data.ptr);
+    if(table->alloc_key && entry->pair.key.ptr)
+      MEM_FREE(table->allocator, entry->pair.key.ptr);
     MEM_FREE(table->allocator, entry);
   }
   goto exit;
@@ -390,7 +424,7 @@ sl_hash_table_erase
 {
   struct entry* entry = NULL;
   struct entry* previous = NULL;
-  size_t hash = 0;
+  size_t bucket = 0;
   size_t nb_erased = 0;
   enum sl_error err = SL_NO_ERROR;
 
@@ -399,19 +433,21 @@ sl_hash_table_erase
     goto error;
   }
 
-  hash = compute_hash(table->hash_fcn, key, table->nb_buckets);
-  entry = table->buffer[hash];
+  bucket = compute_bucket(table->hash_fcn, key, table->nb_buckets);
+  entry = table->buffer[bucket];
 
   while(entry) {
-    if(table->eq_key(entry->pair.key, key) == true) {
+    if(table->eq_key(get(&entry->pair.key, table->alloc_key), key) == true) {
       struct entry* next = entry->next;
       if(previous)
         previous->next = entry->next;
       else
-        table->buffer[hash] = entry->next;
+        table->buffer[bucket] = entry->next;
 
-      MEM_FREE(table->allocator, entry->pair.data);
-      MEM_FREE(table->allocator, entry->pair.key);
+      if(table->alloc_data)
+        MEM_FREE(table->allocator, entry->pair.data.ptr);
+      if(table->alloc_key)
+        MEM_FREE(table->allocator, entry->pair.key.ptr);
       MEM_FREE(table->allocator, entry);
 
       entry = next;
@@ -421,7 +457,7 @@ sl_hash_table_erase
       previous = entry;
       entry = entry->next;
     }
-    table->nb_used_buckets -= (table->buffer[hash] == NULL);
+    table->nb_used_buckets -= (table->buffer[bucket] == NULL);
   }
 
 exit:
@@ -463,7 +499,7 @@ sl_hash_table_find_pair
    struct sl_pair* pair)
 {
   struct entry* entry = NULL;
-  size_t hash = 0;
+  size_t bucket = 0;
   enum sl_error err = SL_NO_ERROR;
   pair->key = pair->data = NULL;
 
@@ -472,14 +508,17 @@ sl_hash_table_find_pair
     goto error;
   }
   if(table->nb_buckets) {
-    hash = compute_hash(table->hash_fcn, key, table->nb_buckets);
-    entry = table->buffer[hash];
+    bucket = compute_bucket(table->hash_fcn, key, table->nb_buckets);
+    entry = table->buffer[bucket];
 
-    while(entry && table->eq_key(entry->pair.key, key) != true)
+    while(entry != NULL
+       && table->eq_key(get(&entry->pair.key, table->alloc_key), key) != true)
       entry = entry->next;
   }
-  if(entry && err == SL_NO_ERROR)
-    (*pair) = entry->pair;
+  if(entry && err == SL_NO_ERROR) {
+    pair->key = get(&entry->pair.key, table->alloc_key);
+    pair->data = get(&entry->pair.data, table->alloc_data);
+  }
 exit:
   return err;
 error:
@@ -523,7 +562,7 @@ sl_hash_table_resize
     rehash
       (new_buffer, nb_buckets,
        table->buffer, table->nb_buckets,
-       table->hash_fcn);
+       table->hash_fcn, table->alloc_key);
     MEM_FREE(table->allocator, table->buffer);
     table->buffer = new_buffer;
     table->nb_buckets = nb_buckets;
@@ -575,8 +614,10 @@ sl_hash_table_clear
     struct entry* entry = table->buffer[i];
     while(entry) {
       struct entry* next_entry = entry->next;
-      MEM_FREE(table->allocator, entry->pair.data);
-      MEM_FREE(table->allocator, entry->pair.key);
+      if(table->alloc_data)
+        MEM_FREE(table->allocator, entry->pair.data.ptr);
+      if(table->alloc_key)
+        MEM_FREE(table->allocator, entry->pair.key.ptr);
       MEM_FREE(table->allocator, entry);
       entry = next_entry;
     }
@@ -603,7 +644,8 @@ sl_hash_table_begin
     if(table->buffer[i] != NULL) {
       it->bucket = i;
       it->entry = table->buffer[i];
-      it->pair = it->entry->pair;
+      it->pair.key = get(&it->entry->pair.key, table->alloc_key);
+      it->pair.data = get(&it->entry->pair.data, table->alloc_data);
       it->hash_table = table;
       break;
     }
@@ -625,7 +667,8 @@ sl_hash_table_it_next(struct sl_hash_table_it* it, bool* is_end_reached)
   entry = it->entry;
   if(entry->next) {
     it->entry = entry->next;
-    it->pair = it->entry->pair;
+    it->pair.key = get(&it->entry->pair.key, it->hash_table->alloc_key);
+    it->pair.data = get(&it->entry->pair.data, it->hash_table->alloc_data);
   } else {
     struct sl_hash_table* table = it->hash_table;
     size_t i = 0;
@@ -633,7 +676,8 @@ sl_hash_table_it_next(struct sl_hash_table_it* it, bool* is_end_reached)
       if(it->hash_table->buffer[i] != NULL) {
         it->bucket = i;
         it->entry = table->buffer[i];
-        it->pair = it->entry->pair;
+        it->pair.key = get(&it->entry->pair.key, it->hash_table->alloc_key);
+        it->pair.data = get(&it->entry->pair.data, it->hash_table->alloc_data);
         it->hash_table = table;
         break;
       }

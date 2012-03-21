@@ -44,7 +44,7 @@ eq_str(const void* key0, const void* key1)
  ******************************************************************************/
 static enum app_error
 token_to_cmdarg
-  (struct app* app,
+  (struct app* app UNUSED,
    const char* tkn,
    struct app_cmdarg_desc* desc,
    struct app_cmdarg* arg)
