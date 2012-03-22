@@ -79,6 +79,8 @@ struct app {
     struct rsrc_font* font;
     struct mem_allocator allocator;
   } rsrc;
+
+  bool post_exit;
 };
 
 extern enum app_error

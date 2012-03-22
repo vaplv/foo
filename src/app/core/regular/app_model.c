@@ -382,7 +382,6 @@ app_load_model(const char* path, struct app_model* model)
     app_err = sl_to_app_error(sl_err);
     goto error;
   }
-  APP_LOG_MSG(model->app->logger, "Model loaded `%s'\n", path);
 
 exit:
   return app_err;

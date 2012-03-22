@@ -76,8 +76,10 @@ wm_create_window
   width = (int)desc->width;
   height = (int)desc->height;
   mode = desc->fullscreen ? GLFW_FULLSCREEN : GLFW_WINDOW;
-  if(glfwOpenWindow(width, height, 8, 8, 8, 8, 24, 8, mode) == GL_FALSE)
-    return WM_INTERNAL_ERROR;
+  if(glfwOpenWindow(width, height, 8, 8, 8, 8, 24, 8, mode) == GL_FALSE) {
+    wm_err = WM_INTERNAL_ERROR;
+    goto error;
+  }
   glfwEnable(GLFW_KEY_REPEAT);
 
 exit:

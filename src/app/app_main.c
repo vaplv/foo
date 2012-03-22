@@ -142,15 +142,18 @@ main(int argc, char** argv)
   /* Run the application. */
   while(keep_running) {
     if(keep_running) {
-      game_err = game_run(game, &keep_running);
+      bool keep_game_running = false;
+      bool keep_app_running = false;
+      game_err = game_run(game, &keep_game_running);
       if(game_err != GAME_NO_ERROR)
         goto error;
 
-      app_err = app_run(app);
+      app_err = app_run(app, &keep_app_running);
       if(app_err != APP_NO_ERROR) {
         fprintf(stderr, "Error running the application.\n");
         goto error; 
       }
+      keep_running = keep_game_running && keep_app_running;
     }
   }
 

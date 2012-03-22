@@ -1,6 +1,7 @@
 #include "app/core/regular/app_error_c.h"
 #include "app/core/regular/app_c.h"
 #include "app/core/regular/app_command_c.h"
+#include "app/core/regular/app_builtin_commands.h"
 #include "app/core/app_command.h"
 #include "stdlib/sl.h"
 #include "stdlib/sl_hash_table.h"
@@ -10,12 +11,6 @@
 #include <limits.h>
 #include <stdlib.h>
 #include <string.h>
-
-struct app_command {
-  void(*func)(struct app*, size_t, struct app_cmdarg*);
-  size_t argc;
-  struct app_cmdarg_desc arg_desc_list[];
-};
 
 /*******************************************************************************
  *
@@ -110,7 +105,10 @@ del_all_commands(struct app* app)
 
   SL(hash_table_begin(app->cmd.htbl, &it, &b));
   while(!b) {
-    MEM_FREE(app->allocator, (*(struct app_command**)it.pair.data));
+    struct app_command* cmd = *(struct app_command**)it.pair.data;
+    if(cmd->description)
+      MEM_FREE(app->allocator, cmd->description);
+    MEM_FREE(app->allocator, cmd);
     MEM_FREE(app->allocator, (*(char**)it.pair.key));
     SL(hash_table_it_next(&it, &b));
   }
@@ -128,12 +126,14 @@ app_add_command
    const char* name,
    void (*func)(struct app*, size_t argc, struct app_cmdarg* argv),
    size_t argc,
-   const struct app_cmdarg_desc arg_desc_list[])
+   const struct app_cmdarg_desc arg_desc_list[],
+   const char* description)
 {
   void* ptr = NULL;
   struct app_command* cmd = NULL;
   char* cmd_name = NULL;
   size_t i = 0;
+  const size_t adjusted_argc = argc + 1; /* +1 <=> command name. */
   enum app_error app_err = APP_NO_ERROR;
   enum sl_error sl_err = SL_NO_ERROR;
 
@@ -159,16 +159,29 @@ app_add_command
   cmd = MEM_CALLOC
     (app->allocator,
      1,
-     sizeof(struct app_command) + argc*sizeof(struct app_cmdarg_desc));
+     sizeof(struct app_command) + adjusted_argc*sizeof(struct app_cmdarg_desc));
   if(!cmd) {
     app_err = APP_MEMORY_ERROR;
     goto error;
   }
+  if(NULL == description) {
+    cmd->description = NULL;
+  } else {
+    cmd->description = MEM_CALLOC
+      (app->allocator, strlen(description) + 1, sizeof(char));
+    if(!cmd->description) {
+      app_err = APP_MEMORY_ERROR;
+      goto error;
+    }
+    strcpy(cmd->description, description);
+  }
   cmd->func = func;
-  cmd->argc = argc;
+  cmd->argc = adjusted_argc;
+  cmd->arg_desc_list[0].type = APP_CMDARG_STRING;
+  cmd->arg_desc_list[0].domain.string.value_list = NULL;
   if(argc) {
     memcpy
-      (cmd->arg_desc_list,
+      (cmd->arg_desc_list + 1,
        arg_desc_list,
        sizeof(struct app_cmdarg_desc)*argc);
   }
@@ -187,8 +200,11 @@ error:
   /* The command insertion is the last action of this function. The command is
    * thus inserted only if no error occurs and consequently we don't have to
    * manage its deletion from the command system when an error is detected. */
-  if(cmd)
+  if(cmd) {
+    if(cmd->description)
+      MEM_FREE(app->allocator, cmd->description);
     MEM_FREE(app->allocator, cmd);
+  }
   if(cmd_name)
     MEM_FREE(app->allocator, cmd_name);
   goto exit;
@@ -217,6 +233,8 @@ app_del_command(struct app* app, const char* name)
   SL(hash_table_erase(app->cmd.htbl, &name, &nb_erased));
   assert(nb_erased == 1);
   MEM_FREE(app->allocator, cmd_name);
+  if(cmd->description)
+    MEM_FREE(app->allocator, cmd->description);
   MEM_FREE(app->allocator, cmd);
 exit:
   return app_err;
@@ -227,7 +245,7 @@ error:
 EXPORT_SYM enum app_error
 app_execute_command(struct app* app, const char* command)
 {
-  struct app_cmdarg argv[APP_MAX_CMDARGS];
+  struct app_cmdarg argv[APP_MAX_CMDARGS + 1]; /* +1 <=> cmd name. */
   struct app_command** cmd = NULL;
   char* name = NULL;
   char* tkn = NULL;
@@ -253,7 +271,9 @@ app_execute_command(struct app* app, const char* command)
     app_err = APP_INVALID_ARGUMENT;
     goto error;
   }
-  for(i = 0; i < (*cmd)->argc; ++i) {
+  argv[i].type = APP_CMDARG_STRING;
+  argv[i].value.string = name;
+  for(i = 1; i < (*cmd)->argc; ++i) {
     tkn = strtok(NULL, " \t");
     if(!tkn) {
       APP_LOG_ERR(app->logger, "%s: missing operand\n", name);
@@ -301,6 +321,9 @@ app_init_command_system(struct app* app)
     app_err = sl_to_app_error(sl_err);
     goto error;
   }
+  app_err = app_setup_builtin_commands(app);
+  if(app_err != APP_NO_ERROR)
+    goto error;
 exit:
   return app_err;
 error:

@@ -116,6 +116,8 @@ std_log_func(const char* msg, void* data UNUSED)
   /* -1 <=> NULL terminated character. */
   if(strncasecmp(msg, APP_ERR_PREFIX, sizeof(APP_ERR_PREFIX)-1) == 0) {
     fprintf(stdout, "\033[31m%s\033[0m", msg);
+  } else if(strncasecmp(msg, APP_WARN_PREFIX, sizeof(APP_WARN_PREFIX)-1) == 0) {
+    fprintf(stdout, "\033[33m%s\033[0m", msg);
   } else {
     fprintf(stdout, "%s", msg);
   }
@@ -798,11 +800,11 @@ app_ref_put(struct app* app)
 }
 
 EXPORT_SYM enum app_error
-app_run(struct app* app)
+app_run(struct app* app, bool* keep_running)
 {
   enum app_error app_err = APP_NO_ERROR;
 
-  if(!app) {
+  if(!app || !keep_running) {
     app_err = APP_INVALID_ARGUMENT;
     goto error;
   }
@@ -814,6 +816,9 @@ app_run(struct app* app)
   RDR(frame_draw_term(app->rdr.frame, app->rdr.term));
   RDR(flush_frame(app->rdr.frame));
   WM(swap(app->wm.window));
+
+  *keep_running = !app->post_exit;
+  app->post_exit = false;
 
 exit:
   return app_err;

@@ -13,6 +13,7 @@ main(int argc, char** argv)
   struct app* app = NULL;
   struct app_view* view = NULL;
   struct wm_device* wm = NULL;
+  bool b = false;
 
   if(argc != 2) {
     printf("usage: %s RB_DRIVER\n", argv[0]);
@@ -25,8 +26,10 @@ main(int argc, char** argv)
   CHECK(app_init(NULL, &app), APP_INVALID_ARGUMENT);
   CHECK(app_init(&args, &app), APP_NO_ERROR);
 
-  CHECK(app_run(NULL), APP_INVALID_ARGUMENT);
-  CHECK(app_run(app), APP_NO_ERROR);
+  CHECK(app_run(NULL, NULL), APP_INVALID_ARGUMENT);
+  CHECK(app_run(app, NULL), APP_INVALID_ARGUMENT);
+  CHECK(app_run(NULL, &b), APP_INVALID_ARGUMENT);
+  CHECK(app_run(app, &b), APP_NO_ERROR);
 
   CHECK(app_get_window_manager_device(NULL, NULL), APP_INVALID_ARGUMENT);
   CHECK(app_get_window_manager_device(app, NULL), APP_INVALID_ARGUMENT);

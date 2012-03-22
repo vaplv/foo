@@ -53,7 +53,8 @@ app_ref_put
 
 extern enum app_error
 app_run
-  (struct app* app);
+  (struct app* app,
+   bool* keep_running);
 
 extern enum app_error
 app_terminal_font

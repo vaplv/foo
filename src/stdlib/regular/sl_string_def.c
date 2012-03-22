@@ -234,7 +234,7 @@ SL_STRING_INSERT(SL_STRING_TYPE)
     sl_err = ensure_allocated(str, len + str->len + 1, true);
     if(sl_err != SL_NO_ERROR)
       goto error;
-    memcpy
+    memmove
       (str->cstr + id + len,
        str->cstr + id,
        (str->len - id) * sizeof(SL_STRING_CHAR(SL_STRING_TYPE)));
@@ -269,7 +269,7 @@ SL_STRING_INSERT_CHAR(SL_STRING_TYPE)
     sl_err = ensure_allocated(str, str->len + 2, true);
     if(sl_err != SL_NO_ERROR)
       goto error;
-    memcpy
+    memmove
       (str->cstr + id + 1,
        str->cstr + id,
        (str->len - id) * sizeof(SL_STRING_CHAR(SL_STRING_TYPE)));
@@ -388,7 +388,7 @@ SL_STRING_ERASE_CHAR(SL_STRING_TYPE)
   new_len = str->len - 1;
   if(id != new_len) {
     const size_t idp1 = id + 1;
-    memcpy
+    memmove
       (str->cstr + id,
        str->cstr + idp1,
        (str->len - idp1) * sizeof(SL_STRING_CHAR(SL_STRING_TYPE)));

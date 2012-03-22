@@ -1025,7 +1025,7 @@ rdr_term_translate_cursor(struct rdr_term* term, int trans)
     rdr_err = RDR_INVALID_ARGUMENT;
     goto error;
   }
-  if(trans < 0) {
+  if(trans <= 0) {
     const size_t x = (size_t)abs(trans);
     term->screen.cursor -= MIN(x, term->screen.cursor);
   } else {
