@@ -28,6 +28,12 @@ sl_vector_push_back
    const void* data);
 
 extern enum sl_error
+sl_vector_push_back_n
+  (struct sl_vector* vector,
+   size_t count,
+   const void* data);
+
+extern enum sl_error
 sl_vector_pop_back
   (struct sl_vector* vector);
 

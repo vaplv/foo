@@ -133,13 +133,16 @@ term_log_func(const char* msg, void* data)
   assert(app);
   if(strncasecmp(msg, APP_ERR_PREFIX, sizeof(APP_ERR_PREFIX)-1)==0) {
     msg += sizeof(APP_ERR_PREFIX) - 1;
-    RDR(term_write_string(app->rdr.term, L"error: ", RDR_TERM_COLOR_RED));
+    RDR(term_print_string
+      (app->rdr.term, RDR_TERM_STDOUT, L"error: ", RDR_TERM_COLOR_RED));
   } else if(strncasecmp(msg, APP_WARN_PREFIX, sizeof(APP_WARN_PREFIX) - 1)==0) {
     msg += sizeof(APP_WARN_PREFIX) - 1;
-    RDR(term_write_string(app->rdr.term, L"warning: ", RDR_TERM_COLOR_YELLOW));
+    RDR(term_print_string
+      (app->rdr.term, RDR_TERM_STDOUT, L"warning: ", RDR_TERM_COLOR_YELLOW));
   }
   mbstowcs(buffer, msg, BUFSIZ - 1);
-  RDR(term_write_string(app->rdr.term, buffer, RDR_TERM_COLOR_WHITE));
+  RDR(term_print_string
+    (app->rdr.term, RDR_TERM_STDOUT, buffer, RDR_TERM_COLOR_WHITE));
 }
 
 static int

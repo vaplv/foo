@@ -132,11 +132,16 @@ sl_clear_vector
 }
 
 EXPORT_SYM enum sl_error
-sl_vector_push_back
-  (struct sl_vector* vec,
-   const void* data)
+sl_vector_push_back(struct sl_vector* vec, const void* data)
+{
+  return sl_vector_push_back_n(vec, 1, data);
+}
+
+EXPORT_SYM enum sl_error
+sl_vector_push_back_n(struct sl_vector* vec, size_t count, const void* data)
 {
   void* ptr = NULL;
+  size_t i = 0;
   enum sl_error err = SL_NO_ERROR;
 
   if(!vec || !data) {
@@ -147,18 +152,23 @@ sl_vector_push_back
     err = SL_ALIGNMENT_ERROR;
     goto error;
   }
+  if(count == 0) {
+    goto exit;
+  }
   if(vec->length == SIZE_MAX) {
     err = SL_OVERFLOW_ERROR;
     goto error;
   }
   assert(vec->length <= vec->capacity);
-  err = ensure_allocated(vec, vec->length + 1, true);
+  err = ensure_allocated(vec, vec->length + count, true);
   if(SL_NO_ERROR != err)
     goto error;
-  ptr = (void*)((uintptr_t)vec->buffer + vec->length * vec->data_size);
-  memcpy(ptr, data, vec->data_size);
-  ++vec->length;
 
+  for(i = 0; i < count; ++i) {
+    ptr = (void*)((uintptr_t)vec->buffer + (vec->length + i) * vec->data_size);
+    memcpy(ptr, data, vec->data_size);
+  }
+  vec->length += count;
 exit:
   return err;
 error:

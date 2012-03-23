@@ -3,6 +3,7 @@
 #include "app/core/regular/app_command_c.h"
 #include "app/core/regular/app_builtin_commands.h"
 #include "app/core/app_command.h"
+#include "app/core/app_command_buffer.h"
 #include "stdlib/sl.h"
 #include "stdlib/sl_hash_table.h"
 #include "sys/mem_allocator.h"
@@ -324,6 +325,10 @@ app_init_command_system(struct app* app)
   app_err = app_setup_builtin_commands(app);
   if(app_err != APP_NO_ERROR)
     goto error;
+  app_err = app_create_command_buffer(app, &app->cmd.buffer);
+  if(app_err != APP_NO_ERROR)
+    goto error;
+
 exit:
   return app_err;
 error:
@@ -341,6 +346,9 @@ app_shutdown_command_system(struct app* app)
     del_all_commands(app);
     SL(free_hash_table(app->cmd.htbl));
     app->cmd.htbl = NULL;
+  }
+  if(app->cmd.buffer) {
+    APP(command_buffer_ref_put(app->cmd.buffer));
   }
   return APP_NO_ERROR;
 }

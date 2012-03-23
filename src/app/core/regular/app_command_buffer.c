@@ -34,7 +34,6 @@ release_command_buffer(struct ref* ref)
     SL(free_string(buf->str));
   app = buf->app;
   MEM_FREE(app->allocator, buf);
-  APP(ref_put(app));
 }
 
 /*******************************************************************************
@@ -61,7 +60,6 @@ app_create_command_buffer
     goto error;
   }
   ref_init(&buf->ref);
-  APP(ref_get(app));
   buf->app = app;
   buf->cursor = 0;
   sl_err = sl_create_string(NULL, app->allocator, &buf->str);

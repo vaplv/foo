@@ -12,6 +12,9 @@
 
 #define BAD_ARG RDR_INVALID_ARGUMENT
 #define OK RDR_NO_ERROR
+#define CMDOUT RDR_TERM_CMDOUT
+#define STDOUT RDR_TERM_STDOUT
+#define WHITE RDR_TERM_COLOR_WHITE
 
 STATIC_ASSERT(BUFSIZ >= 128, Unexpected_constant);
 
@@ -143,7 +146,7 @@ main(int argc, char** argv)
   CHECK(rdr_create_term(NULL, NULL, 80, 25, &term), BAD_ARG);
   CHECK(rdr_create_term(sys, NULL, 80, 25, &term), BAD_ARG);
   CHECK(rdr_create_term(NULL, font, 80, 25, &term), BAD_ARG);
-  CHECK(rdr_create_term(sys, font, max_glyph_width * 80, 25, &term), OK);
+  CHECK(rdr_create_term(sys, font, max_glyph_width * 80, line_space * 25, &term), OK);
 
   CHECK(rdr_term_font(NULL, NULL), BAD_ARG);
   CHECK(rdr_term_font(term, NULL), BAD_ARG);
@@ -154,8 +157,8 @@ main(int argc, char** argv)
   CHECK(rdr_term_write_backspace(term), OK);
   CHECK(rdr_term_write_backspace(term), OK);
 
-  CHECK(rdr_term_write_char(NULL, L'a', RDR_TERM_COLOR_WHITE), BAD_ARG);
-  CHECK(rdr_term_write_char(term, L'a', RDR_TERM_COLOR_WHITE), OK);
+  CHECK(rdr_term_print_char(NULL, CMDOUT, L'a', WHITE), BAD_ARG);
+  CHECK(rdr_term_print_char(term, CMDOUT, L'a', WHITE), OK);
 
   i = 0;
   CHECK(rdr_term_dump(NULL, NULL, NULL), BAD_ARG);
@@ -168,11 +171,11 @@ main(int argc, char** argv)
   CHECK(rdr_term_dump(term, NULL, buffer), OK);
   CHECK(wcscmp(buffer, L"a"), 0);
 
-  CHECK(rdr_term_write_char(term, L'a', RDR_TERM_COLOR_WHITE), OK);
-  CHECK(rdr_term_write_char(term, L'b', RDR_TERM_COLOR_WHITE), OK);
-  CHECK(rdr_term_write_char(term, L' ', RDR_TERM_COLOR_WHITE), OK);
-  CHECK(rdr_term_write_char(term, L'c', RDR_TERM_COLOR_WHITE), OK);
-  CHECK(rdr_term_write_char(term, L'd', RDR_TERM_COLOR_WHITE), OK);
+  CHECK(rdr_term_print_char(term, CMDOUT, L'a', WHITE), OK);
+  CHECK(rdr_term_print_char(term, CMDOUT, L'b', WHITE), OK);
+  CHECK(rdr_term_print_char(term, CMDOUT, L' ', WHITE), OK);
+  CHECK(rdr_term_print_char(term, CMDOUT, L'c', WHITE), OK);
+  CHECK(rdr_term_print_char(term, CMDOUT, L'd', WHITE), OK);
   CHECK(rdr_term_dump(term, &i, buffer), OK);
   CHECK(i, 7);
   CHECK(wcscmp(buffer, L"aab cd"), 0);
@@ -194,10 +197,10 @@ main(int argc, char** argv)
   CHECK(i, 1);
   CHECK(wcscmp(buffer, L""), 0);
 
-  CHECK(rdr_term_write_string(NULL, NULL, RDR_TERM_COLOR_WHITE), BAD_ARG);
-  CHECK(rdr_term_write_string(term, NULL, RDR_TERM_COLOR_WHITE), BAD_ARG);
-  CHECK(rdr_term_write_string(NULL, L"test", RDR_TERM_COLOR_WHITE), BAD_ARG);
-  CHECK(rdr_term_write_string(term, L"test", RDR_TERM_COLOR_WHITE), OK);
+  CHECK(rdr_term_print_string(NULL, CMDOUT, NULL, WHITE), BAD_ARG);
+  CHECK(rdr_term_print_string(term, CMDOUT, NULL, WHITE), BAD_ARG);
+  CHECK(rdr_term_print_string(NULL, CMDOUT, L"test", WHITE), BAD_ARG);
+  CHECK(rdr_term_print_string(term, CMDOUT, L"test", WHITE), OK);
   CHECK(rdr_term_dump(term, NULL, buffer), OK);
   CHECK(wcscmp(buffer, L"test"), 0);
 
@@ -206,43 +209,73 @@ main(int argc, char** argv)
   CHECK(rdr_term_dump(term, NULL, buffer), OK);
   CHECK(wcscmp(buffer, L"test\n"), 0);
 
-  CHECK(rdr_term_write_string(term, L"foo", RDR_TERM_COLOR_WHITE), OK);
+  CHECK(rdr_term_print_string(term, CMDOUT, L"foo", WHITE), OK);
   CHECK(rdr_term_dump(term, NULL, buffer), OK);
   CHECK(wcscmp(buffer, L"test\nfoo"), 0);
-  CHECK(rdr_term_write_string(term, L" 0123\n456", RDR_TERM_COLOR_WHITE), OK);
+  CHECK(rdr_term_print_string(term, CMDOUT, L" 0123\n456", WHITE), OK);
   CHECK(rdr_term_dump(term, &i, buffer), OK);
   CHECK(wcslen(buffer) + 1, i);
   CHECK(wcscmp(buffer, L"test\nfoo 0123\n456"), 0);
 
   CHECK(rdr_term_translate_cursor(NULL, -1), BAD_ARG);
   CHECK(rdr_term_translate_cursor(term, -1), OK);
-  CHECK(rdr_term_write_string(term, L"FOO", RDR_TERM_COLOR_WHITE), OK);
+  CHECK(rdr_term_print_string(term, CMDOUT, L"FOO", WHITE), OK);
   CHECK(rdr_term_dump(term, &i, buffer), OK);
   CHECK(wcslen(buffer) + 1, i);
   CHECK(wcscmp(buffer, L"test\nfoo 0123\n45FOO6"), 0);
 
-  CHECK(rdr_term_write_char(term, L'X', RDR_TERM_COLOR_WHITE), OK);
+  CHECK(rdr_term_print_char(term, CMDOUT, L'X', WHITE), OK);
   CHECK(rdr_term_dump(term, &i, buffer), OK);
   CHECK(wcslen(buffer) + 1, i);
   CHECK(wcscmp(buffer, L"test\nfoo 0123\n45FOOX6"), 0);
 
   CHECK(rdr_term_translate_cursor(term, -2), OK);
-  CHECK(rdr_term_write_char(term, L'x', RDR_TERM_COLOR_WHITE), OK);
+  CHECK(rdr_term_print_char(term, CMDOUT, L'x', WHITE), OK);
   CHECK(rdr_term_dump(term, &i, buffer), OK);
   CHECK(wcslen(buffer) + 1, i);
   CHECK(wcscmp(buffer, L"test\nfoo 0123\n45FOxOX6"), 0);
 
   CHECK(rdr_term_translate_cursor(term, -INT_MAX), OK);
-  CHECK(rdr_term_write_string(term, L"___", RDR_TERM_COLOR_WHITE), OK);
+  CHECK(rdr_term_print_string(term, CMDOUT, L"___", WHITE), OK);
   CHECK(rdr_term_dump(term, &i, buffer), OK);
   CHECK(wcslen(buffer) + 1, i);
-  CHECK(wcscmp(buffer, L"test\nfoo 0123\n___45FOxOX6"), 0);
+  CHECK(wcscmp(buffer, L"test\n___foo 0123\n45FOxOX6"), 0);
 
   CHECK(rdr_term_translate_cursor(term, INT_MAX), OK);
-  CHECK(rdr_term_write_string(term, L"789", RDR_TERM_COLOR_WHITE), OK);
+  CHECK(rdr_term_print_string(term, CMDOUT, L"789", WHITE), OK);
   CHECK(rdr_term_dump(term, &i, buffer), OK);
   CHECK(wcslen(buffer) + 1, i);
-  CHECK(wcscmp(buffer, L"test\nfoo 0123\n___45FOxOX6789"), 0);
+  CHECK(wcscmp(buffer, L"test\n___foo 0123\n45FOxOX6789"), 0);
+
+  CHECK(rdr_term_print_string(term, STDOUT, L"aBcD", WHITE), OK);
+  CHECK(rdr_term_dump(term, &i, buffer), OK);
+  CHECK(wcslen(buffer) + 1, i);
+  CHECK(wcscmp(buffer, L"test\n___foo 0123\n45FOxOX6789"), 0);
+
+  CHECK(rdr_term_print_string(term, STDOUT, L"eFg", WHITE), OK);
+  CHECK(rdr_term_dump(term, &i, buffer), OK);
+  CHECK(wcslen(buffer) + 1, i);
+  CHECK(wcscmp(buffer, L"test\n___foo 0123\n45FOxOX6789"), 0);
+
+  CHECK(rdr_term_print_char(term, STDOUT, L'H', WHITE), OK);
+  CHECK(rdr_term_dump(term, &i, buffer), OK);
+  CHECK(wcslen(buffer) + 1, i);
+  CHECK(wcscmp(buffer, L"test\n___foo 0123\n45FOxOX6789"), 0);
+
+  CHECK(rdr_term_print_string(term, STDOUT, L"i\nJkL", WHITE), OK);
+  CHECK(rdr_term_dump(term, &i, buffer), OK);
+  CHECK(wcslen(buffer) + 1, i);
+  CHECK(wcscmp(buffer, L"test\naBcDeFgHi\n___foo 0123\n45FOxOX6789"), 0);
+
+  CHECK(rdr_term_print_char(term, STDOUT, L'\n', WHITE), OK);
+  CHECK(rdr_term_dump(term, &i, buffer), OK);
+  CHECK(wcslen(buffer) + 1, i);
+  CHECK(wcscmp(buffer, L"test\naBcDeFgHi\nJkL\n___foo 0123\n45FOxOX6789"), 0);
+
+  CHECK(rdr_term_write_return(term), OK);
+  CHECK(rdr_term_dump(term, &i, buffer), OK);
+  CHECK(wcslen(buffer) + 1, i);
+  CHECK(wcscmp(buffer, L"test\naBcDeFgHi\nJkL\n___foo 0123\n45FOxOX6789\n"), 0);
 
   CHECK(rdr_term_write_tab(NULL), BAD_ARG);
   CHECK(rdr_term_write_tab(term), OK);

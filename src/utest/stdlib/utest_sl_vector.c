@@ -389,6 +389,32 @@ main(int argc UNUSED, char** argv UNUSED)
   CHECK(((int*)data)[12], 5);
   CHECK(((int*)data)[13], 5);
 
+  CHECK(sl_vector_push_back_n(NULL, 3, NULL), BAD_ARG);
+  CHECK(sl_vector_push_back_n(vec, 3, NULL), BAD_ARG);
+  CHECK(sl_vector_push_back_n(NULL, 3, (int[]){6}), BAD_ARG);
+  CHECK(sl_vector_push_back_n(vec, 3, (int[]){6}), OK);
+  CHECK(sl_vector_length(vec, &len), OK);
+  CHECK(len, 17);
+  CHECK(sl_vector_buffer(vec, &len, NULL, NULL, &data), OK);
+  CHECK(len, 17);
+  CHECK(((int*)data)[0], -1);
+  CHECK(((int*)data)[1], -1);
+  CHECK(((int*)data)[2], -1);
+  CHECK(((int*)data)[3], -1);
+  CHECK(((int*)data)[4], 0);
+  CHECK(((int*)data)[5], 1);
+  CHECK(((int*)data)[6], 2);
+  CHECK(((int*)data)[7], 3);
+  CHECK(((int*)data)[8], -4);
+  CHECK(((int*)data)[9], -4);
+  CHECK(((int*)data)[10], -4);
+  CHECK(((int*)data)[11], 4);
+  CHECK(((int*)data)[12], 5);
+  CHECK(((int*)data)[13], 5);
+  CHECK(((int*)data)[14], 6);
+  CHECK(((int*)data)[15], 6);
+  CHECK(((int*)data)[16], 6);
+
   CHECK(sl_free_vector(NULL), BAD_ARG);
   CHECK(sl_free_vector(vec), OK);
 

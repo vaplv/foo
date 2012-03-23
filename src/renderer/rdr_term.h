@@ -26,6 +26,11 @@ struct rdr_font;
 struct rdr_system;
 struct rdr_term;
 
+enum rdr_term_output {
+  RDR_TERM_STDOUT,
+  RDR_TERM_CMDOUT
+};
+
 extern enum rdr_error
 rdr_create_term
   (struct rdr_system* sys,
@@ -53,14 +58,16 @@ rdr_term_translate_cursor
    int x);
 
 extern enum rdr_error
-rdr_term_write_string
+rdr_term_print_string
   (struct rdr_term* term,
+   enum rdr_term_output output,
    const wchar_t* str,
    const unsigned char color[3]);
 
 extern enum rdr_error
-rdr_term_write_char
+rdr_term_print_char
   (struct rdr_term* term,
+   enum rdr_term_output output,
    wchar_t ch,
    const unsigned char color[3]);
 
@@ -82,7 +89,7 @@ rdr_term_write_suppr
 
 extern enum rdr_error
 rdr_term_dump
-  (const struct rdr_term* term,
+  (struct rdr_term* term,
    size_t* len, /* May be NULL. Include the null char. */
    wchar_t* buffer); /* May be NULL. */
 

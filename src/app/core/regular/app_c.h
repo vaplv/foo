@@ -56,6 +56,7 @@ struct app {
   struct command_system {
     struct sl_hash_table* htbl; /* htbl of commands. */
     char scratch[1024];
+    struct app_command_buffer* buffer;
   } cmd;
 
   struct renderer {
