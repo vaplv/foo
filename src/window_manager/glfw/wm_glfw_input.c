@@ -340,6 +340,33 @@ error:
 }
 
 EXPORT_SYM enum wm_error
+wm_is_key_callback_attached
+  (struct wm_device* device,
+   void (*func)(enum wm_key, enum wm_state, void*),
+   void* data,
+   bool* is_attached)
+{
+  size_t len = 0;
+  size_t id = 0;
+  enum wm_error wm_err = WM_NO_ERROR;
+
+  if(!device || !func || !is_attached) {
+    wm_err = WM_INVALID_ARGUMENT;
+    goto error;
+  }
+  SL(set_find
+    (device->key_clbk_list, 
+     (struct callback[]){{WM_CALLBACK(func), data}},
+     &id));
+  SL(set_buffer(device->key_clbk_list, &len, NULL, NULL, NULL));
+  *is_attached = id != len;
+exit:
+  return wm_err;
+error:
+  goto exit;
+}
+
+EXPORT_SYM enum wm_error
 wm_attach_char_callback
   (struct wm_device* device,
    void (*func)(wchar_t, enum wm_state, void*),
@@ -402,5 +429,31 @@ exit:
   return wm_err;
 error:
   goto exit;
+}
 
+EXPORT_SYM enum wm_error
+wm_is_char_callback_attached
+  (struct wm_device* device,
+   void (*func)(wchar_t, enum wm_state, void*),
+   void* data,
+   bool* is_attached)
+{
+  size_t len = 0;
+  size_t id = 0;
+  enum wm_error wm_err = WM_NO_ERROR;
+
+  if(!device || !func || !is_attached) {
+    wm_err = WM_INVALID_ARGUMENT;
+    goto error;
+  }
+  SL(set_find
+    (device->char_clbk_list, 
+     (struct callback[]){{WM_CALLBACK(func), data}},
+     &id));
+  SL(set_buffer(device->char_clbk_list, &len, NULL, NULL, NULL));
+  *is_attached = id != len;
+exit:
+  return wm_err;
+error:
+  goto exit;
 }

@@ -1,4 +1,5 @@
 #include "app/core/regular/app_error_c.h"
+#include <stdlib.h>
 
 enum app_error
 sl_to_app_error(enum sl_error err)
@@ -112,3 +113,41 @@ wm_to_app_error(enum wm_error err)
   return app_err;
 }
 
+const char* 
+app_error_string(enum app_error err)
+{
+  const char* out_str = NULL;
+  switch(err) {
+    case APP_ALIGNMENT_ERROR:
+      out_str = "alignment error";
+      break;
+    case APP_INTERNAL_ERROR:
+      out_str = "internal error";
+      break;
+    case APP_INVALID_ARGUMENT:
+      out_str = "invalid argument";
+      break;
+    case APP_INVALID_FILE:
+      out_str = "invalid file";
+      break;
+    case APP_IO_ERROR:
+      out_str = "input/output error";
+      break;
+    case APP_MEMORY_ERROR:
+      out_str = "memory error";
+      break;
+    case APP_NO_ERROR:
+      out_str = "no error";
+      break;
+    case APP_RENDER_DRIVER_ERROR:
+      out_str = "render driver error";
+      break;
+    case APP_UNKNOWN_ERROR:
+      out_str = "unknown error";
+      break;
+    default:
+      out_str = "none";
+      break;
+  }
+  return out_str;
+}

@@ -8,8 +8,16 @@
 #include <string.h>
 
 #define BAD_ARG APP_INVALID_ARGUMENT
+#define CMD_ERR APP_COMMAND_ERROR
 #define OK APP_NO_ERROR
 #define BUFFER_SIZE 512
+
+#define CHECK_CMDBUF(buf, len, dump, str) \
+  do { \
+    CHECK(app_dump_command_buffer(buf, &len, dump), OK); \
+    CHECK(strcmp(dump, str), 0); \
+    CHECK(strlen(dump), len); \
+  } while(0)
 
 int
 main(int argc, char** argv)
@@ -25,6 +33,8 @@ main(int argc, char** argv)
     return -1;
   }
   args.render_driver = argv[1];
+
+
 
   CHECK(app_init(&args, &app), OK);
 
@@ -53,92 +63,80 @@ main(int argc, char** argv)
   CHECK(app_command_buffer_write_string(NULL, "foo"), BAD_ARG);
   CHECK(app_command_buffer_write_string(buf, "foo"), OK);
   CHECK(app_dump_command_buffer(buf, &len, dump), OK);
-  CHECK(len, 4);
-  CHECK(strcmp(dump, "foo"), 0);
+  CHECK_CMDBUF(buf, len, dump, "foo");
+  CHECK(len, 3);
 
   CHECK(app_command_buffer_write_string(buf, ". Hello world"), OK);
   CHECK(app_dump_command_buffer(buf, &len, dump), OK);
-  CHECK(len, 17);
-  CHECK(strcmp(dump, "foo. Hello world"), 0);
+  CHECK_CMDBUF(buf, len, dump, "foo. Hello world");
+  CHECK(len, 16);
 
   CHECK(app_command_buffer_write_char(NULL, '!'), BAD_ARG);
   CHECK(app_command_buffer_write_char(buf, '!'), OK);
-  CHECK(app_dump_command_buffer(buf, &len, dump), OK);
-  CHECK(len, 18);
-  CHECK(strcmp(dump, "foo. Hello world!"), 0);
+  CHECK_CMDBUF(buf, len, dump, "foo. Hello world!");
+  CHECK(len, 17);
 
   CHECK(app_command_buffer_write_char(buf, '.'), OK);
-  CHECK(app_dump_command_buffer(buf, &len, dump), OK);
-  CHECK(len, 19);
-  CHECK(strcmp(dump, "foo. Hello world!."), 0);
+  CHECK_CMDBUF(buf, len, dump, "foo. Hello world!.");
+  CHECK(len, 18);
 
   CHECK(app_command_buffer_write_backspace(NULL), BAD_ARG);
   CHECK(app_command_buffer_write_backspace(buf), OK);
-  CHECK(app_dump_command_buffer(buf, &len, dump), OK);
-  CHECK(len, 18);
-  CHECK(strcmp(dump, "foo. Hello world!"), 0);
+  CHECK_CMDBUF(buf, len, dump, "foo. Hello world!");
+  CHECK(len, 17);
 
   CHECK(app_command_buffer_write_suppr(NULL), BAD_ARG);
   CHECK(app_command_buffer_write_suppr(buf), OK);
-  CHECK(app_dump_command_buffer(buf, &len, dump), OK);
-  CHECK(len, 18);
-  CHECK(strcmp(dump, "foo. Hello world!"), 0);
+  CHECK_CMDBUF(buf, len, dump, "foo. Hello world!");
+  CHECK(len, 17);
 
   CHECK(app_command_buffer_move_cursor(NULL, 1), BAD_ARG);
   CHECK(app_command_buffer_move_cursor(buf, 1), OK);
   CHECK(app_command_buffer_write_string(buf, " :)"), OK);
-  CHECK(app_dump_command_buffer(buf, &len, dump), OK);
-  CHECK(len, 21);
-  CHECK(strcmp(dump, "foo. Hello world! :)"), 0);
+  CHECK_CMDBUF(buf, len, dump, "foo. Hello world! :)");
+  CHECK(len, 20);
 
   CHECK(app_command_buffer_move_cursor(buf, INT_MAX), OK);
   CHECK(app_command_buffer_write_string(buf, "..."), OK);
-  CHECK(app_dump_command_buffer(buf, &len, dump), OK);
-  CHECK(len, 24);
-  CHECK(strcmp(dump, "foo. Hello world! :)..."), 0);
+  CHECK_CMDBUF(buf, len, dump, "foo. Hello world! :)...");
+  CHECK(len, 23);
 
   CHECK(app_command_buffer_move_cursor(buf, -4), OK);
   CHECK(app_command_buffer_write_char(buf, '-'), OK);
-  CHECK(app_dump_command_buffer(buf, &len, dump), OK);
-  CHECK(len, 25);
-  CHECK(strcmp(dump, "foo. Hello world! :-)..."), 0);
+  CHECK_CMDBUF(buf, len, dump, "foo. Hello world! :-)...");
+  CHECK(len, 24);
 
   CHECK(app_command_buffer_write_suppr(buf), OK);
-  CHECK(app_dump_command_buffer(buf, &len, dump), OK);
-  CHECK(len, 24);
-  CHECK(strcmp(dump, "foo. Hello world! :-..."), 0);
+  CHECK_CMDBUF(buf, len, dump, "foo. Hello world! :-...");
+  CHECK(len, 23);
 
   CHECK(app_command_buffer_write_string(buf, "/!"), OK);
   CHECK(app_dump_command_buffer(buf, &len, dump), OK);
-  CHECK(len, 26);
-  CHECK(strcmp(dump, "foo. Hello world! :-/!..."), 0);
+  CHECK_CMDBUF(buf, len, dump, "foo. Hello world! :-/!...");
+  CHECK(len, 25);
 
   CHECK(app_command_buffer_move_cursor(buf, -18), OK);
   CHECK(app_command_buffer_write_backspace(buf), OK);
-  CHECK(app_dump_command_buffer(buf, &len, dump), OK);
-  CHECK(len, 25);
+  CHECK_CMDBUF(buf, len, dump, "foo Hello world! :-/!...");
+  CHECK(len, 24);
   CHECK(strcmp(dump, "foo Hello world! :-/!..."), 0);
 
   CHECK(app_command_buffer_write_string(buf, "!!!!"), OK);
-  CHECK(app_dump_command_buffer(buf, &len, dump), OK);
-  CHECK(len, 29);
-  CHECK(strcmp(dump, "foo!!!! Hello world! :-/!..."), 0);
+  CHECK_CMDBUF(buf, len, dump, "foo!!!! Hello world! :-/!...");
+  CHECK(len, 28);
 
   CHECK(app_command_buffer_move_cursor(buf, INT_MIN), OK);
   CHECK(app_command_buffer_write_backspace(buf), OK);
-  CHECK(app_dump_command_buffer(buf, &len, dump), OK);
-  CHECK(len, 29);
-  CHECK(strcmp(dump, "foo!!!! Hello world! :-/!..."), 0);
+  CHECK_CMDBUF(buf, len, dump, "foo!!!! Hello world! :-/!...");
+  CHECK(len, 28);
 
   CHECK(app_command_buffer_write_suppr(buf), OK);
-  CHECK(app_dump_command_buffer(buf, &len, dump), OK);
-  CHECK(len, 28);
-  CHECK(strcmp(dump, "oo!!!! Hello world! :-/!..."), 0);
+  CHECK_CMDBUF(buf, len, dump, "oo!!!! Hello world! :-/!...");
+  CHECK(len, 27);
 
   CHECK(app_command_buffer_write_char(buf, 'F'), OK);
-  CHECK(app_dump_command_buffer(buf, &len, dump), OK);
-  CHECK(len, 29);
-  CHECK(strcmp(dump, "Foo!!!! Hello world! :-/!..."), 0);
+  CHECK_CMDBUF(buf, len, dump, "Foo!!!! Hello world! :-/!...");
+  CHECK(len, 28);
 
   CHECK(app_clear_command_buffer(NULL), BAD_ARG);
   CHECK(app_clear_command_buffer(buf), OK);
@@ -147,27 +145,167 @@ main(int argc, char** argv)
   CHECK(dump[0], '\0');
 
   CHECK(app_command_buffer_write_string(buf, "ls"), OK);
-  CHECK(app_dump_command_buffer(buf, &len, dump), OK);
-  CHECK(len, 3);
-  CHECK(strcmp(dump, "ls"), 0);
+  CHECK_CMDBUF(buf, len, dump, "ls");
+  CHECK(len, 2);
 
   CHECK(app_command_buffer_move_cursor(buf, INT_MIN), OK);
   CHECK(app_command_buffer_write_string(buf, "help "), OK);
-  CHECK(app_dump_command_buffer(buf, &len, dump), OK);
-  CHECK(len, 8);
-  CHECK(strcmp(dump, "help ls"), 0);
+  CHECK_CMDBUF(buf, len, dump, "help ls");
+  CHECK(len, 7);
 
   CHECK(app_execute_command_buffer(NULL), BAD_ARG);
   CHECK(app_execute_command_buffer(buf), OK);
-  CHECK(app_dump_command_buffer(buf, &len, dump), OK);
+  CHECK_CMDBUF(buf, len, dump, "");
   CHECK(len, 0);
   CHECK(dump[0], '\0');
   CHECK(app_execute_command_buffer(buf), OK);
 
   CHECK(app_command_buffer_write_string(buf, "wrong_command"), OK);
-  CHECK(app_dump_command_buffer(buf, &len, dump), OK);
-  CHECK(strcmp(dump, "wrong_command"), 0);
-  CHECK(app_execute_command_buffer(buf), BAD_ARG);
+  CHECK_CMDBUF(buf, len, dump, "wrong_command");
+  CHECK(app_execute_command_buffer(buf), CMD_ERR);
+
+  CHECK(app_command_buffer_clear_history(NULL), BAD_ARG);
+  CHECK(app_command_buffer_clear_history(buf), OK);
+  CHECK_CMDBUF(buf, len, dump, "");
+
+  CHECK(app_command_buffer_history_next(NULL), BAD_ARG);
+  CHECK(app_command_buffer_history_next(buf), OK);
+  CHECK_CMDBUF(buf, len, dump, "");
+
+  CHECK(app_command_buffer_write_string(buf, "cmd0"), OK);
+  CHECK_CMDBUF(buf, len, dump, "cmd0");
+  CHECK(app_command_buffer_history_next(buf), OK);
+  CHECK_CMDBUF(buf, len, dump, "cmd0");
+  CHECK(app_command_buffer_history_next(buf), OK);
+  CHECK_CMDBUF(buf, len, dump, "cmd0");
+  CHECK(app_command_buffer_history_prev(NULL), BAD_ARG);
+  CHECK(app_command_buffer_history_prev(buf), OK);
+  CHECK_CMDBUF(buf, len, dump, "cmd0");
+  CHECK(app_execute_command_buffer(buf), CMD_ERR);
+  CHECK_CMDBUF(buf, len, dump, "");
+
+  CHECK(app_command_buffer_history_next(buf), OK);
+  CHECK_CMDBUF(buf, len, dump, "cmd0");
+  CHECK(app_command_buffer_history_next(buf), OK);
+  CHECK_CMDBUF(buf, len, dump, "cmd0");
+  CHECK(app_command_buffer_history_prev(buf), OK);
+  CHECK_CMDBUF(buf, len, dump, "");
+  CHECK(app_command_buffer_history_prev(buf), OK);
+  CHECK_CMDBUF(buf, len, dump, "");
+  CHECK(app_command_buffer_write_string(buf, "cmd1"), OK);
+  CHECK_CMDBUF(buf, len, dump, "cmd1");
+  CHECK(app_command_buffer_history_next(buf), OK);
+  CHECK_CMDBUF(buf, len, dump, "cmd0");
+  CHECK(app_command_buffer_write_backspace(buf), OK);
+  CHECK(app_command_buffer_write_char(buf, '1'), OK);
+  CHECK_CMDBUF(buf, len, dump, "cmd1");
+  CHECK(app_command_buffer_history_prev(buf), OK);
+  CHECK(app_command_buffer_write_string(buf, "aaa"), OK);
+  CHECK_CMDBUF(buf, len, dump, "cmd1aaa");
+  CHECK(app_command_buffer_move_cursor(buf, -6), OK);
+  CHECK(app_command_buffer_write_char(buf, '_'), OK);
+  CHECK_CMDBUF(buf, len, dump, "c_md1aaa");
+  CHECK(app_command_buffer_history_prev(buf), OK);
+  CHECK_CMDBUF(buf, len, dump, "c_md1aaa");
+  CHECK(app_command_buffer_write_char(buf, '*'), OK);
+  CHECK_CMDBUF(buf, len, dump, "c_*md1aaa");
+  CHECK(app_command_buffer_history_next(buf), OK);
+  CHECK_CMDBUF(buf, len, dump, "cmd1");
+  CHECK(app_command_buffer_write_char(buf, 'a'), OK);
+  CHECK_CMDBUF(buf, len, dump, "cmd1a");
+  CHECK(app_command_buffer_write_backspace(buf), OK);
+  CHECK_CMDBUF(buf, len, dump, "cmd1");
+  CHECK(app_execute_command_buffer(buf), CMD_ERR);
+  CHECK_CMDBUF(buf, len, dump, "");
+
+  CHECK(app_command_buffer_history_next(buf), OK);
+  CHECK_CMDBUF(buf, len, dump, "cmd1");
+  CHECK(app_command_buffer_history_next(buf), OK);
+  CHECK_CMDBUF(buf, len, dump, "cmd0");
+  CHECK(app_command_buffer_history_next(buf), OK);
+  CHECK_CMDBUF(buf, len, dump, "cmd0");
+  CHECK(app_command_buffer_history_next(buf), OK);
+  CHECK_CMDBUF(buf, len, dump, "cmd0");
+  CHECK(app_command_buffer_history_prev(buf), OK);
+  CHECK_CMDBUF(buf, len, dump, "cmd1");
+  CHECK(app_command_buffer_history_prev(buf), OK);
+  CHECK_CMDBUF(buf, len, dump, "");
+  CHECK(app_command_buffer_history_prev(buf), OK);
+  CHECK_CMDBUF(buf, len, dump, "");
+  CHECK(app_command_buffer_write_string(buf, "Foo"), OK);
+  CHECK_CMDBUF(buf, len, dump, "Foo");
+  CHECK(app_command_buffer_history_prev(buf), OK);
+  CHECK_CMDBUF(buf, len, dump, "Foo");
+  CHECK(app_command_buffer_move_cursor(buf, INT_MIN), OK);
+  CHECK(app_command_buffer_history_next(buf), OK);
+  CHECK(app_command_buffer_write_string(buf, "abcd"), OK);
+  CHECK_CMDBUF(buf, len, dump, "cmd1abcd");
+  CHECK(app_command_buffer_history_next(buf), OK);
+  CHECK(app_command_buffer_write_string(buf, " 0123"), OK);
+  CHECK_CMDBUF(buf, len, dump, "cmd0 0123");
+  CHECK(app_clear_command_buffer(buf), OK);
+  CHECK_CMDBUF(buf, len, dump, "");
+  CHECK(app_command_buffer_history_next(buf), OK);
+  CHECK_CMDBUF(buf, len, dump, "cmd1abcd");
+  CHECK(app_command_buffer_history_next(buf), OK);
+  CHECK_CMDBUF(buf, len, dump, "cmd0 0123");
+  CHECK(app_command_buffer_write_string(buf, "md2"), OK);
+  CHECK(app_command_buffer_move_cursor(buf, -3), OK);
+  CHECK(app_command_buffer_write_char(buf, 'c'), OK);
+  CHECK_CMDBUF(buf, len, dump, "cmd0 0123cmd2");
+  CHECK(app_command_buffer_history_prev(buf), OK);
+  CHECK_CMDBUF(buf, len, dump, "cmd1abcd");
+  CHECK(app_command_buffer_history_prev(buf), OK);
+  CHECK_CMDBUF(buf, len, dump, "");
+  CHECK(app_command_buffer_write_string(buf, "cmd2"), OK);
+  CHECK(app_execute_command_buffer(buf), CMD_ERR);
+
+  CHECK_CMDBUF(buf, len, dump, "");
+  CHECK(app_command_buffer_history_next(buf), OK);
+  CHECK_CMDBUF(buf, len, dump, "cmd2");
+  CHECK(app_command_buffer_history_next(buf), OK);
+  CHECK_CMDBUF(buf, len, dump, "cmd1abcd");
+  CHECK(app_command_buffer_history_next(buf), OK);
+  CHECK_CMDBUF(buf, len, dump, "cmd0 0123cmd2");
+  CHECK(app_command_buffer_history_next(buf), OK);
+  CHECK_CMDBUF(buf, len, dump, "cmd0 0123cmd2");
+  CHECK(app_command_buffer_history_prev(buf), OK);
+  CHECK_CMDBUF(buf, len, dump, "cmd1abcd");
+  CHECK(app_command_buffer_move_cursor(buf, -5), OK);
+  CHECK(app_command_buffer_write_suppr(buf), OK);
+  CHECK(app_command_buffer_write_suppr(buf), OK);
+  CHECK(app_command_buffer_write_suppr(buf), OK);
+  CHECK(app_command_buffer_write_suppr(buf), OK);
+  CHECK(app_command_buffer_write_suppr(buf), OK);
+  CHECK_CMDBUF(buf, len, dump, "cmd");
+  CHECK(app_command_buffer_write_string(buf, "3"), OK);
+  CHECK_CMDBUF(buf, len, dump, "cmd3");
+  CHECK(app_execute_command_buffer(buf), CMD_ERR);
+
+  CHECK_CMDBUF(buf, len, dump, "");
+  CHECK(app_command_buffer_write_string(buf, "cmd4"), OK);
+  CHECK_CMDBUF(buf, len, dump, "cmd4");
+  CHECK(app_command_buffer_history_next(buf), OK);
+  CHECK_CMDBUF(buf, len, dump, "cmd3");
+  CHECK(app_command_buffer_history_next(buf), OK);
+  CHECK_CMDBUF(buf, len, dump, "cmd2");
+  CHECK(app_command_buffer_history_next(buf), OK);
+  CHECK_CMDBUF(buf, len, dump, "cmd1");
+  CHECK(app_command_buffer_history_next(buf), OK);
+  CHECK_CMDBUF(buf, len, dump, "cmd0 0123cmd2");
+  CHECK(app_command_buffer_clear_history(buf), OK);
+  CHECK_CMDBUF(buf, len, dump, "cmd4");
+  CHECK(app_command_buffer_write_char(buf, 'a'), OK);
+  CHECK_CMDBUF(buf, len, dump, "cmd4a");
+  CHECK(app_command_buffer_history_next(buf), OK);
+  CHECK_CMDBUF(buf, len, dump, "cmd4a");
+  CHECK(app_command_buffer_history_next(buf), OK);
+  CHECK_CMDBUF(buf, len, dump, "cmd4a");
+  CHECK(app_command_buffer_history_prev(buf), OK);
+  CHECK_CMDBUF(buf, len, dump, "cmd4a");
+  CHECK(app_command_buffer_write_backspace(buf), OK);
+  CHECK_CMDBUF(buf, len, dump, "cmd4");
+  CHECK(app_execute_command_buffer(buf), CMD_ERR);
 
   CHECK(app_command_buffer_ref_get(NULL), BAD_ARG);
   CHECK(app_command_buffer_ref_get(buf), OK);

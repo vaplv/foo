@@ -1,6 +1,7 @@
 #include "app/core/regular/app_c.h"
 #include "app/core/regular/app_command_c.h"
 #include "app/core/regular/app_error_c.h"
+#include "app/core/regular/app_term.h"
 #include "app/core/regular/app_world_c.h"
 #include "app/core/app.h"
 #include "app/core/app_command.h"
@@ -126,23 +127,28 @@ std_log_func(const char* msg, void* data UNUSED)
 static void
 term_log_func(const char* msg, void* data)
 {
-  struct app* app = data;
   wchar_t buffer[BUFSIZ];
+  struct app* app = data;
+  struct rdr_term* term = NULL;
 
   buffer[BUFSIZ - 1] = L'\0';
   assert(app);
+  term = app->term.render_term;
+  if(!term)
+    return;
+
   if(strncasecmp(msg, APP_ERR_PREFIX, sizeof(APP_ERR_PREFIX)-1)==0) {
     msg += sizeof(APP_ERR_PREFIX) - 1;
-    RDR(term_print_string
-      (app->rdr.term, RDR_TERM_STDOUT, L"error: ", RDR_TERM_COLOR_RED));
+    RDR(term_print_wstring
+      (term, RDR_TERM_STDOUT, L"error: ", RDR_TERM_COLOR_RED));
   } else if(strncasecmp(msg, APP_WARN_PREFIX, sizeof(APP_WARN_PREFIX) - 1)==0) {
     msg += sizeof(APP_WARN_PREFIX) - 1;
-    RDR(term_print_string
-      (app->rdr.term, RDR_TERM_STDOUT, L"warning: ", RDR_TERM_COLOR_YELLOW));
+    RDR(term_print_wstring
+      (term, RDR_TERM_STDOUT, L"warning: ", RDR_TERM_COLOR_YELLOW));
   }
   mbstowcs(buffer, msg, BUFSIZ - 1);
-  RDR(term_print_string
-    (app->rdr.term, RDR_TERM_STDOUT, buffer, RDR_TERM_COLOR_WHITE));
+  RDR(term_print_wstring
+    (term, RDR_TERM_STDOUT, buffer, RDR_TERM_COLOR_WHITE));
 }
 
 static int
@@ -277,10 +283,6 @@ shutdown_renderer(struct renderer* rdr, struct sl_logger* logger)
   if(rdr->frame) {
     CALL(rdr_frame_ref_put(rdr->frame));
     rdr->frame = NULL;
-  }
-  if(rdr->term) {
-    CALL(rdr_term_ref_put(rdr->term));
-    rdr->term = NULL;
   }
   if(rdr->system) {
     CALL(rdr_system_ref_put(rdr->system));
@@ -438,6 +440,7 @@ shutdown(struct app* app)
   if(app) {
     #define CALL(func) if((app_err = func) != APP_NO_ERROR) goto error
     CALL(app_shutdown_command_system(app));
+    CALL(app_shutdown_term(app));
     CALL(shutdown_common(app));
     CALL(shutdown_resources(&app->rsrc, app->logger));
     CALL(shutdown_renderer(&app->rdr, app->logger));
@@ -510,13 +513,7 @@ init_renderer
   CALL(rdr_background_color(rdr->frame, (float[]){0.1f, 0.1f, 0.1f}));
   CALL(rdr_create_material(rdr->system, &rdr->default_material));
   CALL(rdr_create_font(rdr->system, &rdr->term_font));
-  CALL(rdr_create_term
-    (rdr->system,
-     rdr->term_font,
-     DEFAULT_WIN_WIDTH,
-     DEFAULT_WIN_HEIGHT,
-     &rdr->term));
-
+ 
   rdr_err = rdr_material_program
     (rdr->default_material, default_shader_sources);
   if(rdr_err != RDR_NO_ERROR) {
@@ -688,6 +685,11 @@ init(struct app* app, const char* graphic_driver)
   app_err = init_common(app);
   if(app_err != APP_NO_ERROR)
     goto error;
+  app_err = app_init_term(app);
+  if(app_err != APP_NO_ERROR) {
+    APP_LOG_ERR(app->logger, "Error initializing terminal\n");
+    goto error;
+  }
   app_err = app_init_command_system(app);
   if(app_err != APP_NO_ERROR) {
     APP_LOG_ERR(app->logger, "Error intializing command system\n");
@@ -816,10 +818,11 @@ app_run(struct app* app, bool* keep_running)
   if(app_err != APP_NO_ERROR)
     goto error;
 
-  RDR(frame_draw_term(app->rdr.frame, app->rdr.term));
+  if(app->term.is_enabled)
+    RDR(frame_draw_term(app->rdr.frame, app->term.render_term));
+
   RDR(flush_frame(app->rdr.frame));
   WM(swap(app->wm.window));
-
   *keep_running = !app->post_exit;
   app->post_exit = false;
 
@@ -887,7 +890,7 @@ app_terminal_font(struct app* app, const char* path)
         glyph_desc_list[i].bitmap.buffer = NULL;
         size = width * height * Bpp;
         if(size) {
-          unsigned char* buffer = MEM_ALLOC(&app->rdr.allocator, size);
+          unsigned char* buffer = MEM_CALLOC(&app->rdr.allocator, 1, size);
           if(!buffer) {
             app_err = APP_MEMORY_ERROR;
             goto error;
@@ -902,6 +905,7 @@ app_terminal_font(struct app* app, const char* path)
 
     rdr_err = rdr_font_data
       (app->rdr.term_font, line_space, nb_chars, glyph_desc_list);
+  
     if(RDR_NO_ERROR != rdr_err) {
       APP_LOG_ERR
         (app->logger,
@@ -1061,6 +1065,15 @@ app_detach_callback
     (app, signal, callback, data, CALLBACK_DETACH);
 }
 
+EXPORT_SYM enum app_error
+app_enable_term(struct app* app, bool enable)
+{
+  if(!app)
+    return APP_INVALID_ARGUMENT;
+  app_setup_term(app, enable);
+  return APP_NO_ERROR;
+}
+
 /*******************************************************************************
  *
  * Private functions.
@@ -1097,7 +1110,6 @@ app_unregister_object(struct app* app, enum app_object_type type, void* object)
     app_err = sl_to_app_error(sl_err);
     goto error;
   }
-
 exit:
   return app_err;
 error:

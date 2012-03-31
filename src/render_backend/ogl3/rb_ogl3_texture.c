@@ -286,12 +286,18 @@ rb_tex2d_data(struct rb_tex2d* tex, unsigned int level, const void* data)
 
   OGL(BindTexture(GL_TEXTURE_2D, tex->name));
 
+  /* We assume that the default pixel storage alignment is set to 4. */
   if(NULL == tex->pixbuf || NULL == data) {
-    TEX_IMAGE_2D(data);
+    if(pixel_size == 4) {
+      TEX_IMAGE_2D(data);
+    } else {
+      OGL(PixelStorei(GL_UNPACK_ALIGNMENT, 1));
+      TEX_IMAGE_2D(data);
+      OGL(PixelStorei(GL_UNPACK_ALIGNMENT, 4));
+    }
   } else {
     RB(buffer_data(tex->pixbuf, mip_level->pixbuf_offset, mip_size, data));
     OGL(BindBuffer(tex->pixbuf->target, tex->pixbuf->name));
-    /* We assume that the default pixel storage alignment is set to 4. */
     if(pixel_size == 4) {
       TEX_IMAGE_2D(BUFFER_OFFSET(mip_level->pixbuf_offset));
     }  else {

@@ -9,6 +9,7 @@
 #include <string.h>
 
 #define BAD_ARG APP_INVALID_ARGUMENT
+#define CMD_ERR APP_COMMAND_ERROR
 #define OK APP_NO_ERROR
 
 #define I -5
@@ -156,7 +157,7 @@ main(int argc, char** argv)
   CHECK(app_execute_command(NULL, NULL), BAD_ARG);
   CHECK(app_execute_command(app, NULL), BAD_ARG);
   CHECK(app_execute_command(NULL, "foox"), BAD_ARG);
-  CHECK(app_execute_command(app, "foox"), BAD_ARG);
+  CHECK(app_execute_command(app, "foox"), CMD_ERR);
   CHECK(app_execute_command(app, "foo"), OK);
 
   CHECK(app_del_command(NULL, NULL), BAD_ARG);
@@ -164,7 +165,7 @@ main(int argc, char** argv)
   CHECK(app_del_command(NULL, "foox"), BAD_ARG);
   CHECK(app_del_command(app, "foox"), BAD_ARG);
   CHECK(app_del_command(app, "foo"), OK);
-  CHECK(app_execute_command(app, "foo"), BAD_ARG);
+  CHECK(app_execute_command(app, "foo"), CMD_ERR);
 
   CHECK(app_add_command(app, "setf3", setf3, 3, APP_CMDARGV
     (APP_CMDARG_APPEND_FLOAT3(FLT_MAX, -FLT_MAX)), "Usage:"), OK);
@@ -190,7 +191,7 @@ main(int argc, char** argv)
   CHECK(app_del_command(app, "print"), OK);
   CHECK(app_add_command(app, "print", print, 1, APP_CMDARGV
     (APP_CMDARG_APPEND_STRING(day_list)), NULL), OK);
-  CHECK(app_execute_command(app, "print \"Hello_world!\""), BAD_ARG);
+  CHECK(app_execute_command(app, "print \"Hello_world!\""), CMD_ERR);
   CHECK(app_execute_command(app, "print Monday"), OK);
   CHECK(app_execute_command(app, "print Tuesday"), OK);
   CHECK(app_execute_command(app, "print Wednesday"), OK);
@@ -198,7 +199,7 @@ main(int argc, char** argv)
   CHECK(app_execute_command(app, "print Friday"), OK);
   CHECK(app_execute_command(app, "print Saturday"), OK);
   CHECK(app_execute_command(app, "print Sunday"), OK);
-  CHECK(app_execute_command(app, "print saturday"), BAD_ARG);
+  CHECK(app_execute_command(app, "print saturday"), CMD_ERR);
 
   CHECK(app_add_command(app, "Error", seti, 1, (struct app_cmdarg_desc[])
     {{.type=APP_NB_CMDARG_TYPES, .domain={.integer={.min=0, .max=0}}}}, NULL),
@@ -211,9 +212,9 @@ main(int argc, char** argv)
   CHECK(app_execute_command(app, "help exit"), OK);
   CHECK(app_execute_command(app, "help bad_command"), OK);
   CHECK(app_execute_command(app, "load --model bad_path"), OK);
-  CHECK(app_execute_command(app, "ls"), BAD_ARG);
+  CHECK(app_execute_command(app, "ls"), CMD_ERR);
   CHECK(app_execute_command(app, "ls --commands"), OK);
-  CHECK(app_execute_command(app, "ls --bad_option"), BAD_ARG);
+  CHECK(app_execute_command(app, "ls --bad_option"), CMD_ERR);
   CHECK(app_execute_command(app, "exit"), OK);
 
   CHECK(app_ref_put(app), APP_NO_ERROR);

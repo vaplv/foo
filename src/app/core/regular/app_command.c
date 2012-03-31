@@ -88,7 +88,7 @@ token_to_cmdarg
       break;
   }
   if(endptr && *endptr != '\0') {
-    app_err = APP_INVALID_ARGUMENT;
+    app_err = APP_COMMAND_ERROR;
     goto error;
   }
 exit:
@@ -269,7 +269,7 @@ app_execute_command(struct app* app, const char* command)
   SL(hash_table_find(app->cmd.htbl, &name, (void**)&cmd));
   if(!cmd) {
     APP_LOG_ERR(app->logger, "%s: command not found\n", name);
-    app_err = APP_INVALID_ARGUMENT;
+    app_err = APP_COMMAND_ERROR;
     goto error;
   }
   argv[i].type = APP_CMDARG_STRING;
@@ -278,7 +278,7 @@ app_execute_command(struct app* app, const char* command)
     tkn = strtok(NULL, " \t");
     if(!tkn) {
       APP_LOG_ERR(app->logger, "%s: missing operand\n", name);
-      app_err = APP_INVALID_ARGUMENT;
+      app_err = APP_COMMAND_ERROR;
       goto error;
     }
     app_err = token_to_cmdarg(app, tkn, (*cmd)->arg_desc_list + i, argv + i);
@@ -325,9 +325,6 @@ app_init_command_system(struct app* app)
   app_err = app_setup_builtin_commands(app);
   if(app_err != APP_NO_ERROR)
     goto error;
-  app_err = app_create_command_buffer(app, &app->cmd.buffer);
-  if(app_err != APP_NO_ERROR)
-    goto error;
 
 exit:
   return app_err;
@@ -346,9 +343,6 @@ app_shutdown_command_system(struct app* app)
     del_all_commands(app);
     SL(free_hash_table(app->cmd.htbl));
     app->cmd.htbl = NULL;
-  }
-  if(app->cmd.buffer) {
-    APP(command_buffer_ref_put(app->cmd.buffer));
   }
   return APP_NO_ERROR;
 }

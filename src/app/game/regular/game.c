@@ -21,6 +21,7 @@ struct user_command {
   signed char roll;
   struct {
     unsigned int escape : 1;
+    unsigned int term : 1;
   } flag;
 };
 
@@ -86,6 +87,13 @@ process_user_command
   if(state == WM_PRESS) {
     usr_cmd->flag.escape = 1;
   }
+  WM(get_key_state(wm, WM_KEY_LCTRL, &state));
+  if(state == WM_PRESS) {
+    WM(get_key_state(wm, WM_KEY_HOME, &state));
+    if(state == WM_PRESS) {
+      usr_cmd->flag.term = 1;
+    }
+  }
   return GAME_NO_ERROR;
 }
 
@@ -124,7 +132,8 @@ user_command_eq(struct user_command* cmd0, struct user_command* cmd1)
     &&  cmd0->pitch == cmd1->pitch
     &&  cmd0->yaw == cmd1->yaw
     &&  cmd0->roll == cmd1->roll
-    &&  cmd0->flag.escape == cmd1->flag.escape;
+    &&  cmd0->flag.escape == cmd1->flag.escape
+    &&  cmd0->flag.term == cmd1->flag.term;
 }
 
 /*******************************************************************************
@@ -215,6 +224,9 @@ game_run(struct game* game, bool* keep_running)
     game_err = update_view(game, &usr_cmd1);
     if(game_err != GAME_NO_ERROR)
       goto error;
+
+    if(usr_cmd1.flag.term)
+      APP(enable_term(game->app, true));
   }
 
   *keep_running = !usr_cmd1.flag.escape;

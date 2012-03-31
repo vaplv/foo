@@ -215,13 +215,13 @@ SL_STRING_INSERT(SL_STRING_TYPE)
    size_t id,
    const SL_STRING_CHAR(SL_STRING_TYPE)* cstr)
 {
-  size_t len = 0;
+  const size_t len = cstr ? SL_STRLEN(cstr) : 0;
   enum sl_error sl_err = SL_NO_ERROR;
 
   if(!str
   || !cstr
   || id > str->len
-  || IS_MEMORY_OVERLAPPED(str->cstr, str->allocated, cstr, SL_STRLEN(cstr)+1)) {
+  || IS_MEMORY_OVERLAPPED(str->cstr, str->allocated, cstr, len + 1)) {
     sl_err = SL_INVALID_ARGUMENT;
     goto error;
   }
@@ -230,7 +230,6 @@ SL_STRING_INSERT(SL_STRING_TYPE)
     if(sl_err != SL_NO_ERROR)
       goto error;
   } else {
-    len = SL_STRLEN(cstr);
     sl_err = ensure_allocated(str, len + str->len + 1, true);
     if(sl_err != SL_NO_ERROR)
       goto error;
@@ -290,15 +289,14 @@ SL_STRING_APPEND(SL_STRING_TYPE)
    const SL_STRING_CHAR(SL_STRING_TYPE)* cstr)
 {
   enum sl_error sl_err = SL_NO_ERROR;
-  size_t len = 0;
+  const size_t len = cstr ? SL_STRLEN(cstr) : 0;
 
   if(!str
   || !cstr
-  || IS_MEMORY_OVERLAPPED(str->cstr, str->allocated, cstr, SL_STRLEN(cstr)+1)) {
+  || IS_MEMORY_OVERLAPPED(str->cstr, str->allocated, cstr, len + 1)) {
     sl_err = SL_INVALID_ARGUMENT;
     goto error;
   }
-  len = SL_STRLEN(cstr);
   sl_err = ensure_allocated(str, len + str->len + 1, true);
   if(sl_err != SL_NO_ERROR)
     goto error;

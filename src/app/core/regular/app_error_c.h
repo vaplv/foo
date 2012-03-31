@@ -23,5 +23,9 @@ extern enum app_error
 wm_to_app_error
   (enum wm_error err);
 
+extern const char*
+app_error_string
+  (enum app_error err);
+
 #endif /* APP_ERROR_C_H */
 

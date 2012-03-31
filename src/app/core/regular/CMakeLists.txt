@@ -8,6 +8,7 @@ add_library(appcore SHARED
   app_error.c
   app_model.c
   app_model_instance.c
+  app_term.c
   app_view.c
   app_world.c)
 

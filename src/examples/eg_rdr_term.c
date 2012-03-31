@@ -26,7 +26,7 @@ char_clbk(wchar_t ch, enum wm_state state, void* data)
   if(state == WM_PRESS) {
     struct rdr_term* term = data;
     if(ch >= FIRST_CHAR && ch <= LAST_CHAR)
-      RDR(term_print_char(term, RDR_TERM_CMDOUT, ch, RDR_TERM_COLOR_WHITE));
+      RDR(term_print_wchar(term, RDR_TERM_CMDOUT, ch, RDR_TERM_COLOR_WHITE));
   }
 }
 
@@ -143,19 +143,27 @@ main(int argc, char** argv)
     MEM_FREE(&mem_default_allocator, glyph_desc_list[i].bitmap.buffer);
   }
 
+  {
+    /* DEBUG. */
+    size_t w, h, Bpp;
+    const unsigned char* buffer = NULL;
+    RDR(font_bitmap_cache(font, &w, &h, &Bpp, &buffer));
+    RSRC(write_ppm(ctxt, "/tmp/debug.ppm", w, h, Bpp, buffer));
+  }
+
   RDR(create_term(sys, font, win_desc.width, win_desc.height, &term));
-  RDR(term_print_string
+  RDR(term_print_wstring
     (term, RDR_TERM_STDOUT, L"Hello", RDR_TERM_COLOR_GREEN));
-  RDR(term_print_string
+  RDR(term_print_wstring
     (term, RDR_TERM_STDOUT, L" world!\n", RDR_TERM_COLOR_RED));
-  RDR(term_print_string
+  RDR(term_print_wstring
     (term,
      RDR_TERM_STDOUT,
      L"\"My definition of fragile code is, suppose you want to add a feature; "
      L"good code, there is one place where you add this feature and it fits; "
      L"fragile code, you've got to touch ten places\" (Ken Thompson)\n",
      RDR_TERM_COLOR_WHITE));
-  RDR(term_print_string
+  RDR(term_print_wstring
     (term, RDR_TERM_CMDOUT, L"$", RDR_TERM_COLOR_BRIGHT_GREEN));
 
   WM(attach_char_callback(dev, &char_clbk, term));

@@ -50,7 +50,7 @@ main(int argc, char** argv)
   assert(err == 0);
   rsrc_err = rsrc_geometry_from_wavefront_obj(geom, wobj);
   if(rsrc_err != RSRC_NO_ERROR) {
-    fprintf(stderr, "Error creating the geometry from the wavefront obj.");
+    fprintf(stderr, "Error creating the geometry from the wavefront obj.\n");
     goto error;
   }
   err = gettimeofday(&t1, NULL);

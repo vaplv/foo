@@ -1,6 +1,8 @@
 #ifndef WM_INPUT_H
 #define WM_INPUT_H
 
+#include "window_manager/wm_error.h"
+#include <stdbool.h>
 #include <wchar.h>
 
 enum wm_state {
@@ -149,16 +151,30 @@ wm_detach_key_callback
    void* data); /* May be NULL. */
 
 extern enum wm_error
+wm_is_key_callback_attached
+  (struct wm_device* device,
+   void (*func)(enum wm_key, enum wm_state, void* data),
+   void* data, /* May be NULL. */
+   bool* is_attached); 
+
+extern enum wm_error
 wm_attach_char_callback
   (struct wm_device* device,
    void (*func)(wchar_t, enum wm_state, void* data),
-   void* data);
+   void* data); /* May be NULL. */
 
 extern enum wm_error
 wm_detach_char_callback
   (struct wm_device* device,
    void (*func)(wchar_t, enum wm_state, void* data),
-   void* data);
+   void* data); /* May be NULL. */
+
+extern enum wm_error
+wm_is_char_callback_attached
+  (struct wm_device* device,
+   void (*func)(wchar_t, enum wm_state, void* data),
+   void* data, /* May be NULL. */
+   bool* is_attached);
 
 #endif /* WM_INPUT_H */
 

@@ -59,10 +59,8 @@ rsrc_write_ppm
       FWRITE(fp, "\n");
     }
   }
-
   #undef SNPRINTF
   #undef FWRITE
-
 exit:
   if(fp)
     fclose(fp);

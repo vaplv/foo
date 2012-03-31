@@ -110,5 +110,10 @@ app_is_callback_attached
    void* data,
    bool* is_attached);
 
+extern enum app_error
+app_enable_term
+  (struct app* app,
+   bool enable);
+
 #endif /* APP_H */
 

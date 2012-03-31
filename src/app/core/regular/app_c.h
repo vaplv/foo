@@ -5,6 +5,7 @@
 #include "renderer/rdr_attrib.h"
 #include "resources/rsrc.h"
 #include "resources/rsrc_geometry.h"
+#include "stdlib/sl.h"
 #include "stdlib/sl_logger.h"
 #include "sys/mem_allocator.h"
 #include "sys/ref_count.h"
@@ -56,14 +57,18 @@ struct app {
   struct command_system {
     struct sl_hash_table* htbl; /* htbl of commands. */
     char scratch[1024];
-    struct app_command_buffer* buffer;
   } cmd;
+
+  struct term {
+    struct rdr_term* render_term;
+    struct app_command_buffer* cmdbuf;
+    bool is_enabled;
+  } term;
 
   struct renderer {
     struct rdr_font* term_font;
     struct rdr_frame* frame;
     struct rdr_material* default_material;
-    struct rdr_term* term;
     struct rdr_system* system;
     struct mem_allocator allocator;
   } rdr;

@@ -22,11 +22,14 @@
   #define SL_STRING_GET(type) CONCAT(CONCAT(sl_, type), _get)
   #define SL_STRING_LENGTH(type) CONCAT(CONCAT(sl_, type), _length)
   #define SL_STRING_INSERT(type) CONCAT(CONCAT(sl_, type), _insert)
-  #define SL_STRING_INSERT_CHAR(type) CONCAT(CONCAT(sl_, type), _insert_char)
+  #define SL_STRING_INSERT_CHAR(type) \
+    CONCAT(CONCAT(sl_, type), CONCAT(_insert_, SL_CHAR_FUNC_SUFFIX))
   #define SL_STRING_APPEND(type) CONCAT(CONCAT(sl_, type), _append)
-  #define SL_STRING_APPEND_CHAR(type) CONCAT(CONCAT(sl_, type), _append_char)
+  #define SL_STRING_APPEND_CHAR(type) \
+    CONCAT(CONCAT(sl_, type), CONCAT(_append_, SL_CHAR_FUNC_SUFFIX))
   #define SL_STRING_ERASE(type) CONCAT(CONCAT(sl_, type), _erase)
-  #define SL_STRING_ERASE_CHAR(type) CONCAT(CONCAT(sl_, type), _erase_char)
+  #define SL_STRING_ERASE_CHAR(type) \
+    CONCAT(CONCAT(sl_, type), CONCAT(_erase_, SL_CHAR_FUNC_SUFFIX))
   #define SL_STRING_CAPACITY(type) CONCAT(CONCAT(sl_, type), _capacity)
 #endif /* SL_STRING_DEF_H */
 
@@ -42,13 +45,17 @@
   #include <stdbool.h>
   #include <stddef.h>
 
+  #undef SL_CHAR_FUNC_SUFFIX
+
   /* Define the char type of the string. */
   #if SL_STRING_TYPE == SL_STRING_STD
     #define SL_STRING_STD_DEF_H
+    #define SL_CHAR_FUNC_SUFFIX char
     typedef char string_char__;
   #else
     #define SL_STRING_WIDE_DEF_H
     #include <wchar.h>
+    #define SL_CHAR_FUNC_SUFFIX wchar
     typedef wchar_t wstring_char__;
   #endif
 

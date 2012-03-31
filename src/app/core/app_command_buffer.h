@@ -51,9 +51,21 @@ app_clear_command_buffer
   (struct app_command_buffer* cmdbuf);
 
 extern enum app_error
+app_command_buffer_history_next
+  (struct app_command_buffer* cmdbuf);
+
+extern enum app_error
+app_command_buffer_history_prev
+  (struct app_command_buffer* cmdbuf);
+
+extern enum app_error
+app_command_buffer_clear_history
+  (struct app_command_buffer* cmdbuf);
+
+extern enum app_error
 app_dump_command_buffer
   (struct app_command_buffer* cmdbuf,
-   size_t* len, /* May be NULL. Include the null char. */
+   size_t* len, /* May be NULL. Do not include the null char. */
    char* buffer); /* May be NULL. */
 
 #endif /* APP_COMMAND_BUFFER_H */

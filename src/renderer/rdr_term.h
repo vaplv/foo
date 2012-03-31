@@ -58,18 +58,30 @@ rdr_term_translate_cursor
    int x);
 
 extern enum rdr_error
-rdr_term_print_string
+rdr_term_print_wstring
   (struct rdr_term* term,
    enum rdr_term_output output,
    const wchar_t* str,
    const unsigned char color[3]);
 
 extern enum rdr_error
-rdr_term_print_char
+rdr_term_print_string
+  (struct rdr_term* term,
+   enum rdr_term_output output,
+   const char* str,
+   const unsigned char color[3]);
+
+extern enum rdr_error
+rdr_term_print_wchar
   (struct rdr_term* term,
    enum rdr_term_output output,
    wchar_t ch,
    const unsigned char color[3]);
+
+extern enum rdr_error
+rdr_clear_term
+  (struct rdr_term* term,
+   enum rdr_term_output output);
 
 extern enum rdr_error
 rdr_term_write_backspace
@@ -90,7 +102,7 @@ rdr_term_write_suppr
 extern enum rdr_error
 rdr_term_dump
   (struct rdr_term* term,
-   size_t* len, /* May be NULL. Include the null char. */
+   size_t* len, /* May be NULL. Do not include the null. */
    wchar_t* buffer); /* May be NULL. */
 
 #endif /* RDR_TERM_H */

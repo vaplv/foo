@@ -3,6 +3,8 @@
 #include "app/core/regular/app_builtin_commands.h"
 #include "app/core/app_command.h"
 #include "app/core/app_model.h"
+#include "renderer/rdr_term.h"
+#include "renderer/rdr.h"
 #include "stdlib/sl.h"
 #include "stdlib/sl_hash_table.h"
 #include <assert.h>
@@ -88,6 +90,16 @@ cmd_ls(struct app* app, size_t argc UNUSED, struct app_cmdarg* argv)
     (app->logger, "%s: command not implemented\n", argv[0].value.string);
 }
 
+static void
+cmd_clear(struct app* app, size_t argc UNUSED, struct app_cmdarg* argv UNUSED)
+{
+  assert(app != NULL
+      && argc == 1
+      && argv != NULL
+      && argv[0].type == APP_CMDARG_STRING);
+  RDR(clear_term(app->term.render_term, RDR_TERM_STDOUT));
+}
+
 /*******************************************************************************
  *
  * Builtin commands registration.
@@ -101,24 +113,31 @@ app_setup_builtin_commands(struct app* app)
 
   #define CALL(func) if(APP_NO_ERROR != (app_err = func)) goto error
 
-  CALL(app_add_command(app, "exit", cmd_exit, 0, NULL, NULL));
+  CALL(app_add_command
+    (app, "clear", cmd_clear, 0, NULL, "clear - clear the terminal screen\n"));
+  CALL(app_add_command
+    (app, "exit", cmd_exit, 0, NULL, "exit - cause the application to exit\n"));
   CALL(app_add_command
     (app, "help", cmd_help,
      1, APP_CMDARGV(APP_CMDARG_APPEND_STRING(NULL)),
+     "help - give command informations\n"
      "Usage: help COMMAND\n"));
+  CALL(app_add_command
+    (app, "ls", cmd_ls,
+     1, APP_CMDARGV(APP_CMDARG_APPEND_STRING(cmd_ls_options)),
+     "ls - list application contents\n"
+     "Usage: ls OPTION\n"
+     "\t--all print all the listable objects\n"
+     "\t--models list the loaded models\n"
+     "\t--commands list the registered commands\n"));
   CALL(app_add_command
     (app, "load", cmd_load,
      2, APP_CMDARGV
       (APP_CMDARG_APPEND_STRING(cmd_load_options),
        APP_CMDARG_APPEND_STRING(NULL)),
+     "load - load resources\n"
      "Usage: load --model PATH\n"));
-  CALL(app_add_command
-    (app, "ls", cmd_ls,
-     1, APP_CMDARGV(APP_CMDARG_APPEND_STRING(cmd_ls_options)),
-     "Usage: ls OPTION\n"
-     "\t--all print all the listable objects\n"
-     "\t--models list the loaded models\n"
-     "\t--commands list the registered commands\n"));
+
 
   #undef CALL
 
