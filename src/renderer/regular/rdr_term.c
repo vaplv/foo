@@ -40,6 +40,10 @@ struct line {
 struct screen {
   struct list_node free_line_list;
   struct list_node stdout_line_list;
+  struct prompt {
+    struct sl_wstring* string;
+    struct sl_vector* color_list;
+  } prompt;
   struct line* outbuf;
   struct line* cmdbuf;
   struct line* line_list;
@@ -255,7 +259,7 @@ new_buf(struct screen* scr, enum rdr_term_output output)
 {
   struct line** line = NULL;
   struct list_node* node = NULL;
-  assert(scr);
+  assert(scr && (RDR_TERM_STDOUT == output || RDR_TERM_CMDOUT == output));
 
   if(!scr->line_list)
     return;
@@ -264,7 +268,7 @@ new_buf(struct screen* scr, enum rdr_term_output output)
     line = &scr->outbuf;
   } else {
     line = &scr->cmdbuf;
-    scr->cursor = 0;
+    SL(wstring_length(scr->prompt.string, &scr->cursor));
   }
   if(*line) {
     list_add(&scr->stdout_line_list, &(*line)->node);
@@ -279,13 +283,28 @@ new_buf(struct screen* scr, enum rdr_term_output output)
   (*line) = CONTAINER_OF(node, struct line, node);
   SL(clear_wstring((*line)->string));
   SL(clear_vector((*line)->color_list));
+
+  /* Init the cmdbuf with prompt text. */
+  if(RDR_TERM_CMDOUT == output && 0 != scr->cursor) {
+    const wchar_t* cstr = NULL;
+    void* src_colors = NULL;
+    void* dst_colors = NULL;
+    SL(wstring_get(scr->prompt.string, &cstr));
+    SL(wstring_set((*line)->string, cstr));
+    SL(vector_buffer(scr->prompt.color_list, NULL, NULL,NULL, &src_colors));
+    SL(vector_resize((*line)->color_list, scr->cursor, NULL));
+    SL(vector_buffer((*line)->color_list, NULL, NULL, NULL, &dst_colors));
+    memcpy(dst_colors, src_colors, scr->cursor * sizeof(unsigned char) * 3);
+  }
 }
 
 static void
 reset_screen(struct rdr_system* sys, struct screen* scr)
 {
   size_t i = 0;
+  struct prompt saved_prompt = scr->prompt;
   assert(scr);
+
 
   for(i = 0; i < scr->nb_lines; ++i) {
     struct line* line = scr->line_list + i;
@@ -301,16 +320,55 @@ reset_screen(struct rdr_system* sys, struct screen* scr)
   memset(scr, 0, sizeof(struct screen));
   list_init(&scr->free_line_list);
   list_init(&scr->stdout_line_list);
+  scr->prompt = saved_prompt;
 }
 
-static enum rdr_error
-init_screen(struct rdr_system* sys UNUSED, struct screen* scr)
+static void
+shutdown_screen(struct rdr_system* sys, struct screen* scr)
 {
+  assert(sys && scr);
+  reset_screen(sys, scr);
+  if(scr->prompt.string) {
+    SL(free_wstring(scr->prompt.string));
+    scr->prompt.string = NULL;
+  }
+  if(scr->prompt.color_list) {
+    SL(free_vector(scr->prompt.color_list));
+    scr->prompt.color_list = NULL;
+  }
+}
+
+
+static enum rdr_error
+init_screen(struct rdr_system* sys, struct screen* scr)
+{
+  enum rdr_error rdr_err = RDR_NO_ERROR;
+  enum sl_error sl_err = SL_NO_ERROR;
   assert(scr);
+
   memset(scr, 0, sizeof(struct screen));
   list_init(&scr->free_line_list);
   list_init(&scr->stdout_line_list);
-  return RDR_NO_ERROR;
+
+  sl_err = sl_create_wstring(NULL, sys->allocator, &scr->prompt.string);
+  if(SL_NO_ERROR != sl_err) {
+    rdr_err = sl_to_rdr_error(sl_err);
+    goto error;
+  }
+  sl_err = sl_create_vector
+    (sizeof(unsigned char) * 3,
+     ALIGNOF(unsigned char),
+     sys->allocator,
+     &scr->prompt.color_list);
+  if(SL_NO_ERROR != sl_err) {
+    rdr_err = sl_to_rdr_error(sl_err);
+    goto error;
+  }
+exit:
+  return rdr_err;
+error:
+  shutdown_screen(sys, scr);
+  goto exit;
 }
 
 static enum rdr_error
@@ -889,7 +947,6 @@ generic_print_string
    void tokenize(const void*, struct token* tkn),
    size_t str_len(const void*))
 {
-  struct line* line = NULL;
   size_t len = 0;
   enum rdr_error rdr_err = RDR_NO_ERROR;
   enum sl_error sl_err = SL_NO_ERROR;
@@ -898,8 +955,6 @@ generic_print_string
     rdr_err = RDR_INVALID_ARGUMENT;
     goto error;
   }
-  if(0 == term->screen.lines_per_screen)
-    goto exit;
 
   #define CALL(func) \
     do { \
@@ -909,31 +964,47 @@ generic_print_string
       } \
     } while(0)
   len = str_len(str);
-  if(output == RDR_TERM_CMDOUT) {
-    line = term->screen.cmdbuf;
-    CALL(wstring_insert(line->string, term->screen.cursor, str));
-    CALL(sl_vector_insert_n
-      (line->color_list, term->screen.cursor, len, color));
+  if(RDR_TERM_PROMPT == output) {
+    size_t old_prompt_len = 0;
+    SL(vector_buffer
+      (term->screen.prompt.color_list, &old_prompt_len, NULL, NULL, NULL));
+    CALL(wstring_append(term->screen.prompt.string, str));
+    CALL(sl_vector_push_back_n(term->screen.prompt.color_list, len, color));
+    if(term->screen.cmdbuf) {
+      CALL(wstring_insert(term->screen.cmdbuf->string, old_prompt_len, str));
+      CALL(sl_vector_insert_n
+        (term->screen.cmdbuf->color_list, old_prompt_len, len, color));
+    }
     term->screen.cursor += len;
-  } else {
-    void* end_str = NULL;
-    void* ptr = NULL;
+  } else if(0 != term->screen.lines_per_screen) {
+    struct line* line = NULL;
 
-    /* Copy the submitted string into the mutable scratch buffer. */
-    blob_clear(&term->scratch);
-    rdr_err = blob_push_back(&term->scratch, str, (len + 1) * sizeof_char);
-    assert(RDR_NO_ERROR == rdr_err);
-    ptr = blob_buffer(&term->scratch);
-    end_str = (void*)((uintptr_t)ptr + len * sizeof_char);
-    while((uintptr_t)ptr < (uintptr_t)end_str) {
-      struct token tkn;
-      line = term->screen.outbuf;
-      tokenize(ptr, &tkn);
-      CALL(wstring_append(line->string, tkn.str));
-      CALL(sl_vector_push_back_n(line->color_list, tkn.len, color));
-      ptr = (void*)((uintptr_t)ptr + (tkn.len + 1) * sizeof_char);
-      if(tkn.new_line)
-        new_buf(&term->screen, RDR_TERM_STDOUT);
+    if(RDR_TERM_CMDOUT == output) {
+      line = term->screen.cmdbuf;
+      CALL(wstring_insert(line->string, term->screen.cursor, str));
+      CALL(sl_vector_insert_n
+        (line->color_list, term->screen.cursor, len, color));
+      term->screen.cursor += len;
+    } else { /* RDR_TERM_STDOUT. */
+      void* end_str = NULL;
+      void* ptr = NULL;
+
+      /* Copy the submitted string into the mutable scratch buffer. */
+      blob_clear(&term->scratch);
+      rdr_err = blob_push_back(&term->scratch, str, (len + 1) * sizeof_char);
+      assert(RDR_NO_ERROR == rdr_err);
+      ptr = blob_buffer(&term->scratch);
+      end_str = (void*)((uintptr_t)ptr + len * sizeof_char);
+      while((uintptr_t)ptr < (uintptr_t)end_str) {
+        struct token tkn;
+        line = term->screen.outbuf;
+        tokenize(ptr, &tkn);
+        CALL(wstring_append(line->string, tkn.str));
+        CALL(sl_vector_push_back_n(line->color_list, tkn.len, color));
+        ptr = (void*)((uintptr_t)ptr + (tkn.len + 1) * sizeof_char);
+        if(tkn.new_line)
+          new_buf(&term->screen, RDR_TERM_STDOUT);
+      }
     }
   }
   #undef CALL
@@ -1038,7 +1109,7 @@ release_term(struct ref* ref)
   if(term->font)
     RDR(font_ref_put(term->font));
   blob_release(&term->scratch);
-  reset_screen(term->sys, &term->screen);
+  shutdown_screen(term->sys, &term->screen);
   shutdown_printer(term->sys, &term->printer);
 
   sys = term->sys;
@@ -1166,8 +1237,10 @@ rdr_term_translate_cursor(struct rdr_term* term, int trans)
     goto error;
   }
   if(trans <= 0) {
+    size_t prompt_len = 0;
     const size_t x = (size_t)abs(trans);
-    term->screen.cursor -= MIN(x, term->screen.cursor);
+    SL(wstring_length(term->screen.prompt.string, &prompt_len));
+    term->screen.cursor -= MIN(x, term->screen.cursor - prompt_len);
   } else {
     size_t len = 0;
     const size_t x = (size_t)trans;
@@ -1263,12 +1336,29 @@ error:
 EXPORT_SYM enum rdr_error
 rdr_clear_term(struct rdr_term* term, enum rdr_term_output output)
 {
+  size_t len = 0;
+
   if(!term)
     return RDR_INVALID_ARGUMENT;
+
   if(RDR_TERM_CMDOUT == output) {
-    SL(clear_wstring(term->screen.cmdbuf->string));
-    SL(clear_vector(term->screen.cmdbuf->color_list));
-    term->screen.cursor = 0;
+    size_t cmdlen = 0;
+    SL(wstring_length(term->screen.cmdbuf->string, &cmdlen));
+    SL(wstring_length(term->screen.prompt.string, &len));
+    if(cmdlen > len) {
+      SL(wstring_erase(term->screen.cmdbuf->string, len, SIZE_MAX));
+      SL(vector_remove_n(term->screen.cmdbuf->color_list, len, SIZE_MAX));
+      term->screen.cursor = len;
+    } else {
+      assert(term->screen.cursor == len);
+    }
+  } else if(RDR_TERM_PROMPT == output) {
+    SL(wstring_length(term->screen.prompt.string, &len));
+    SL(clear_wstring(term->screen.prompt.string));
+    SL(clear_vector(term->screen.prompt.color_list));
+    SL(wstring_erase(term->screen.cmdbuf->string, 0, len));
+    SL(vector_remove_n(term->screen.cmdbuf->color_list, 0, len));
+    term->screen.cursor -= len;
   } else {
     struct list_node* node = NULL;
     struct list_node* tmp = NULL;
@@ -1286,6 +1376,7 @@ EXPORT_SYM enum rdr_error
 rdr_term_write_backspace(struct rdr_term* term)
 {
   enum rdr_error rdr_err = RDR_NO_ERROR;
+  size_t prompt_len = 0;
 
   if(!term) {
     rdr_err = RDR_INVALID_ARGUMENT;
@@ -1294,7 +1385,8 @@ rdr_term_write_backspace(struct rdr_term* term)
   if(NULL == term->screen.cmdbuf)
     goto exit;
 
-  if(term->screen.cursor > 0) {
+  SL(wstring_length(term->screen.prompt.string, &prompt_len));
+  if(term->screen.cursor > prompt_len) {
     struct line* line = term->screen.cmdbuf;
     --term->screen.cursor;
     SL(wstring_erase_wchar(line->string, term->screen.cursor));

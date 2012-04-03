@@ -14,6 +14,7 @@
 #define OK RDR_NO_ERROR
 #define CMDOUT RDR_TERM_CMDOUT
 #define STDOUT RDR_TERM_STDOUT
+#define PROMPT RDR_TERM_PROMPT
 #define WHITE RDR_TERM_COLOR_WHITE
 #define CHECK_DUMP(term, len, dump, str) \
   do { \
@@ -263,13 +264,77 @@ main(int argc, char** argv)
   CHECK_DUMP
     (term, i, buffer,
      L"test\naBcDeFgHi\nJkL\n___foo 0123\n45FOxOX6789\nHop__\ncmdout");
-  CHECK(rdr_clear_term(NULL, RDR_TERM_STDOUT), BAD_ARG);
-  CHECK(rdr_clear_term(term, RDR_TERM_STDOUT), OK);
+  CHECK(rdr_clear_term(NULL, STDOUT), BAD_ARG);
+  CHECK(rdr_clear_term(term, STDOUT), OK);
   CHECK_DUMP(term, i, buffer, L"cmdout");
   CHECK(rdr_term_print_wstring(term, STDOUT, L"123\n", WHITE), OK);
   CHECK_DUMP(term, i, buffer, L"123\ncmdout");
-  CHECK(rdr_clear_term(term, RDR_TERM_CMDOUT), OK);
+  CHECK(rdr_clear_term(term, CMDOUT), OK);
   CHECK_DUMP(term, i, buffer, L"123\n");
+
+  CHECK(rdr_clear_term(term, STDOUT), OK);
+  CHECK(rdr_clear_term(term, CMDOUT), OK);
+  CHECK(rdr_clear_term(term, PROMPT), OK);
+  CHECK_DUMP(term, i, buffer, L"");
+
+  CHECK(rdr_term_print_wstring(term, CMDOUT, L"cmd", WHITE), OK);
+  CHECK_DUMP(term, i, buffer, L"cmd");
+
+  CHECK(rdr_term_print_wstring(term, PROMPT, L"$ ", WHITE), OK);
+  CHECK_DUMP(term, i, buffer, L"$ cmd");
+  CHECK(rdr_term_print_wstring(term, CMDOUT, L"0__", WHITE), OK);
+  CHECK_DUMP(term, i, buffer, L"$ cmd0__");
+  CHECK(rdr_term_print_wstring(term, STDOUT, L"foo", WHITE), OK);
+  CHECK_DUMP(term, i, buffer, L"$ cmd0__");
+  CHECK(rdr_term_print_wstring(term, STDOUT, L"\n", WHITE), OK);
+  CHECK_DUMP(term, i, buffer, L"foo\n$ cmd0__");
+  CHECK(rdr_term_write_return(term), OK);
+  CHECK_DUMP(term, i, buffer, L"foo\n$ cmd0__\n$ ");
+  CHECK(rdr_term_print_wstring(term, CMDOUT, L"__CMD__", WHITE), OK);
+  CHECK_DUMP(term, i, buffer, L"foo\n$ cmd0__\n$ __CMD__");
+  CHECK(rdr_term_print_wstring(term, PROMPT, L">>>]", WHITE), OK);
+  CHECK_DUMP(term, i, buffer, L"foo\n$ cmd0__\n$ >>>]__CMD__");
+  CHECK(rdr_term_print_wstring(term, CMDOUT, L"world!", WHITE), OK);
+  CHECK_DUMP(term, i, buffer, L"foo\n$ cmd0__\n$ >>>]__CMD__world!");
+  CHECK(rdr_term_translate_cursor(term, INT_MIN), OK);
+  CHECK(rdr_term_print_wstring(term, CMDOUT, L"Hello", WHITE), OK);
+  CHECK_DUMP(term, i, buffer, L"foo\n$ cmd0__\n$ >>>]Hello__CMD__world!");
+  CHECK(rdr_term_write_suppr(term), OK);
+  CHECK(rdr_term_write_suppr(term), OK);
+  CHECK_DUMP(term, i, buffer, L"foo\n$ cmd0__\n$ >>>]HelloCMD__world!");
+  CHECK(rdr_term_translate_cursor(term, 3), OK);
+  CHECK(rdr_term_write_suppr(term), OK);
+  CHECK(rdr_term_write_suppr(term), OK);
+  CHECK_DUMP(term, i, buffer, L"foo\n$ cmd0__\n$ >>>]HelloCMDworld!");
+  CHECK(rdr_term_write_backspace(term), OK);
+  CHECK(rdr_term_write_backspace(term), OK);
+  CHECK(rdr_term_write_backspace(term), OK);
+  CHECK_DUMP(term, i, buffer, L"foo\n$ cmd0__\n$ >>>]Helloworld!");
+  CHECK(rdr_term_print_wstring(term, CMDOUT, L" ", WHITE), OK);
+  CHECK_DUMP(term, i, buffer, L"foo\n$ cmd0__\n$ >>>]Hello world!");
+  CHECK(rdr_clear_term(term, PROMPT), OK);
+  CHECK_DUMP(term, i, buffer, L"foo\n$ cmd0__\nHello world!");
+  CHECK(rdr_term_print_wstring(term, PROMPT, L"[prompt@localhost]$ ", WHITE), OK);
+  CHECK_DUMP(term, i, buffer, L"foo\n$ cmd0__\n[prompt@localhost]$ Hello world!");
+  CHECK(rdr_term_print_wstring(term, CMDOUT, L"X", WHITE), OK);
+  CHECK_DUMP(term, i, buffer, L"foo\n$ cmd0__\n[prompt@localhost]$ Hello Xworld!");
+  CHECK(rdr_term_write_return(term), OK);
+  CHECK_DUMP
+    (term, i, buffer,
+     L"foo\n$ cmd0__\n[prompt@localhost]$ Hello Xworld!\n[prompt@localhost]$ ");
+  CHECK(rdr_clear_term(term, PROMPT), OK);
+  CHECK(rdr_term_print_wstring(term, PROMPT, L"$ ", WHITE), OK);
+  CHECK_DUMP
+    (term, i, buffer,
+     L"foo\n$ cmd0__\n[prompt@localhost]$ Hello Xworld!\n$ ");
+  CHECK(rdr_term_print_wstring(term, CMDOUT, L"test", WHITE), OK);
+  CHECK_DUMP
+    (term, i, buffer,
+     L"foo\n$ cmd0__\n[prompt@localhost]$ Hello Xworld!\n$ test");
+  CHECK(rdr_clear_term(term, CMDOUT), OK);
+  CHECK_DUMP
+    (term, i, buffer,
+     L"foo\n$ cmd0__\n[prompt@localhost]$ Hello Xworld!\n$ ");
 
   CHECK(rdr_term_write_tab(NULL), BAD_ARG);
   CHECK(rdr_term_write_tab(term), OK);

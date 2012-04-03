@@ -28,7 +28,8 @@ struct rdr_term;
 
 enum rdr_term_output {
   RDR_TERM_STDOUT,
-  RDR_TERM_CMDOUT
+  RDR_TERM_CMDOUT,
+  RDR_TERM_PROMPT
 };
 
 extern enum rdr_error

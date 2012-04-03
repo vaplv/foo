@@ -7,6 +7,7 @@
 #include "renderer/rdr.h"
 #include "stdlib/sl.h"
 #include "stdlib/sl_hash_table.h"
+#include "sys/sys.h"
 #include <assert.h>
 #include <stdbool.h>
 #include <string.h>
@@ -137,7 +138,6 @@ app_setup_builtin_commands(struct app* app)
        APP_CMDARG_APPEND_STRING(NULL)),
      "load - load resources\n"
      "Usage: load --model PATH\n"));
-
 
   #undef CALL
 

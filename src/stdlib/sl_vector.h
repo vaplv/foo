@@ -56,10 +56,16 @@ sl_vector_remove
    size_t id);
 
 extern enum sl_error
+sl_vector_remove_n
+  (struct sl_vector* vector,
+   size_t id,
+   size_t count);
+
+extern enum sl_error
 sl_vector_resize
   (struct sl_vector* vector,
    size_t size,
-   const void* data);
+   const void* data); /* May be NULL. */
 
 extern enum sl_error
 sl_vector_reserve

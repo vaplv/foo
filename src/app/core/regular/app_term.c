@@ -152,6 +152,12 @@ app_init_term(struct app* app)
     app_err = rdr_to_app_error(rdr_err);
     goto error;
   }
+  rdr_err = rdr_term_print_wstring
+    (app->term.render_term, RDR_TERM_PROMPT, L"$ ", RDR_TERM_COLOR_GREEN);
+  if(RDR_NO_ERROR != rdr_err) {
+    app_err = rdr_to_app_error(rdr_err);
+    goto error;
+  }
   app->term.is_enabled = false;
 exit:
   return app_err;

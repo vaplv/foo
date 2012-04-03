@@ -313,30 +313,38 @@ error:
 }
 
 EXPORT_SYM enum sl_error
-sl_vector_remove
-  (struct sl_vector* vec,
-   size_t id)
+sl_vector_remove(struct sl_vector* vec, size_t id)
 {
-  void* src = NULL;
-  void* dst = NULL;
-  enum sl_error err = SL_NO_ERROR;
+  return sl_vector_remove_n(vec, id, 1);
+}
 
-  if(!vec || id >= vec->length) {
+EXPORT_SYM enum sl_error
+sl_vector_remove_n(struct sl_vector* vec, size_t id, size_t count)
+{
+  enum sl_error err = SL_NO_ERROR;
+  size_t adjusted_count = 0;
+  if(!vec || (count && id >= vec->length)) {
     err = SL_INVALID_ARGUMENT;
     goto error;
   }
-  if(id != vec->length - 1) {
-    src = (void*)((uintptr_t)vec->buffer + vec->data_size * (id + 1));
+  if(0 == count)
+    goto exit;
+  adjusted_count = MIN(vec->length - id, count);
+  if(id + adjusted_count != vec->length) {
+    const void* src = NULL;
+    void* dst = NULL;
+    const size_t tmp = id + adjusted_count;
+    src = (void*)((uintptr_t)vec->buffer + vec->data_size * tmp);
     dst = (void*)((uintptr_t)vec->buffer + vec->data_size * id);
-    dst = memmove(dst, src, vec->data_size * (vec->length - id - 1));
+    dst = memmove(dst, src, vec->data_size * (vec->length - tmp));
   }
-  --vec->length;
-
+  vec->length -= adjusted_count;
 exit:
   return err;
 error:
   goto exit;
 }
+
 
 EXPORT_SYM enum sl_error
 sl_vector_resize
@@ -354,8 +362,7 @@ sl_vector_resize
     goto error;
   }
   if(size > vec->capacity) {
-    for(new_capacity = vec->capacity; new_capacity < size; new_capacity *= 2);
-
+    for(new_capacity=MAX(vec->capacity, 1); new_capacity<size; new_capacity*=2);
     err = ensure_allocated(vec, new_capacity, true);
     if(err != SL_NO_ERROR)
       goto error;

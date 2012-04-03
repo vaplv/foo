@@ -343,7 +343,7 @@ SL_STRING_ERASE(SL_STRING_TYPE)
 {
   enum sl_error sl_err = SL_NO_ERROR;
 
-  if(!str || id >= str->len) {
+  if(!str || (len && id >= str->len)) {
     sl_err = SL_INVALID_ARGUMENT;
     goto error;
   }
@@ -351,11 +351,12 @@ SL_STRING_ERASE(SL_STRING_TYPE)
     sl_err = SL_STRING_ERASE_CHAR(SL_STRING_TYPE)(str, id);
     if(sl_err != SL_NO_ERROR)
       goto error;
-  } else {
+  } else if(0 != len) {
     if(len >= str->len - id) {
       str->len = id;
     } else {
-      const size_t idplen = id + len;
+      const size_t adjusted_len = MIN(len, str->len - id);
+      const size_t idplen = id + adjusted_len;
       memcpy
         (str->cstr + id,
          str->cstr + idplen,
@@ -364,7 +365,6 @@ SL_STRING_ERASE(SL_STRING_TYPE)
     }
     str->cstr[str->len] = SL_NULL_CHAR;
   }
-
 exit:
   return sl_err;
 error:
