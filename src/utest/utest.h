@@ -10,8 +10,8 @@
     exit(-1); \
   } while(0)
 
-#define CHECK(a, b) if((a) != (b)) ERROR
-#define NCHECK(a, b) if((a) == (b)) ERROR
+#define CHECK(a, b) do { if((a) != (b)) ERROR; } while(0)
+#define NCHECK(a, b) do { if((a) == (b)) ERROR; } while(0)
 
 #endif /* UTEST_H */
 

@@ -79,5 +79,14 @@ app_execute_command
   (struct app* app,
    const char* command);
 
+/* The returned list is valid until the add/del command function is called. */
+extern enum app_error
+app_command_completion
+  (struct app* app,
+   const char* cmd_name,
+   size_t cmd_name_len,
+   size_t* completion_list_len,
+   const char** completion_list[]); 
+
 #endif /* APP_COMMAND_H */
 

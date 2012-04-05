@@ -6,6 +6,7 @@
 #include "app/core/app_command_buffer.h"
 #include "stdlib/sl.h"
 #include "stdlib/sl_hash_table.h"
+#include "stdlib/sl_set.h"
 #include "sys/mem_allocator.h"
 #include "sys/sys.h"
 #include <assert.h>
@@ -15,7 +16,7 @@
 
 /*******************************************************************************
  *
- * Hash table functions.
+ * Hash table/set functions.
  *
  ******************************************************************************/
 static size_t
@@ -31,6 +32,14 @@ eq_str(const void* key0, const void* key1)
   const char* str0 = *(const char**)key0;
   const char* str1 = *(const char**)key1;
   return strcmp(str0, str1) == 0;
+}
+
+static int
+cmp_str(const void* a, const void* b)
+{
+  const char* str0 = *(const char**)a;
+  const char* str1 = *(const char**)b;
+  return strcmp(str0, str1);
 }
 
 /*******************************************************************************
@@ -195,19 +204,32 @@ app_add_command
     app_err = sl_to_app_error(sl_err);
     goto error;
   }
+  sl_err = sl_set_insert(app->cmd.name_set, &cmd_name);
+  if(SL_NO_ERROR != sl_err) {
+    app_err = sl_to_app_error(sl_err);
+    goto error;
+  }
 exit:
   return app_err;
 error:
-  /* The command insertion is the last action of this function. The command is
-   * thus inserted only if no error occurs and consequently we don't have to
-   * manage its deletion from the command system when an error is detected. */
+  if(cmd_name) {
+    size_t j = 0;
+    if(SL(hash_table_find(app->cmd.htbl, &cmd_name, ptr)), NULL != ptr) {
+      SL(hash_table_erase(app->cmd.htbl, &cmd_name, &i));
+      assert(0 == i);
+    }
+    SL(set_find(app->cmd.name_set, &cmd_name, &i));
+    SL(set_buffer(app->cmd.name_set, &j, NULL, NULL, NULL));
+    if(i != j) {
+      SL(set_remove(app->cmd.name_set, &cmd_name));
+    }
+    MEM_FREE(app->allocator, cmd_name);
+  }
   if(cmd) {
     if(cmd->description)
       MEM_FREE(app->allocator, cmd->description);
     MEM_FREE(app->allocator, cmd);
   }
-  if(cmd_name)
-    MEM_FREE(app->allocator, cmd_name);
   goto exit;
 }
 
@@ -232,7 +254,8 @@ app_del_command(struct app* app, const char* name)
   cmd_name = *(char**)pair.key;
   cmd = *(struct app_command**)pair.data;
   SL(hash_table_erase(app->cmd.htbl, &name, &nb_erased));
-  assert(nb_erased == 1);
+  assert(1 == nb_erased);
+  SL(set_remove(app->cmd.name_set, &name));
   MEM_FREE(app->allocator, cmd_name);
   if(cmd->description)
     MEM_FREE(app->allocator, cmd->description);
@@ -294,6 +317,80 @@ error:
   goto exit;
 }
 
+EXPORT_SYM enum app_error
+app_command_completion
+  (struct app* app,
+   const char* cmd_name,
+   size_t cmd_name_len,
+   size_t* completion_list_len,
+   const char** completion_list[])
+{
+  const char** name_list = NULL;
+  size_t len = 0;
+  enum app_error app_err = APP_NO_ERROR;
+
+  if(!app
+  || (cmd_name_len && !cmd_name)
+  || !completion_list_len
+  || !completion_list) {
+    app_err = APP_INVALID_ARGUMENT;
+    goto error;
+  }
+
+  SL(set_buffer(app->cmd.name_set, &len, NULL, NULL, (void**)&name_list));
+  if(0 == cmd_name_len) {
+    *completion_list_len = len;
+    *completion_list = name_list;
+  } else {
+    size_t begin = 0;
+    size_t end = 0;
+    bool b = false;
+
+    #define LOWER_BOUND 0
+    #define UPPER_BOUND 1
+    #define DICHOTOMY_SEARCH(bound_type) \
+      do { \
+        begin = 0; \
+        end = len; \
+        b = false; \
+        while(begin != end) { \
+          const size_t at = begin + (end - begin) / 2; \
+          const int cmp = strncmp(cmd_name, name_list[at], cmd_name_len); \
+          if(cmp > 0) { \
+            begin = at + 1; \
+          } else if(cmp < 0) { \
+            end = at; \
+          } else { /* cmp == 0. */ \
+            if(UPPER_BOUND == bound_type) \
+              begin = at + 1; \
+            else \
+              end = at; \
+            b = true; \
+          } \
+        } \
+      } while(0)
+    DICHOTOMY_SEARCH(LOWER_BOUND);
+    if(false == b) {
+      *completion_list_len = 0;
+      *completion_list = NULL;
+    } else {
+      *completion_list = name_list + begin;
+      DICHOTOMY_SEARCH(UPPER_BOUND);
+      assert
+        (  true == b
+        && (uintptr_t)(name_list + begin) >= (uintptr_t)(*completion_list));
+      *completion_list_len = (name_list + begin) - (*completion_list);
+    }
+    #undef LOWER_BOUND
+    #undef UPPER_BOUND
+    #undef DICHOTOMY_SEARCH
+  }
+exit:
+  return app_err;
+error:
+  goto exit;
+}
+
 /*******************************************************************************
  *
  * Private functions.
@@ -310,15 +407,25 @@ app_init_command_system(struct app* app)
     goto error;
   }
   sl_err = sl_create_hash_table
-    (sizeof(char*),
-     ALIGNOF(char*),
+    (sizeof(const char*),
+     ALIGNOF(const char*),
      sizeof(struct app_command*),
      ALIGNOF(struct app_command*),
      hash_str,
      eq_str,
      app->allocator,
      &app->cmd.htbl);
-  if(sl_err != SL_NO_ERROR) {
+  if(SL_NO_ERROR != sl_err) {
+    app_err = sl_to_app_error(sl_err);
+    goto error;
+  }
+  sl_err = sl_create_set
+    (sizeof(const char*),
+     ALIGNOF(const char*),
+     cmp_str,
+     app->allocator,
+     &app->cmd.name_set);
+  if(SL_NO_ERROR != sl_err) {
     app_err = sl_to_app_error(sl_err);
     goto error;
   }
@@ -339,6 +446,10 @@ app_shutdown_command_system(struct app* app)
   if(!app)
     return APP_INVALID_ARGUMENT;
 
+  if(app->cmd.name_set) {
+    SL(free_set(app->cmd.name_set));
+    app->cmd.name_set = NULL;
+  }
   if(app->cmd.htbl) {
     del_all_commands(app);
     SL(free_hash_table(app->cmd.htbl));

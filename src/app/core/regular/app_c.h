@@ -55,8 +55,9 @@ struct app {
   struct sl_set* object_list[APP_NB_OBJECT_TYPES];
 
   struct command_system {
-    struct sl_hash_table* htbl; /* htbl of commands. */
     char scratch[1024];
+    struct sl_hash_table* htbl; /* htbl of commands. */
+    struct sl_set* name_set; /* set of const char*. */
   } cmd;
 
   struct term {

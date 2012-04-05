@@ -50,7 +50,6 @@ data_id
     err = sl_vector_at(set->vector, at, &tmp_data);
     if(err != SL_NO_ERROR)
       goto error;
-
     cmp = set->compare(data, tmp_data);
     if(cmp == 0) {
         is_data_found = true;
@@ -63,12 +62,10 @@ data_id
       }
     }
   }
-
 exit:
   *out_id = end;
   *out_is_data_found = is_data_found;
   return err;
-
 error:
   end = 0;
   is_data_found = false;

@@ -5,6 +5,8 @@
 #include <stddef.h>
 
 struct mem_allocator* allocator;
+
+/* Associative container in which the elements themselves are the key. */
 struct sl_set;
 
 extern enum sl_error

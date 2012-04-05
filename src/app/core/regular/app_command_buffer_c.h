@@ -19,7 +19,7 @@ app_regular_command_buffer_ref_put
 
 extern enum app_error
 app_get_command_buffer_string
-  (struct app_command_buffer* app,
+  (struct app_command_buffer* buf,
    size_t* cursor, /* May be NULL. */
    const char** str) /* May be NULL. */;
 

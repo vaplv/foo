@@ -38,7 +38,7 @@ foo(struct app* app UNUSED, size_t argc, struct app_cmdarg* argv UNUSED)
   CHECK(argc, 1);
   CHECK(argv[0].type, APP_CMDARG_STRING);
   printf("%s\n", argv[0].value.string);
-  CHECK(strcmp(argv[0].value.string, "foo"), 0);
+  CHECK(strcmp(argv[0].value.string, "__foo"), 0);
 }
 
 static void
@@ -51,12 +51,12 @@ setf3(struct app* app UNUSED, size_t argc, struct app_cmdarg* argv)
   CHECK(argv[2].type, APP_CMDARG_FLOAT);
   CHECK(argv[3].type, APP_CMDARG_FLOAT);
   printf
-    ("%s %f %f %f\n", 
+    ("%s %f %f %f\n",
      argv[0].value.string,
      argv[1].value.real,
      argv[2].value.real,
      argv[3].value.real);
-  CHECK(strcmp(argv[0].value.string, "setf3"), 0);
+  CHECK(strcmp(argv[0].value.string, "__setf3"), 0);
   CHECK(argv[1].value.real, F0);
   CHECK(argv[2].value.real, F1);
   CHECK(argv[3].value.real, F2);
@@ -72,12 +72,12 @@ setf3_clamp(struct app* app UNUSED, size_t argc, struct app_cmdarg* argv)
   CHECK(argv[2].type, APP_CMDARG_FLOAT);
   CHECK(argv[3].type, APP_CMDARG_FLOAT);
   printf
-    ("%s %f %f %f\n", 
+    ("%s %f %f %f\n",
      argv[0].value.string,
      argv[1].value.real,
      argv[2].value.real,
      argv[3].value.real);
-  CHECK(strcmp(argv[0].value.string, "setf3_clamp"), 0);
+  CHECK(strcmp(argv[0].value.string, "__setf3_clamp"), 0);
   NCHECK(argv[1].value.real, F0);
   NCHECK(argv[2].value.real, F1);
   CHECK(argv[3].value.real, F2);
@@ -93,10 +93,10 @@ seti(struct app* app UNUSED, size_t argc, struct app_cmdarg* argv)
   CHECK(argv[0].type, APP_CMDARG_STRING);
   CHECK(argv[1].type, APP_CMDARG_INT);
   printf
-    ("%s %i\n", 
+    ("%s %i\n",
      argv[0].value.string,
      argv[1].value.integer);
-  CHECK(strcmp(argv[0].value.string, "seti"), 0);
+  CHECK(strcmp(argv[0].value.string, "__seti"), 0);
   CHECK(argv[1].value.integer, I);
 }
 
@@ -107,10 +107,10 @@ seti_clamp(struct app* app UNUSED, size_t argc, struct app_cmdarg* argv)
   CHECK(argv[0].type, APP_CMDARG_STRING);
   CHECK(argv[1].type, APP_CMDARG_INT);
   printf
-    ("%s %i\n", 
+    ("%s %i\n",
      argv[0].value.string,
      argv[1].value.integer);
-  CHECK(strcmp(argv[0].value.string, "seti_clamp"), 0);
+  CHECK(strcmp(argv[0].value.string, "__seti_clamp"), 0);
   NCHECK(argv[1].value.integer, I);
   CHECK(argv[1].value.integer, MIN(MAX(I, MIN_IBOUND), MAX_IBOUND));
 }
@@ -122,10 +122,10 @@ print(struct app* app UNUSED, size_t argc, struct app_cmdarg* argv)
   CHECK(argv[0].type, APP_CMDARG_STRING);
   CHECK(argv[1].type, APP_CMDARG_STRING);
   printf
-    ("%s %s\n", 
+    ("%s %s\n",
      argv[0].value.string,
      argv[1].value.string);
-  CHECK(strcmp(argv[0].value.string, "print"), 0);
+  CHECK(strcmp(argv[0].value.string, "__print"), 0);
 }
 
 int
@@ -133,6 +133,8 @@ main(int argc, char** argv)
 {
   struct app_args args = { NULL, NULL, NULL, NULL };
   struct app* app = NULL;
+  const char** list = NULL;
+  size_t len = 0;
 
   if(argc != 2) {
     printf("usage: %s RB_DRIVER\n", argv[0]);
@@ -145,65 +147,131 @@ main(int argc, char** argv)
   CHECK(app_add_command(NULL, NULL, NULL, 0, NULL, NULL), BAD_ARG);
   CHECK(app_add_command(app, NULL, NULL, 0, NULL, NULL), BAD_ARG);
   CHECK(app_add_command(NULL, NULL, NULL, 0, NULL, NULL), BAD_ARG);
-  CHECK(app_add_command(app, "foo", NULL, 0, NULL, NULL), BAD_ARG);
+  CHECK(app_add_command(app, "__foo", NULL, 0, NULL, NULL), BAD_ARG);
   CHECK(app_add_command(NULL, NULL, foo, 0, NULL, NULL), BAD_ARG);
   CHECK(app_add_command(app, NULL, foo, 0, NULL, NULL), BAD_ARG);
   CHECK(app_add_command(NULL, NULL, foo, 0, NULL, NULL), BAD_ARG);
-  CHECK(app_add_command(app, "foo", foo, 0, NULL, NULL), OK);
-  CHECK(app_add_command(app, "foo", foo, 0, NULL, NULL), BAD_ARG);
-  CHECK(app_add_command(app, "foo", foo, 1, APP_CMDARGV
+  CHECK(app_add_command(app, "__foo", foo, 0, NULL, NULL), OK);
+  CHECK(app_add_command(app, "__foo", foo, 0, NULL, NULL), BAD_ARG);
+  CHECK(app_add_command(app, "__foo", foo, 1, APP_CMDARGV
     (APP_CMDARG_APPEND_INT(INT_MAX, INT_MIN)), NULL), BAD_ARG);
 
   CHECK(app_execute_command(NULL, NULL), BAD_ARG);
   CHECK(app_execute_command(app, NULL), BAD_ARG);
-  CHECK(app_execute_command(NULL, "foox"), BAD_ARG);
-  CHECK(app_execute_command(app, "foox"), CMD_ERR);
-  CHECK(app_execute_command(app, "foo"), OK);
+  CHECK(app_execute_command(NULL, "__foox"), BAD_ARG);
+  CHECK(app_execute_command(app, "__foox"), CMD_ERR);
+  CHECK(app_execute_command(app, "__foo"), OK);
 
   CHECK(app_del_command(NULL, NULL), BAD_ARG);
   CHECK(app_del_command(app, NULL), BAD_ARG);
-  CHECK(app_del_command(NULL, "foox"), BAD_ARG);
-  CHECK(app_del_command(app, "foox"), BAD_ARG);
-  CHECK(app_del_command(app, "foo"), OK);
-  CHECK(app_execute_command(app, "foo"), CMD_ERR);
+  CHECK(app_del_command(NULL, "__foox"), BAD_ARG);
+  CHECK(app_del_command(app, "__foox"), BAD_ARG);
+  CHECK(app_del_command(app, "__foo"), OK);
+  CHECK(app_execute_command(app, "__foo"), CMD_ERR);
 
-  CHECK(app_add_command(app, "setf3", setf3, 3, APP_CMDARGV
+  CHECK(app_add_command(app, "__setf3", setf3, 3, APP_CMDARGV
     (APP_CMDARG_APPEND_FLOAT3(FLT_MAX, -FLT_MAX)), "Usage:"), OK);
-  CHECK(app_execute_command(app, "setf3 "STR(F0)" "STR(F1)" "STR(F2)), OK);
+  CHECK(app_execute_command(app, "__setf3 "STR(F0)" "STR(F1)" "STR(F2)), OK);
 
-  CHECK(app_add_command(app, "setf3_clamp", setf3_clamp, 3, APP_CMDARGV
+  CHECK(app_add_command(app, "__setf3_clamp", setf3_clamp, 3, APP_CMDARGV
     (APP_CMDARG_APPEND_FLOAT3(MIN_FBOUND, MAX_FBOUND)), NULL), OK);
-  CHECK(app_execute_command(app, "setf3 "STR(F0)" "STR(F1)" "STR(F2)), OK);
-  CHECK(app_execute_command(app, "setf3_clamp "STR(F0)" "STR(F1)" "STR(F2)), OK);
+  CHECK(app_execute_command(app, "__setf3 "STR(F0)" "STR(F1)" "STR(F2)), OK);
+  CHECK(app_execute_command(app, "__setf3_clamp "STR(F0)" "STR(F1)" "STR(F2)), OK);
 
-  CHECK(app_add_command(app, "seti", seti, 1, APP_CMDARGV
+  CHECK(app_add_command(app, "__seti", seti, 1, APP_CMDARGV
     (APP_CMDARG_APPEND_INT(INT_MAX, INT_MIN)), "None"), OK);
-  CHECK(app_execute_command(app, "seti "STR(I)), OK);
+  CHECK(app_execute_command(app, "__seti "STR(I)), OK);
 
-  CHECK(app_add_command(app, "seti_clamp", seti_clamp, 1, APP_CMDARGV
+  CHECK(app_add_command(app, "__seti_clamp", seti_clamp, 1, APP_CMDARGV
     (APP_CMDARG_APPEND_INT(MIN_IBOUND, MAX_IBOUND)), "Foo"), OK);
-  CHECK(app_execute_command(app, "seti_clamp "STR(I)), OK);
-  CHECK(app_execute_command(app, "seti_clamp "STR(I)" 5 6 8 9"), OK);
+  CHECK(app_execute_command(app, "__seti_clamp "STR(I)), OK);
+  CHECK(app_execute_command(app, "__seti_clamp "STR(I)" 5 6 8 9"), OK);
 
-  CHECK(app_add_command(app, "print", print, 1, APP_CMDARGV
+  CHECK(app_add_command(app, "__print", print, 1, APP_CMDARGV
     (APP_CMDARG_APPEND_STRING(NULL)), NULL), OK);
-  CHECK(app_execute_command(app, "print \"Hello world!\""), OK);
-  CHECK(app_del_command(app, "print"), OK);
-  CHECK(app_add_command(app, "print", print, 1, APP_CMDARGV
+  CHECK(app_execute_command(app, "__print \"Hello world!\""), OK);
+  CHECK(app_del_command(app, "__print"), OK);
+  CHECK(app_add_command(app, "__print", print, 1, APP_CMDARGV
     (APP_CMDARG_APPEND_STRING(day_list)), NULL), OK);
-  CHECK(app_execute_command(app, "print \"Hello_world!\""), CMD_ERR);
-  CHECK(app_execute_command(app, "print Monday"), OK);
-  CHECK(app_execute_command(app, "print Tuesday"), OK);
-  CHECK(app_execute_command(app, "print Wednesday"), OK);
-  CHECK(app_execute_command(app, "print Thursday"), OK);
-  CHECK(app_execute_command(app, "print Friday"), OK);
-  CHECK(app_execute_command(app, "print Saturday"), OK);
-  CHECK(app_execute_command(app, "print Sunday"), OK);
-  CHECK(app_execute_command(app, "print saturday"), CMD_ERR);
+  CHECK(app_execute_command(app, "__print \"Hello_world!\""), CMD_ERR);
+  CHECK(app_execute_command(app, "__print Monday"), OK);
+  CHECK(app_execute_command(app, "__print Tuesday"), OK);
+  CHECK(app_execute_command(app, "__print Wednesday"), OK);
+  CHECK(app_execute_command(app, "__print Thursday"), OK);
+  CHECK(app_execute_command(app, "__print Friday"), OK);
+  CHECK(app_execute_command(app, "__print Saturday"), OK);
+  CHECK(app_execute_command(app, "__print Sunday"), OK);
+  CHECK(app_execute_command(app, "__print saturday"), CMD_ERR);
 
   CHECK(app_add_command(app, "Error", seti, 1, (struct app_cmdarg_desc[])
     {{.type=APP_NB_CMDARG_TYPES, .domain={.integer={.min=0, .max=0}}}}, NULL),
     BAD_ARG);
+
+  CHECK(app_command_completion(NULL, NULL, 5, NULL, NULL), BAD_ARG);
+  CHECK(app_command_completion(app, NULL, 5, NULL, NULL), BAD_ARG);
+  CHECK(app_command_completion(NULL, "__setf5", 5, NULL, NULL), BAD_ARG);
+  CHECK(app_command_completion(app, "__setf5", 5, NULL, NULL), BAD_ARG);
+  CHECK(app_command_completion(NULL, NULL, 5, &len, NULL), BAD_ARG);
+  CHECK(app_command_completion(app, NULL, 5, &len, NULL), BAD_ARG);
+  CHECK(app_command_completion(NULL, "__setf5", 5, &len, NULL), BAD_ARG);
+  CHECK(app_command_completion(app, "__setf5", 5, &len, NULL), BAD_ARG);
+  CHECK(app_command_completion(NULL, NULL, 5, NULL, &list), BAD_ARG);
+  CHECK(app_command_completion(app, NULL, 5, NULL, &list), BAD_ARG);
+  CHECK(app_command_completion(NULL, "__setf5", 5, NULL, &list), BAD_ARG);
+  CHECK(app_command_completion(app, "__setf5", 5, NULL, &list), BAD_ARG);
+  CHECK(app_command_completion(NULL, NULL, 5, &len, &list), BAD_ARG);
+  CHECK(app_command_completion(app, NULL, 5, &len, &list), BAD_ARG);
+  CHECK(app_command_completion(NULL, "__setf5", 5, &len, &list), BAD_ARG);
+  CHECK(app_command_completion(app, "__setf5", 5, &len, &list), OK);
+  CHECK(len, 4);
+  CHECK(strcmp(list[0], "__setf3"), 0);
+  CHECK(strcmp(list[1], "__setf3_clamp"), 0);
+  CHECK(strcmp(list[2], "__seti"), 0);
+  CHECK(strcmp(list[3], "__seti_clamp"), 0);
+  CHECK(app_command_completion(app, "__setf", 6, &len, &list), OK);
+  CHECK(len, 2);
+  CHECK(strcmp(list[0], "__setf3"), 0);
+  CHECK(strcmp(list[1], "__setf3_clamp"), 0);
+  CHECK(app_command_completion(app, "__setf3_", 8, &len, &list), OK);
+  CHECK(len, 1);
+  CHECK(strcmp(list[0], "__setf3_clamp"), 0);
+
+  CHECK(app_add_command(app, "__setf3__", setf3, 3, APP_CMDARGV
+    (APP_CMDARG_APPEND_FLOAT3(FLT_MAX, -FLT_MAX)), "None"), OK);
+  CHECK(app_command_completion(app, "__setf5", 5, &len, &list), OK);
+  CHECK(len, 5);
+  CHECK(strcmp(list[0], "__setf3"), 0);
+  CHECK(strcmp(list[1], "__setf3__"), 0);
+  CHECK(strcmp(list[2], "__setf3_clamp"), 0);
+  CHECK(strcmp(list[3], "__seti"), 0);
+  CHECK(strcmp(list[4], "__seti_clamp"), 0);
+  CHECK(app_command_completion(app, "__setf", 6, &len, &list), OK);
+  CHECK(len, 3);
+  CHECK(strcmp(list[0], "__setf3"), 0);
+  CHECK(strcmp(list[1], "__setf3__"), 0);
+  CHECK(strcmp(list[2], "__setf3_clamp"), 0);
+  CHECK(app_command_completion(app, "__setf3_", 8, &len, &list), OK);
+  CHECK(len, 2);
+  CHECK(strcmp(list[0], "__setf3__"), 0);
+  CHECK(strcmp(list[1], "__setf3_clamp"), 0);
+  CHECK(app_command_completion(app, "__seti_xxxxxxx", 6, &len, &list), OK);
+  CHECK(len, 2);
+  CHECK(strcmp(list[0], "__seti"), 0);
+  CHECK(strcmp(list[1], "__seti_clamp"), 0);
+  CHECK(app_command_completion(app, "__seti_xxxxxxx", 7, &len, &list), OK);
+  CHECK(len, 1);
+  CHECK(strcmp(list[0], "__seti_clamp"), 0);
+  CHECK(app_command_completion(app, "__seti_xxxxxxx", 8, &len, &list), OK);
+  CHECK(len, 0);
+  CHECK(list, NULL);
+  CHECK(app_command_completion(app, "__seti_xxxxxxx", 2, &len, &list), OK);
+  CHECK(len, 6);
+  CHECK(strcmp(list[0], "__print"), 0);
+  CHECK(strcmp(list[1], "__setf3"), 0);
+  CHECK(strcmp(list[2], "__setf3__"), 0);
+  CHECK(strcmp(list[3], "__setf3_clamp"), 0);
+  CHECK(strcmp(list[4], "__seti"), 0);
+  CHECK(strcmp(list[5], "__seti_clamp"), 0);
 
   /* Builtin commands. */
   CHECK(app_execute_command(app, "help ls"), OK);

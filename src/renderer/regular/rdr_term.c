@@ -923,7 +923,7 @@ tokenize_cstr(const void* str, struct token* tkn)
   tkn->len = strlen((const char*)str);
 }
 
-static size_t 
+static size_t
 str_len(const void* str)
 {
   return wcslen((const wchar_t*)str);
@@ -941,7 +941,7 @@ generic_print_string
    enum rdr_term_output output,
    const void* str,
    const unsigned char color[3],
-   size_t sizeof_char, 
+   size_t sizeof_char,
    enum sl_error (*wstring_insert)(struct sl_wstring*, size_t, const void*),
    enum sl_error (*wstring_append)(struct sl_wstring*, const void*),
    void tokenize(const void*, struct token* tkn),
@@ -1261,7 +1261,7 @@ rdr_term_print_wstring
    const unsigned char color[3])
 {
   return generic_print_string
-    (term, output, str, color, sizeof(wchar_t), 
+    (term, output, str, color, sizeof(wchar_t),
      wstring_insert, wstring_append, tokenize, str_len);
 }
 
@@ -1273,7 +1273,7 @@ rdr_term_print_string
    const unsigned char color[3])
 {
   return generic_print_string
-    (term, output, str, color, sizeof(char), 
+    (term, output, str, color, sizeof(char),
      wstring_insert_cstr, wstring_append_cstr, tokenize_cstr, str_len_cstr);
 }
 
@@ -1468,7 +1468,7 @@ rdr_term_dump(struct rdr_term* term, size_t* out_len, wchar_t* buffer)
     }
     len -= (len > 0); /* Remove the NULL char. */
     if(out_len)
-      *out_len = len; 
+      *out_len = len;
     if(buffer)
       buffer[len] = L'\0';
 

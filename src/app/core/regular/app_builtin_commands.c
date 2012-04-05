@@ -7,6 +7,7 @@
 #include "renderer/rdr.h"
 #include "stdlib/sl.h"
 #include "stdlib/sl_hash_table.h"
+#include "stdlib/sl_set.h"
 #include "sys/sys.h"
 #include <assert.h>
 #include <stdbool.h>
@@ -87,8 +88,20 @@ cmd_ls(struct app* app, size_t argc UNUSED, struct app_cmdarg* argv)
       && argv != NULL
       && argv[0].type == APP_CMDARG_STRING
       && argv[1].type == APP_CMDARG_STRING);
-  APP_LOG_WARN
-    (app->logger, "%s: command not implemented\n", argv[0].value.string);
+  if(0 == strcmp("--commands", argv[1].value.string)) {
+    const char** name_list = NULL;
+    size_t len = 0;
+    size_t i = 0;
+    SL(set_buffer(app->cmd.name_set, &len, NULL, NULL, (void**)&name_list));
+    for(i = 0; i < len; ++i) {
+      APP_LOG_MSG(app->logger, "%s\n", name_list[i]);
+    }
+    APP_LOG_MSG(app->logger, "[total %zu]\n", len);
+  } else {
+    APP_LOG_WARN
+      (app->logger, "%s %s: command not implemented\n", 
+       argv[0].value.string, argv[1].value.string);
+  }
 }
 
 static void

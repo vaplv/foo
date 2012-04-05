@@ -2,6 +2,7 @@
 #include "app/core/regular/app_command_buffer_c.h"
 #include "app/core/regular/app_error_c.h"
 #include "app/core/regular/app_term.h"
+#include "app/core/app_command.h"
 #include "app/core/app_command_buffer.h"
 #include "renderer/rdr.h"
 #include "renderer/rdr_term.h"
@@ -16,6 +17,54 @@
  * Helper functions.
  *
  ******************************************************************************/
+static void
+command_completion(struct term* term)
+{
+  struct app* app = NULL;
+  const char* cmdbuf = NULL;
+  const char** list = NULL;
+  size_t cursor = 0;
+  size_t len = 0;
+  assert(term);
+
+  app = CONTAINER_OF(term, struct app, term);
+
+  APP(get_command_buffer_string(app->term.cmdbuf, &cursor, &cmdbuf));
+  APP(command_completion(app, cmdbuf, cursor, &len, &list));
+  if(0 != len) {
+    const size_t last = len - 1;
+    size_t i = 0;
+
+    while(list[0][cursor] == list[last][cursor] && list[0][cursor] != '\0') {
+      APP(command_buffer_write_char(app->term.cmdbuf, list[0][cursor]));
+      RDR(term_print_wchar
+          (app->term.render_term,
+           RDR_TERM_CMDOUT,
+           (wchar_t)list[0][cursor],
+           RDR_TERM_COLOR_WHITE));
+      ++cursor;
+    }
+    if(1 < len) {
+      for(i = 0; i < len; ++i) {
+        if(0 != i) {
+          RDR(term_print_wchar
+            (app->term.render_term,
+             RDR_TERM_STDOUT,
+             L'\t',
+             RDR_TERM_COLOR_WHITE));
+        }
+        RDR(term_print_string
+          (app->term.render_term,
+           RDR_TERM_STDOUT,
+           list[i],
+           RDR_TERM_COLOR_WHITE));
+      }
+      RDR(term_print_wchar
+        (app->term.render_term, RDR_TERM_STDOUT, L'\n', RDR_TERM_COLOR_WHITE));
+    }
+  }
+}
+
 static void
 term_char_clbk(wchar_t wch, enum wm_state state, void* data)
 {
@@ -44,21 +93,6 @@ exit:
   return;
 error:
   goto exit;
-}
-
-static FINLINE enum app_error
-set_term_cmdout(struct rdr_term* term, const char* cstr)
-{
-  enum rdr_error rdr_err = RDR_NO_ERROR;
-  assert(term && cstr);
-  RDR(clear_term(term, RDR_TERM_CMDOUT));
-  rdr_err = rdr_term_print_string
-    (term, RDR_TERM_CMDOUT, cstr, RDR_TERM_COLOR_WHITE);
-  if(RDR_NO_ERROR != rdr_err) {
-    return rdr_to_app_error(rdr_err);
-  } else {
-    return APP_NO_ERROR;
-  }
 }
 
 static void
@@ -117,6 +151,9 @@ term_key_clbk(enum wm_key key, enum wm_state state, void* data)
        (term->render_term, RDR_TERM_CMDOUT, cstr, RDR_TERM_COLOR_WHITE));
       assert(cursor == strlen(cstr));
       break;
+    case WM_KEY_TAB:
+      command_completion(term);
+      break;
     default:
       break;
   }
@@ -133,7 +170,7 @@ app_init_term(struct app* app)
   struct wm_window_desc win_desc;
   enum app_error app_err = APP_NO_ERROR;
   enum rdr_error rdr_err = RDR_NO_ERROR;
-  
+
   if(!app || !app->rdr.term_font || !app->wm.window) {
     app_err = APP_INVALID_ARGUMENT;
     goto error;
