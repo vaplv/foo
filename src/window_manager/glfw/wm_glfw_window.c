@@ -31,6 +31,7 @@ release_window(struct ref* ref)
   win = CONTAINER_OF(ref, struct wm_window, ref);
   dev = win->device;
 
+  glfwEnable(GLFW_AUTO_POLL_EVENTS);
   glfwDisable(GLFW_KEY_REPEAT);
   glfwCloseWindow();
   MEM_FREE(dev->allocator, win);
@@ -81,6 +82,7 @@ wm_create_window
     goto error;
   }
   glfwEnable(GLFW_KEY_REPEAT);
+  glfwDisable(GLFW_AUTO_POLL_EVENTS);
 
 exit:
   if(out_win)

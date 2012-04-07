@@ -60,6 +60,7 @@ enum wm_key {
   WM_KEY_8,
   WM_KEY_9,
   WM_KEY_DOT,
+  WM_KEY_SQUARE,
   WM_KEY_SPACE,
   WM_KEY_ESC,
   WM_KEY_F1,

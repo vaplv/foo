@@ -46,7 +46,7 @@ cmd_load(struct app* app, size_t argc UNUSED, struct app_cmdarg* argv)
   if(0 == strcmp(argv[1].value.string, "--model")) {
     app_err = app_create_model(app, argv[2].value.string, &mdl);
     if(app_err == APP_NO_ERROR) {
-      APP_LOG_MSG(app->logger, "Model loaded `%s'\n", argv[1].value.string);
+      APP_LOG_MSG(app->logger, "Model loaded `%s'\n", argv[2].value.string);
     } else {
       APP_LOG_ERR(app->logger, "Model loading error\n");
     }

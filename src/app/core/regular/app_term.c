@@ -73,7 +73,7 @@ term_char_clbk(wchar_t wch, enum wm_state state, void* data)
   const char ch = (char)wch;
   assert(data);
 
-  if(state != WM_PRESS || (wch > 255 && wch < 0))
+  if(state != WM_PRESS || wch > 126 || wch < 32)
     goto exit;
 
   app_err = app_command_buffer_write_char(app->term.cmdbuf, ch);

@@ -51,13 +51,61 @@ compare(const void* p0, const void* p1)
   const struct vvtvn* a = (const struct vvtvn*)p0;
   const struct vvtvn* b = (const struct vvtvn*)p1;
   return (a->v == b->v) & (a->vt == b->vt) & (a->vn == b->vn);
-}
+} 
 
 /*******************************************************************************
  *
  * Helper functions.
  *
  ******************************************************************************/
+/* Triangulate the face defined by nb_verts stored into vert_list. The
+ * triangulation is performed without adding any new vertex by reindexing
+ * the vert_list into out_vert_id_list. */
+static enum rsrc_error
+triangulate
+  (struct rsrc_wavefront_obj_face* vert_list UNUSED, 
+   size_t nb_verts,
+   size_t max_nb_verts,
+   size_t* out_nb_vert_ids,
+   size_t* out_vert_id_list)
+{
+  enum rsrc_error rsrc_err = RSRC_NO_ERROR;
+  assert
+    (  (!nb_verts || vert_list)
+    && max_nb_verts >= 3
+    && out_nb_vert_ids 
+    && out_vert_id_list);
+
+  /* Right now only triangles (sic!) and quads are supported. 
+   * TODO implement a generic triangulation algorithm. */
+  if(nb_verts != 3 && nb_verts != 4) {
+    rsrc_err = RSRC_PARSING_ERROR;
+    goto error;
+  }
+  if(nb_verts == 3) {
+    *out_nb_vert_ids = 3;
+    out_vert_id_list[0] = 0;
+    out_vert_id_list[1] = 1;
+    out_vert_id_list[2] = 2;
+  } else {
+    if(max_nb_verts < 6) {
+      rsrc_err = RSRC_MEMORY_ERROR;
+      goto error;
+    }
+    *out_nb_vert_ids = 6;
+    out_vert_id_list[0] = 0;
+    out_vert_id_list[1] = 1;
+    out_vert_id_list[2] = 2;
+    out_vert_id_list[3] = 0;
+    out_vert_id_list[4] = 2;
+    out_vert_id_list[5] = 3;
+  }
+exit:
+  return rsrc_err;
+error:
+  goto exit;
+}
+
 static enum rsrc_error
 build_triangle_list
   (struct rsrc_context* ctxt,
@@ -71,6 +119,8 @@ build_triangle_list
    struct sl_vector** out_indices,
    struct sl_vector** out_attribs)
 {
+  #define MAX_TRIANGULATE_FACE_IDS 6
+  size_t triangulate_face_ids[MAX_TRIANGULATE_FACE_IDS];
   struct sl_vector* data = NULL;
   struct sl_vector* indices = NULL;
   struct sl_vector* attribs = NULL;
@@ -126,7 +176,7 @@ build_triangle_list
       face_id < face_range->end;
       ++face_id) {
     struct rsrc_wavefront_obj_face* face_verts = NULL;
-    size_t nb_verts = 0, vert_id = 0;
+    size_t nb_verts = 0, vert_id = 0, nb_vert_ids = 0;
 
     SL_FUNC(vector_buffer
        (faces[face_id],
@@ -135,18 +185,21 @@ build_triangle_list
         NULL,
         (void**)&face_verts));
 
-    /* We expect triangular faces. */
-    if(nb_verts != 3) {
-      err = RSRC_PARSING_ERROR;
+    err = triangulate
+      (face_verts, 
+       nb_verts, 
+       MAX_TRIANGULATE_FACE_IDS, 
+       &nb_vert_ids, 
+       triangulate_face_ids);
+    if(err != RSRC_NO_ERROR)
       goto error;
-    }
 
-    for(vert_id = 0; vert_id < nb_verts; ++vert_id) {
+    for(vert_id = 0; vert_id < nb_vert_ids; ++vert_id) {
       unsigned int* index = NULL;
       const struct vvtvn key = {
-        .v = face_verts[vert_id].v,
-        .vt = face_verts[vert_id].vt,
-        .vn = face_verts[vert_id].vn
+        .v = face_verts[triangulate_face_ids[vert_id]].v,
+        .vt = face_verts[triangulate_face_ids[vert_id]].vt,
+        .vn = face_verts[triangulate_face_ids[vert_id]].vn
       };
 
       SL_FUNC(hash_table_find(tbl, (const void*)&key, (void**)&index));
@@ -162,7 +215,8 @@ build_triangle_list
         if(key.vn > 0)
           memcpy(face_vertex + 3, nor[key.vn - 1], sizeof(float[3]));
         if(key.vt > 0) {
-          if(tex[key.vt - 1][2] != 0.f) {  /* We expect 2d tex coords. */
+          if(tex[key.vt - 1][2] != 0.f 
+          && tex[key.vt - 1][2] != 1.f) {  /* We expect 2d tex coords. */
             err = RSRC_PARSING_ERROR;
             goto error;
           }
@@ -183,6 +237,7 @@ build_triangle_list
     }
   }
   #undef SL_FUNC
+  #undef MAX_TRIANGULATE_FACE_IDS
 
 exit:
   *out_data = data;

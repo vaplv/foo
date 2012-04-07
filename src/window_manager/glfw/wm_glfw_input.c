@@ -1,8 +1,11 @@
 #include "stdlib/sl.h"
+#include "stdlib/sl_hash_table.h"
 #include "stdlib/sl_set.h"
 #include "sys/sys.h"
 #include "window_manager/glfw/wm_glfw_device_c.h"
 #include "window_manager/glfw/wm_glfw_error.h"
+#include "window_manager/glfw/wm_glfw_input.h"
+#include "window_manager/wm.h"
 #include "window_manager/wm_error.h"
 #include "window_manager/wm_input.h"
 #include <GL/glfw.h>
@@ -60,6 +63,7 @@ wm_to_glfw_key_lut[] = {
   [WM_KEY_8] = '8',
   [WM_KEY_9] = '9',
   [WM_KEY_DOT] = '.',
+  [WM_KEY_SQUARE] = 0xB2,
   [WM_KEY_SPACE] = GLFW_KEY_SPACE,
   [WM_KEY_ESC] = GLFW_KEY_ESC,
   [WM_KEY_F1] = GLFW_KEY_F1,
@@ -120,6 +124,35 @@ wm_to_glfw_key_lut[] = {
 
 /*******************************************************************************
  *
+ * Set and hash table helper functions.
+ *
+ ******************************************************************************/
+static int
+compare_callbacks(const void* a, const void* b)
+{
+  struct callback* cbk0 = (struct callback*)a;
+  struct callback* cbk1 = (struct callback*)b;
+  const uintptr_t p0[2] = {(uintptr_t)cbk0->func, (uintptr_t)cbk0->data};
+  const uintptr_t p1[2] = {(uintptr_t)cbk1->func, (uintptr_t)cbk1->data};
+  const int inf = (p0[0] < p1[0]) | ((p0[0] == p1[0]) & (p0[1] < p1[1]));
+  const int sup = (p0[0] > p1[0]) | ((p0[0] == p1[0]) & (p0[1] > p1[1]));
+  return -(inf) | (sup);
+}
+
+static size_t
+hash(const void* key) 
+{
+  return sl_hash(key, sizeof(int));
+}
+
+static bool
+eq_key(const void* a, const void* b)
+{
+  return (*(int*)a) == (*(int*)b);
+}
+
+/*******************************************************************************
+ *
  * Helper functions.
  *
  ******************************************************************************/
@@ -131,15 +164,18 @@ wm_to_glfw_key(enum wm_key key)
 }
 
 static FINLINE enum wm_key
-glfw_to_wm_key(int key)
+glfw_to_wm_key(struct wm_device* device, int key)
 {
-  size_t i = 0;
-  /* TODO use a hash table to perform the glfw to wm key correspondance. */
-  for(i = 0; i < sizeof(wm_to_glfw_key_lut) / sizeof(int); ++i) {
-    if(wm_to_glfw_key_lut[i] == key)
-      return (enum wm_key)i;
+  enum wm_key* k = NULL;
+  assert(device);
+
+  SL(hash_table_find
+    (device->glfw_to_wm_key_htbl, (int[]){key}, (void**)&k));
+  if(k) {
+    return *k;
+  } else {
+    return WM_KEY_UNKNOWN;
   }
-  return WM_KEY_UNKNOWN;
 }
 
 static FINLINE int
@@ -165,7 +201,7 @@ glfw_key_callback(int key, int action)
   struct callback* clbk_list = NULL;
   size_t nb_clbk = 0;
   size_t i = 0;
-  const enum wm_key wm_key = glfw_to_wm_key(key);
+  const enum wm_key wm_key = glfw_to_wm_key(g_device, key);
   const enum wm_state wm_state = glfw_to_wm_state(action);
   assert(NULL != g_device);
 
@@ -457,3 +493,89 @@ exit:
 error:
   goto exit;
 }
+
+/*******************************************************************************
+ *
+ * Private input functions.
+ *
+ ******************************************************************************/
+enum wm_error
+wm_init_inputs(struct wm_device* device)
+{
+  enum sl_error sl_err = SL_NO_ERROR;
+  enum wm_error wm_err = WM_NO_ERROR;
+  size_t len = 0;
+  size_t i = 0;
+
+  if(!device) {
+    wm_err = WM_INVALID_ARGUMENT;
+    goto error;
+  }
+
+  #define CALL(func) \
+    do { \
+      if(SL_NO_ERROR != (sl_err = func)) { \
+        wm_err = sl_to_wm_error(sl_err); \
+        goto error; \
+      } \
+    } while(0)
+
+  CALL(sl_create_set
+    (sizeof(struct callback),
+     ALIGNOF(struct callback),
+     compare_callbacks,
+     device->allocator,
+     &device->key_clbk_list));
+  CALL(sl_create_set
+    (sizeof(struct callback),
+     ALIGNOF(struct callback),
+     compare_callbacks,
+     device->allocator,
+     &device->char_clbk_list));
+  CALL(sl_create_hash_table
+    (sizeof(int),
+     ALIGNOF(int),
+     sizeof(enum wm_key),
+     ALIGNOF(enum wm_key),
+     hash,
+     eq_key,
+     device->allocator,
+     &device->glfw_to_wm_key_htbl));
+  /* Fill the hash table. */
+  len = sizeof(wm_to_glfw_key_lut) / sizeof(int);
+  for(i = 0; i < len; ++i) {
+    CALL(sl_hash_table_insert
+      (device->glfw_to_wm_key_htbl, 
+       (int[]){wm_to_glfw_key_lut[i]},
+       (enum wm_key[]){(enum wm_key)i}));
+  }
+  #undef CALL
+exit:
+  return wm_err;
+error:
+  WM(shutdown_inputs(device));
+  goto exit;
+}
+
+extern enum wm_error
+wm_shutdown_inputs(struct wm_device* device)
+{
+  if(!device)
+    return WM_INVALID_ARGUMENT;
+
+  if(device->key_clbk_list) {
+    SL(free_set(device->key_clbk_list));
+    device->key_clbk_list = NULL;
+  }
+  if(device->char_clbk_list) {
+    SL(free_set(device->char_clbk_list));
+    device->char_clbk_list = NULL;
+  }
+  if(device->glfw_to_wm_key_htbl) {
+    SL(free_hash_table(device->glfw_to_wm_key_htbl));
+    device->glfw_to_wm_key_htbl = NULL;
+  }
+  return WM_NO_ERROR;
+}
+
+

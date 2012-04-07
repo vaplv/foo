@@ -813,7 +813,6 @@ app_run(struct app* app, bool* keep_running)
     app_err = APP_INVALID_ARGUMENT;
     goto error;
   }
-
   app_err = app_draw_world(app->world, app->view);
   if(app_err != APP_NO_ERROR)
     goto error;
@@ -1071,6 +1070,15 @@ app_enable_term(struct app* app, bool enable)
   if(!app)
     return APP_INVALID_ARGUMENT;
   app_setup_term(app, enable);
+  return APP_NO_ERROR;
+}
+
+EXPORT_SYM enum app_error
+app_is_term_enabled(struct app* app, bool* is_enabled)
+{
+  if(!app || !is_enabled)
+    return APP_INVALID_ARGUMENT;
+  *is_enabled = app->term.is_enabled;
   return APP_NO_ERROR;
 }
 

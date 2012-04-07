@@ -115,5 +115,10 @@ app_enable_term
   (struct app* app,
    bool enable);
 
+extern enum app_error
+app_is_term_enabled
+  (struct app* app,
+   bool* is_enabled);
+
 #endif /* APP_H */
 

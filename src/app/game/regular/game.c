@@ -1,6 +1,7 @@
 #include "app/core/app.h"
 #include "app/core/app_view.h"
 #include "app/game/regular/game_c.h"
+#include "app/game/regular/game_error_c.h"
 #include "app/game/game.h"
 #include "sys/mem_allocator.h"
 #include "sys/sys.h"
@@ -12,128 +13,131 @@
 #include <stdlib.h>
 #include <string.h>
 
-struct user_command {
-  signed char move_right;
-  signed char move_up;
-  signed char move_forward;
-  signed char pitch;
-  signed char yaw;
-  signed char roll;
-  struct {
-    unsigned int escape : 1;
-    unsigned int term : 1;
-  } flag;
-};
-
 /*******************************************************************************
  *
  * Helper functions
  *
  ******************************************************************************/
-static enum game_error
-process_user_command
-  (struct game* game,
-   struct user_command* usr_cmd)
+static void
+game_key_callback(enum wm_key key, enum wm_state state, void* data)
+{
+  struct inputs* inputs = data;
+  assert(data);
+
+  if(state != WM_PRESS)
+    return;
+
+  switch(key) {
+    case WM_KEY_ESC:
+      inputs->post.exit = 1;
+      break;
+    case WM_KEY_SQUARE:
+      inputs->post.terminal = 1;
+      break;
+    default:
+      break;
+  }
+}
+static void
+update_game_inputs(struct game* game)
 {
   struct wm_device* wm = NULL;
   enum wm_state state = WM_STATE_UNKNOWN;
 
-  assert(game && usr_cmd);
-
   APP(get_window_manager_device(game->app, &wm));
-  WM(flush_events(wm));
-
+  
   WM(get_key_state(wm, WM_KEY_Z, &state));
-  if(state == WM_PRESS) {
-    usr_cmd->move_forward += usr_cmd->move_forward < SCHAR_MAX;
-  }
+  game->inputs.move_forward += 
+    (state == WM_PRESS) & (game->inputs.move_forward < SCHAR_MAX);
   WM(get_key_state(wm, WM_KEY_S, &state));
-  if(state == WM_PRESS) {
-    usr_cmd->move_forward -= usr_cmd->move_forward > SCHAR_MIN;
-  }
+  game->inputs.move_forward -= 
+    (state == WM_PRESS) & (game->inputs.move_forward > SCHAR_MIN);
   WM(get_key_state(wm, WM_KEY_Q, &state));
-  if(state == WM_PRESS) {
-    usr_cmd->move_right += usr_cmd->move_right < SCHAR_MAX;
-  }
+  game->inputs.move_right += 
+    (state == WM_PRESS) & (game->inputs.move_right < SCHAR_MAX);
   WM(get_key_state(wm, WM_KEY_D, &state));
-  if(state == WM_PRESS) {
-    usr_cmd->move_right -= usr_cmd->move_right > SCHAR_MIN;
-  }
+  game->inputs.move_right -= 
+    (state == WM_PRESS) & (game->inputs.move_right > SCHAR_MIN);
   WM(get_key_state(wm, WM_KEY_SPACE, &state));
-  if(state == WM_PRESS) {
-    usr_cmd->move_up -= usr_cmd->move_up > SCHAR_MIN;
-  }
+  game->inputs.move_up -= 
+     (state == WM_PRESS) & (game->inputs.move_up > SCHAR_MIN);
   WM(get_key_state(wm, WM_KEY_C, &state));
-  if(state == WM_PRESS) {
-    usr_cmd->move_up += usr_cmd->move_up < SCHAR_MAX;
-  }
+  game->inputs.move_up +=
+    (state == WM_PRESS) & (game->inputs.move_up < SCHAR_MAX);
   WM(get_key_state(wm, WM_KEY_J, &state));
-  if(state == WM_PRESS) {
-    usr_cmd->pitch += usr_cmd->pitch < SCHAR_MAX;
-  }
+  game->inputs.pitch +=
+    (state == WM_PRESS) & (game->inputs.pitch < SCHAR_MAX);
   WM(get_key_state(wm, WM_KEY_K, &state));
-  if(state == WM_PRESS) {
-    usr_cmd->pitch -= usr_cmd->pitch > SCHAR_MIN;
-  }
+  game->inputs.pitch -=
+    (state == WM_PRESS) & (game->inputs.pitch > SCHAR_MIN);
   WM(get_key_state(wm, WM_KEY_H, &state));
-  if(state == WM_PRESS) {
-    usr_cmd->yaw += usr_cmd->pitch < SCHAR_MAX;
-  }
+  game->inputs.yaw +=
+    (state == WM_PRESS) & (game->inputs.pitch < SCHAR_MAX);
   WM(get_key_state(wm, WM_KEY_L, &state));
-  if(state == WM_PRESS) {
-    usr_cmd->yaw -= usr_cmd->pitch > SCHAR_MIN;
-  }
-  WM(get_key_state(wm, WM_KEY_ESC, &state));
-  if(state == WM_PRESS) {
-    usr_cmd->flag.escape = 1;
-  }
-  WM(get_key_state(wm, WM_KEY_LCTRL, &state));
-  if(state == WM_PRESS) {
-    WM(get_key_state(wm, WM_KEY_HOME, &state));
-    if(state == WM_PRESS) {
-      usr_cmd->flag.term = 1;
-    }
-  }
-  return GAME_NO_ERROR;
+  game->inputs.yaw -=
+    (state == WM_PRESS) & (game->inputs.pitch > SCHAR_MIN);
 }
 
 static enum game_error
-update_view
-  (struct game* game,
-   const struct user_command* usr_cmd)
+process_inputs(struct game* game)
 {
-  struct app_view* view = NULL;
-  const float move_scale = 0.02f;
-  const float rotate_scale = 0.00025f;
+  struct wm_device* wm = NULL;
+  enum game_error game_err = GAME_NO_ERROR;
+  bool term_state = false;
+  assert(game);
 
-  assert(game && usr_cmd);
+  /* Reset inputs. */
+  memset(&game->inputs, 0, sizeof(struct inputs));
 
-  APP(get_main_view(game->app, &view));
-  APP(view_translate
-    (view,
-     move_scale * (float)usr_cmd->move_right,
-     move_scale * (float)usr_cmd->move_up,
-     move_scale * (float)usr_cmd->move_forward));
-  APP(view_rotate
-    (view,
-     rotate_scale * (float)usr_cmd->pitch,
-     rotate_scale * (float)usr_cmd->yaw,
-     rotate_scale * (float)usr_cmd->roll));
-  return GAME_NO_ERROR;
-}
+  /* Flush user inputs. */
+  APP(get_window_manager_device(game->app, &wm));
+  WM(flush_events(wm));
 
-static bool
-user_command_eq(struct user_command* cmd0, struct user_command* cmd1)
-{
-  return
-        cmd0->move_right == cmd1->move_right
-    &&  cmd0->move_up == cmd1->move_up
-    &&  cmd0->move_forward == cmd1->move_forward
-    &&  cmd0->pitch == cmd1->pitch
-    &&  cmd0->yaw == cmd1->yaw
-    &&  cmd0->roll == cmd1->roll
-    &&  cmd0->flag.escape == cmd1->flag.escape
-    &&  cmd0->flag.term == cmd1->flag.term;
+  /* Update terminal state. */
+  APP(is_term_enabled(game->app, &term_state));
+  if(0 != game->inputs.post.terminal) {
+    enum app_error app_err = APP_NO_ERROR;
+    app_err = app_enable_term(game->app, !term_state);
+    if(APP_NO_ERROR != app_err) {
+      game_err = app_to_game_error(app_err);
+      goto error;
+    }
+  }
+
+  if(false == term_state) {
+    update_game_inputs(game);
+  } else {
+    game->inputs.post.exit = 0;
+  }
+
+  /* Update the view. */
+  if(0 != game->inputs.move_right
+  || 0 != game->inputs.move_up
+  || 0 != game->inputs.move_forward
+  || 0 != game->inputs.pitch
+  || 0 != game->inputs.yaw 
+  || 0 != game->inputs.roll) {
+    struct app_view* view = NULL;
+    const float move_scale = 0.02f;
+    const float rotate_scale = 0.00025f;
+
+    APP(get_main_view(game->app, &view));
+    APP(view_translate
+      (view,
+       move_scale * (float)game->inputs.move_right,
+       move_scale * (float)game->inputs.move_up,
+       move_scale * (float)game->inputs.move_forward));
+    APP(view_rotate
+      (view,
+       rotate_scale * (float)game->inputs.pitch,
+       rotate_scale * (float)game->inputs.yaw,
+       rotate_scale * (float)game->inputs.roll));
+  }
+
+exit:
+  return game_err;
+error:
+  goto exit;
 }
 
 /*******************************************************************************
@@ -149,8 +153,10 @@ game_create
 {
   struct mem_allocator* allocator = NULL;
   struct game* game = NULL;
+  struct wm_device* wm = NULL;
   enum app_error app_err = APP_NO_ERROR;
   enum game_error game_err = GAME_NO_ERROR;
+  enum wm_error wm_err = WM_NO_ERROR;
 
   if(!app || !out_game) {
     game_err = GAME_INVALID_ARGUMENT;
@@ -164,13 +170,18 @@ game_create
     goto error;
   }
   game->allocator = allocator;
-
   app_err = app_ref_get(app);
   if(!app_err) {
     game_err = app_to_game_error(app_err);
     goto error;
   }
   game->app = app;
+  APP(get_window_manager_device(game->app, &wm));
+  wm_err = wm_attach_key_callback(wm, game_key_callback, &game->inputs);
+  if(wm_err != WM_NO_ERROR) {
+    game_err = wm_to_game_error(wm_err);
+    goto error;
+  }
 
 exit:
   if(out_game)
@@ -179,9 +190,7 @@ exit:
 
 error:
   if(game) {
-    if(game->app)
-      APP(ref_put(game->app));
-    MEM_FREE(allocator, game);
+    GAME(free(game));
     game = NULL;
   }
   goto exit;
@@ -190,77 +199,40 @@ error:
 EXPORT_SYM enum game_error
 game_free(struct game* game)
 {
-  struct mem_allocator* allocator = NULL;
-
   if(!game)
     return GAME_INVALID_ARGUMENT;
 
-  APP(ref_put(game->app));
-  allocator = game->allocator;
-  MEM_FREE(allocator, game);
-
+  if(game->app) {
+    struct wm_device* wm = NULL;
+    bool b = false;
+    APP(get_window_manager_device(game->app, &wm));
+    WM(is_key_callback_attached(wm, game_key_callback, &game->inputs, &b));
+    if(b)
+      WM(detach_key_callback(wm, game_key_callback, &game->inputs));
+    APP(ref_put(game->app));
+  }
+  MEM_FREE(game->allocator, game);
   return GAME_NO_ERROR;
 }
 
 EXPORT_SYM enum game_error
 game_run(struct game* game, bool* keep_running)
 {
-  struct user_command usr_cmd0, usr_cmd1;
   enum game_error game_err = GAME_NO_ERROR;
-
-  memset(&usr_cmd0, 0, sizeof(struct user_command));
-  memset(&usr_cmd1, 0, sizeof(struct user_command));
 
   if(!game || !keep_running) {
     game_err = GAME_INVALID_ARGUMENT;
     goto error;
   }
-
-  game_err = process_user_command(game, &usr_cmd1);
-  if(game_err != GAME_NO_ERROR)
+  game_err = process_inputs(game);
+  if(GAME_NO_ERROR != game_err)
     goto error;
 
-  if(user_command_eq(&usr_cmd0, &usr_cmd1) == false) {
-    game_err = update_view(game, &usr_cmd1);
-    if(game_err != GAME_NO_ERROR)
-      goto error;
-
-    if(usr_cmd1.flag.term)
-      APP(enable_term(game->app, true));
-  }
-
-  *keep_running = !usr_cmd1.flag.escape;
+  *keep_running = !game->inputs.post.exit;
 
 exit:
   return game_err;
-
 error:
   goto exit;
-}
-
-/*******************************************************************************
- *
- * Private functions.
- *
- ******************************************************************************/
-enum game_error
-app_to_game_error(enum app_error app_err)
-{
-  enum game_error game_err = GAME_NO_ERROR;
-  switch(app_err) {
-    case APP_INVALID_ARGUMENT:
-      game_err = GAME_INVALID_ARGUMENT;
-      break;
-    case APP_MEMORY_ERROR:
-      game_err = GAME_MEMORY_ERROR;
-      break;
-    case APP_NO_ERROR:
-      game_err = GAME_NO_ERROR;
-      break;
-    default:
-      game_err = GAME_UNKNOWN_ERROR;
-      break;
-  }
-  return game_err;
 }
 
