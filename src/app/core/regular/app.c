@@ -348,44 +348,19 @@ error:
 static enum app_error
 shutdown_common(struct app* app)
 {
-  size_t len = 0;
   size_t i = 0;
-  int type_id = 0;
   enum app_error app_err = APP_NO_ERROR;
   assert(app != NULL);
 
-  /* When the object is put, it is unregistered from the application if its ref
-   * count reaches 0. That's why we have to use the `at' function of the
-   * container at each iteration rather than retrieving its internal buffer and
-   * iterating onto it. In addition, each object may by referenced by another
-   * one. For instance the model_instance keep a reference onto the
-   * instantiated model. Consequently, we cannot ensure that an object list is
-   * empty exepted when all the created object are released. */
-  for(type_id = 0; type_id < APP_NB_OBJECT_TYPES; ++type_id) {
-    if(app->object_list[type_id]) {
-      SL(set_buffer(app->object_list[type_id], &len, NULL, NULL, NULL));
-      for(i = len; i > 0; ) {
-        void* object = NULL;
-        SL(set_at(app->object_list[type_id], --i, (void**)&object));
-
-        switch((enum app_object_type)type_id) {
-          case APP_MODEL:
-            APP(model_ref_put(*(struct app_model**)object));
-            break;
-          case APP_MODEL_INSTANCE:
-            APP(model_instance_ref_put(*(struct app_model_instance**)object));
-            break;
-          default:
-            assert(false);
-            break;
-        }
-      }
-    }
-  }
-  for(type_id = 0; type_id < APP_NB_OBJECT_TYPES; ++type_id) {
-    if(app->object_list[type_id]) {
-      SL(free_set(app->object_list[type_id]));
-      app->object_list[type_id] = NULL;
+  for(i = 0; i < APP_NB_OBJECT_TYPES; ++i) {
+    if(app->object_list[i]) {
+      #ifndef NDEBUG
+      size_t len = 0;
+      SL(set_buffer(app->object_list[i], &len, NULL, NULL, NULL));
+      assert(len == 0);
+      #endif
+      SL(free_set(app->object_list[i]));
+      app->object_list[i] = NULL;
     }
   }
   for(i = 0; i < APP_NB_SIGNALS; ++i) {
@@ -812,6 +787,55 @@ app_run(struct app* app, bool* keep_running)
 exit:
   return app_err;
 
+error:
+  goto exit;
+}
+
+EXPORT_SYM enum app_error
+app_cleanup(struct app* app)
+{
+  size_t len = 0;
+  size_t i = 0;
+  int type_id = 0;
+  enum app_error app_err = APP_NO_ERROR;
+ 
+  if(!app) {
+    app_err = APP_INVALID_ARGUMENT;
+    goto error;
+  }
+  /* When the object is put, it is unregistered from the application if its ref
+   * count reaches 0. That's why we have to use the `at' function of the
+   * container at each iteration rather than retrieving its internal buffer and
+   * iterating onto it. In addition, each object may by referenced by another
+   * one. For instance the model_instance keep a reference onto the
+   * instantiated model. Consequently, we cannot ensure that an object list is
+   * empty exepted when all the created object are released. */
+  for(type_id = 0; type_id < APP_NB_OBJECT_TYPES; ++type_id) {
+    if(app->object_list[type_id]) {
+      SL(set_buffer(app->object_list[type_id], &len, NULL, NULL, NULL));
+      for(i = len; i > 0; ) {
+        void* object = NULL;
+        SL(set_at(app->object_list[type_id], --i, (void**)&object));
+
+        switch((enum app_object_type)type_id) {
+          case APP_MODEL:
+            APP(model_ref_put(*(struct app_model**)object));
+            break;
+          case APP_MODEL_INSTANCE:
+            APP(model_instance_ref_put(*(struct app_model_instance**)object));
+            break;
+          default:
+            assert(false);
+            break;
+        }
+      }
+    }
+  }
+  for(type_id = 0; type_id < APP_NB_OBJECT_TYPES; ++type_id) {
+    SL(clear_set(app->object_list[type_id]));
+ }
+exit:
+  return app_err;
 error:
   goto exit;
 }

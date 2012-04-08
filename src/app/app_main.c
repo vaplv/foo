@@ -159,16 +159,15 @@ main(int argc, char** argv)
 
 exit:
  if(game) {
-    game_err = game_free(game);
-    assert(game_err == GAME_NO_ERROR);
+    GAME(free(game));
     if(MEM_ALLOCATED_SIZE(&game_allocator)) {
       MEM_DUMP(&game_allocator, buffer, sizeof(buffer));
       printf("Game leaks summary:\n%s\n", buffer);
     }
   }
   if(app) {
-    app_err = app_ref_put(app);
-    assert(app_err == APP_NO_ERROR);
+    APP(cleanup(app));
+    APP(ref_put(app));
     if(MEM_ALLOCATED_SIZE(&engine_allocator)) {
       MEM_DUMP(&engine_allocator, buffer, sizeof(buffer));
       printf("Engine leaks summary:\n%s\n", buffer);

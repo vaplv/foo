@@ -43,6 +43,9 @@ main(int argc, char** argv)
   CHECK(app_get_main_view(app, &view), APP_NO_ERROR);
   NCHECK(view, NULL);
 
+  CHECK(app_cleanup(NULL), APP_INVALID_ARGUMENT);
+  CHECK(app_cleanup(app), APP_NO_ERROR);
+
   CHECK(app_ref_get(NULL), APP_INVALID_ARGUMENT);
   CHECK(app_ref_get(app), APP_NO_ERROR);
   CHECK(app_ref_put(NULL), APP_INVALID_ARGUMENT);

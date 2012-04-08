@@ -56,6 +56,11 @@ app_run
   (struct app* app,
    bool* keep_running);
 
+/* Release all the created objects (model, instance, etc.). */
+extern enum app_error
+app_cleanup
+  (struct app* app);
+
 extern enum app_error
 app_terminal_font
   (struct app* app,

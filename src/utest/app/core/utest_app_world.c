@@ -78,6 +78,7 @@ main(int argc, char** argv)
   CHECK(app_model_instance_ref_put(instances[1]), OK);
   CHECK(app_model_instance_ref_put(instances[0]), OK);
   CHECK(app_model_ref_put(model), OK);
+  CHECK(app_cleanup(app), OK);
   CHECK(app_ref_put(app), OK);
 
   CHECK(MEM_ALLOCATED_SIZE(&mem_default_allocator), 0);

@@ -43,7 +43,6 @@ release_model_instance(struct ref* ref)
   size_t len = 0;
   size_t i = 0;
   bool is_registered = false;
-
   assert(app != NULL);
 
   APP(is_object_registered
@@ -70,6 +69,7 @@ release_model_instance(struct ref* ref)
 
   APP(model_ref_put(instance->model));
   MEM_FREE(app->allocator, instance);
+  APP(ref_put(app));
 }
 
 /*******************************************************************************
@@ -142,6 +142,7 @@ app_create_model_instance
     goto error;
   }
   ref_init(&instance->ref);
+  APP(ref_get(app));
   instance->app = app;
   sl_err = sl_create_vector
     (sizeof(struct rdr_model_instance*),

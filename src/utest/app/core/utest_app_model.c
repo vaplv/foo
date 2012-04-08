@@ -136,6 +136,7 @@ main(int argc, char** argv)
   CHECK(app_model_ref_put(model), OK);
   CHECK(app_model_ref_put(model), OK);
 
+  CHECK(app_cleanup(app), OK);
   CHECK(app_ref_put(app), OK);
 
   CHECK(MEM_ALLOCATED_SIZE(&mem_default_allocator), 0);

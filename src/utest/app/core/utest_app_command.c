@@ -285,6 +285,7 @@ main(int argc, char** argv)
   CHECK(app_execute_command(app, "ls --bad_option"), CMD_ERR);
   CHECK(app_execute_command(app, "exit"), OK);
 
+  CHECK(app_cleanup(app), APP_NO_ERROR);
   CHECK(app_ref_put(app), APP_NO_ERROR);
 
   CHECK(MEM_ALLOCATED_SIZE(&mem_default_allocator), 0);

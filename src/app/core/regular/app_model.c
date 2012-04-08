@@ -184,6 +184,7 @@ static void
 release_model(struct ref* ref)
 {
   struct app_model* model = CONTAINER_OF(ref, struct app_model, ref);
+  struct app* app = NULL;
   bool is_registered = true;
   assert(ref != NULL);
 
@@ -208,7 +209,9 @@ release_model(struct ref* ref)
   if(model->model_list)
     SL(free_vector(model->model_list));
 
-  MEM_FREE(model->app->allocator, model);
+  app = model->app;
+  MEM_FREE(app->allocator, model);
+  APP(ref_put(app));
 }
 
 /*******************************************************************************
@@ -237,6 +240,7 @@ app_create_model(struct app* app, const char* path, struct app_model** model)
     app_err = APP_INVALID_ARGUMENT;
     goto error;
   }
+  APP(ref_get(app));
   mdl->app = app;
   ref_init(&mdl->ref);
 
