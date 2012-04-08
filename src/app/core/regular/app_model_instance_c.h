@@ -11,6 +11,7 @@ struct sl_vector;
 struct app_model_instance {
   struct app* app;
   struct app_model* model;
+  struct sl_string* name;
   struct sl_vector* model_instance_list; /* list of rdr_model_instance*. */
   struct ref ref;
 };

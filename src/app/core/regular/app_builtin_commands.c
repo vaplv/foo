@@ -1,8 +1,9 @@
+#include "app/core/regular/app_builtin_commands.h"
 #include "app/core/regular/app_c.h"
 #include "app/core/regular/app_command_c.h"
-#include "app/core/regular/app_builtin_commands.h"
 #include "app/core/app_command.h"
 #include "app/core/app_model.h"
+#include "app/core/app_model_instance.h"
 #include "renderer/rdr_term.h"
 #include "renderer/rdr.h"
 #include "stdlib/sl.h"
@@ -78,28 +79,54 @@ cmd_help(struct app* app, size_t argc UNUSED, struct app_cmdarg* argv)
 }
 
 static const char* cmd_ls_options[] = {
-  "--all", "--models", "--commands", NULL
+  "--all", "--models", "--model-instances", "--commands", NULL
 };
 static void
 cmd_ls(struct app* app, size_t argc UNUSED, struct app_cmdarg* argv)
 {
+  size_t len = 0;
+  size_t i = 0;
+
   assert(app != NULL
       && argc == 2
       && argv != NULL
       && argv[0].type == APP_CMDARG_STRING
       && argv[1].type == APP_CMDARG_STRING);
+
   if(0 == strcmp("--commands", argv[1].value.string)) {
     const char** name_list = NULL;
-    size_t len = 0;
-    size_t i = 0;
     SL(set_buffer(app->cmd.name_set, &len, NULL, NULL, (void**)&name_list));
     for(i = 0; i < len; ++i) {
       APP_LOG_MSG(app->logger, "%s\n", name_list[i]);
     }
     APP_LOG_MSG(app->logger, "[total %zu]\n", len);
+  } else if(0 == strcmp("--models", argv[1].value.string)) {
+    const struct app_model** model_list = NULL;
+    SL(set_buffer
+      (app->object_list[APP_MODEL], &len, NULL, NULL, (void**)&model_list));
+    for(i = 0; i < len; ++i) {
+      const char* name = NULL;
+      APP(get_model_name(model_list[i], &name));
+      APP_LOG_MSG(app->logger, "%s\n", name);
+    }
+    APP_LOG_MSG(app->logger, "[total %zu]\n", len); 
+  } else if(0 == strcmp("--model-instances", argv[1].value.string)) {
+    const struct app_model_instance** instance_list = NULL;
+    SL(set_buffer
+      (app->object_list[APP_MODEL_INSTANCE],
+       &len, 
+       NULL, 
+       NULL, 
+       (void**)&instance_list));
+    for(i = 0; i < len; ++i) {
+      const char* name = NULL;
+      APP(get_model_instance_name(instance_list[i], &name));
+      APP_LOG_MSG(app->logger, "%s\n", name);
+    }
+    APP_LOG_MSG(app->logger, "[total %zu]\n", len);
   } else {
     APP_LOG_WARN
-      (app->logger, "%s %s: command not implemented\n", 
+      (app->logger, "%s %s: command not implemented\n",
        argv[0].value.string, argv[1].value.string);
   }
 }
@@ -142,6 +169,7 @@ app_setup_builtin_commands(struct app* app)
      "ls - list application contents\n"
      "Usage: ls OPTION\n"
      "\t--all print all the listable objects\n"
+     "\t--model-instances list the spawned model instances\n"
      "\t--models list the loaded models\n"
      "\t--commands list the registered commands\n"));
   CALL(app_add_command

@@ -57,7 +57,7 @@ struct app {
   struct command_system {
     char scratch[1024];
     struct sl_hash_table* htbl; /* htbl of commands. */
-    struct sl_set* name_set; /* set of const char*. */
+    struct sl_set* name_set; /* set of const char*. Used by completion and ls.*/
   } cmd;
 
   struct term {
@@ -114,6 +114,14 @@ app_invoke_callbacks
   (struct app* app,
    enum app_signal signal,
    ...);
+
+extern enum app_error
+app_setup_model_set
+  (struct app* app);
+
+extern enum app_error
+app_setup_model_instance_set
+  (struct app* app);
 
 extern enum rdr_attrib_usage
 rsrc_to_rdr_attrib_usage

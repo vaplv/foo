@@ -105,6 +105,11 @@ main(int argc, char** argv)
   CHECK(app_load_model(PATH, NULL), BAD_ARG);
   CHECK(app_load_model(NULL, model), BAD_ARG);
   CHECK(app_load_model(PATH, model), OK);
+
+  CHECK(app_set_model_name(NULL, NULL), BAD_ARG);
+  CHECK(app_set_model_name(model, NULL), BAD_ARG);
+  CHECK(app_set_model_name(NULL, "mdl0"), BAD_ARG);
+  CHECK(app_set_model_name(model, "mdl0"), OK);
   CHECK(model2, NULL);
 
   /* This model may be freed when the application will be shut down. */

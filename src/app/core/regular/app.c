@@ -151,14 +151,6 @@ term_log_func(const char* msg, void* data)
     (term, RDR_TERM_STDOUT, buffer, RDR_TERM_COLOR_WHITE));
 }
 
-static int
-compare_pointers(const void* ptr0, const void* ptr1)
-{
-  const uintptr_t a = (uintptr_t)(*(void**)ptr0);
-  const uintptr_t b = (uintptr_t)(*(void**)ptr1);
-  return -(a < b) | (a > b);
-}
-
 static enum app_error
 manage_callback
   (struct app* app,
@@ -573,18 +565,15 @@ init_common(struct app* app)
   enum sl_error sl_err = SL_NO_ERROR;
   assert(app != NULL);
 
-  for(i = 0; i < APP_NB_OBJECT_TYPES; ++i) {
-    sl_err = sl_create_set
-      (sizeof(void*),
-       ALIGNOF(void*),
-       compare_pointers,
-       app->allocator,
-       &app->object_list[i]);
-    if(sl_err != SL_NO_ERROR) {
-      app_err = sl_to_app_error(sl_err);
-      goto error;
-    }
-  }
+  #define CALL(func) \
+    do { \
+      if(APP_NO_ERROR != (app_err = func)) \
+        goto error; \
+    } while(0)
+
+  CALL(app_setup_model_set(app));
+  CALL(app_setup_model_instance_set(app));
+
   for(i = 0; i < APP_NB_SIGNALS; ++i) {
     sl_err = sl_create_set
       (sizeof(struct callback),
@@ -597,23 +586,18 @@ init_common(struct app* app)
       goto error;
     }
   }
-  app_err = app_create_world(app, &app->world);
-  if(app_err != APP_NO_ERROR)
-    goto error;
-  app_err = app_create_view(app, &app->view);
-  if(app_err != APP_NO_ERROR)
-    goto error;
-  app_err = app_look_at
+  CALL(app_create_world(app, &app->world));
+  CALL(app_create_view(app, &app->view));
+  CALL(app_look_at
     (app->view,
      (float[]){10.f, 10.f, 10.f},
      (float[]){0.f, 0.f, 0.f},
-     (float[]){0.f, 1.f, 0.f});
-  if(app_err != APP_NO_ERROR)
-    goto error;
+     (float[]){0.f, 1.f, 0.f}));
+
+  #undef CALL
 
 exit:
   return app_err;
-
 error:
   tmp_err = shutdown_common(app);
   assert(tmp_err == APP_NO_ERROR);

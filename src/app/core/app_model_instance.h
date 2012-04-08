@@ -27,5 +27,10 @@ extern enum app_error
 app_model_instance_ref_get
    (struct app_model_instance* instance);
 
+extern enum app_error
+app_get_model_instance_name
+  (const struct app_model_instance* instance,
+   const char** cstr);
+
 #endif /* APP_MODEL_INSTANCE_H */
 
