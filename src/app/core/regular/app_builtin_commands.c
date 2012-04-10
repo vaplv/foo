@@ -86,6 +86,7 @@ cmd_ls(struct app* app, size_t argc UNUSED, struct app_cmdarg* argv)
 {
   size_t len = 0;
   size_t i = 0;
+  bool all = false;
 
   assert(app != NULL
       && argc == 2
@@ -93,14 +94,17 @@ cmd_ls(struct app* app, size_t argc UNUSED, struct app_cmdarg* argv)
       && argv[0].type == APP_CMDARG_STRING
       && argv[1].type == APP_CMDARG_STRING);
 
-  if(0 == strcmp("--commands", argv[1].value.string)) {
+  all = 0 == strcmp("--all", argv[1].value.string);
+
+  if(0 == strcmp("--commands", argv[1].value.string) || all) {
     const char** name_list = NULL;
     SL(set_buffer(app->cmd.name_set, &len, NULL, NULL, (void**)&name_list));
     for(i = 0; i < len; ++i) {
       APP_LOG_MSG(app->logger, "%s\n", name_list[i]);
     }
-    APP_LOG_MSG(app->logger, "[total %zu]\n", len);
-  } else if(0 == strcmp("--models", argv[1].value.string)) {
+    APP_LOG_MSG(app->logger, "[total %zu commands]\n", len);
+  } 
+  if(0 == strcmp("--models", argv[1].value.string) || all) {
     const struct app_model** model_list = NULL;
     SL(set_buffer
       (app->object_list[APP_MODEL], &len, NULL, NULL, (void**)&model_list));
@@ -109,8 +113,9 @@ cmd_ls(struct app* app, size_t argc UNUSED, struct app_cmdarg* argv)
       APP(get_model_name(model_list[i], &name));
       APP_LOG_MSG(app->logger, "%s\n", name);
     }
-    APP_LOG_MSG(app->logger, "[total %zu]\n", len); 
-  } else if(0 == strcmp("--model-instances", argv[1].value.string)) {
+    APP_LOG_MSG(app->logger, "[total %zu models]\n", len); 
+  } 
+  if(0 == strcmp("--model-instances", argv[1].value.string) || all) {
     const struct app_model_instance** instance_list = NULL;
     SL(set_buffer
       (app->object_list[APP_MODEL_INSTANCE],
@@ -123,12 +128,8 @@ cmd_ls(struct app* app, size_t argc UNUSED, struct app_cmdarg* argv)
       APP(get_model_instance_name(instance_list[i], &name));
       APP_LOG_MSG(app->logger, "%s\n", name);
     }
-    APP_LOG_MSG(app->logger, "[total %zu]\n", len);
-  } else {
-    APP_LOG_WARN
-      (app->logger, "%s %s: command not implemented\n",
-       argv[0].value.string, argv[1].value.string);
-  }
+    APP_LOG_MSG(app->logger, "[total %zu model instances]\n", len);
+  } 
 }
 
 static void
@@ -139,6 +140,18 @@ cmd_clear(struct app* app, size_t argc UNUSED, struct app_cmdarg* argv UNUSED)
       && argv != NULL
       && argv[0].type == APP_CMDARG_STRING);
   RDR(clear_term(app->term.render_term, RDR_TERM_STDOUT));
+}
+
+static void
+cmd_spawn(struct app* app, size_t argc UNUSED, struct app_cmdarg* argv)
+{
+  assert(app != NULL
+      && argc == 2
+      && argv != NULL
+      && argv[0].type == APP_CMDARG_STRING
+      && argv[1].type == APP_CMDARG_STRING);
+  APP_LOG_WARN
+    (app->logger, "command not implemented `%s'\n", argv[0].value.string);
 }
 
 /*******************************************************************************
@@ -179,6 +192,11 @@ app_setup_builtin_commands(struct app* app)
        APP_CMDARG_APPEND_STRING(NULL)),
      "load - load resources\n"
      "Usage: load --model PATH\n"));
+  CALL(app_add_command
+    (app, "spawn", cmd_spawn,
+     1, APP_CMDARGV(APP_CMDARG_APPEND_STRING(NULL)),
+     "spawn - spawn a model into the world\n"
+     "Usage: spawn MODEL_NAME\n"));
 
   #undef CALL
 
