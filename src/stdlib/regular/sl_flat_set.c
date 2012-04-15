@@ -1,4 +1,5 @@
-#include "stdlib/sl_set.h"
+#include "stdlib/sl.h"
+#include "stdlib/sl_flat_set.h"
 #include "stdlib/sl_vector.h"
 #include "sys/mem_allocator.h"
 #include "sys/sys.h"
@@ -7,7 +8,7 @@
 #include <stdbool.h>
 #include <string.h>
 
-struct sl_set {
+struct sl_flat_set {
   int (*compare)(const void*, const void*);
   struct mem_allocator* allocator;
   struct sl_vector* vector;
@@ -18,58 +19,62 @@ struct sl_set {
  * Helper functions.
  *
  ******************************************************************************/
+enum search_type {
+  EXACT_VALUE,
+  LOWER_BOUND,
+  UPPER_BOUND
+};
+
 /* Let a vector vec, this function finds the index of the data in set and
  * defines if the data already lies into set. */
-static enum sl_error
+static bool
 data_id
-  (struct sl_set* set,
+  (struct sl_flat_set* set,
    const void* data,
    size_t* out_id,
-   bool* out_is_data_found)
+   const enum search_type search_type)
+   
 {
   size_t begin = 0;
   size_t end = 0;
   size_t len = 0;
-  enum sl_error err = SL_NO_ERROR;
   bool is_data_found = false;
+  assert(set && data && out_id);
 
-  assert(set && data && out_id && out_is_data_found);
-
-  err = sl_vector_length(set->vector, &len);
-  if(err != SL_NO_ERROR)
-    goto error;
-
+  SL(vector_length(set->vector, &len));
   begin = 0;
   end = len;
-
-  while(begin != end && !is_data_found) {
+  while(begin != end) {
     void* tmp_data = NULL;
     const size_t at = begin + (end - begin) / 2;
     int cmp = 0;
 
-    err = sl_vector_at(set->vector, at, &tmp_data);
-    if(err != SL_NO_ERROR)
-      goto error;
+    SL(vector_at(set->vector, at, &tmp_data));
     cmp = set->compare(data, tmp_data);
-    if(cmp == 0) {
-        is_data_found = true;
-        end = at;
-    } else {
-      if(cmp > 0) {
+    if(cmp > 0) {
         begin = at + 1;
-      } else if(cmp < 0) {
+    } else  if(cmp < 0) {
         end = at;
+    } else { /* cmp == 0 */
+      is_data_found = true;
+      switch(search_type) {
+        case LOWER_BOUND:
+          end = at;
+          break;
+        case UPPER_BOUND:
+          begin = at + 1;
+          break;
+        case EXACT_VALUE: 
+          begin = end = at;
+          break;
+        default:
+          assert(0);
+          break;
       }
     }
   }
-exit:
   *out_id = end;
-  *out_is_data_found = is_data_found;
-  return err;
-error:
-  end = 0;
-  is_data_found = false;
-  goto exit;
+  return is_data_found;
 }
 
 /*******************************************************************************
@@ -78,15 +83,15 @@ error:
  *
  ******************************************************************************/
 EXPORT_SYM enum sl_error
-sl_create_set
+sl_create_flat_set
   (size_t data_size,
    size_t data_alignment,
    int (*compare)(const void*, const void*),
    struct mem_allocator* specific_allocator,
-   struct sl_set** out_vector)
+   struct sl_flat_set** out_vector)
 {
   struct mem_allocator* allocator = NULL;
-  struct sl_set* set = NULL;
+  struct sl_flat_set* set = NULL;
   enum sl_error err = SL_NO_ERROR;
 
   if(!compare || !out_vector) {
@@ -94,7 +99,7 @@ sl_create_set
     goto error;
   }
   allocator = specific_allocator ? specific_allocator : &mem_default_allocator;
-  set = MEM_CALLOC(allocator, 1, sizeof(struct sl_set));
+  set = MEM_CALLOC(allocator, 1, sizeof(struct sl_flat_set));
   if(!set) {
     err = SL_MEMORY_ERROR;
     goto error;
@@ -124,8 +129,7 @@ error:
 }
 
 EXPORT_SYM enum sl_error
-sl_free_set
-  (struct sl_set* set)
+sl_free_flat_set(struct sl_flat_set* set)
 {
   struct mem_allocator* allocator = NULL;
   enum sl_error err = SL_NO_ERROR;
@@ -147,19 +151,18 @@ error:
 }
 
 EXPORT_SYM enum sl_error
-sl_clear_set
-  (struct sl_set* set)
+sl_clear_flat_set(struct sl_flat_set* set)
 {
   if(!set)
     return SL_INVALID_ARGUMENT;
-
   return sl_clear_vector(set->vector);
 }
 
 EXPORT_SYM enum sl_error
-sl_set_insert
-  (struct sl_set* set,
-   const void* data)
+sl_flat_set_insert
+  (struct sl_flat_set* set,
+   const void* data,
+   size_t* insert_id)
 {
   size_t id = 0;
   enum sl_error err = SL_NO_ERROR;
@@ -167,24 +170,20 @@ sl_set_insert
 
   if(!set || !data)
     return SL_INVALID_ARGUMENT;
-
-  err = data_id(set, data, &id, &is_data_found);
-  if(err != SL_NO_ERROR)
-    return err;
-
+  is_data_found = data_id(set, data, &id, EXACT_VALUE);
   if(is_data_found)
     return SL_INVALID_ARGUMENT;
-
   err = sl_vector_insert(set->vector, id, data);
   if(err != SL_NO_ERROR)
     return err;
-
+  if(insert_id)
+    *insert_id = id;
   return SL_NO_ERROR;
 }
 
 EXPORT_SYM enum sl_error
-sl_set_find
-  (struct sl_set* set,
+sl_flat_set_find
+  (struct sl_flat_set* set,
    const void* data,
    size_t* out_id)
 {
@@ -197,10 +196,7 @@ sl_set_find
     goto error;
   }
 
-  err = data_id(set, data, &id, &is_data_found);
-  if(err != SL_NO_ERROR)
-    goto error;
-
+  is_data_found = data_id(set, data, &id, EXACT_VALUE);
   if(is_data_found) {
     *out_id = id;
   } else {
@@ -220,8 +216,8 @@ error:
 }
 
 EXPORT_SYM enum sl_error
-sl_set_at
-  (struct sl_set* set,
+sl_flat_set_at
+  (struct sl_flat_set* set,
    size_t id,
    void** data)
 {
@@ -232,9 +228,10 @@ sl_set_at
 }
 
 EXPORT_SYM enum sl_error
-sl_set_remove
-  (struct sl_set* set,
-   const void* data)
+sl_flat_set_erase
+  (struct sl_flat_set* set,
+   const void* data,
+   size_t* erase_id)
 {
   size_t id = 0;
   enum sl_error err = SL_NO_ERROR;
@@ -244,30 +241,26 @@ sl_set_remove
     err = SL_INVALID_ARGUMENT;
     goto error;
   }
-
-  err = data_id(set, data, &id, &is_data_found);
-  if(err != SL_NO_ERROR)
-    goto error;
-
+  is_data_found = data_id(set, data, &id, EXACT_VALUE);
   if(!is_data_found) {
     err = SL_INVALID_ARGUMENT;
     goto error;
   }
-
-  err = sl_vector_remove(set->vector, id);
+  err = sl_vector_erase(set->vector, id);
   if(err != SL_NO_ERROR)
     goto error;
+  if(erase_id)
+    *erase_id = id;
 
 exit:
   return err;
-
 error:
   goto exit;
 }
 
 EXPORT_SYM enum sl_error
-sl_set_reserve
-  (struct sl_set* set,
+sl_flat_set_reserve
+  (struct sl_flat_set* set,
    size_t capacity)
 {
   if(!set)
@@ -277,8 +270,8 @@ sl_set_reserve
 }
 
 EXPORT_SYM enum sl_error
-sl_set_capacity
-  (struct sl_set* set,
+sl_flat_set_capacity
+  (struct sl_flat_set* set,
    size_t *out_capacity)
 {
   if(!set)
@@ -288,8 +281,8 @@ sl_set_capacity
 }
 
 EXPORT_SYM enum sl_error
-sl_set_length
-  (struct sl_set* set,
+sl_flat_set_length
+  (struct sl_flat_set* set,
    size_t* out_length)
 {
   if(!set)
@@ -299,8 +292,34 @@ sl_set_length
 }
 
 EXPORT_SYM enum sl_error
-sl_set_buffer
-  (struct sl_set* set,
+sl_flat_set_lower_bound
+  (struct sl_flat_set* set, 
+   const void* data, 
+   size_t* lower_bound)
+{
+  bool b = false;
+  if(!set || !data || !lower_bound)
+    return SL_INVALID_ARGUMENT;
+  b = data_id(set, data, lower_bound, LOWER_BOUND);
+  return SL_NO_ERROR;
+}
+
+EXPORT_SYM enum sl_error
+sl_flat_set_upper_bound
+  (struct sl_flat_set* set, 
+   const void* data, 
+   size_t* upper_bound)
+{
+  bool b = false;
+  if(!set || !data || !upper_bound)
+    return SL_INVALID_ARGUMENT;
+  b = data_id(set, data, upper_bound, UPPER_BOUND);
+  return SL_NO_ERROR;
+}
+
+EXPORT_SYM enum sl_error
+sl_flat_set_buffer
+  (struct sl_flat_set* set,
    size_t* length,
    size_t* data_size,
    size_t* data_alignment,
@@ -308,7 +327,6 @@ sl_set_buffer
 {
   if(!set)
     return SL_INVALID_ARGUMENT;
-
   return sl_vector_buffer
     (set->vector, length, data_size, data_alignment, buffer);
 }

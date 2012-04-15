@@ -1,5 +1,4 @@
 #include "stdlib/sl.h"
-#include "stdlib/sl_set.h"
 #include "sys/mem_allocator.h"
 #include "sys/sys.h"
 #include "window_manager/glfw/wm_glfw_device_c.h"

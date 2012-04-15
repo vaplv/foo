@@ -11,7 +11,7 @@
 #include "renderer/rdr_model.h"
 #include "renderer/rdr_system.h"
 #include "stdlib/sl.h"
-#include "stdlib/sl_set.h"
+#include "stdlib/sl_flat_set.h"
 #include "sys/ref_count.h"
 #include "sys/sys.h"
 #include <assert.h>
@@ -46,7 +46,7 @@ struct rdr_model {
   struct rdr_mesh* mesh;
   struct rdr_material* material;
   /* List of callbacks to invoke when the model desc has changed. */
-  struct sl_set* callback_set[RDR_NB_MODEL_SIGNALS];
+  struct sl_flat_set* callback_set[RDR_NB_MODEL_SIGNALS];
   /* Array of instance attribs, i.e. attribs not bound to a mesh attrib. */
   struct rb_attrib** instance_attrib_list;
   size_t nb_instance_attribs;
@@ -497,10 +497,12 @@ release_model(struct ref* ref)
 
   for(i = 0; i < RDR_NB_MODEL_SIGNALS; ++i) {
     if(mdl->callback_set[i]) {
+      #ifndef NDEBUG
       size_t len = 0;
-      SL(set_buffer(mdl->callback_set[i], &len, NULL, NULL, NULL));
+      SL(flat_set_buffer(mdl->callback_set[i], &len, NULL, NULL, NULL));
       assert(len == 0);
-      SL(free_set(mdl->callback_set[i]));
+      #endif
+      SL(free_flat_set(mdl->callback_set[i]));
     }
   }
   RDR(is_material_callback_attached
@@ -542,9 +544,10 @@ invoke_callbacks(struct rdr_model* mdl, enum rdr_model_signal signal)
   size_t i = 0;
   assert(mdl);
 
-  SL(set_buffer(mdl->callback_set[signal], &len, NULL, NULL, (void**)&buffer));
+  SL(flat_set_buffer
+    (mdl->callback_set[signal], &len, NULL, NULL, (void**)&buffer));
   for(i = 0; i < len; ++i) {
-    struct callback* clbk = buffer + i;
+    const struct callback* clbk = buffer + i;
     clbk->func(mdl, clbk->data);
   }
 }
@@ -606,7 +609,7 @@ rdr_create_model
   model->sys = sys;
 
   for(i = 0; i < RDR_NB_MODEL_SIGNALS; ++i) {
-    sl_err = sl_create_set
+    sl_err = sl_create_flat_set
       (sizeof(struct callback),
        ALIGNOF(struct callback),
        cmp_callbacks,
@@ -873,7 +876,8 @@ rdr_attach_model_callback
 {
   if(!model || !func || sig >= RDR_NB_MODEL_SIGNALS)
     return  RDR_INVALID_ARGUMENT;
-  SL(set_insert(model->callback_set[sig], (struct callback[]){{func, data}}));
+  SL(flat_set_insert
+    (model->callback_set[sig], (struct callback[]){{func, data}}, NULL));
   return RDR_NO_ERROR;
 }
 
@@ -886,7 +890,8 @@ rdr_detach_model_callback
 {
   if(!model || !func || sig >= RDR_NB_MODEL_SIGNALS)
     return RDR_INVALID_ARGUMENT;
-  SL(set_remove(model->callback_set[sig], (struct callback[]){{func, data}}));
+  SL(flat_set_erase
+    (model->callback_set[sig], (struct callback[]){{func, data}}, NULL));
   return RDR_NO_ERROR;
 }
 
@@ -903,8 +908,9 @@ rdr_is_model_callback_attached
 
   if(!model || !func || !is_attached || sig >= RDR_NB_MODEL_SIGNALS)
     return RDR_INVALID_ARGUMENT;
-  SL(set_find(model->callback_set[sig], (struct callback[]){{func, data}}, &i));
-  SL(set_buffer(model->callback_set[sig], &len, NULL, NULL, NULL));
+  SL(flat_set_find
+    (model->callback_set[sig], (struct callback[]){{func, data}}, &i));
+  SL(flat_set_buffer(model->callback_set[sig], &len, NULL, NULL, NULL));
   *is_attached = (i != len);
   return RDR_NO_ERROR;
 }

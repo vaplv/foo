@@ -1,6 +1,6 @@
 #include "stdlib/sl.h"
 #include "stdlib/sl_hash_table.h"
-#include "stdlib/sl_set.h"
+#include "stdlib/sl_flat_set.h"
 #include "sys/sys.h"
 #include "window_manager/glfw/wm_glfw_device_c.h"
 #include "window_manager/glfw/wm_glfw_error.h"
@@ -205,7 +205,8 @@ glfw_key_callback(int key, int action)
   const enum wm_state wm_state = glfw_to_wm_state(action);
   assert(NULL != g_device);
 
-  SL(set_buffer(g_device->key_clbk_list, &nb_clbk, 0, 0, (void**)&clbk_list));
+  SL(flat_set_buffer
+    (g_device->key_clbk_list, &nb_clbk, 0, 0, (void**)&clbk_list));
   for(i = 0; i < nb_clbk; ++i) {
     ((void (*)(enum wm_key, enum wm_state, void*))clbk_list[i].func)
       (wm_key, wm_state, clbk_list[i].data);
@@ -222,7 +223,8 @@ glfw_char_callback(int character, int action)
   const enum wm_state wm_state = glfw_to_wm_state(action);
   assert(NULL != g_device);
 
-  SL(set_buffer(g_device->char_clbk_list, &nb_clbk, 0, 0, (void**)&clbk_list));
+  SL(flat_set_buffer
+    (g_device->char_clbk_list, &nb_clbk, 0, 0, (void**)&clbk_list));
   for(i = 0; i < nb_clbk; ++i) {
     ((void (*)(wchar_t, enum wm_state, void*))clbk_list[i].func)
       (ch, wm_state, clbk_list[i].data);
@@ -327,12 +329,14 @@ wm_attach_key_callback
   }
   /* If it is the first attached callback, setup the callback which dispatch
    * the glfw key events to the attached callbacks. */
-  SL(set_buffer(device->key_clbk_list, &len, NULL, NULL, NULL));
+  SL(flat_set_buffer(device->key_clbk_list, &len, NULL, NULL, NULL));
   if(0 == len)
     glfwSetKeyCallback(glfw_key_callback);
 
-  sl_err = sl_set_insert
-    (device->key_clbk_list, (struct callback[]){{WM_CALLBACK(func), data}});
+  sl_err = sl_flat_set_insert
+    (device->key_clbk_list, 
+     (struct callback[]){{WM_CALLBACK(func), data}}, 
+     NULL);
   if(sl_err != SL_NO_ERROR) {
     wm_err = sl_to_wm_error(sl_err);
     goto error;
@@ -358,14 +362,16 @@ wm_detach_key_callback
     wm_err = WM_INVALID_ARGUMENT;
     goto error;
   }
-  sl_err = sl_set_remove
-    (device->key_clbk_list, (struct callback[]){{WM_CALLBACK(func), data}});
+  sl_err = sl_flat_set_erase
+    (device->key_clbk_list, 
+     (struct callback[]){{WM_CALLBACK(func), data}},
+     NULL);
   if(sl_err != SL_NO_ERROR) {
     wm_err = sl_to_wm_error(sl_err);
     goto error;
   }
   /* Detach the glfw callback if no more key callback is attached. */
-  SL(set_buffer(device->key_clbk_list, &len, NULL, NULL, NULL));
+  SL(flat_set_buffer(device->key_clbk_list, &len, NULL, NULL, NULL));
   if(0 == len)
     glfwSetKeyCallback(NULL);
 
@@ -390,11 +396,11 @@ wm_is_key_callback_attached
     wm_err = WM_INVALID_ARGUMENT;
     goto error;
   }
-  SL(set_find
+  SL(flat_set_find
     (device->key_clbk_list, 
      (struct callback[]){{WM_CALLBACK(func), data}},
      &id));
-  SL(set_buffer(device->key_clbk_list, &len, NULL, NULL, NULL));
+  SL(flat_set_buffer(device->key_clbk_list, &len, NULL, NULL, NULL));
   *is_attached = id != len;
 exit:
   return wm_err;
@@ -418,12 +424,14 @@ wm_attach_char_callback
   }
   /* If it is the first attached callback, setup the callback which dispatch
    * the glfw char events to the attached callbacks. */
-  SL(set_buffer(device->char_clbk_list, &len, NULL, NULL, NULL));
+  SL(flat_set_buffer(device->char_clbk_list, &len, NULL, NULL, NULL));
   if(0 == len)
     glfwSetCharCallback(glfw_char_callback);
 
-  sl_err = sl_set_insert
-    (device->char_clbk_list, (struct callback[]){{WM_CALLBACK(func), data}});
+  sl_err = sl_flat_set_insert
+    (device->char_clbk_list, 
+     (struct callback[]){{WM_CALLBACK(func), data}}, 
+     NULL);
   if(sl_err != SL_NO_ERROR) {
     wm_err = sl_to_wm_error(sl_err);
     goto error;
@@ -450,14 +458,17 @@ wm_detach_char_callback
     wm_err = WM_INVALID_ARGUMENT;
     goto error;
   }
-  sl_err = sl_set_remove
-    (device->char_clbk_list, (struct callback[]){{WM_CALLBACK(func), data}});
+  sl_err = sl_flat_set_erase
+    (device->char_clbk_list, 
+     (struct callback[]){{WM_CALLBACK(func), 
+     data}},
+     NULL);
   if(sl_err != SL_NO_ERROR) {
     wm_err = sl_to_wm_error(sl_err);
     goto error;
   }
   /* Detach the glfw callback if no more char callback is attached. */
-  SL(set_buffer(device->char_clbk_list, &len, NULL, NULL, NULL));
+  SL(flat_set_buffer(device->char_clbk_list, &len, NULL, NULL, NULL));
   if(0 == len)
     glfwSetCharCallback(NULL);
 
@@ -482,11 +493,11 @@ wm_is_char_callback_attached
     wm_err = WM_INVALID_ARGUMENT;
     goto error;
   }
-  SL(set_find
+  SL(flat_set_find
     (device->char_clbk_list, 
      (struct callback[]){{WM_CALLBACK(func), data}},
      &id));
-  SL(set_buffer(device->char_clbk_list, &len, NULL, NULL, NULL));
+  SL(flat_set_buffer(device->char_clbk_list, &len, NULL, NULL, NULL));
   *is_attached = id != len;
 exit:
   return wm_err;
@@ -520,13 +531,13 @@ wm_init_inputs(struct wm_device* device)
       } \
     } while(0)
 
-  CALL(sl_create_set
+  CALL(sl_create_flat_set
     (sizeof(struct callback),
      ALIGNOF(struct callback),
      compare_callbacks,
      device->allocator,
      &device->key_clbk_list));
-  CALL(sl_create_set
+  CALL(sl_create_flat_set
     (sizeof(struct callback),
      ALIGNOF(struct callback),
      compare_callbacks,
@@ -564,11 +575,11 @@ wm_shutdown_inputs(struct wm_device* device)
     return WM_INVALID_ARGUMENT;
 
   if(device->key_clbk_list) {
-    SL(free_set(device->key_clbk_list));
+    SL(free_flat_set(device->key_clbk_list));
     device->key_clbk_list = NULL;
   }
   if(device->char_clbk_list) {
-    SL(free_set(device->char_clbk_list));
+    SL(free_flat_set(device->char_clbk_list));
     device->char_clbk_list = NULL;
   }
   if(device->glfw_to_wm_key_htbl) {

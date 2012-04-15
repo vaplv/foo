@@ -7,8 +7,8 @@
 #include "renderer/rdr_term.h"
 #include "renderer/rdr.h"
 #include "stdlib/sl.h"
+#include "stdlib/sl_flat_set.h"
 #include "stdlib/sl_hash_table.h"
-#include "stdlib/sl_set.h"
 #include "sys/sys.h"
 #include <assert.h>
 #include <stdbool.h>
@@ -98,7 +98,8 @@ cmd_ls(struct app* app, size_t argc UNUSED, struct app_cmdarg* argv)
 
   if(0 == strcmp("--commands", argv[1].value.string) || all) {
     const char** name_list = NULL;
-    SL(set_buffer(app->cmd.name_set, &len, NULL, NULL, (void**)&name_list));
+    SL(flat_set_buffer
+      (app->cmd.name_set, &len, NULL, NULL, (void**)&name_list));
     for(i = 0; i < len; ++i) {
       APP_LOG_MSG(app->logger, "%s\n", name_list[i]);
     }
@@ -106,7 +107,7 @@ cmd_ls(struct app* app, size_t argc UNUSED, struct app_cmdarg* argv)
   } 
   if(0 == strcmp("--models", argv[1].value.string) || all) {
     const struct app_model** model_list = NULL;
-    SL(set_buffer
+    SL(flat_set_buffer
       (app->object_list[APP_MODEL], &len, NULL, NULL, (void**)&model_list));
     for(i = 0; i < len; ++i) {
       const char* name = NULL;
@@ -117,7 +118,7 @@ cmd_ls(struct app* app, size_t argc UNUSED, struct app_cmdarg* argv)
   } 
   if(0 == strcmp("--model-instances", argv[1].value.string) || all) {
     const struct app_model_instance** instance_list = NULL;
-    SL(set_buffer
+    SL(flat_set_buffer
       (app->object_list[APP_MODEL_INSTANCE],
        &len, 
        NULL, 

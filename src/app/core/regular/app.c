@@ -21,8 +21,8 @@
 #include "resources/rsrc_geometry.h"
 #include "resources/rsrc_wavefront_obj.h"
 #include "stdlib/sl.h"
+#include "stdlib/sl_flat_set.h"
 #include "stdlib/sl_logger.h"
-#include "stdlib/sl_set.h"
 #include "stdlib/sl_vector.h"
 #include "sys/mem_allocator.h"
 #include "sys/sys.h"
@@ -159,7 +159,7 @@ manage_callback
    void* data,
    enum callback_action action)
 {
-  struct sl_set* set = NULL;
+  struct sl_flat_set* set = NULL;
   enum app_error app_err = APP_NO_ERROR;
   enum sl_error sl_err = SL_NO_ERROR;
   bool is_updated = false;
@@ -172,12 +172,12 @@ manage_callback
   set = app->callback_list[signal];
   switch(action) {
     case CALLBACK_ATTACH:
-      sl_err = sl_set_insert
-        (set, (struct callback[]){{cbk, data}});
+      sl_err = sl_flat_set_insert
+        (set, (struct callback[]){{cbk, data}}, NULL);
       break;
     case CALLBACK_DETACH:
-      sl_err = sl_set_remove
-        (set, (struct callback[]){{cbk, data}});
+      sl_err = sl_flat_set_erase
+        (set, (struct callback[]){{cbk, data}}, NULL);
       break;
     default:
       assert(false);
@@ -196,10 +196,10 @@ error:
   if(is_updated) {
     switch(action) {
       case CALLBACK_ATTACH:
-        SL(set_remove(set, (struct callback[]){{cbk, data}}));
+        SL(flat_set_erase(set, (struct callback[]){{cbk, data}}, NULL));
         break;
       case CALLBACK_DETACH:
-        SL(set_insert(set, (struct callback[]){{cbk, data}}));
+        SL(flat_set_insert(set, (struct callback[]){{cbk, data}}, NULL));
         break;
       default:
         assert(false);
@@ -356,16 +356,16 @@ shutdown_common(struct app* app)
     if(app->object_list[i]) {
       #ifndef NDEBUG
       size_t len = 0;
-      SL(set_buffer(app->object_list[i], &len, NULL, NULL, NULL));
+      SL(flat_set_buffer(app->object_list[i], &len, NULL, NULL, NULL));
       assert(len == 0);
       #endif
-      SL(free_set(app->object_list[i]));
+      SL(free_flat_set(app->object_list[i]));
       app->object_list[i] = NULL;
     }
   }
   for(i = 0; i < APP_NB_SIGNALS; ++i) {
     if(NULL != app->callback_list[i]) {
-      SL(free_set(app->callback_list[i]));
+      SL(free_flat_set(app->callback_list[i]));
       app->callback_list[i] = NULL;
     }
   }
@@ -550,7 +550,7 @@ init_common(struct app* app)
   CALL(app_setup_model_instance_set(app));
 
   for(i = 0; i < APP_NB_SIGNALS; ++i) {
-    sl_err = sl_create_set
+    sl_err = sl_create_flat_set
       (sizeof(struct callback),
        ALIGNOF(struct callback),
        compare_callbacks,
@@ -812,10 +812,10 @@ app_cleanup(struct app* app)
    * empty exepted when all the created object are released. */
   for(type_id = 0; type_id < APP_NB_OBJECT_TYPES; ++type_id) {
     if(app->object_list[type_id]) {
-      SL(set_buffer(app->object_list[type_id], &len, NULL, NULL, NULL));
+      SL(flat_set_buffer(app->object_list[type_id], &len, NULL, NULL, NULL));
       for(i = len; i > 0; ) {
         void* object = NULL;
-        SL(set_at(app->object_list[type_id], --i, (void**)&object));
+        SL(flat_set_at(app->object_list[type_id], --i, (void**)&object));
 
         switch((enum app_object_type)type_id) {
           case APP_MODEL:
@@ -832,7 +832,7 @@ app_cleanup(struct app* app)
     }
   }
   for(type_id = 0; type_id < APP_NB_OBJECT_TYPES; ++type_id) {
-    SL(clear_set(app->object_list[type_id]));
+    SL(clear_flat_set(app->object_list[type_id]));
  }
 exit:
   return app_err;
@@ -973,7 +973,7 @@ app_get_model_list
     app_err = APP_INVALID_ARGUMENT;
     goto error;
   }
-  SL(set_buffer
+  SL(flat_set_buffer
     (app->object_list[APP_MODEL],
      len,
      NULL,
@@ -998,7 +998,7 @@ app_get_model_instance_list
     app_err = APP_INVALID_ARGUMENT;
     goto error;
   }
-  SL(set_buffer
+  SL(flat_set_buffer
     (app->object_list[APP_MODEL_INSTANCE],
      len,
      NULL,
@@ -1019,7 +1019,7 @@ app_is_callback_attached
    void* data,
    bool* is_attached)
 {
-  struct sl_set* set = NULL;
+  struct sl_flat_set* set = NULL;
   enum app_error app_err = APP_NO_ERROR;
   enum sl_error sl_err = SL_NO_ERROR;
   size_t i = 0;
@@ -1031,13 +1031,13 @@ app_is_callback_attached
   }
 
   set = app->callback_list[signal];
-  sl_err = sl_set_find
+  sl_err = sl_flat_set_find
     (set, (struct callback[]){{callback, data}}, &i);
   if(sl_err != SL_NO_ERROR) {
     app_err = sl_to_app_error(sl_err);
     goto error;
   }
-  sl_err = sl_set_buffer(set, &len, NULL, NULL, NULL);
+  sl_err = sl_flat_set_buffer(set, &len, NULL, NULL, NULL);
   if(sl_err != SL_NO_ERROR) {
     app_err = sl_to_app_error(sl_err);
     goto error;
@@ -1102,7 +1102,7 @@ app_register_object(struct app* app, enum app_object_type type, void* object)
   enum sl_error sl_err = SL_NO_ERROR;
   assert(app && object);
 
-  sl_err = sl_set_insert(app->object_list[type], &object);
+  sl_err = sl_flat_set_insert(app->object_list[type], &object, NULL);
   if(sl_err != SL_NO_ERROR) {
     app_err = sl_to_app_error(sl_err);
     goto error;
@@ -1121,7 +1121,7 @@ app_unregister_object(struct app* app, enum app_object_type type, void* object)
   enum sl_error sl_err = SL_NO_ERROR;
   assert(app && object);
 
-  sl_err = sl_set_remove(app->object_list[type], &object);
+  sl_err = sl_flat_set_erase(app->object_list[type], &object, NULL);
   if(sl_err != SL_NO_ERROR) {
     app_err = sl_to_app_error(sl_err);
     goto error;
@@ -1145,12 +1145,12 @@ app_is_object_registered
   enum sl_error sl_err = SL_NO_ERROR;
   assert(app && object && is_registered);
 
-  sl_err = sl_set_find(app->object_list[type], &object, &i);
+  sl_err = sl_flat_set_find(app->object_list[type], &object, &i);
   if(sl_err != SL_NO_ERROR) {
     app_err = sl_to_app_error(sl_err);
     goto error;
   }
-  sl_err = sl_set_buffer(app->object_list[type], &len, NULL, NULL, NULL);
+  sl_err = sl_flat_set_buffer(app->object_list[type], &len, NULL, NULL, NULL);
   if(sl_err != SL_NO_ERROR) {
     app_err = sl_to_app_error(sl_err);
     goto error;
@@ -1181,7 +1181,7 @@ app_invoke_callbacks(struct app* app, enum app_signal signal, ...)
   va_start(arg_list, signal);
   arg = va_arg(arg_list, void*);
 
-  SL(set_buffer
+  SL(flat_set_buffer
     (app->callback_list[signal], &len, NULL, NULL, (void**)&callback_list));
 
   for(i = 0; i < len; ++i) {

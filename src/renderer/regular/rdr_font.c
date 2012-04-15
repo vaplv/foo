@@ -7,7 +7,7 @@
 #include "renderer/rdr_system.h"
 #include "stdlib/sl.h"
 #include "stdlib/sl_hash_table.h"
-#include "stdlib/sl_set.h"
+#include "stdlib/sl_flat_set.h"
 #include "sys/mem_allocator.h"
 #include "sys/ref_count.h"
 #include "sys/sys.h"
@@ -21,7 +21,7 @@
 
 struct rdr_font {
   struct ref ref;
-  struct sl_set* callback_list[RDR_NB_FONT_SIGNALS];
+  struct sl_flat_set* callback_list[RDR_NB_FONT_SIGNALS];
   struct rdr_system* sys;
   struct sl_hash_table* glyph_htbl;
   struct rb_tex2d* cache_tex;
@@ -103,7 +103,8 @@ invoke_callbacks(struct rdr_font* font, enum rdr_font_signal signal)
   size_t i = 0;
   assert(font && signal < RDR_NB_FONT_SIGNALS);
 
-  SL(set_buffer(font->callback_list[signal], &len, NULL, NULL, (void**)&clbks));
+  SL(flat_set_buffer
+    (font->callback_list[signal], &len, NULL, NULL, (void**)&clbks));
   for(i = 0; i < len; ++i) {
     clbks[i].func(font, clbks[i].data);
   }
@@ -445,7 +446,7 @@ release_font(struct ref* ref)
     SL(free_hash_table(font->glyph_htbl));
   for(i = 0; i < RDR_NB_FONT_SIGNALS; ++i) {
     if(font->callback_list[i]) {
-      SL(free_set(font->callback_list[i]));
+      SL(free_flat_set(font->callback_list[i]));
     }
   }
   if(font->cache_tex)
@@ -500,7 +501,7 @@ rdr_create_font(struct rdr_system* sys, struct rdr_font** out_font)
   }
 
   for(i = 0; i < RDR_NB_FONT_SIGNALS; ++i) {
-    sl_err = sl_create_set
+    sl_err = sl_create_flat_set
       (sizeof(struct callback),
        ALIGNOF(struct callback),
        compare_callbacks,
@@ -818,8 +819,8 @@ rdr_font_attach_callback
     rdr_err =  RDR_INVALID_ARGUMENT;
     goto error;
   }
-  sl_err = sl_set_insert
-    (font->callback_list[signal], (struct callback[]){{callback, data}});
+  sl_err = sl_flat_set_insert
+    (font->callback_list[signal], (struct callback[]){{callback, data}}, NULL);
   if(sl_err != SL_NO_ERROR) {
     rdr_err = sl_to_rdr_error(sl_err);
     goto error;
@@ -844,8 +845,8 @@ rdr_font_detach_callback
     rdr_err =  RDR_INVALID_ARGUMENT;
     goto error;
   }
-  sl_err = sl_set_remove
-    (font->callback_list[signal], (struct callback[]){{callback, data}});
+  sl_err = sl_flat_set_erase
+    (font->callback_list[signal], (struct callback[]){{callback, data}}, NULL);
   if(sl_err != SL_NO_ERROR) {
     rdr_err = sl_to_rdr_error(sl_err);
     goto error;
@@ -873,13 +874,13 @@ rdr_is_font_callback_attached
     rdr_err =  RDR_INVALID_ARGUMENT;
     goto error;
   }
-  sl_err = sl_set_find
+  sl_err = sl_flat_set_find
     (font->callback_list[signal], (struct callback[]){{callback, data}}, &id);
   if(sl_err != SL_NO_ERROR) {
     rdr_err = sl_to_rdr_error(sl_err);
     goto error;
   }
-  SL(set_buffer(font->callback_list[signal], &len, NULL, NULL, NULL));
+  SL(flat_set_buffer(font->callback_list[signal], &len, NULL, NULL, NULL));
   *is_attached = len != id;
 exit:
   return rdr_err;

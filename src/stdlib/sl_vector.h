@@ -51,12 +51,12 @@ sl_vector_insert_n
    const void* data);
 
 extern enum sl_error
-sl_vector_remove
+sl_vector_erase
   (struct sl_vector* vector,
    size_t id);
 
 extern enum sl_error
-sl_vector_remove_n
+sl_vector_erase_n
   (struct sl_vector* vector,
    size_t id,
    size_t count);

@@ -5,8 +5,8 @@
 #include "app/core/app_command.h"
 #include "app/core/app_command_buffer.h"
 #include "stdlib/sl.h"
+#include "stdlib/sl_flat_set.h"
 #include "stdlib/sl_hash_table.h"
-#include "stdlib/sl_set.h"
 #include "sys/mem_allocator.h"
 #include "sys/sys.h"
 #include <assert.h>
@@ -204,7 +204,7 @@ app_add_command
     app_err = sl_to_app_error(sl_err);
     goto error;
   }
-  sl_err = sl_set_insert(app->cmd.name_set, &cmd_name);
+  sl_err = sl_flat_set_insert(app->cmd.name_set, &cmd_name, NULL);
   if(SL_NO_ERROR != sl_err) {
     app_err = sl_to_app_error(sl_err);
     goto error;
@@ -218,10 +218,10 @@ error:
       SL(hash_table_erase(app->cmd.htbl, &cmd_name, &i));
       assert(0 == i);
     }
-    SL(set_find(app->cmd.name_set, &cmd_name, &i));
-    SL(set_buffer(app->cmd.name_set, &j, NULL, NULL, NULL));
+    SL(flat_set_find(app->cmd.name_set, &cmd_name, &i));
+    SL(flat_set_buffer(app->cmd.name_set, &j, NULL, NULL, NULL));
     if(i != j) {
-      SL(set_remove(app->cmd.name_set, &cmd_name));
+      SL(flat_set_erase(app->cmd.name_set, &cmd_name, NULL));
     }
     MEM_FREE(app->allocator, cmd_name);
   }
@@ -255,7 +255,7 @@ app_del_command(struct app* app, const char* name)
   cmd = *(struct app_command**)pair.data;
   SL(hash_table_erase(app->cmd.htbl, &name, &nb_erased));
   assert(1 == nb_erased);
-  SL(set_remove(app->cmd.name_set, &name));
+  SL(flat_set_erase(app->cmd.name_set, &name, NULL));
   MEM_FREE(app->allocator, cmd_name);
   if(cmd->description)
     MEM_FREE(app->allocator, cmd->description);
@@ -336,54 +336,32 @@ app_command_completion
     app_err = APP_INVALID_ARGUMENT;
     goto error;
   }
-
-  SL(set_buffer(app->cmd.name_set, &len, NULL, NULL, (void**)&name_list));
+  SL(flat_set_buffer(app->cmd.name_set, &len, NULL, NULL, (void**)&name_list));
   if(0 == cmd_name_len) {
     *completion_list_len = len;
     *completion_list = name_list;
   } else {
+    #define CHARBUF_SIZE 32
+    char buf[CHARBUF_SIZE];
+    const char* ptr = buf;
     size_t begin = 0;
     size_t end = 0;
-    bool b = false;
 
-    #define LOWER_BOUND 0
-    #define UPPER_BOUND 1
-    #define DICHOTOMY_SEARCH(bound_type) \
-      do { \
-        begin = 0; \
-        end = len; \
-        b = false; \
-        while(begin != end) { \
-          const size_t at = begin + (end - begin) / 2; \
-          const int cmp = strncmp(cmd_name, name_list[at], cmd_name_len); \
-          if(cmp > 0) { \
-            begin = at + 1; \
-          } else if(cmp < 0) { \
-            end = at; \
-          } else { /* cmp == 0. */ \
-            if(UPPER_BOUND == bound_type) \
-              begin = at + 1; \
-            else \
-              end = at; \
-            b = true; \
-          } \
-        } \
-      } while(0)
-    DICHOTOMY_SEARCH(LOWER_BOUND);
-    if(false == b) {
-      *completion_list_len = 0;
-      *completion_list = NULL;
-    } else {
-      *completion_list = name_list + begin;
-      DICHOTOMY_SEARCH(UPPER_BOUND);
-      assert
-        (  true == b
-        && (uintptr_t)(name_list + begin) >= (uintptr_t)(*completion_list));
-      *completion_list_len = (name_list + begin) - (*completion_list);
+    if(cmd_name_len > CHARBUF_SIZE - 1) {
+      app_err = APP_MEMORY_ERROR;
+      goto error;
     }
-    #undef LOWER_BOUND
-    #undef UPPER_BOUND
-    #undef DICHOTOMY_SEARCH
+    strncpy(buf, cmd_name, cmd_name_len);
+    buf[cmd_name_len] = '\0';
+    SL(flat_set_lower_bound(app->cmd.name_set, &ptr, &begin));
+    buf[cmd_name_len] = 127;
+    buf[cmd_name_len + 1] = '\0';
+    SL(flat_set_upper_bound(app->cmd.name_set, &ptr, &end));
+    *completion_list = name_list + begin;
+    *completion_list_len = (name_list + end) - (*completion_list);
+    if(0 == *completion_list_len)
+      *completion_list = NULL;
+    #undef CHARBUF_SIZE
   }
 exit:
   return app_err;
@@ -419,7 +397,7 @@ app_init_command_system(struct app* app)
     app_err = sl_to_app_error(sl_err);
     goto error;
   }
-  sl_err = sl_create_set
+  sl_err = sl_create_flat_set
     (sizeof(const char*),
      ALIGNOF(const char*),
      cmp_str,
@@ -447,7 +425,7 @@ app_shutdown_command_system(struct app* app)
     return APP_INVALID_ARGUMENT;
 
   if(app->cmd.name_set) {
-    SL(free_set(app->cmd.name_set));
+    SL(free_flat_set(app->cmd.name_set));
     app->cmd.name_set = NULL;
   }
   if(app->cmd.htbl) {

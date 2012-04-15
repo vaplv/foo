@@ -11,8 +11,8 @@
 #include "resources/rsrc_geometry.h"
 #include "resources/rsrc_wavefront_obj.h"
 #include "stdlib/sl.h"
+#include "stdlib/sl_flat_set.h"
 #include "stdlib/sl_string.h"
-#include "stdlib/sl_set.h"
 #include "stdlib/sl_vector.h"
 #include "sys/mem_allocator.h"
 #include "sys/ref_count.h"
@@ -615,7 +615,7 @@ app_setup_model_set(struct app* app)
     app_err = APP_INVALID_ARGUMENT;
     goto error;
   }
-  sl_err = sl_create_set
+  sl_err = sl_create_flat_set
     (sizeof(struct app_model*),
      ALIGNOF(struct app_model*),
      compare_models,

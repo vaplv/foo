@@ -6,7 +6,7 @@
 #include "renderer/rdr.h"
 #include "renderer/rdr_model_instance.h"
 #include "stdlib/sl.h"
-#include "stdlib/sl_set.h"
+#include "stdlib/sl_flat_set.h"
 #include "stdlib/sl_string.h"
 #include "stdlib/sl_vector.h"
 #include "sys/mem_allocator.h"
@@ -185,7 +185,7 @@ app_setup_model_instance_set(struct app* app)
     app_err = APP_INVALID_ARGUMENT;
     goto error;
   }
-  sl_err = sl_create_set
+  sl_err = sl_create_flat_set
     (sizeof(struct app_model_instance*),
      ALIGNOF(struct app_model_instance*),
      compare_model_instances,

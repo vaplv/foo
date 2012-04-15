@@ -190,10 +190,10 @@ main(int argc UNUSED, char** argv UNUSED)
   CHECK(sl_vector_at(vec, 10, &data), OK);
   CHECK(*(int*)data, 9);
 
-  CHECK(sl_vector_remove(NULL, 12), BAD_ARG);
-  CHECK(sl_vector_remove(vec, 12), BAD_ARG);
-  CHECK(sl_vector_remove(NULL, 5), BAD_ARG);
-  CHECK(sl_vector_remove(vec, 5), OK);
+  CHECK(sl_vector_erase(NULL, 12), BAD_ARG);
+  CHECK(sl_vector_erase(vec, 12), BAD_ARG);
+  CHECK(sl_vector_erase(NULL, 5), BAD_ARG);
+  CHECK(sl_vector_erase(vec, 5), OK);
   CHECK(sl_vector_length(vec, &len), OK);
   CHECK(len, 10);
   CHECK(sl_vector_at(vec, 0, &data), OK);
@@ -217,10 +217,10 @@ main(int argc UNUSED, char** argv UNUSED)
   CHECK(sl_vector_at(vec, 9, &data), OK);
   CHECK(*(int*)data, 9);
 
-  CHECK(sl_vector_remove(vec, 9), OK);
-  CHECK(sl_vector_remove(vec, 0), OK);
-  CHECK(sl_vector_remove(vec, 2), OK);
-  CHECK(sl_vector_remove(vec, 5), OK);
+  CHECK(sl_vector_erase(vec, 9), OK);
+  CHECK(sl_vector_erase(vec, 0), OK);
+  CHECK(sl_vector_erase(vec, 2), OK);
+  CHECK(sl_vector_erase(vec, 5), OK);
   CHECK(sl_vector_length(vec, &len), OK);
   CHECK(len, 6);
   CHECK(sl_vector_at(vec, 0, &data), OK);
@@ -415,10 +415,10 @@ main(int argc UNUSED, char** argv UNUSED)
   CHECK(((int*)data)[15], 6);
   CHECK(((int*)data)[16], 6);
 
-  CHECK(sl_vector_remove_n(NULL, 17, 0), BAD_ARG);
-  CHECK(sl_vector_remove_n(vec, 17, 0), OK);
-  CHECK(sl_vector_remove_n(NULL, 16, 0), BAD_ARG);
-  CHECK(sl_vector_remove_n(vec, 16, 0), OK);
+  CHECK(sl_vector_erase_n(NULL, 17, 0), BAD_ARG);
+  CHECK(sl_vector_erase_n(vec, 17, 0), OK);
+  CHECK(sl_vector_erase_n(NULL, 16, 0), BAD_ARG);
+  CHECK(sl_vector_erase_n(vec, 16, 0), OK);
   CHECK(sl_vector_buffer(vec, &len, NULL, NULL, &data), OK);
   CHECK(len, 17);
   CHECK(((int*)data)[0], -1);
@@ -439,7 +439,7 @@ main(int argc UNUSED, char** argv UNUSED)
   CHECK(((int*)data)[15], 6);
   CHECK(((int*)data)[16], 6);
 
-  CHECK(sl_vector_remove_n(vec, 7, 0), OK);
+  CHECK(sl_vector_erase_n(vec, 7, 0), OK);
   CHECK(sl_vector_buffer(vec, &len, NULL, NULL, &data), OK);
   CHECK(len, 17);
   CHECK(((int*)data)[0], -1);
@@ -460,7 +460,7 @@ main(int argc UNUSED, char** argv UNUSED)
   CHECK(((int*)data)[15], 6);
   CHECK(((int*)data)[16], 6);
 
-  CHECK(sl_vector_remove_n(vec, 7, 1), OK);
+  CHECK(sl_vector_erase_n(vec, 7, 1), OK);
   CHECK(sl_vector_buffer(vec, &len, NULL, NULL, &data), OK);
   CHECK(len, 16);
   CHECK(((int*)data)[0], -1);
@@ -480,7 +480,7 @@ main(int argc UNUSED, char** argv UNUSED)
   CHECK(((int*)data)[14], 6);
   CHECK(((int*)data)[15], 6);
 
-  CHECK(sl_vector_remove_n(vec, 0, 2), OK);
+  CHECK(sl_vector_erase_n(vec, 0, 2), OK);
   CHECK(sl_vector_buffer(vec, &len, NULL, NULL, &data), OK);
   CHECK(len, 14);
   CHECK(((int*)data)[0], -1);
@@ -498,7 +498,7 @@ main(int argc UNUSED, char** argv UNUSED)
   CHECK(((int*)data)[12], 6);
   CHECK(((int*)data)[13], 6);
 
-  CHECK(sl_vector_remove_n(vec, 13, 1), OK);
+  CHECK(sl_vector_erase_n(vec, 13, 1), OK);
   CHECK(sl_vector_buffer(vec, &len, NULL, NULL, &data), OK);
   CHECK(len, 13);
   CHECK(((int*)data)[0], -1);
@@ -515,7 +515,7 @@ main(int argc UNUSED, char** argv UNUSED)
   CHECK(((int*)data)[11], 6);
   CHECK(((int*)data)[12], 6);
 
-  CHECK(sl_vector_remove_n(vec, 10, SIZE_MAX), OK);
+  CHECK(sl_vector_erase_n(vec, 10, SIZE_MAX), OK);
   CHECK(sl_vector_buffer(vec, &len, NULL, NULL, &data), OK);
   CHECK(len, 10);
   CHECK(((int*)data)[0], -1);
@@ -529,7 +529,7 @@ main(int argc UNUSED, char** argv UNUSED)
   CHECK(((int*)data)[8], 4);
   CHECK(((int*)data)[9], 5);
 
-  CHECK(sl_vector_remove_n(vec, 3, 5), OK);
+  CHECK(sl_vector_erase_n(vec, 3, 5), OK);
   CHECK(sl_vector_buffer(vec, &len, NULL, NULL, &data), OK);
   CHECK(len, 5);
   CHECK(((int*)data)[0], -1);

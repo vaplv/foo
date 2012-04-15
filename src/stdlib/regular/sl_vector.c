@@ -313,13 +313,13 @@ error:
 }
 
 EXPORT_SYM enum sl_error
-sl_vector_remove(struct sl_vector* vec, size_t id)
+sl_vector_erase(struct sl_vector* vec, size_t id)
 {
-  return sl_vector_remove_n(vec, id, 1);
+  return sl_vector_erase_n(vec, id, 1);
 }
 
 EXPORT_SYM enum sl_error
-sl_vector_remove_n(struct sl_vector* vec, size_t id, size_t count)
+sl_vector_erase_n(struct sl_vector* vec, size_t id, size_t count)
 {
   enum sl_error err = SL_NO_ERROR;
   size_t adjusted_count = 0;
@@ -476,7 +476,6 @@ sl_vector_buffer
 
 exit:
   return err;
-
 error:
   if(length)
     *length = 0;

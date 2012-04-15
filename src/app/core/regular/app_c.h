@@ -40,6 +40,7 @@ struct rdr_world;
 struct rsrc_context;
 struct rsrc_font;
 struct rsrc_wavefront_obj;
+struct sl_flat_set;
 struct sl_logger;
 struct sl_vector;
 struct wm_device;
@@ -51,13 +52,13 @@ struct app {
   struct app_view* view; /* Main view. */
   struct mem_allocator* allocator; /* allocator of this (app). */
   struct sl_logger* logger;
-  struct sl_set* callback_list[APP_NB_SIGNALS];
-  struct sl_set* object_list[APP_NB_OBJECT_TYPES];
+  struct sl_flat_set* callback_list[APP_NB_SIGNALS];
+  struct sl_flat_set* object_list[APP_NB_OBJECT_TYPES];
 
   struct command_system {
     char scratch[1024];
     struct sl_hash_table* htbl; /* htbl of commands. */
-    struct sl_set* name_set; /* set of const char*. Used by completion and ls.*/
+    struct sl_flat_set* name_set; /* set of const char*. Used by completion and ls.*/
   } cmd;
 
   struct term {

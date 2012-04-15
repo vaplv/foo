@@ -1347,7 +1347,7 @@ rdr_clear_term(struct rdr_term* term, enum rdr_term_output output)
     SL(wstring_length(term->screen.prompt.string, &len));
     if(cmdlen > len) {
       SL(wstring_erase(term->screen.cmdbuf->string, len, SIZE_MAX));
-      SL(vector_remove_n(term->screen.cmdbuf->color_list, len, SIZE_MAX));
+      SL(vector_erase_n(term->screen.cmdbuf->color_list, len, SIZE_MAX));
       term->screen.cursor = len;
     } else {
       assert(term->screen.cursor == len);
@@ -1357,7 +1357,7 @@ rdr_clear_term(struct rdr_term* term, enum rdr_term_output output)
     SL(clear_wstring(term->screen.prompt.string));
     SL(clear_vector(term->screen.prompt.color_list));
     SL(wstring_erase(term->screen.cmdbuf->string, 0, len));
-    SL(vector_remove_n(term->screen.cmdbuf->color_list, 0, len));
+    SL(vector_erase_n(term->screen.cmdbuf->color_list, 0, len));
     term->screen.cursor -= len;
   } else {
     struct list_node* node = NULL;
@@ -1390,7 +1390,7 @@ rdr_term_write_backspace(struct rdr_term* term)
     struct line* line = term->screen.cmdbuf;
     --term->screen.cursor;
     SL(wstring_erase_wchar(line->string, term->screen.cursor));
-    SL(vector_remove(line->color_list, term->screen.cursor));
+    SL(vector_erase(line->color_list, term->screen.cursor));
   }
 
 exit:

@@ -10,7 +10,7 @@
 #include "renderer/rdr_system.h"
 #include "render_backend/rb_types.h"
 #include "stdlib/sl.h"
-#include "stdlib/sl_set.h"
+#include "stdlib/sl_flat_set.h"
 #include "sys/ref_count.h"
 #include "sys/sys.h"
 #include <assert.h>
@@ -91,7 +91,7 @@ struct rdr_model_instance {
   /* The model from which the instance is created. */
   struct rdr_model* model;
   /* List of callbacks to call when the instance change. */
-  struct sl_set* callback_set;
+  struct sl_flat_set* callback_set;
   /* Data of the model instance. */
   void* uniform_buffer;
   void* attrib_buffer;
@@ -357,9 +357,10 @@ invoke_callbacks(struct rdr_model_instance* instance)
   size_t i = 0;
   assert(instance);
 
-  SL(set_buffer(instance->callback_set, &len, NULL, NULL, (void**)&buffer));
+  SL(flat_set_buffer
+    (instance->callback_set, &len, NULL, NULL, (void**)&buffer));
   for(i = 0; i < len; ++i) {
-    struct callback* clbk = buffer + i;
+    const struct callback* clbk = buffer + i;
     clbk->func(instance, clbk->data);
   }
 }
@@ -438,10 +439,12 @@ release_model_instance(struct ref* ref)
   instance = CONTAINER_OF(ref, struct rdr_model_instance, ref);
 
   if(instance->callback_set) {
+    #ifndef NDEBUG
     size_t len = 0;
-    SL(set_buffer(instance->callback_set, &len, NULL, NULL, NULL));
+    SL(flat_set_buffer(instance->callback_set, &len, NULL, NULL, NULL));
     assert(len == 0);
-    SL(free_set(instance->callback_set));
+    #endif
+    SL(free_flat_set(instance->callback_set));
   }
   RDR(is_model_callback_attached
     (instance->model, 
@@ -511,7 +514,7 @@ rdr_create_model_instance
   RDR(system_ref_get(sys));
   instance->sys = sys;
 
-  sl_err = sl_create_set
+  sl_err = sl_create_flat_set
     (sizeof(struct callback),
      ALIGNOF(struct callback),
      cmp_callbacks,
@@ -723,7 +726,8 @@ rdr_attach_model_instance_callback
 {
   if(!instance || !func)
     return  RDR_INVALID_ARGUMENT;
-  SL(set_insert(instance->callback_set, (struct callback[]){{func, data}}));
+  SL(flat_set_insert
+    (instance->callback_set, (struct callback[]){{func, data}}, NULL));
   return RDR_NO_ERROR;
 }
 
@@ -741,8 +745,8 @@ rdr_detach_model_instance_callback
   RDR(is_model_instance_callback_attached(instance, func, data, &b));
   if(!b)
     return RDR_INVALID_ARGUMENT;
-
-  SL(set_remove(instance->callback_set, (struct callback[]){{func, data}}));
+  SL(flat_set_erase
+    (instance->callback_set, (struct callback[]){{func, data}}, NULL));
   return RDR_NO_ERROR;
 }
 
@@ -758,8 +762,9 @@ rdr_is_model_instance_callback_attached
 
   if(!instance || !func || !is_attached)
     return RDR_INVALID_ARGUMENT;
-  SL(set_find(instance->callback_set, (struct callback[]){{func, data}}, &i));
-  SL(set_buffer(instance->callback_set, &len, NULL, NULL, NULL));
+  SL(flat_set_find
+    (instance->callback_set, (struct callback[]){{func, data}}, &i));
+  SL(flat_set_buffer(instance->callback_set, &len, NULL, NULL, NULL));
   *is_attached = (i != len);
   return RDR_NO_ERROR;
 }

@@ -8,7 +8,7 @@
 #include "renderer/rdr_system.h"
 #include "renderer/rdr_world.h"
 #include "stdlib/sl.h"
-#include "stdlib/sl_set.h"
+#include "stdlib/sl_flat_set.h"
 #include "sys/ref_count.h"
 #include "sys/sys.h"
 #include <assert.h>
@@ -20,7 +20,7 @@
 struct rdr_world {
   struct ref ref;
   struct rdr_system* sys;
-  struct sl_set* model_instance_list;
+  struct sl_flat_set* model_instance_list;
 };
 
 /*******************************************************************************
@@ -69,7 +69,7 @@ release_world(struct ref* ref)
     size_t nb_instances = 0;
     size_t i = 0;
 
-    SL(set_buffer
+    SL(flat_set_buffer
       (world->model_instance_list,
        &nb_instances,
        NULL,
@@ -79,7 +79,7 @@ release_world(struct ref* ref)
     for(i = 0; i < nb_instances; ++i)
       RDR(model_instance_ref_put(instance_list[i]));
 
-    SL(free_set(world->model_instance_list));
+    SL(free_flat_set(world->model_instance_list));
   }
   sys = world->sys;
   MEM_FREE(world->sys->allocator, world);
@@ -112,7 +112,7 @@ rdr_create_world(struct rdr_system* sys, struct rdr_world** out_world)
   RDR(system_ref_get(sys));
   world->sys = sys;
 
-  sl_err = sl_create_set
+  sl_err = sl_create_flat_set
     (sizeof(struct rdr_model_instance*),
      ALIGNOF(struct rdr_model_instance*),
      compare_model_instance,
@@ -169,8 +169,8 @@ rdr_add_model_instance
     goto error;
   }
 
-  sl_err = sl_set_insert
-    (world->model_instance_list, &instance);
+  sl_err = sl_flat_set_insert
+    (world->model_instance_list, &instance, NULL);
   if(sl_err != SL_NO_ERROR) {
     rdr_err = sl_to_rdr_error(sl_err);
     goto error;
@@ -185,8 +185,7 @@ exit:
 error:
   if(is_instance_added) {
     assert(world);
-    sl_err = sl_set_remove(world->model_instance_list, &instance);
-    assert(sl_err == SL_NO_ERROR);
+    SL(flat_set_erase(world->model_instance_list, &instance, NULL));
   }
   if(is_instance_retained)
     RDR(model_instance_ref_put(instance));
@@ -208,7 +207,7 @@ rdr_remove_model_instance
     goto error;
   }
 
-  sl_err = sl_set_remove(world->model_instance_list, &instance);
+  sl_err = sl_flat_set_erase(world->model_instance_list, &instance, NULL);
   if(sl_err != SL_NO_ERROR) {
     rdr_err = sl_to_rdr_error(sl_err);
     goto error;
@@ -224,8 +223,7 @@ exit:
 error:
   if(is_instance_removed) {
     assert(world);
-    sl_err = sl_set_insert(world->model_instance_list, &instance);
-    assert(sl_err == SL_NO_ERROR);
+    SL(flat_set_insert(world->model_instance_list, &instance, NULL));
   }
   if(is_instance_released)
     RDR(model_instance_ref_get(instance));
@@ -259,7 +257,7 @@ rdr_draw_world(struct rdr_world* world, const struct rdr_view* view)
 
   RBI(&world->sys->rb, depth_stencil(world->sys->ctxt, &depth_stencil_desc));
 
-  sl_err = sl_set_buffer
+  sl_err = sl_flat_set_buffer
     (world->model_instance_list,
      &nb_instances,
      NULL,
