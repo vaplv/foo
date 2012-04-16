@@ -9,6 +9,9 @@ target_link_libraries(utest_sl_hash_table sl)
 add_executable(utest_sl_logger utest_sl_logger.c)
 target_link_libraries(utest_sl_logger sl)
 
+add_executable(utest_sl_flat_map utest_sl_flat_map.c)
+target_link_libraries(utest_sl_flat_map sl)
+
 add_executable(utest_sl_flat_set utest_sl_flat_set.c)
 target_link_libraries(utest_sl_flat_set sl)
 
@@ -29,6 +32,10 @@ add_test(
 add_test(
   sl_vector
   ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/utest_sl_vector)
+
+add_test(
+  sl_flat_map
+  ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/utest_sl_flat_map)
 
 add_test(
   sl_flat_set
