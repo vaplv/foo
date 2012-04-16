@@ -1166,18 +1166,6 @@ error:
 }
 
 enum app_error
-app_get_registered_object_list
-  (struct app* app,
-   enum app_object_type type,
-   size_t* len,
-   void** object_list)
-{
-  assert(app && type != APP_NB_OBJECT_TYPES);
-  return sl_to_app_error(sl_flat_map_data_buffer
-    (app->object_map[type], len, NULL, NULL, object_list));
-}
-
-enum app_error
 app_get_registered_object
   (struct app* app,
    enum app_object_type type,

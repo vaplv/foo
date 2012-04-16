@@ -24,5 +24,11 @@ extern enum app_error
 app_shutdown_command_system
   (struct app* app);
 
+extern enum app_error
+app_get_command
+  (struct app* app,
+   const char* name, 
+   struct app_command** cmd);
+
 #endif /* APP_COMMAND_C_H */
 

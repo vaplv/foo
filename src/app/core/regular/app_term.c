@@ -23,27 +23,18 @@ command_completion(struct term* term)
   struct app* app = NULL;
   const char* cmdbuf = NULL;
   const char** list = NULL;
-  size_t cursor = 0;
   size_t len = 0;
+  size_t i = 0;
   assert(term);
 
   app = CONTAINER_OF(term, struct app, term);
 
-  APP(get_command_buffer_string(app->term.cmdbuf, &cursor, &cmdbuf));
-  APP(command_completion(app, cmdbuf, cursor, &len, &list));
+  APP(command_buffer_completion(app->term.cmdbuf, &len, &list));
+  APP(get_command_buffer_string(app->term.cmdbuf, NULL, &cmdbuf));
+  RDR(clear_term(app->term.render_term, RDR_TERM_CMDOUT));
+  RDR(term_print_string
+    (app->term.render_term, RDR_TERM_CMDOUT, cmdbuf, RDR_TERM_COLOR_WHITE));
   if(0 != len) {
-    const size_t last = len - 1;
-    size_t i = 0;
-
-    while(list[0][cursor] == list[last][cursor] && list[0][cursor] != '\0') {
-      APP(command_buffer_write_char(app->term.cmdbuf, list[0][cursor]));
-      RDR(term_print_wchar
-          (app->term.render_term,
-           RDR_TERM_CMDOUT,
-           (wchar_t)list[0][cursor],
-           RDR_TERM_COLOR_WHITE));
-      ++cursor;
-    }
     if(1 < len) {
       for(i = 0; i < len; ++i) {
         if(0 != i) {

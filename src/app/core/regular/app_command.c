@@ -49,7 +49,7 @@ cmp_str(const void* a, const void* b)
  ******************************************************************************/
 static enum app_error
 token_to_cmdarg
-  (struct app* app UNUSED,
+  (struct app* app,
    const char* tkn,
    struct app_cmdarg_desc* desc,
    struct app_cmdarg* arg)
@@ -82,11 +82,13 @@ token_to_cmdarg
     case APP_CMDARG_STRING:
       arg->value.string = tkn;
       if(desc->domain.string.value_list) {
-        for(i = 0; desc->domain.string.value_list[i]; ++i) {
-          if(0 == strcmp(desc->domain.string.value_list[i], tkn))
+        const struct app_cmdarg_value_list value_list = 
+          desc->domain.string.value_list(app, NULL, 0);
+        for(i = 0; i < value_list.length; ++i) {
+          if(0 == strcmp(value_list.buffer[i], tkn))
             break;
         }
-        if(NULL == desc->domain.string.value_list[i]) {
+        if(i == value_list.length) {
           arg->value.string = NULL;
           endptr = "error";
         }
@@ -369,6 +371,17 @@ error:
   goto exit;
 }
 
+EXPORT_SYM enum app_error
+app_has_command(struct app* app, const char* name, bool* has_command)
+{
+  void* ptr = NULL;
+  if(!app || !name || !has_command)
+    return APP_INVALID_ARGUMENT;
+  SL(hash_table_find(app->cmd.htbl, &name, &ptr));
+  *has_command = (ptr != NULL);
+  return APP_NO_ERROR;
+}
+
 /*******************************************************************************
  *
  * Private functions.
@@ -433,6 +446,19 @@ app_shutdown_command_system(struct app* app)
     SL(free_hash_table(app->cmd.htbl));
     app->cmd.htbl = NULL;
   }
+  return APP_NO_ERROR;
+}
+
+enum app_error
+app_get_command(struct app* app, const char* name, struct app_command** out_cmd)
+{
+  struct app_command** cmd = NULL;
+  if(!app || !name || !out_cmd)
+    return APP_INVALID_ARGUMENT;
+  SL(hash_table_find(app->cmd.htbl, &name, (void**)&cmd));
+  if(cmd == NULL)
+    return APP_INVALID_ARGUMENT;
+  *out_cmd = *cmd;
   return APP_NO_ERROR;
 }
 

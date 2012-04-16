@@ -1,4 +1,5 @@
 #include "app/core/regular/app_c.h"
+#include "app/core/regular/app_command_c.h"
 #include "app/core/regular/app_command_buffer_c.h"
 #include "app/core/regular/app_error_c.h"
 #include "app/core/app_command.h"
@@ -18,7 +19,7 @@ struct command {
   struct list_node node;
   struct sl_string* str;
   /* Pointer toward the current command. It point whether onto this or a new
-   * command which is first initialised with this content. */
+   * command which is initialized with this. Use to manage command history. */
   struct command* current;
 };
 
@@ -468,5 +469,87 @@ app_get_command_buffer_string
   if(NULL != str)
     SL(string_get(buf->cmd->current->str, str));
   return APP_NO_ERROR;
+}
+
+enum app_error
+app_command_buffer_completion
+  (struct app_command_buffer* buf,
+   size_t* out_len,
+   const char** out_list[])
+{
+  #define SCRATCH_SIZE 512
+  char scratch[SCRATCH_SIZE];
+  struct app_command* cmd = NULL;
+  const char** list = NULL;
+  const char* ptr = NULL;
+  const char* tkn = NULL;
+  const char* cmd_name = NULL;
+  size_t len = 0;
+  size_t tkn_id = 0;
+  size_t tkn_len = 0;
+  enum app_error app_err = APP_NO_ERROR;
+  bool b = false;
+
+  if(!buf) {
+    app_err = APP_INVALID_ARGUMENT;
+    goto error;
+  }
+  if(buf->cursor > SCRATCH_SIZE - 1) {
+    app_err = APP_MEMORY_ERROR;
+    goto error;
+  }
+  if(buf->cursor == 0)
+    goto exit;
+
+  SL(string_get(buf->cmd->current->str, &ptr));
+  strncpy(scratch, ptr, buf->cursor);
+  scratch[buf->cursor] = '\0';
+
+  /* Find the token to complete. */
+  cmd_name = tkn = strtok(scratch, " \t");
+  for(tkn_id = 0; NULL != (ptr = strtok(NULL, " \t")); ++tkn_id) {
+    tkn = ptr;
+  }
+
+  if(tkn_id == 0) {
+    APP(command_completion(buf->app, cmd_name, buf->cursor, &len, &list));
+    tkn_len = buf->cursor;
+  } else {
+    struct app_cmdarg_value_list value_list;
+    struct app_cmdarg_desc* arg = NULL;
+
+    APP(has_command(buf->app, cmd_name, &b));
+    if(b == false)
+      goto exit;
+    APP(get_command(buf->app, cmd_name, &cmd));
+    if(tkn_id > cmd->argc)
+      goto exit;
+    arg = &cmd->arg_desc_list[tkn_id];
+    if(arg->type != APP_CMDARG_STRING)
+      goto exit;
+    if(arg->domain.string.value_list == NULL)
+      goto exit;
+    tkn_len = strlen(tkn);
+    value_list = arg->domain.string.value_list(buf->app, tkn, tkn_len);
+    list = value_list.buffer;
+    len = value_list.length;
+  }
+  if(len != 0) {
+    const size_t last = len - 1;
+    size_t i = tkn_len;
+    while(list[0][i] == list[last][i] && list[0][i] != '\0') {
+      APP(command_buffer_write_char(buf, list[0][i]));
+      ++i;
+    }
+  }
+  if(out_len)
+    *out_len = len;
+  if(out_list)
+    *out_list = list;
+  #undef SCRATCH_SIZE
+exit:
+  return app_err;
+error:
+  goto exit;
 }
 

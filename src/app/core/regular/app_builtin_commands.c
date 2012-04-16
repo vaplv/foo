@@ -8,12 +8,103 @@
 #include "renderer/rdr_term.h"
 #include "renderer/rdr.h"
 #include "stdlib/sl.h"
+#include "stdlib/sl_flat_map.h"
 #include "stdlib/sl_flat_set.h"
 #include "stdlib/sl_hash_table.h"
 #include "sys/sys.h"
 #include <assert.h>
 #include <stdbool.h>
 #include <string.h>
+
+/*******************************************************************************
+ *
+ * Helper functions.
+ *
+ ******************************************************************************/
+static void
+complete_string
+  (const char* input,
+   size_t input_len,
+   size_t str_list_len,
+   const char* str_list[], /* Must be ordered in ascending order. */
+   size_t* start_id,
+   size_t* end_id)
+{
+  size_t begin = 0;
+  size_t end = 0;
+  bool b = false;
+  assert(input && input_len && str_list && str_list_len && start_id && end_id);
+
+  #define LOWER_BOUND 0
+  #define UPPER_BOUND 1
+  #define DICHOTOMY_SEARCH(bound_type) \
+    do { \
+      begin = 0; \
+      end = str_list_len; \
+      b = false; \
+      while(begin != end) { \
+        const size_t at = begin + (end - begin) / 2; \
+        const int cmp = strncmp(input, str_list[at], input_len); \
+        if(cmp > 0) { \
+          begin = at + 1; \
+        } else if(cmp < 0) { \
+          end = at; \
+        } else { /* cmp == 0. */ \
+          if(UPPER_BOUND == bound_type) \
+          begin = at + 1; \
+          else \
+          end = at; \
+          b = true; \
+        } \
+      } \
+    } while(0)
+
+  DICHOTOMY_SEARCH(LOWER_BOUND);
+  if(false == b) {
+    *start_id = *end_id = 0;
+  } else {
+    *start_id = begin;
+    DICHOTOMY_SEARCH(UPPER_BOUND);
+    assert(true == b && begin > *start_id);
+    *end_id = begin;
+  }
+  #undef LOWER_BOUND
+  #undef UPPER_BOUND
+  #undef DICHOTOMY_SEARCH
+}
+
+static void
+setup_value_list
+  (struct app_cmdarg_value_list* list,
+   const char** str_list,
+   size_t str_list_len,
+   const char* input,
+   size_t input_len)
+{
+  assert(list && (!str_list_len || str_list));
+
+  #ifndef NDEBUG
+  {
+    size_t i = 0;
+    for(i = 0; i < str_list_len; ++i) {
+      /* We assume that the str list is ordered in ascending order. */
+      if(i > 0)
+        assert(strcmp(str_list[i-1], str_list[i]) < 0);
+    }
+  }
+  #endif
+  if(str_list) {
+    if(input == NULL) {
+      list->buffer = str_list;
+      list->length = str_list_len;
+    } else {
+      size_t start, end;
+      complete_string(input, input_len, str_list_len, str_list, &start, &end);
+      list->buffer = str_list + start;
+      list->length = end - start;
+    }
+  }
+}
 
 /*******************************************************************************
  *
@@ -30,9 +121,22 @@ cmd_exit(struct app* app, size_t argc UNUSED, struct app_cmdarg* argv UNUSED)
   app->post_exit = true;
 }
 
-static const char* cmd_load_options[] = {
-  "--model", NULL
-};
+static struct app_cmdarg_value_list
+cmd_load_options(struct app* app UNUSED, const char* input, size_t input_len)
+{
+  static const char* options[] = { "--model" };
+  struct app_cmdarg_value_list value_list;
+  memset(&value_list, 0, sizeof(value_list));
+
+  setup_value_list
+    (&value_list,
+     options,
+     sizeof(options)/sizeof(const char*),
+     input,
+     input_len);
+  return value_list;
+}
+
 static void
 cmd_load(struct app* app, size_t argc UNUSED, struct app_cmdarg* argv)
 {
@@ -79,9 +183,26 @@ cmd_help(struct app* app, size_t argc UNUSED, struct app_cmdarg* argv)
   }
 }
 
-static const char* cmd_ls_options[] = {
-  "--all", "--models", "--model-instances", "--commands", NULL
-};
+static struct app_cmdarg_value_list
+cmd_ls_options(struct app* app UNUSED, const char* input, size_t input_len)
+{
+  static const char* options[] = {
+      "--all",
+      "--commands",
+      "--model-instances",
+      "--models"
+  };
+  struct app_cmdarg_value_list value_list;
+  memset(&value_list, 0, sizeof(value_list));
+  setup_value_list
+    (&value_list,
+     options,
+     sizeof(options)/sizeof(const char*),
+     input,
+     input_len);
+  return value_list;
+}
+
 static void
 cmd_ls(struct app* app, size_t argc UNUSED, struct app_cmdarg* argv)
 {
@@ -108,8 +229,7 @@ cmd_ls(struct app* app, size_t argc UNUSED, struct app_cmdarg* argv)
   }
   if(0 == strcmp("--models", argv[1].value.string) || all) {
     struct app_model** model_list = NULL;
-    APP(get_registered_object_list
-      (app, APP_MODEL, &len, (void**)&model_list));
+    APP(get_model_list(app, &len, &model_list));
     for(i = 0; i < len; ++i) {
       const char* name = NULL;
       APP(get_model_name(model_list[i], &name));
@@ -119,8 +239,7 @@ cmd_ls(struct app* app, size_t argc UNUSED, struct app_cmdarg* argv)
   }
   if(0 == strcmp("--model-instances", argv[1].value.string) || all) {
     struct app_model_instance** instance_list = NULL;
-    APP(get_registered_object_list
-      (app, APP_MODEL_INSTANCE, &len, (void**)&instance_list));
+    APP(get_model_instance_list(app, &len,&instance_list));
     for(i = 0; i < len; ++i) {
       const char* name = NULL;
       APP(get_model_instance_name(instance_list[i], &name));
@@ -164,8 +283,8 @@ cmd_spawn(struct app* app, size_t argc UNUSED, struct app_cmdarg* argv)
     app_err = app_instantiate_model(app, *mdl, &instance);
     if(app_err != APP_NO_ERROR) {
       APP_LOG_ERR
-        (app->logger, 
-         "error instantiating the model `%s': %s\n", 
+        (app->logger,
+         "error instantiating the model `%s': %s\n",
          argv[1].value.string,
          app_error_string(app_err));
     } else {
@@ -182,6 +301,25 @@ cmd_spawn(struct app* app, size_t argc UNUSED, struct app_cmdarg* argv)
       }
     }
   }
+}
+
+static struct app_cmdarg_value_list
+cmd_model_list(struct app* app, const char* input, size_t input_len)
+{
+  struct app_cmdarg_value_list value_list;
+  const char** model_list = NULL;
+  size_t len = 0;
+  memset(&value_list, 0, sizeof(value_list));
+
+  SL(flat_map_key_buffer
+    (app->object_map[APP_MODEL], &len, NULL, NULL, (void**)&model_list));
+  setup_value_list
+    (&value_list,
+     model_list,
+     len,
+     input,
+     input_len);
+  return value_list;
 }
 
 /*******************************************************************************
@@ -224,8 +362,8 @@ app_setup_builtin_commands(struct app* app)
      "Usage: load --model PATH\n"));
   CALL(app_add_command
     (app, "spawn", cmd_spawn,
-     1, APP_CMDARGV(APP_CMDARG_APPEND_STRING(NULL)),
-     "spawn - spawn a model into the world\n"
+     1, APP_CMDARGV(APP_CMDARG_APPEND_STRING(cmd_model_list)),
+     "spawn - spawn a instance of MODEL_NAME into the world\n"
      "Usage: spawn MODEL_NAME\n"));
 
   #undef CALL

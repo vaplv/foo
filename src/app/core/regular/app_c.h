@@ -112,13 +112,6 @@ app_is_object_registered
    bool* is_registered);
 
 extern enum app_error
-app_get_registered_object_list
-  (struct app* app,
-   enum app_object_type type,
-   size_t* len,
-   void** object_list);
-
-extern enum app_error
 app_get_registered_object
   (struct app* app,
    enum app_object_type type,

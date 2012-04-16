@@ -21,16 +21,24 @@
 #define MIN_IBOUND 0
 #define MAX_IBOUND 10
 
-static const char* day_list[] = {
-  "Monday",
-  "Tuesday",
-  "Wednesday",
-  "Thursday",
-  "Friday",
-  "Saturday",
-  "Sunday",
-  NULL
-};
+static struct app_cmdarg_value_list
+day_list
+  (struct app* app UNUSED,
+   const char* input UNUSED,
+   size_t input_len UNUSED)
+{
+  static const char* days[] = {
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday",
+    "Sunday"
+  };
+  const struct app_cmdarg_value_list options = { .buffer = days, .length = 7 };
+  return options;
+}
 
 static void
 foo(struct app* app UNUSED, size_t argc, struct app_cmdarg* argv UNUSED)
@@ -273,7 +281,7 @@ main(int argc, char** argv)
   CHECK(strcmp(list[4], "__seti"), 0);
   CHECK(strcmp(list[5], "__seti_clamp"), 0);
 
-  /* Builtin commands. */
+  /* Some builtin commands. */
   CHECK(app_execute_command(app, "help ls"), OK);
   CHECK(app_execute_command(app, "help load"), OK);
   CHECK(app_execute_command(app, "help help"), OK);

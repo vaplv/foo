@@ -13,12 +13,24 @@ enum app_cmdarg_type {
   APP_NB_CMDARG_TYPES
 };
 
+struct app_cmdarg_value_list {
+  const char** buffer;
+  size_t length;
+};
+
 struct app_cmdarg_desc {
   enum app_cmdarg_type type;
   union {
     struct { float min, max; } real;
     struct { int min, max;  } integer;
-    struct { const char** value_list; } string;
+    struct { 
+      /* Return the list of value that the string can have. */
+      struct app_cmdarg_value_list 
+        (*value_list)
+          (struct app* app,
+           const char* input, /* input to complete. May be NULL. */
+           size_t input_len); 
+    } string;
   } domain;
 };
 
@@ -73,6 +85,12 @@ extern enum app_error
 app_del_command
   (struct app* app,
    const char* name);
+
+extern enum app_error
+app_has_command
+  (struct app* app,
+   const char* name,
+   bool* has_command);
 
 extern enum app_error
 app_execute_command
