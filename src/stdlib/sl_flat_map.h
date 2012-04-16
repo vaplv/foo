@@ -6,6 +6,7 @@
 
 struct mem_allocator;
 struct sl_flat_map;
+struct sl_pair;
 
 extern enum sl_error
 sl_create_flat_map
@@ -64,6 +65,12 @@ extern enum sl_error
 sl_flat_map_length
   (struct sl_flat_map* map,
    size_t* out_length);
+
+extern enum sl_error
+sl_flat_map_at
+  (struct sl_flat_map* map,
+   size_t at,
+   struct sl_pair* pair);
 
 extern enum sl_error
 sl_flat_map_key_buffer

@@ -21,8 +21,10 @@
 #include "resources/rsrc_geometry.h"
 #include "resources/rsrc_wavefront_obj.h"
 #include "stdlib/sl.h"
+#include "stdlib/sl_flat_map.h"
 #include "stdlib/sl_flat_set.h"
 #include "stdlib/sl_logger.h"
+#include "stdlib/sl_pair.h"
 #include "stdlib/sl_vector.h"
 #include "sys/mem_allocator.h"
 #include "sys/sys.h"
@@ -353,14 +355,14 @@ shutdown_common(struct app* app)
   assert(app != NULL);
 
   for(i = 0; i < APP_NB_OBJECT_TYPES; ++i) {
-    if(app->object_list[i]) {
+    if(app->object_map[i]) {
       #ifndef NDEBUG
       size_t len = 0;
-      SL(flat_set_buffer(app->object_list[i], &len, NULL, NULL, NULL));
+      SL(flat_map_length(app->object_map[i], &len));
       assert(len == 0);
       #endif
-      SL(free_flat_set(app->object_list[i]));
-      app->object_list[i] = NULL;
+      SL(free_flat_map(app->object_map[i]));
+      app->object_map[i] = NULL;
     }
   }
   for(i = 0; i < APP_NB_SIGNALS; ++i) {
@@ -480,7 +482,7 @@ init_renderer
   CALL(rdr_background_color(rdr->frame, (float[]){0.1f, 0.1f, 0.1f}));
   CALL(rdr_create_material(rdr->system, &rdr->default_material));
   CALL(rdr_create_font(rdr->system, &rdr->term_font));
- 
+
   rdr_err = rdr_material_program
     (rdr->default_material, default_shader_sources);
   if(rdr_err != RDR_NO_ERROR) {
@@ -546,8 +548,8 @@ init_common(struct app* app)
         goto error; \
     } while(0)
 
-  CALL(app_setup_model_set(app));
-  CALL(app_setup_model_instance_set(app));
+  CALL(app_setup_model_map(app));
+  CALL(app_setup_model_instance_map(app));
 
   for(i = 0; i < APP_NB_SIGNALS; ++i) {
     sl_err = sl_create_flat_set
@@ -798,7 +800,7 @@ app_cleanup(struct app* app)
   size_t i = 0;
   int type_id = 0;
   enum app_error app_err = APP_NO_ERROR;
- 
+
   if(!app) {
     app_err = APP_INVALID_ARGUMENT;
     goto error;
@@ -811,18 +813,19 @@ app_cleanup(struct app* app)
    * instantiated model. Consequently, we cannot ensure that an object list is
    * empty exepted when all the created object are released. */
   for(type_id = 0; type_id < APP_NB_OBJECT_TYPES; ++type_id) {
-    if(app->object_list[type_id]) {
-      SL(flat_set_buffer(app->object_list[type_id], &len, NULL, NULL, NULL));
+    if(app->object_map[type_id]) {
+      SL(flat_map_length(app->object_map[type_id], &len));
       for(i = len; i > 0; ) {
-        void* object = NULL;
-        SL(flat_set_at(app->object_list[type_id], --i, (void**)&object));
+        struct sl_pair pair = { NULL, NULL };
+        SL(flat_map_at(app->object_map[type_id], --i, &pair));
+        assert(SL_IS_PAIR_VALID(&pair));
 
         switch((enum app_object_type)type_id) {
           case APP_MODEL:
-            APP(model_ref_put(*(struct app_model**)object));
+            APP(model_ref_put(*(struct app_model**)pair.data));
             break;
           case APP_MODEL_INSTANCE:
-            APP(model_instance_ref_put(*(struct app_model_instance**)object));
+            APP(model_instance_ref_put(*(struct app_model_instance**)pair.data));
             break;
           default:
             assert(false);
@@ -832,7 +835,7 @@ app_cleanup(struct app* app)
     }
   }
   for(type_id = 0; type_id < APP_NB_OBJECT_TYPES; ++type_id) {
-    SL(clear_flat_set(app->object_list[type_id]));
+    SL(clear_flat_map(app->object_map[type_id]));
  }
 exit:
   return app_err;
@@ -912,7 +915,7 @@ app_terminal_font(struct app* app, const char* path)
 
     rdr_err = rdr_font_data
       (app->rdr.term_font, line_space, nb_chars, glyph_desc_list);
-  
+
     if(RDR_NO_ERROR != rdr_err) {
       APP_LOG_ERR
         (app->logger,
@@ -973,13 +976,12 @@ app_get_model_list
     app_err = APP_INVALID_ARGUMENT;
     goto error;
   }
-  SL(flat_set_buffer
-    (app->object_list[APP_MODEL],
+  SL(flat_map_data_buffer
+    (app->object_map[APP_MODEL],
      len,
      NULL,
      NULL,
      (void**)model_list));
-
 exit:
   return app_err;
 error:
@@ -998,8 +1000,8 @@ app_get_model_instance_list
     app_err = APP_INVALID_ARGUMENT;
     goto error;
   }
-  SL(flat_set_buffer
-    (app->object_list[APP_MODEL_INSTANCE],
+  SL(flat_map_data_buffer
+    (app->object_map[APP_MODEL_INSTANCE],
      len,
      NULL,
      NULL,
@@ -1096,13 +1098,17 @@ app_is_term_enabled(struct app* app, bool* is_enabled)
  *
  ******************************************************************************/
 enum app_error
-app_register_object(struct app* app, enum app_object_type type, void* object)
+app_register_object
+  (struct app* app,
+   enum app_object_type type,
+   const void* key,
+   void* object)
 {
   enum app_error app_err = APP_NO_ERROR;
   enum sl_error sl_err = SL_NO_ERROR;
-  assert(app && object);
+  assert(app && key && object);
 
-  sl_err = sl_flat_set_insert(app->object_list[type], &object, NULL);
+  sl_err = sl_flat_map_insert(app->object_map[type], key, &object, NULL);
   if(sl_err != SL_NO_ERROR) {
     app_err = sl_to_app_error(sl_err);
     goto error;
@@ -1115,13 +1121,16 @@ error:
 }
 
 enum app_error
-app_unregister_object(struct app* app, enum app_object_type type, void* object)
+app_unregister_object
+  (struct app* app,
+   enum app_object_type type,
+   const void* key)
 {
   enum app_error app_err = APP_NO_ERROR;
   enum sl_error sl_err = SL_NO_ERROR;
-  assert(app && object);
+  assert(app && key && type != APP_NB_OBJECT_TYPES);
 
-  sl_err = sl_flat_set_erase(app->object_list[type], &object, NULL);
+  sl_err = sl_flat_map_erase(app->object_map[type], key, NULL);
   if(sl_err != SL_NO_ERROR) {
     app_err = sl_to_app_error(sl_err);
     goto error;
@@ -1136,31 +1145,48 @@ enum app_error
 app_is_object_registered
   (struct app* app,
    enum app_object_type type,
-   void* object,
+   const void* key,
    bool* is_registered)
 {
-  size_t len = 0;
-  size_t i = 0;
+  void* data = NULL;
   enum app_error app_err = APP_NO_ERROR;
   enum sl_error sl_err = SL_NO_ERROR;
-  assert(app && object && is_registered);
+  assert(app && key && is_registered && type != APP_NB_OBJECT_TYPES);
 
-  sl_err = sl_flat_set_find(app->object_list[type], &object, &i);
+  sl_err = sl_flat_map_find(app->object_map[type], key, &data);
   if(sl_err != SL_NO_ERROR) {
     app_err = sl_to_app_error(sl_err);
     goto error;
   }
-  sl_err = sl_flat_set_buffer(app->object_list[type], &len, NULL, NULL, NULL);
-  if(sl_err != SL_NO_ERROR) {
-    app_err = sl_to_app_error(sl_err);
-    goto error;
-  }
-  *is_registered = (i != len);
-
+  *is_registered = (data != NULL);
 exit:
   return app_err;
 error:
   goto exit;
+}
+
+enum app_error
+app_get_registered_object_list
+  (struct app* app,
+   enum app_object_type type,
+   size_t* len,
+   void** object_list)
+{
+  assert(app && type != APP_NB_OBJECT_TYPES);
+  return sl_to_app_error(sl_flat_map_data_buffer
+    (app->object_map[type], len, NULL, NULL, object_list));
+}
+
+enum app_error
+app_get_registered_object
+  (struct app* app,
+   enum app_object_type type,
+   const void* key,
+   void** object)
+{
+  assert(app && type != APP_NB_OBJECT_TYPES);
+  return sl_to_app_error(sl_flat_map_find
+    (app->object_map[type], key, object));
 }
 
 enum app_error

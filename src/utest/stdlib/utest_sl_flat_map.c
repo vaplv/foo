@@ -1,4 +1,5 @@
 #include "stdlib/sl_flat_map.h"
+#include "stdlib/sl_pair.h"
 #include "sys/mem_allocator.h"
 #include "sys/sys.h"
 #include "utest/utest.h"
@@ -26,6 +27,7 @@ main(int argc UNUSED, char** argv UNUSED)
   void* ptr = NULL;
   void* buffer = NULL;
   struct sl_flat_map* map = NULL;
+  struct sl_pair pair = { NULL, NULL };
   size_t al = 0;
   size_t i = 0;
   size_t len = 0;
@@ -248,6 +250,32 @@ main(int argc UNUSED, char** argv UNUSED)
   CHECK(((int*)buffer)[3], 4);
   CHECK(((int*)buffer)[4], 23);
   CHECK(((int*)buffer)[5], 25);
+
+  CHECK(sl_flat_map_at(NULL, 6, NULL), BAD_ARG);
+  CHECK(sl_flat_map_at(map, 6, NULL), BAD_ARG);
+  CHECK(sl_flat_map_at(NULL, 0, NULL), BAD_ARG);
+  CHECK(sl_flat_map_at(map, 0, NULL), BAD_ARG);
+  CHECK(sl_flat_map_at(NULL, 6, &pair), BAD_ARG);
+  CHECK(sl_flat_map_at(map, 6, &pair), BAD_ARG);
+  CHECK(sl_flat_map_at(NULL, 0, &pair), BAD_ARG);
+  CHECK(sl_flat_map_at(map, 0, &pair), OK);
+  CHECK(*((int*)pair.key), 0);
+  CHECK(*((char*)pair.data), 'a');
+  CHECK(sl_flat_map_at(map, 1, &pair), OK);
+  CHECK(*((int*)pair.key), 2);
+  CHECK(*((char*)pair.data), 'c');
+  CHECK(sl_flat_map_at(map, 2, &pair), OK);
+  CHECK(*((int*)pair.key), 3);
+  CHECK(*((char*)pair.data), 'd');
+  CHECK(sl_flat_map_at(map, 3, &pair), OK);
+  CHECK(*((int*)pair.key), 4);
+  CHECK(*((char*)pair.data), 'e');
+  CHECK(sl_flat_map_at(map, 4, &pair), OK);
+  CHECK(*((int*)pair.key), 23);
+  CHECK(*((char*)pair.data), 'x');
+  CHECK(sl_flat_map_at(map, 5, &pair), OK);
+  CHECK(*((int*)pair.key), 25);
+  CHECK(*((char*)pair.data), 'z');
 
   CHECK(sl_flat_map_lower_bound(NULL, NULL, NULL), BAD_ARG);
   CHECK(sl_flat_map_lower_bound(map, NULL, NULL), BAD_ARG);

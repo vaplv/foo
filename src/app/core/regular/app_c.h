@@ -53,7 +53,7 @@ struct app {
   struct mem_allocator* allocator; /* allocator of this (app). */
   struct sl_logger* logger;
   struct sl_flat_set* callback_list[APP_NB_SIGNALS];
-  struct sl_flat_set* object_list[APP_NB_OBJECT_TYPES];
+  struct sl_flat_map* object_map[APP_NB_OBJECT_TYPES]; /* maps of {char*, object*}. */
 
   struct command_system {
     char scratch[1024];
@@ -95,20 +95,35 @@ extern enum app_error
 app_register_object
   (struct app* app,
    enum app_object_type type,
+   const void* key,
    void* object);
 
 extern enum app_error
 app_unregister_object
   (struct app* app,
    enum app_object_type type,
-   void* object);
+   const void* key);
 
 extern enum app_error
 app_is_object_registered
   (struct app* app,
    enum app_object_type type,
-   void* object,
+   const void* key,
    bool* is_registered);
+
+extern enum app_error
+app_get_registered_object_list
+  (struct app* app,
+   enum app_object_type type,
+   size_t* len,
+   void** object_list);
+
+extern enum app_error
+app_get_registered_object
+  (struct app* app,
+   enum app_object_type type,
+   const void* key,
+   void** object);
 
 extern enum app_error
 app_invoke_callbacks
@@ -117,11 +132,11 @@ app_invoke_callbacks
    ...);
 
 extern enum app_error
-app_setup_model_set
+app_setup_model_map
   (struct app* app);
 
 extern enum app_error
-app_setup_model_instance_set
+app_setup_model_instance_map
   (struct app* app);
 
 extern enum rdr_attrib_usage

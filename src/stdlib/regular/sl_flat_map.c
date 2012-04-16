@@ -2,6 +2,7 @@
 #include "stdlib/sl.h"
 #include "stdlib/sl_flat_map.h"
 #include "stdlib/sl_flat_set.h"
+#include "stdlib/sl_pair.h"
 #include "stdlib/sl_vector.h"
 #include "sys/mem_allocator.h"
 #include "sys/sys.h"
@@ -213,6 +214,21 @@ sl_flat_map_length(struct sl_flat_map* map, size_t* out_length)
   if(!map)
     return SL_INVALID_ARGUMENT;
   return sl_vector_length(map->data_list, out_length);
+}
+
+EXPORT_SYM enum sl_error
+sl_flat_map_at(struct sl_flat_map* map, size_t at, struct sl_pair* pair)
+{
+  size_t len = 0;
+
+  if(!map || !pair)
+    return SL_INVALID_ARGUMENT;
+  SL(vector_length(map->data_list, &len));
+  if(at >= len)
+    return SL_INVALID_ARGUMENT;
+  SL(flat_set_at(map->key_set, at, &pair->key));
+  SL(vector_at(map->data_list, at, &pair->data));
+  return SL_NO_ERROR;
 }
 
 EXPORT_SYM enum sl_error

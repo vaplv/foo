@@ -14,5 +14,9 @@ enum app_error {
   APP_UNKNOWN_ERROR
 };
 
+extern const char*
+app_error_string
+  (enum app_error err);
+
 #endif /* APP_ERROR_H */
 

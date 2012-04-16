@@ -6,7 +6,7 @@
 #include "renderer/rdr.h"
 #include "renderer/rdr_model_instance.h"
 #include "stdlib/sl.h"
-#include "stdlib/sl_flat_set.h"
+#include "stdlib/sl_flat_map.h"
 #include "stdlib/sl_string.h"
 #include "stdlib/sl_vector.h"
 #include "sys/mem_allocator.h"
@@ -21,16 +21,15 @@
  *
  ******************************************************************************/
 static int
-compare_model_instances(const void* a, const void* b)
+cmp_str(const void* a, const void* b)
 {
-  const struct app_model_instance* i0 = *(const struct app_model_instance**)a;
-  const struct app_model_instance* i1 = *(const struct app_model_instance**)b;
-  const char* cstr0 = NULL;
-  const char* cstr1 = NULL;
-  SL(string_get(i0->name, &cstr0));
-  SL(string_get(i1->name, &cstr1));
-  assert(cstr0 && cstr1);
-  return strcmp(cstr0, cstr1);
+  const char* str0 = NULL;
+  const char* str1 = NULL;
+  assert(a && b);
+  str0 = *(const char**)a;
+  str1 = *(const char**)b;
+  assert(str0 && str1);
+  return strcmp(str0, str1);
 }
 
 static void
@@ -40,17 +39,19 @@ release_model_instance(struct ref* ref)
     (ref, struct app_model_instance, ref);
   struct app* app = instance->app;
   struct rdr_model_instance** render_instance_lstbuf = NULL;
+  const char* cstr = NULL;
   size_t len = 0;
   size_t i = 0;
   bool is_registered = false;
   assert(app != NULL);
 
+  SL(string_get(instance->name, &cstr));
   APP(is_object_registered
-    (instance->app, APP_MODEL_INSTANCE, instance, &is_registered));
+    (instance->app, APP_MODEL_INSTANCE, &cstr, &is_registered));
   if(is_registered) {
     APP(invoke_callbacks
       (instance->app, APP_SIGNAL_DESTROY_MODEL_INSTANCE, instance));
-    APP(unregister_object(instance->app, APP_MODEL_INSTANCE, instance));
+    APP(unregister_object(instance->app, APP_MODEL_INSTANCE, &cstr));
   }
 
  if(instance->model_instance_list) {
@@ -176,7 +177,7 @@ error:
  *
  ******************************************************************************/
 enum app_error
-app_setup_model_instance_set(struct app* app)
+app_setup_model_instance_map(struct app* app)
 {
   enum app_error app_err = APP_NO_ERROR;
   enum sl_error sl_err = SL_NO_ERROR;
@@ -185,12 +186,14 @@ app_setup_model_instance_set(struct app* app)
     app_err = APP_INVALID_ARGUMENT;
     goto error;
   }
-  sl_err = sl_create_flat_set
-    (sizeof(struct app_model_instance*),
+  sl_err = sl_create_flat_map
+    (sizeof(const char*),
+     ALIGNOF(const char*),
+     sizeof(struct app_model_instance*),
      ALIGNOF(struct app_model_instance*),
-     compare_model_instances,
+     cmp_str,
      app->allocator,
-     &app->object_list[APP_MODEL_INSTANCE]);
+     &app->object_map[APP_MODEL_INSTANCE]);
   if(sl_err != SL_NO_ERROR) {
     app_err = sl_to_app_error(sl_err);
     goto error;

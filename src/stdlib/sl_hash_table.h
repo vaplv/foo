@@ -2,19 +2,12 @@
 #define SL_HASH_TABLE_H
 
 #include "stdlib/sl_error.h"
+#include "stdlib/sl_pair.h"
 #include <stdbool.h>
 #include <stddef.h>
 
 struct mem_allocator;
 struct sl_hash_table;
-
-#define SL_IS_PAIR_VALID(pair) \
-  (((pair)->key != NULL) & ((pair)->data != NULL))
-
-struct sl_pair {
-  void* key;
-  void* data;
-};
 
 struct sl_hash_table_it {
   struct sl_hash_table* hash_table;
