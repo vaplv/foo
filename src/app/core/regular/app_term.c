@@ -23,6 +23,7 @@ command_completion(struct term* term)
   struct app* app = NULL;
   const char* cmdbuf = NULL;
   const char** list = NULL;
+  size_t cursor = 0;
   size_t len = 0;
   size_t i = 0;
   assert(term);
@@ -30,10 +31,12 @@ command_completion(struct term* term)
   app = CONTAINER_OF(term, struct app, term);
 
   APP(command_buffer_completion(app->term.cmdbuf, &len, &list));
-  APP(get_command_buffer_string(app->term.cmdbuf, NULL, &cmdbuf));
+  APP(get_command_buffer_string(app->term.cmdbuf, &cursor, &cmdbuf));
   RDR(clear_term(app->term.render_term, RDR_TERM_CMDOUT));
   RDR(term_print_string
     (app->term.render_term, RDR_TERM_CMDOUT, cmdbuf, RDR_TERM_COLOR_WHITE));
+  RDR(term_translate_cursor(app->term.render_term, INT_MIN));
+  RDR(term_translate_cursor(app->term.render_term, cursor));
   if(0 != len) {
     if(1 < len) {
       for(i = 0; i < len; ++i) {

@@ -322,6 +322,24 @@ cmd_model_list(struct app* app, const char* input, size_t input_len)
   return value_list;
 }
 
+static struct app_cmdarg_value_list
+cmd_command_list(struct app* app, const char* input, size_t input_len)
+{
+  struct app_cmdarg_value_list value_list;
+  const char** command_list = NULL;
+  size_t len = 0;
+  memset(&value_list, 0, sizeof(value_list));
+  SL(flat_set_buffer
+    (app->cmd.name_set, &len, NULL, NULL, (void**)&command_list));
+  setup_value_list
+    (&value_list,
+     command_list,
+     len,
+     input,
+     input_len);
+  return value_list;
+}
+
 /*******************************************************************************
  *
  * Builtin commands registration.
@@ -341,7 +359,7 @@ app_setup_builtin_commands(struct app* app)
     (app, "exit", cmd_exit, 0, NULL, "exit - cause the application to exit\n"));
   CALL(app_add_command
     (app, "help", cmd_help,
-     1, APP_CMDARGV(APP_CMDARG_APPEND_STRING(NULL)),
+     1, APP_CMDARGV(APP_CMDARG_APPEND_STRING(cmd_command_list)),
      "help - give command informations\n"
      "Usage: help COMMAND\n"));
   CALL(app_add_command

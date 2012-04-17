@@ -286,7 +286,7 @@ main(int argc, char** argv)
   CHECK(app_execute_command(app, "help load"), OK);
   CHECK(app_execute_command(app, "help help"), OK);
   CHECK(app_execute_command(app, "help exit"), OK);
-  CHECK(app_execute_command(app, "help bad_command"), OK);
+  CHECK(app_execute_command(app, "help bad_command"), CMD_ERR);
   CHECK(app_execute_command(app, "load --model bad_path"), OK);
   CHECK(app_execute_command(app, "ls"), CMD_ERR);
   CHECK(app_execute_command(app, "ls --commands"), OK);

@@ -18,7 +18,7 @@
 struct command {
   struct list_node node;
   struct sl_string* str;
-  /* Pointer toward the current command. It point whether onto this or a new
+  /* Pointer toward the current command. It points whether onto this or a new
    * command which is initialized with this. Use to manage command history. */
   struct command* current;
 };
@@ -510,10 +510,16 @@ app_command_buffer_completion
   for(tkn_id = 0; NULL != (ptr = strtok(NULL, " \t")); ++tkn_id) {
     tkn = ptr;
   }
-
+  /* If the last tkn is followed by space then the arg to complete
+   * is the next one. */
+  tkn_len = strlen(tkn);
+  if(tkn + tkn_len != scratch + buf->cursor) {
+    ++tkn_id;
+    tkn_len = 0;
+    tkn = NULL;
+  }
   if(tkn_id == 0) {
     APP(command_completion(buf->app, cmd_name, buf->cursor, &len, &list));
-    tkn_len = buf->cursor;
   } else {
     struct app_cmdarg_value_list value_list;
     struct app_cmdarg_desc* arg = NULL;
@@ -529,7 +535,6 @@ app_command_buffer_completion
       goto exit;
     if(arg->domain.string.value_list == NULL)
       goto exit;
-    tkn_len = strlen(tkn);
     value_list = arg->domain.string.value_list(buf->app, tkn, tkn_len);
     list = value_list.buffer;
     len = value_list.length;
