@@ -421,9 +421,6 @@ app_command_buffer_completion
     app_err = APP_MEMORY_ERROR;
     goto error;
   }
-  if(buf->cursor == 0)
-    goto exit;
-
   SL(string_get(buf->cmd->current->str, &ptr));
   strncpy(scratch, ptr, buf->cursor);
   scratch[buf->cursor] = '\0';
@@ -433,13 +430,18 @@ app_command_buffer_completion
   for(tkn_id = 0; NULL != (ptr = strtok(NULL, " \t")); ++tkn_id) {
     tkn = ptr;
   }
-  /* If the last tkn is followed by space then the arg to complete
-   * is the next one. */
-  tkn_len = strlen(tkn);
-  if(tkn + tkn_len != scratch + buf->cursor) {
-    ++tkn_id;
+
+  if(!tkn) {
     tkn_len = 0;
-    tkn = NULL;
+  } else {
+    /* If the last tkn is followed by space then the arg to complete
+     * is the next one. */
+    tkn_len = strlen(tkn);
+    if(tkn + tkn_len != scratch + buf->cursor) {
+      ++tkn_id;
+      tkn_len = 0;
+      tkn = NULL;
+    }
   }
   if(tkn_id == 0) {
     APP(command_completion(buf->app, cmd_name, buf->cursor, &len, &list));

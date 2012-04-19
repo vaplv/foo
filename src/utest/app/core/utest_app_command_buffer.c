@@ -360,6 +360,20 @@ main(int argc, char** argv)
   CHECK(app_command_buffer_completion(NULL, NULL, NULL), BAD_ARG);
   CHECK(app_command_buffer_completion(buf, NULL, NULL), OK);
   CHECK_CMDBUF(buf, len, dump, "");
+  CHECK(app_command_buffer_completion(NULL, &len2, NULL), BAD_ARG);
+  CHECK(app_command_buffer_completion(buf, &len2, NULL), OK);
+  CHECK_CMDBUF(buf, len, dump, "");
+  NCHECK(len2, 0);
+  CHECK(app_command_buffer_completion(NULL, NULL, &list), BAD_ARG);
+  CHECK(app_command_buffer_completion(buf, NULL, &list), OK);
+  CHECK_CMDBUF(buf, len, dump, "");
+  NCHECK(list, NULL);
+  CHECK(app_command_buffer_completion(NULL, &len2, &list), BAD_ARG);
+  CHECK(app_command_buffer_completion(buf, &len2, &list), OK);
+  CHECK_CMDBUF(buf, len, dump, "");
+  NCHECK(len2, 0);
+  NCHECK(list, NULL);
+ 
   CHECK(app_command_buffer_write_string(buf, "foo_"), OK);
   CHECK(app_command_buffer_completion(buf, &len2, &list), OK);
   CHECK(list, NULL);
