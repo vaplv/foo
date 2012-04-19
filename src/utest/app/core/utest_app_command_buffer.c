@@ -1,4 +1,5 @@
 #include "app/core/app.h"
+#include "app/core/app_command.h"
 #include "app/core/app_command_buffer.h"
 #include "sys/mem_allocator.h"
 #include "utest/utest.h"
@@ -19,22 +20,63 @@
     CHECK(strlen(dump), len); \
   } while(0)
 
+static const char* options[] = { "foo", "opt", "opt0", "optionA", "optionB" };
+
+static struct app_cmdarg_value_list
+cmd_option_list
+  (struct app* app UNUSED,
+   const char* input,
+   size_t input_len)
+{
+  struct app_cmdarg_value_list option_list;
+  const size_t len = sizeof(options)/sizeof(const char*);
+  memset(&option_list, 0, sizeof(option_list));
+
+  if(!input || !input_len) {
+    option_list.buffer = options;
+    option_list.length = len;
+  } else {
+    size_t i = 0;
+    size_t j = 0;
+    for(i = 0; i < len && strncmp(options[i], input, input_len) < 0; ++i);
+    for(j = i; j < len && strncmp(options[j], input, input_len) == 0; ++j);
+    option_list.buffer = options + i;
+    option_list.length = j - i;
+  }
+  return option_list;
+}
+
+static void
+foo(struct app* app UNUSED, size_t argc, struct app_cmdarg* argv UNUSED)
+{
+  size_t i = 0;
+  bool b = false;
+  CHECK(argc, 2);
+  CHECK(argv[0].type, APP_CMDARG_STRING);
+  CHECK(argv[1].type, APP_CMDARG_STRING);
+  CHECK(strcmp(argv[0].value.string, "foo__"), 0);
+  for(i = 0, b = false; !b && i < sizeof(options)/sizeof(const char*); ++i) {
+    b = !strcmp(options[i], argv[1].value.string);
+  }
+  CHECK(b, true);
+}
+
 int
 main(int argc, char** argv)
 {
+  const char** list = NULL; 
   char dump[BUFFER_SIZE] = { [0] = 'a', [1] = '\0' };
   struct app_args args = { NULL, NULL, NULL, NULL };
   struct app* app = NULL;
   struct app_command_buffer* buf = NULL;
   size_t len = SIZE_MAX;
+  size_t len2 = SIZE_MAX;
 
   if(argc != 2) {
     printf("usage: %s RB_DRIVER\n", argv[0]);
     return -1;
   }
   args.render_driver = argv[1];
-
-
 
   CHECK(app_init(&args, &app), OK);
 
@@ -174,6 +216,7 @@ main(int argc, char** argv)
 
   CHECK(app_command_buffer_write_string(buf, "cmd0"), OK);
   CHECK_CMDBUF(buf, len, dump, "cmd0");
+  CHECK(app_command_buffer_move_cursor(buf, -1), OK);
   CHECK(app_command_buffer_history_next(buf), OK);
   CHECK_CMDBUF(buf, len, dump, "cmd0");
   CHECK(app_command_buffer_history_next(buf), OK);
@@ -307,6 +350,77 @@ main(int argc, char** argv)
   CHECK_CMDBUF(buf, len, dump, "cmd4");
   CHECK(app_execute_command_buffer(buf), CMD_ERR);
 
+
+  CHECK(app_clear_command_buffer(buf), OK);
+  CHECK_CMDBUF(buf, len, dump, "");
+  CHECK(app_add_command
+    (app, "foo__", foo, 
+     1, APP_CMDARGV(APP_CMDARG_APPEND_STRING(cmd_option_list)), 
+     NULL), OK);
+  CHECK(app_command_buffer_completion(NULL, NULL, NULL), BAD_ARG);
+  CHECK(app_command_buffer_completion(buf, NULL, NULL), OK);
+  CHECK_CMDBUF(buf, len, dump, "");
+  CHECK(app_command_buffer_write_string(buf, "foo_"), OK);
+  CHECK(app_command_buffer_completion(buf, &len2, &list), OK);
+  CHECK(list, NULL);
+  CHECK(len2, 0);
+  CHECK_CMDBUF(buf, len, dump, "foo__");
+  CHECK(app_command_buffer_completion(buf, &len2, &list), OK);
+  CHECK_CMDBUF(buf, len, dump, "foo__");
+  CHECK(list, NULL);
+  CHECK(len2, 0);
+
+  CHECK(app_command_buffer_write_char(buf, ' '), OK);
+  CHECK(app_command_buffer_completion(buf, &len2, &list), OK);
+  CHECK_CMDBUF(buf, len, dump, "foo__ ");
+  CHECK(len2, 5);
+  CHECK(list[0], "foo");
+  CHECK(list[1], "opt");
+  CHECK(list[2], "opt0");
+  CHECK(list[3], "optionA");
+  CHECK(list[4], "optionB");
+  CHECK(app_command_buffer_write_string(buf, "op"), OK);
+  CHECK(app_command_buffer_completion(buf, &len2, &list), OK);
+  CHECK_CMDBUF(buf, len, dump, "foo__ opt");
+  CHECK(list, NULL);
+  CHECK(len2, 0);
+  CHECK(app_command_buffer_completion(buf, &len2, &list), OK);
+  CHECK_CMDBUF(buf, len, dump, "foo__ opt");
+  CHECK(len2, 4);
+  CHECK(list[0], "opt");
+  CHECK(list[1], "opt0");
+  CHECK(list[2], "optionA");
+  CHECK(list[3], "optionB");
+  CHECK(app_command_buffer_write_char(buf, '0'), OK);
+  CHECK(app_command_buffer_completion(buf, &len2, &list), OK);
+  CHECK_CMDBUF(buf, len, dump, "foo__ opt0");
+  CHECK(len2, 0);
+  CHECK(list, NULL);
+  CHECK(app_command_buffer_completion(buf, &len2, &list), OK);
+  CHECK_CMDBUF(buf, len, dump, "foo__ opt0");
+  CHECK(len2, 0);
+  CHECK(list, NULL);
+  CHECK(app_command_buffer_move_cursor(buf, -1), OK);
+  CHECK(app_command_buffer_write_char(buf, 'i'), OK);
+  CHECK(app_command_buffer_completion(buf, &len2, &list), OK);
+  CHECK_CMDBUF(buf, len, dump, "foo__ option0");
+  CHECK(len2, 0);
+  CHECK(list, NULL);
+  CHECK(app_command_buffer_completion(buf, &len2, &list), OK);
+  CHECK_CMDBUF(buf, len, dump, "foo__ option0");
+  CHECK(len2, 2);
+  CHECK(list[0], "optionA");
+  CHECK(list[1], "optionB");
+  CHECK(app_command_buffer_write_char(buf, 'A'), OK);
+  CHECK(app_command_buffer_completion(buf, &len2, &list), OK);
+  CHECK_CMDBUF(buf, len, dump, "foo__ optionA0");
+  CHECK(len2, 0);
+  CHECK(list, NULL);
+  CHECK(app_command_buffer_completion(buf, &len2, &list), OK);
+  CHECK_CMDBUF(buf, len, dump, "foo__ optionA0");
+  CHECK(len2, 0);
+  CHECK(list, NULL);
+  
   CHECK(app_command_buffer_ref_get(NULL), BAD_ARG);
   CHECK(app_command_buffer_ref_get(buf), OK);
   CHECK(app_command_buffer_ref_put(NULL), BAD_ARG);

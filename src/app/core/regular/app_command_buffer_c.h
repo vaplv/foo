@@ -21,13 +21,7 @@ extern enum app_error
 app_get_command_buffer_string
   (struct app_command_buffer* buf,
    size_t* cursor, /* May be NULL. */
-   const char** str) /* May be NULL. */;
-
-extern enum app_error
-app_command_buffer_completion
-  (struct app_command_buffer* buf,
-   size_t* completion_list_len, /* May be NULL. */
-   const char** completion_list[]); /* May be NULL. */
+   const char** str); /* May be NULL. */
 
 #endif /* APP_COMMAND_BUFFER_C_H */
 

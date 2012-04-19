@@ -68,5 +68,12 @@ app_dump_command_buffer
    size_t* len, /* May be NULL. Do not include the null char. */
    char* buffer); /* May be NULL. */
 
+extern enum app_error
+app_command_buffer_completion
+  (struct app_command_buffer* buf,
+   size_t* completion_list_len, /* May be NULL. */
+   /* List of available completion values. May be NULL. */
+   const char** completion_list[]); 
+
 #endif /* APP_COMMAND_BUFFER_H */
 

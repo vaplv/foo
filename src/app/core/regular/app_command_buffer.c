@@ -394,6 +394,97 @@ app_dump_command_buffer
   return APP_NO_ERROR;
 }
 
+EXPORT_SYM enum app_error
+app_command_buffer_completion
+  (struct app_command_buffer* buf,
+   size_t* out_len,
+   const char** out_list[])
+{
+  #define SCRATCH_SIZE 512
+  char scratch[SCRATCH_SIZE];
+  struct app_command* cmd = NULL;
+  const char** list = NULL;
+  const char* ptr = NULL;
+  const char* tkn = NULL;
+  const char* cmd_name = NULL;
+  size_t len = 0;
+  size_t tkn_id = 0;
+  size_t tkn_len = 0;
+  enum app_error app_err = APP_NO_ERROR;
+  bool b = false;
+
+  if(!buf) {
+    app_err = APP_INVALID_ARGUMENT;
+    goto error;
+  }
+  if(buf->cursor > SCRATCH_SIZE - 1) {
+    app_err = APP_MEMORY_ERROR;
+    goto error;
+  }
+  if(buf->cursor == 0)
+    goto exit;
+
+  SL(string_get(buf->cmd->current->str, &ptr));
+  strncpy(scratch, ptr, buf->cursor);
+  scratch[buf->cursor] = '\0';
+
+  /* Find the token to complete. */
+  cmd_name = tkn = strtok(scratch, " \t");
+  for(tkn_id = 0; NULL != (ptr = strtok(NULL, " \t")); ++tkn_id) {
+    tkn = ptr;
+  }
+  /* If the last tkn is followed by space then the arg to complete
+   * is the next one. */
+  tkn_len = strlen(tkn);
+  if(tkn + tkn_len != scratch + buf->cursor) {
+    ++tkn_id;
+    tkn_len = 0;
+    tkn = NULL;
+  }
+  if(tkn_id == 0) {
+    APP(command_completion(buf->app, cmd_name, buf->cursor, &len, &list));
+  } else {
+    struct app_cmdarg_value_list value_list;
+    struct app_cmdarg_desc* arg = NULL;
+
+    APP(has_command(buf->app, cmd_name, &b));
+    if(b == false)
+      goto exit;
+    APP(get_command(buf->app, cmd_name, &cmd));
+    if(tkn_id > cmd->argc)
+      goto exit;
+    arg = &cmd->arg_desc_list[tkn_id];
+    if(arg->type != APP_CMDARG_STRING)
+      goto exit;
+    if(arg->domain.string.value_list == NULL)
+      goto exit;
+    value_list = arg->domain.string.value_list(buf->app, tkn, tkn_len);
+    list = value_list.buffer;
+    len = value_list.length;
+  }
+  if(len != 0) {
+    const size_t last = len - 1;
+    size_t i = tkn_len;
+    while(list[0][i] == list[last][i] && list[0][i] != '\0') {
+      APP(command_buffer_write_char(buf, list[0][i]));
+      ++i;
+    }
+    if(i != tkn_len || !last) {
+      len = 0;
+      list = NULL;
+    }
+  }
+  if(out_len)
+    *out_len = len;
+  if(out_list)
+    *out_list = list;
+  #undef SCRATCH_SIZE
+exit:
+  return app_err;
+error:
+  goto exit;
+}
+
 /*******************************************************************************
  *
  * Private command buffer functions.
@@ -469,92 +560,5 @@ app_get_command_buffer_string
   if(NULL != str)
     SL(string_get(buf->cmd->current->str, str));
   return APP_NO_ERROR;
-}
-
-enum app_error
-app_command_buffer_completion
-  (struct app_command_buffer* buf,
-   size_t* out_len,
-   const char** out_list[])
-{
-  #define SCRATCH_SIZE 512
-  char scratch[SCRATCH_SIZE];
-  struct app_command* cmd = NULL;
-  const char** list = NULL;
-  const char* ptr = NULL;
-  const char* tkn = NULL;
-  const char* cmd_name = NULL;
-  size_t len = 0;
-  size_t tkn_id = 0;
-  size_t tkn_len = 0;
-  enum app_error app_err = APP_NO_ERROR;
-  bool b = false;
-
-  if(!buf) {
-    app_err = APP_INVALID_ARGUMENT;
-    goto error;
-  }
-  if(buf->cursor > SCRATCH_SIZE - 1) {
-    app_err = APP_MEMORY_ERROR;
-    goto error;
-  }
-  if(buf->cursor == 0)
-    goto exit;
-
-  SL(string_get(buf->cmd->current->str, &ptr));
-  strncpy(scratch, ptr, buf->cursor);
-  scratch[buf->cursor] = '\0';
-
-  /* Find the token to complete. */
-  cmd_name = tkn = strtok(scratch, " \t");
-  for(tkn_id = 0; NULL != (ptr = strtok(NULL, " \t")); ++tkn_id) {
-    tkn = ptr;
-  }
-  /* If the last tkn is followed by space then the arg to complete
-   * is the next one. */
-  tkn_len = strlen(tkn);
-  if(tkn + tkn_len != scratch + buf->cursor) {
-    ++tkn_id;
-    tkn_len = 0;
-    tkn = NULL;
-  }
-  if(tkn_id == 0) {
-    APP(command_completion(buf->app, cmd_name, buf->cursor, &len, &list));
-  } else {
-    struct app_cmdarg_value_list value_list;
-    struct app_cmdarg_desc* arg = NULL;
-
-    APP(has_command(buf->app, cmd_name, &b));
-    if(b == false)
-      goto exit;
-    APP(get_command(buf->app, cmd_name, &cmd));
-    if(tkn_id > cmd->argc)
-      goto exit;
-    arg = &cmd->arg_desc_list[tkn_id];
-    if(arg->type != APP_CMDARG_STRING)
-      goto exit;
-    if(arg->domain.string.value_list == NULL)
-      goto exit;
-    value_list = arg->domain.string.value_list(buf->app, tkn, tkn_len);
-    list = value_list.buffer;
-    len = value_list.length;
-  }
-  if(len != 0) {
-    const size_t last = len - 1;
-    size_t i = tkn_len;
-    while(list[0][i] == list[last][i] && list[0][i] != '\0') {
-      APP(command_buffer_write_char(buf, list[0][i]));
-      ++i;
-    }
-  }
-  if(out_len)
-    *out_len = len;
-  if(out_list)
-    *out_list = list;
-  #undef SCRATCH_SIZE
-exit:
-  return app_err;
-error:
-  goto exit;
 }
 

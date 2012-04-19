@@ -143,7 +143,8 @@ term_key_clbk(enum wm_key key, enum wm_state state, void* data)
       RDR(clear_term(term->render_term, RDR_TERM_CMDOUT));
       RDR(term_print_string
        (term->render_term, RDR_TERM_CMDOUT, cstr, RDR_TERM_COLOR_WHITE));
-      assert(cursor == strlen(cstr));
+      RDR(term_translate_cursor(term->render_term, INT_MIN));
+      RDR(term_translate_cursor(term->render_term, cursor));
       break;
     case WM_KEY_TAB:
       command_completion(term);
