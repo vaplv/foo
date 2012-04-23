@@ -1,18 +1,39 @@
-#include "app/core/regular/app_error_c.h"
+#include "app/core/regular/app_builtin_commands.h"
 #include "app/core/regular/app_c.h"
 #include "app/core/regular/app_command_c.h"
-#include "app/core/regular/app_builtin_commands.h"
+#include "app/core/regular/app_error_c.h"
 #include "app/core/app_command.h"
-#include "app/core/app_command_buffer.h"
-#include "stdlib/sl.h"
 #include "stdlib/sl_flat_set.h"
 #include "stdlib/sl_hash_table.h"
+#include "stdlib/sl_string.h"
 #include "sys/mem_allocator.h"
 #include "sys/sys.h"
-#include <assert.h>
-#include <limits.h>
+#include <argtable2.h>
+#include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
+
+struct app_command {
+  size_t argc;
+  void(*func)(struct app*, size_t, const struct app_cmdarg**);
+  enum app_error (*completion)
+    (struct app*, const char*, size_t, size_t*, const char**[]);
+  struct sl_string* description;
+  union app_cmdarg_domain* arg_domain;
+  struct app_cmdarg** argv;
+  void** arg_table;
+};
+
+#define IS_END_REACHED(desc) \
+  ( (desc.type == APP_CMDARG_END.type) \
+  & (desc.short_options == APP_CMDARG_END.short_options) \
+  & (desc.long_options == APP_CMDARG_END.long_options) \
+  & (desc.data_type == APP_CMDARG_END.data_type) \
+  & (desc.glossary == APP_CMDARG_END.glossary) \
+  & (desc.min_count == APP_CMDARG_END.min_count) \
+  & (desc.max_count == APP_CMDARG_END.max_count) \
+  & (desc.domain.integer.min == APP_CMDARG_END.domain.integer.min) \
+  & (desc.domain.integer.max == APP_CMDARG_END.domain.integer.max))
 
 /*******************************************************************************
  *
@@ -44,67 +65,221 @@ cmp_str(const void* a, const void* b)
 
 /*******************************************************************************
  *
- * Helper functions.
+ * Helper function.
  *
  ******************************************************************************/
 static enum app_error
-token_to_cmdarg
-  (struct app* app,
-   const char* tkn,
-   struct app_cmdarg_desc* desc,
-   struct app_cmdarg* arg)
+init_domain_and_table
+  (struct app* app UNUSED,
+   struct app_command* cmd,
+   const struct app_cmdarg_desc argv_desc[])
 {
-  char* endptr = NULL;
   size_t i = 0;
   enum app_error app_err = APP_NO_ERROR;
-  assert(app && tkn && desc && arg);
+  assert(app && cmd);
 
-  arg->type = desc->type;
-  switch(desc->type) {
-    case APP_CMDARG_INT:
-      arg->value.integer =
-        (int)MIN(MAX(strtol(tkn, &endptr, 10), INT_MIN), INT_MAX);
-      if(desc->domain.integer.min <= desc->domain.integer.max) {
-        arg->value.integer =
-          MAX(arg->value.integer, desc->domain.integer.min);
-        arg->value.integer =
-          MIN(arg->value.integer, desc->domain.integer.max);
-      }
-      break;
-    case APP_CMDARG_FLOAT:
-      arg->value.real = strtof(tkn, &endptr);
-      endptr += *endptr == 'f'; /* Float suffix. */
-      if(desc->domain.real.min <= desc->domain.real.max) {
-        arg->value.real = MAX(arg->value.real, desc->domain.real.min);
-        arg->value.real = MIN(arg->value.real, desc->domain.real.max);
-      }
-      break;
-    case APP_CMDARG_STRING:
-      arg->value.string = tkn;
-      if(desc->domain.string.value_list) {
-        const struct app_cmdarg_value_list value_list = 
-          desc->domain.string.value_list(app, NULL, 0);
-        for(i = 0; i < value_list.length; ++i) {
-          if(0 == strcmp(value_list.buffer[i], tkn))
-            break;
+  if(argv_desc) {
+    void* arg = NULL;
+
+    #define ARG(suffix, a) \
+      CONCAT(arg_, suffix) \
+        ((a).short_options, (a).long_options, (a).data_type, (a).glossary)
+    #define LIT(suffix, a) \
+      CONCAT(arg_, suffix) \
+        ((a).short_options, (a).long_options, (a).glossary)
+    #define ARGN(suffix, a) \
+      CONCAT(CONCAT(arg_, suffix), n) \
+        ((a).short_options, (a).long_options, (a).data_type, \
+         (a).min_count, (a).max_count, (a).glossary)
+    #define LITN(suffix, a) \
+      CONCAT(CONCAT(arg_, suffix), n) \
+        ((a).short_options, (a).long_options, (a).min_count, \
+         (a).max_count, (a).glossary)
+
+    for(i = 0; !IS_END_REACHED(argv_desc[i]); ++i) {
+     if(argv_desc[i].min_count == 0 && argv_desc[i].max_count == 1) {
+        switch(argv_desc[i].type) {
+          case APP_CMDARG_INT: arg = ARG(int0, argv_desc[i]); break;
+          case APP_CMDARG_FILE: arg = ARG(file0, argv_desc[i]); break;
+          case APP_CMDARG_FLOAT: arg = ARG(dbl0, argv_desc[i]); break;
+          case APP_CMDARG_STRING: arg = ARG(str0, argv_desc[i]); break;
+          case APP_CMDARG_LITERAL: arg = LIT(lit0, argv_desc[i]); break;
+          default: assert(0); break;
         }
-        if(i == value_list.length) {
-          arg->value.string = NULL;
-          endptr = "error";
+      } else if(argv_desc[i].max_count == 1) {
+        switch(argv_desc[i].type) {
+          case APP_CMDARG_INT: arg = ARG(int1, argv_desc[i]); break;
+          case APP_CMDARG_FILE: arg = ARG(file1, argv_desc[i]); break;
+          case APP_CMDARG_FLOAT: arg = ARG(dbl1, argv_desc[i]); break;
+          case APP_CMDARG_STRING: arg = ARG(str1, argv_desc[i]); break;
+          case APP_CMDARG_LITERAL: arg = LIT(lit1, argv_desc[i]); break;
+          default: assert(0); break;
+        }
+      } else {
+        switch(argv_desc[i].type) {
+          case APP_CMDARG_INT: arg = ARGN(int, argv_desc[i]); break;
+          case APP_CMDARG_FILE: arg = ARGN(file, argv_desc[i]); break;
+          case APP_CMDARG_FLOAT: arg = ARGN(dbl, argv_desc[i]); break;
+          case APP_CMDARG_STRING: arg = ARGN(str, argv_desc[i]); break;
+          case APP_CMDARG_LITERAL: arg = LITN(lit, argv_desc[i]); break;
+          default: assert(0); break;
         }
       }
-      break;
-    default:
-      assert(false);
-      break;
+      cmd->arg_table[i] = arg;
+      cmd->arg_domain[i + 1] = argv_desc[i].domain; /* +1 <=> command name. */
+    }
   }
-  if(endptr && *endptr != '\0') {
-    app_err = APP_COMMAND_ERROR;
+
+  cmd->arg_table[i] = arg_end(16);
+  if(arg_nullcheck(cmd->arg_table)) {
+    app_err = APP_MEMORY_ERROR;
     goto error;
+  }
+
+  #undef ARG
+  #undef LIT
+  #undef ARGN
+  #undef LITN
+
+exit:
+  return app_err;
+error:
+  goto exit;
+}
+
+static enum app_error
+setup_cmd_arg(struct app* app, struct app_command* cmd, const char* name)
+{
+  size_t arg_id = 0;
+  enum app_error app_err = APP_NO_ERROR;
+
+  assert(cmd && cmd->argc && cmd->argv[0]->type == APP_CMDARG_STRING);
+  cmd->argv[0]->value_list[0].is_defined = true;
+  cmd->argv[0]->value_list[0].data.string = name;
+  for(arg_id = 1; arg_id < cmd->argc; ++arg_id) {
+    const char** value_list = NULL;
+    const char* str = NULL;
+    const size_t arg_tbl_id = arg_id - 1; /* -1 <=> arg name. */
+    int val_id = 0;
+    bool isdef = true;
+
+    for(val_id=0; isdef && (size_t)val_id<cmd->argv[arg_id]->count; ++val_id) {
+      switch(cmd->argv[arg_id]->type) {
+        case APP_CMDARG_STRING:
+          isdef = val_id < ((struct arg_str*)cmd->arg_table[arg_tbl_id])->count;
+          if(isdef) {
+            str = ((struct arg_str*)(cmd->arg_table[arg_tbl_id]))->sval[val_id];
+            /* Check the string domain. */
+            value_list = cmd->arg_domain[arg_id].string.value_list;
+            if(value_list == NULL) {
+              cmd->argv[arg_id]->value_list[val_id].data.string = str;
+            } else {
+              size_t i = 0;
+              for(i = 0; value_list[i] != NULL; ++i) {
+                if(strcmp(str, value_list[i]) == 0)
+                  break;
+              }
+              if(value_list[i] != NULL) {
+                cmd->argv[arg_id]->value_list[val_id].data.string = str;
+              } else {
+                APP_LOG_ERR
+                  (app->logger, "%s: unexpected option value `%s'\n",name, str);
+                app_err = APP_COMMAND_ERROR;
+                goto error;
+              }
+            }
+          }
+          break;
+        case APP_CMDARG_FILE:
+          isdef = val_id< ((struct arg_file*)cmd->arg_table[arg_tbl_id])->count;
+          if(isdef) {
+            cmd->argv[arg_id]->value_list[val_id].data.string =
+             ((struct arg_file*)(cmd->arg_table[arg_tbl_id]))->filename[val_id];
+          }
+          break;
+        case APP_CMDARG_INT:
+          isdef = val_id < ((struct arg_int*)cmd->arg_table[arg_tbl_id])->count;
+          if(isdef) {
+            cmd->argv[arg_id]->value_list[val_id].data.integer = MAX(MIN(
+              ((struct arg_int*)(cmd->arg_table[arg_tbl_id]))->ival[val_id],
+              cmd->arg_domain[arg_id].integer.max),
+              cmd->arg_domain[arg_id].integer.min);
+          }
+          break;
+        case APP_CMDARG_FLOAT:
+          isdef = val_id < ((struct arg_dbl*)cmd->arg_table[arg_tbl_id])->count;
+          if(isdef) {
+            cmd->argv[arg_id]->value_list[val_id].data.real = MAX(MIN(
+              ((struct arg_dbl*)(cmd->arg_table[arg_tbl_id]))->dval[val_id],
+              cmd->arg_domain[arg_id].real.max),
+              cmd->arg_domain[arg_id].real.min);
+          }
+          break;
+        case APP_CMDARG_LITERAL:
+          isdef = val_id < ((struct arg_lit*)cmd->arg_table[arg_tbl_id])->count;
+          break;
+        default:
+          assert(0);
+          break;
+      }
+      cmd->argv[arg_id]->value_list[val_id].is_defined = isdef;
+    }
   }
 exit:
   return app_err;
 error:
+  goto exit;
+}
+
+static enum app_error
+register_command
+  (struct app* app,
+   struct app_command* cmd,
+   const char* name)
+{
+  char* cmd_name = NULL;
+  enum app_error app_err = APP_NO_ERROR;
+  enum sl_error sl_err = SL_NO_ERROR;
+  bool is_inserted_in_htbl = false;
+  bool is_inserted_in_fset = false;
+  assert(app && cmd && name);
+
+  /* Register the command against the command system. */
+  cmd_name = MEM_CALLOC(app->allocator, strlen(name) + 1, sizeof(char));
+  if(NULL == cmd_name) {
+    app_err = APP_MEMORY_ERROR;
+    goto error;
+  }
+  strcpy(cmd_name, name);
+  assert(app->cmd.htbl);
+  sl_err = sl_hash_table_insert(app->cmd.htbl, &cmd_name, &cmd);
+  if(SL_NO_ERROR != sl_err) {
+    app_err = sl_to_app_error(sl_err);
+    goto error;
+  }
+  is_inserted_in_htbl = true;
+  sl_err = sl_flat_set_insert(app->cmd.name_set, &cmd_name, NULL);
+  if(SL_NO_ERROR != sl_err) {
+    app_err = sl_to_app_error(sl_err);
+    goto error;
+  }
+  is_inserted_in_fset = true;
+
+exit:
+  return app_err;
+error:
+  if(cmd_name) {
+    size_t i = 0;
+
+    if(is_inserted_in_htbl) {
+      SL(hash_table_erase(app->cmd.htbl, &cmd_name, &i));
+      assert(1 == i);
+    }
+    if(is_inserted_in_fset) {
+      SL(flat_set_erase(app->cmd.name_set, &cmd_name, NULL));
+    }
+    MEM_FREE(app->allocator, cmd_name);
+  }
   goto exit;
 }
 
@@ -118,8 +293,17 @@ del_all_commands(struct app* app)
   SL(hash_table_begin(app->cmd.htbl, &it, &b));
   while(!b) {
     struct app_command* cmd = *(struct app_command**)it.pair.data;
+    size_t i = 0;
+
     if(cmd->description)
-      MEM_FREE(app->allocator, cmd->description);
+      SL(free_string(cmd->description));
+    for(i = 0; i < cmd->argc; ++i) {
+      MEM_FREE(app->allocator, cmd->argv[i]);
+    }
+    MEM_FREE(app->allocator, cmd->argv);
+    MEM_FREE(app->allocator, cmd->arg_domain);
+    arg_freetable(cmd->arg_table, cmd->argc + 1); /* +1 <=> arg_end. */
+    MEM_FREE(app->allocator, cmd->arg_table);
     MEM_FREE(app->allocator, cmd);
     MEM_FREE(app->allocator, (*(char**)it.pair.key));
     SL(hash_table_it_next(&it, &b));
@@ -129,31 +313,30 @@ del_all_commands(struct app* app)
 
 /*******************************************************************************
  *
- * Command functions.
+ * Command functions
  *
  ******************************************************************************/
 EXPORT_SYM enum app_error
 app_add_command
   (struct app* app,
    const char* name,
-   void (*func)(struct app*, size_t argc, struct app_cmdarg* argv),
-   size_t argc,
-   const struct app_cmdarg_desc arg_desc_list[],
+   void (*func)(struct app*, size_t argc, const struct app_cmdarg** argv),
+   enum app_error (*completion_func) /* May be NULL.*/
+    (struct app*, const char*, size_t, size_t*, const char**[]),
+   const struct app_cmdarg_desc argv_desc[],
    const char* description)
 {
   void* ptr = NULL;
   struct app_command* cmd = NULL;
-  char* cmd_name = NULL;
+  size_t argc = 0;
+  size_t buffer_len = 0;
+  size_t arg_id = 0;
+  size_t desc_id = 0;
   size_t i = 0;
-  const size_t adjusted_argc = argc + 1; /* +1 <=> command name. */
   enum app_error app_err = APP_NO_ERROR;
   enum sl_error sl_err = SL_NO_ERROR;
 
-  if(!app
-  || !name
-  || !func
-  || argc > APP_MAX_CMDARGS
-  || (argc && !arg_desc_list)) {
+  if(!app || !name || !func) {
     app_err = APP_INVALID_ARGUMENT;
     goto error;
   }
@@ -162,75 +345,119 @@ app_add_command
     app_err = APP_INVALID_ARGUMENT;
     goto error;
   }
-  for(i = 0; i < argc; ++i) {
-    if(arg_desc_list[i].type == APP_NB_CMDARG_TYPES) {
-      app_err = APP_INVALID_ARGUMENT;
-      goto error;
-    }
-  }
-  cmd = MEM_CALLOC
-    (app->allocator,
-     1,
-     sizeof(struct app_command) + adjusted_argc*sizeof(struct app_cmdarg_desc));
-  if(!cmd) {
+
+  cmd = MEM_CALLOC(app->allocator, 1, sizeof(struct app_command));
+  if(NULL == cmd) {
     app_err = APP_MEMORY_ERROR;
     goto error;
   }
-  if(NULL == description) {
-    cmd->description = NULL;
-  } else {
-    cmd->description = MEM_CALLOC
-      (app->allocator, strlen(description) + 1, sizeof(char));
-    if(!cmd->description) {
+  cmd->func = func;
+
+  if(argv_desc != NULL) {
+    for(argc = 0; !IS_END_REACHED(argv_desc[argc]); ++argc) {
+      if(argv_desc[argc].min_count > argv_desc[argc].max_count
+      || argv_desc[argc].max_count == 0
+      || argv_desc[argc].type == APP_NB_CMDARG_TYPES) {
+        app_err = APP_INVALID_ARGUMENT;
+        goto error;
+      }
+      buffer_len += argv_desc[argc].max_count;
+    }
+  }
+  ++argc; /* +1 <=> command name. */
+
+  /* Create the command arg table, arg domain,  and argv container. */
+  cmd->arg_table = MEM_CALLOC
+    (app->allocator, argc + 1 /* +1 <=> arg_end */, sizeof(void*));
+  if(NULL == cmd->arg_table) {
+    app_err = APP_MEMORY_ERROR;
+    goto error;
+  }
+  cmd->arg_domain = MEM_CALLOC
+    (app->allocator, argc, sizeof(union app_cmdarg_domain));
+  if(NULL == cmd->arg_domain) {
+    app_err = APP_MEMORY_ERROR;
+    goto error;
+  }
+  cmd->argv = MEM_CALLOC(app->allocator, argc, sizeof(struct app_cmdarg*));
+  if(NULL == cmd->argv) {
+    app_err = APP_MEMORY_ERROR;
+    goto error;
+  }
+
+  /* Setup the arg domain and table. */
+  app_err = init_domain_and_table(app, cmd, argv_desc);
+  if(app_err != APP_NO_ERROR)
+    goto error;
+
+  /* Setup the command name arg. */
+  cmd->argv[0] = MEM_CALLOC
+    (app->allocator, 1,
+     sizeof(struct app_cmdarg) + sizeof(struct app_cmdarg_value));
+  if(NULL == cmd->argv[0]) {
+    app_err = APP_MEMORY_ERROR;
+    goto error;
+  }
+  cmd->argv[0]->type = APP_CMDARG_STRING;
+  cmd->argv[0]->count = 1;
+
+  /* Setup the remaining args. */
+  for(arg_id = 1, desc_id = 0; arg_id < argc; ++arg_id, ++desc_id) {
+    cmd->argv[arg_id] = MEM_CALLOC
+      (app->allocator, 1,
+       sizeof(struct app_cmdarg)
+       + argv_desc[desc_id].max_count * sizeof(struct app_cmdarg_value));
+    if(NULL == cmd->argv[arg_id]) {
       app_err = APP_MEMORY_ERROR;
       goto error;
     }
-    strcpy(cmd->description, description);
+    cmd->argv[arg_id]->type = argv_desc[desc_id].type;
+    cmd->argv[arg_id]->count = argv_desc[desc_id].max_count;
   }
-  cmd->func = func;
-  cmd->argc = adjusted_argc;
-  cmd->arg_desc_list[0].type = APP_CMDARG_STRING;
-  cmd->arg_desc_list[0].domain.string.value_list = NULL;
-  if(argc) {
-    memcpy
-      (cmd->arg_desc_list + 1,
-       arg_desc_list,
-       sizeof(struct app_cmdarg_desc)*argc);
-  }
-  cmd_name = MEM_CALLOC(app->allocator, strlen(name) + 1, sizeof(char));
-  strcpy(cmd_name, name);
+  cmd->argc = argc;
 
-  assert(app->cmd.htbl);
-  sl_err = sl_hash_table_insert(app->cmd.htbl, &cmd_name, &cmd);
-  if(SL_NO_ERROR != sl_err) {
-    app_err = sl_to_app_error(sl_err);
-    goto error;
+  /* Setup the command description. */
+  if(NULL == description) {
+    cmd->description = NULL;
+  } else {
+    sl_err = sl_create_string(description, app->allocator, &cmd->description);
+    if(sl_err != SL_NO_ERROR) {
+      app_err = sl_to_app_error(sl_err);
+      goto error;
+    }
   }
-  sl_err = sl_flat_set_insert(app->cmd.name_set, &cmd_name, NULL);
-  if(SL_NO_ERROR != sl_err) {
-    app_err = sl_to_app_error(sl_err);
+  cmd->completion = completion_func;
+
+  /* Register the command against the command system. */
+  app_err = register_command(app, cmd, name);
+  if(app_err != APP_NO_ERROR)
     goto error;
-  }
+
 exit:
   return app_err;
 error:
-  if(cmd_name) {
-    size_t j = 0;
-    if(SL(hash_table_find(app->cmd.htbl, &cmd_name, ptr)), NULL != ptr) {
-      SL(hash_table_erase(app->cmd.htbl, &cmd_name, &i));
-      assert(0 == i);
-    }
-    SL(flat_set_find(app->cmd.name_set, &cmd_name, &i));
-    SL(flat_set_buffer(app->cmd.name_set, &j, NULL, NULL, NULL));
-    if(i != j) {
-      SL(flat_set_erase(app->cmd.name_set, &cmd_name, NULL));
-    }
-    MEM_FREE(app->allocator, cmd_name);
-  }
+  /* The command registration is the last action, i.e. the command is
+   * registered only if no error occurs. It is thus useless to handle command
+   * registration in the error management. */
   if(cmd) {
     if(cmd->description)
-      MEM_FREE(app->allocator, cmd->description);
+      SL(free_string(cmd->description));
+    if(cmd->arg_table) {
+      for(i = 0; i < argc + 1 /* +1 <=> arg_end */ ; ++i) {
+        if(cmd->arg_table[i])
+          free(cmd->arg_table[i]);
+      }
+      MEM_FREE(app->allocator, cmd->arg_table);
+    }
+    if(cmd->argv) {
+      for(i = 0; i < argc; ++i) {
+        if(cmd->argv[i])
+          free(cmd->argv[i]);
+      }
+      MEM_FREE(app->allocator, cmd->argv);
+    }
     MEM_FREE(app->allocator, cmd);
+    cmd = NULL;
   }
   goto exit;
 }
@@ -241,13 +468,14 @@ app_del_command(struct app* app, const char* name)
   struct sl_pair pair;
   struct app_command* cmd = NULL;
   char* cmd_name = NULL;
+  size_t i = 0;
   enum app_error app_err = APP_NO_ERROR;
-  size_t nb_erased = 0;
 
   if(!app || !name) {
     app_err = APP_INVALID_ARGUMENT;
     goto error;
   }
+  /* Unregister the command. */
   SL(hash_table_find_pair(app->cmd.htbl, &name, &pair));
   if(!SL_IS_PAIR_VALID(&pair)) {
     app_err = APP_INVALID_ARGUMENT;
@@ -255,12 +483,21 @@ app_del_command(struct app* app, const char* name)
   }
   cmd_name = *(char**)pair.key;
   cmd = *(struct app_command**)pair.data;
-  SL(hash_table_erase(app->cmd.htbl, &name, &nb_erased));
-  assert(1 == nb_erased);
+  SL(hash_table_erase(app->cmd.htbl, &name, &i));
+  assert(1 == i);
   SL(flat_set_erase(app->cmd.name_set, &name, NULL));
   MEM_FREE(app->allocator, cmd_name);
+
+  /* Free the command. */
   if(cmd->description)
-    MEM_FREE(app->allocator, cmd->description);
+    SL(free_string(cmd->description));
+  for(i = 0; i < cmd->argc; ++i) {
+    MEM_FREE(app->allocator, cmd->argv[i]);
+  }
+  MEM_FREE(app->allocator, cmd->argv);
+  MEM_FREE(app->allocator, cmd->arg_domain);
+  arg_freetable(cmd->arg_table, cmd->argc + 1); /* +1 <=> arg_end. */
+  MEM_FREE(app->allocator, cmd->arg_table);
   MEM_FREE(app->allocator, cmd);
 exit:
   return app_err;
@@ -269,14 +506,28 @@ error:
 }
 
 EXPORT_SYM enum app_error
+app_has_command(struct app* app, const char* name, bool* has_command)
+{
+  void* ptr = NULL;
+  if(!app || !name || !has_command)
+    return APP_INVALID_ARGUMENT;
+  SL(hash_table_find(app->cmd.htbl, &name, &ptr));
+  *has_command = (ptr != NULL);
+  return APP_NO_ERROR;
+}
+
+EXPORT_SYM enum app_error
 app_execute_command(struct app* app, const char* command)
 {
-  struct app_cmdarg argv[APP_MAX_CMDARGS + 1]; /* +1 <=> cmd name. */
-  struct app_command** cmd = NULL;
+  #define MAX_ARG_COUNT 128
+  char* argv[MAX_ARG_COUNT];
+  struct app_command** pcmd = NULL;
+  struct app_command* cmd = NULL;
   char* name = NULL;
-  char* tkn = NULL;
-  size_t i = 0;
+  char* ptr = NULL;
+  size_t argc = 0;
   enum app_error app_err = APP_NO_ERROR;
+  int parsing_error_count = 0;
 
   if(!app || !command) {
     app_err = APP_INVALID_ARGUMENT;
@@ -291,28 +542,50 @@ app_execute_command(struct app* app, const char* command)
 
   /* Retrieve the first token <=> command name. */
   name = strtok(app->cmd.scratch, " \t");
-  SL(hash_table_find(app->cmd.htbl, &name, (void**)&cmd));
-  if(!cmd) {
+  SL(hash_table_find(app->cmd.htbl, &name, (void**)&pcmd));
+  if(!pcmd) {
     APP_LOG_ERR(app->logger, "%s: command not found\n", name);
     app_err = APP_COMMAND_ERROR;
     goto error;
   }
-  argv[i].type = APP_CMDARG_STRING;
-  argv[i].value.string = name;
-  for(i = 1; i < (*cmd)->argc; ++i) {
-    tkn = strtok(NULL, " \t");
-    if(!tkn) {
-      APP_LOG_ERR(app->logger, "%s: missing operand\n", name);
-      app_err = APP_COMMAND_ERROR;
+  cmd = *pcmd;
+
+  /* Parse the command. */
+  assert(cmd->argc > 0);
+  argv[0] = name;
+  for(argc = 1; NULL != (ptr = strtok(NULL, " \t")); ++argc) {
+    if(argc >= MAX_ARG_COUNT) {
+      app_err = APP_MEMORY_ERROR;
       goto error;
     }
-    app_err = token_to_cmdarg(app, tkn, (*cmd)->arg_desc_list + i, argv + i);
-    if(APP_NO_ERROR != app_err) {
-      APP_LOG_ERR(app->logger, "%s: bad argument `%s'\n", name, tkn);
-      goto error;
-    }
+    argv[argc] = ptr;
   }
-  (*cmd)->func(app, (*cmd)->argc, argv);
+  parsing_error_count = arg_parse(argc, argv, cmd->arg_table);
+  if(parsing_error_count != 0) {
+    const char* ptr = NULL;
+
+    rewind(app->cmd.stream);
+    arg_print_errors
+      (app->cmd.stream, (struct arg_end*)cmd->arg_table[cmd->argc - 1], name);
+    rewind(app->cmd.stream);
+    do {
+      ptr = fgets
+        (app->cmd.scratch,
+         sizeof(app->cmd.scratch)/sizeof(char) - 1,
+         app->cmd.stream);
+      APP_LOG_ERR(app->logger, "%s", ptr);
+    } while(ptr);
+    app_err = APP_COMMAND_ERROR;
+    goto error;
+  }
+
+  /* Setup the args and invoke the commands. */
+  app_err = setup_cmd_arg(app, cmd, name);
+  if(app_err != APP_NO_ERROR)
+    goto error;
+  cmd->func(app, cmd->argc, (const struct app_cmdarg**)cmd->argv);
+
+  #undef MAX_ARG_COUNT
 exit:
   return app_err;
 error:
@@ -320,7 +593,72 @@ error:
 }
 
 EXPORT_SYM enum app_error
-app_command_completion
+app_man_command(struct app* app, const char* name, FILE* stream)
+{
+  struct app_command** pcmd = NULL;
+  struct app_command* cmd = NULL;
+  enum app_error app_err = APP_NO_ERROR;
+
+  if(!app || !name || !stream) {
+    app_err = APP_INVALID_ARGUMENT;
+    goto error;
+  }
+  SL(hash_table_find(app->cmd.htbl, &name, (void**)&pcmd));
+  if(!pcmd) {
+    APP_LOG_ERR(app->logger, "%s: command not found\n", name);
+    app_err = APP_COMMAND_ERROR;
+    goto error;
+  }
+  cmd = *pcmd;
+  fprintf(stream, "%s", name);
+  arg_print_syntaxv(stream, cmd->arg_table, "\n");
+  if(cmd->description) {
+    const char* cstr = NULL;
+    SL(string_get(cmd->description, &cstr));
+    fprintf(stream, "%s\n", cstr);
+  }
+  arg_print_glossary(stream, cmd->arg_table, NULL);
+  fprintf(stream, "\n");
+exit:
+  return app_err;
+error:
+  goto exit;
+}
+
+EXPORT_SYM enum app_error
+app_command_arg_completion
+  (struct app* app,
+   const char* cmd_name,
+   const char* arg_str,
+   size_t arg_str_len,
+   size_t* completion_list_len,
+   const char** completion_list[])
+{
+  struct app_command** cmd = NULL;
+  enum app_error app_err = APP_NO_ERROR;
+
+  if(!app
+  || !cmd_name
+  || (arg_str_len && !arg_str)
+  || !completion_list_len
+  || !completion_list) {
+    return APP_INVALID_ARGUMENT;
+  }
+  SL(hash_table_find(app->cmd.htbl, &cmd_name, (void**)&cmd));
+  if(cmd) {
+    if((*cmd)->completion) {
+      app_err = (*cmd)->completion
+        (app, arg_str, arg_str_len, completion_list_len, completion_list);
+    } else {
+      *completion_list_len = 0;
+      *completion_list = NULL;
+    }
+  }
+  return app_err;
+}
+
+EXPORT_SYM enum app_error
+app_command_name_completion
   (struct app* app,
    const char* cmd_name,
    size_t cmd_name_len,
@@ -371,18 +709,8 @@ error:
   goto exit;
 }
 
-EXPORT_SYM enum app_error
-app_has_command(struct app* app, const char* name, bool* has_command)
-{
-  void* ptr = NULL;
-  if(!app || !name || !has_command)
-    return APP_INVALID_ARGUMENT;
-  SL(hash_table_find(app->cmd.htbl, &name, &ptr));
-  *has_command = (ptr != NULL);
-  return APP_NO_ERROR;
-}
-
 /*******************************************************************************
+ *
  *
  * Private functions.
  *
@@ -420,6 +748,11 @@ app_init_command_system(struct app* app)
     app_err = sl_to_app_error(sl_err);
     goto error;
   }
+  app->cmd.stream = tmpfile();
+  if(!app->cmd.stream) {
+    app_err = APP_IO_ERROR;
+    goto error;
+  }
   app_err = app_setup_builtin_commands(app);
   if(app_err != APP_NO_ERROR)
     goto error;
@@ -446,19 +779,7 @@ app_shutdown_command_system(struct app* app)
     SL(free_hash_table(app->cmd.htbl));
     app->cmd.htbl = NULL;
   }
+  if(app->cmd.stream)
+    fclose(app->cmd.stream);
   return APP_NO_ERROR;
 }
-
-enum app_error
-app_get_command(struct app* app, const char* name, struct app_command** out_cmd)
-{
-  struct app_command** cmd = NULL;
-  if(!app || !name || !out_cmd)
-    return APP_INVALID_ARGUMENT;
-  SL(hash_table_find(app->cmd.htbl, &name, (void**)&cmd));
-  if(cmd == NULL)
-    return APP_INVALID_ARGUMENT;
-  *out_cmd = *cmd;
-  return APP_NO_ERROR;
-}
-

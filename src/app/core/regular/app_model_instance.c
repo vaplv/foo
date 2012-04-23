@@ -20,18 +20,6 @@
  * Helper functions.
  *
  ******************************************************************************/
-static int
-cmp_str(const void* a, const void* b)
-{
-  const char* str0 = NULL;
-  const char* str1 = NULL;
-  assert(a && b);
-  str0 = *(const char**)a;
-  str1 = *(const char**)b;
-  assert(str0 && str1);
-  return strcmp(str0, str1);
-}
-
 static void
 release_model_instance(struct ref* ref)
 {
@@ -47,11 +35,11 @@ release_model_instance(struct ref* ref)
 
   SL(string_get(instance->name, &cstr));
   APP(is_object_registered
-    (instance->app, APP_MODEL_INSTANCE, &cstr, &is_registered));
+    (instance->app, APP_MODEL_INSTANCE, cstr, &is_registered));
   if(is_registered) {
     APP(invoke_callbacks
       (instance->app, APP_SIGNAL_DESTROY_MODEL_INSTANCE, instance));
-    APP(unregister_object(instance->app, APP_MODEL_INSTANCE, &cstr));
+    APP(unregister_object(instance->app, APP_MODEL_INSTANCE, cstr));
   }
 
  if(instance->model_instance_list) {
@@ -109,13 +97,30 @@ app_model_instance_get_model
 
 EXPORT_SYM enum app_error
 app_get_model_instance_name
-  (const struct app_model_instance* instance, 
+  (const struct app_model_instance* instance,
    const char** cstr)
 {
   if(!instance || !cstr)
     return APP_INVALID_ARGUMENT;
   SL(string_get(instance->name, cstr));
   return APP_NO_ERROR;
+}
+
+EXPORT_SYM enum app_error
+app_model_instance_name_completion
+  (struct app* app,
+   const char* instance_name,
+   size_t instance_name_len,
+   size_t* completion_list_len,
+   const char** completion_list[])
+{
+  return app_object_name_completion
+    (app,
+     APP_MODEL_INSTANCE,
+     instance_name,
+     instance_name_len,
+     completion_list_len,
+     completion_list);
 }
 
 /*******************************************************************************
@@ -168,39 +173,6 @@ error:
     while(!ref_put(&instance->ref, release_model_instance));
     instance = NULL;
   }
-  goto exit;
-}
-
-/*******************************************************************************
- *
- * Private app functions.
- *
- ******************************************************************************/
-enum app_error
-app_setup_model_instance_map(struct app* app)
-{
-  enum app_error app_err = APP_NO_ERROR;
-  enum sl_error sl_err = SL_NO_ERROR;
-
-  if(!app) {
-    app_err = APP_INVALID_ARGUMENT;
-    goto error;
-  }
-  sl_err = sl_create_flat_map
-    (sizeof(const char*),
-     ALIGNOF(const char*),
-     sizeof(struct app_model_instance*),
-     ALIGNOF(struct app_model_instance*),
-     cmp_str,
-     app->allocator,
-     &app->object_map[APP_MODEL_INSTANCE]);
-  if(sl_err != SL_NO_ERROR) {
-    app_err = sl_to_app_error(sl_err);
-    goto error;
-  }
-exit:
-  return app_err;
-error:
   goto exit;
 }
 

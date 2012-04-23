@@ -32,5 +32,13 @@ app_get_model_instance_name
   (const struct app_model_instance* instance,
    const char** cstr);
 
+extern enum app_error
+app_model_instance_name_completion
+  (struct app* app,
+   const char* instance_name,
+   size_t instance_name_len,
+   size_t* completion_list_len,
+   const char** completion_list[]);
+
 #endif /* APP_MODEL_INSTANCE_H */
 

@@ -113,6 +113,18 @@ compare_callbacks(const void* a, const void* b)
  * Helper functions.
  *
  ******************************************************************************/
+static int
+cmp_str(const void* a, const void* b)
+{
+  const char* str0 = NULL;
+  const char* str1 = NULL;
+  assert(a && b);
+  str0 = *(const char**)a;
+  str1 = *(const char**)b;
+  assert(str0 && str1);
+  return strcmp(str0, str1);
+}
+
 static void
 std_log_func(const char* msg, void* data UNUSED)
 {
@@ -548,8 +560,20 @@ init_common(struct app* app)
         goto error; \
     } while(0)
 
-  CALL(app_setup_model_map(app));
-  CALL(app_setup_model_instance_map(app));
+  for(i = 0; i < APP_NB_OBJECT_TYPES; ++i) {
+    sl_err = sl_create_flat_map
+      (sizeof(const char*),
+       ALIGNOF(const char*),
+       sizeof(void*),
+       ALIGNOF(void*),
+       cmp_str,
+       app->allocator,
+       &app->object_map[i]);
+    if(sl_err != SL_NO_ERROR) {
+      app_err = sl_to_app_error(sl_err);
+      goto error;
+    }
+  }
 
   for(i = 0; i < APP_NB_SIGNALS; ++i) {
     sl_err = sl_create_flat_set
@@ -1101,14 +1125,14 @@ enum app_error
 app_register_object
   (struct app* app,
    enum app_object_type type,
-   const void* key,
+   const char* name,
    void* object)
 {
   enum app_error app_err = APP_NO_ERROR;
   enum sl_error sl_err = SL_NO_ERROR;
-  assert(app && key && object);
+  assert(app && name && object);
 
-  sl_err = sl_flat_map_insert(app->object_map[type], key, &object, NULL);
+  sl_err = sl_flat_map_insert(app->object_map[type], &name, &object, NULL);
   if(sl_err != SL_NO_ERROR) {
     app_err = sl_to_app_error(sl_err);
     goto error;
@@ -1124,13 +1148,13 @@ enum app_error
 app_unregister_object
   (struct app* app,
    enum app_object_type type,
-   const void* key)
+   const char* name)
 {
   enum app_error app_err = APP_NO_ERROR;
   enum sl_error sl_err = SL_NO_ERROR;
-  assert(app && key && type != APP_NB_OBJECT_TYPES);
+  assert(app && name && type != APP_NB_OBJECT_TYPES);
 
-  sl_err = sl_flat_map_erase(app->object_map[type], key, NULL);
+  sl_err = sl_flat_map_erase(app->object_map[type], &name, NULL);
   if(sl_err != SL_NO_ERROR) {
     app_err = sl_to_app_error(sl_err);
     goto error;
@@ -1145,15 +1169,15 @@ enum app_error
 app_is_object_registered
   (struct app* app,
    enum app_object_type type,
-   const void* key,
+   const char* name,
    bool* is_registered)
 {
   void* data = NULL;
   enum app_error app_err = APP_NO_ERROR;
   enum sl_error sl_err = SL_NO_ERROR;
-  assert(app && key && is_registered && type != APP_NB_OBJECT_TYPES);
+  assert(app && name && is_registered && type != APP_NB_OBJECT_TYPES);
 
-  sl_err = sl_flat_map_find(app->object_map[type], key, &data);
+  sl_err = sl_flat_map_find(app->object_map[type], &name, &data);
   if(sl_err != SL_NO_ERROR) {
     app_err = sl_to_app_error(sl_err);
     goto error;
@@ -1169,12 +1193,71 @@ enum app_error
 app_get_registered_object
   (struct app* app,
    enum app_object_type type,
-   const void* key,
+   const char* name,
    void** object)
 {
   assert(app && type != APP_NB_OBJECT_TYPES);
   return sl_to_app_error(sl_flat_map_find
-    (app->object_map[type], key, object));
+    (app->object_map[type], &name, object));
+}
+
+enum app_error
+app_object_name_completion
+  (struct app* app,
+   enum app_object_type type,
+   const char* name,
+   size_t name_len,
+   size_t* completion_list_len,
+   const char** completion_list[])
+{
+  const char** name_list = NULL;
+  size_t len = 0;
+  enum app_error app_err = APP_NO_ERROR;
+
+  if(!app
+  || (name_len && !name)
+  || !completion_list_len
+  || !completion_list
+  || type == APP_NB_OBJECT_TYPES) {
+    app_err = APP_INVALID_ARGUMENT;
+    goto error;
+  }
+  SL(flat_map_key_buffer
+    (app->object_map[type], &len, NULL, NULL, (void**)&name_list));
+  if(0 == name_len) {
+    *completion_list_len = len;
+    *completion_list = name_list;
+  } else {
+    #define CHARBUF_SIZE 256
+    char buf[CHARBUF_SIZE];
+    const char* ptr = buf;
+    size_t begin = 0;
+    size_t end = 0;
+
+    /* Copy the name in a mutable buffer. */
+    if(name_len > CHARBUF_SIZE - 1) {
+      app_err = APP_MEMORY_ERROR;
+      goto error;
+    }
+    strncpy(buf, name, name_len);
+    buf[name_len] = '\0';
+    /* Find the completion range. */
+    SL(flat_map_lower_bound(app->object_map[type], &ptr, &begin));
+    buf[name_len] = 127;
+    buf[name_len + 1] = '\0';
+    SL(flat_map_upper_bound(app->object_map[type], &ptr, &end));
+    /* Define the completion list. */
+    *completion_list = name_list + begin;
+    *completion_list_len = (name_list + end) - (*completion_list);
+    if(0 == *completion_list_len)
+      *completion_list = NULL;
+    #undef CHARBUF_SIZE
+  }
+exit:
+  return app_err;
+error:
+  goto exit;
+
 }
 
 enum app_error

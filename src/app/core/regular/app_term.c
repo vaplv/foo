@@ -212,6 +212,8 @@ app_shutdown_term(struct app* app)
     RDR(term_ref_put(app->term.render_term));
   if(true == app->term.is_enabled)
     APP(enable_term(app, false));
+  memset(&app->term, 0, sizeof(app->term));
+  
 exit:
   return app_err;
 error:

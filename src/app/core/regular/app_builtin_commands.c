@@ -21,7 +21,7 @@
  * Helper functions.
  *
  ******************************************************************************/
-static void
+UNUSED static void
 complete_string
   (const char* input,
    size_t input_len,
@@ -73,88 +73,40 @@ complete_string
   #undef DICHOTOMY_SEARCH
 }
 
-static void
-setup_value_list
-  (struct app_cmdarg_value_list* list,
-   const char** str_list,
-   size_t str_list_len,
-   const char* input,
-   size_t input_len)
-{
-  assert(list && (!str_list_len || str_list));
-
-  #ifndef NDEBUG
-  {
-    size_t i = 0;
-    for(i = 0; i < str_list_len; ++i) {
-      /* We assume that the str list is ordered in ascending order. */
-      if(i > 0)
-        assert(strcmp(str_list[i-1], str_list[i]) < 0);
-    }
-  }
-  #endif
-  if(str_list) {
-    if(input == NULL) {
-      list->buffer = str_list;
-      list->length = str_list_len;
-    } else {
-      size_t start, end;
-      complete_string(input, input_len, str_list_len, str_list, &start, &end);
-      list->buffer = str_list + start;
-      list->length = end - start;
-    }
-  }
-}
-
 /*******************************************************************************
  *
  * Command functions.
  *
  ******************************************************************************/
 static void
-cmd_exit(struct app* app, size_t argc UNUSED, struct app_cmdarg* argv UNUSED)
+cmd_exit
+  (struct app* app,
+   size_t argc UNUSED,
+   const struct app_cmdarg** argv UNUSED)
 {
-  assert(app != NULL
-      && argc == 1
-      && argv != NULL
-      && argv[0].type == APP_CMDARG_STRING);
   app->post_exit = true;
 }
 
-static struct app_cmdarg_value_list
-cmd_load_options(struct app* app UNUSED, const char* input, size_t input_len)
-{
-  static const char* options[] = { "--model" };
-  struct app_cmdarg_value_list value_list;
-  memset(&value_list, 0, sizeof(value_list));
-
-  setup_value_list
-    (&value_list,
-     options,
-     sizeof(options)/sizeof(const char*),
-     input,
-     input_len);
-  return value_list;
-}
-
 static void
-cmd_load(struct app* app, size_t argc UNUSED, struct app_cmdarg* argv)
+cmd_load(struct app* app, size_t argc UNUSED, const struct app_cmdarg** argv)
 {
   struct app_model* mdl = NULL;
   enum app_error app_err = APP_NO_ERROR;
   assert(app != NULL
-      && argc == 3
+      && argc == 2
       && argv != NULL
-      && argv[0].type == APP_CMDARG_STRING
-      && argv[1].type == APP_CMDARG_STRING
-      && argv[2].type == APP_CMDARG_STRING);
+      && argv[1]->type == APP_CMDARG_FILE
+      && argv[1]->count == 1);
 
-  if(0 == strcmp(argv[1].value.string, "--model")) {
-    app_err = app_create_model(app, argv[2].value.string, &mdl);
+  if(argv[1]->value_list[0].is_defined) {
+    app_err = app_create_model(app, argv[1]->value_list[0].data.string, &mdl);
     if(app_err == APP_NO_ERROR) {
-      APP_LOG_MSG(app->logger, "Model loaded `%s'\n", argv[2].value.string);
+      APP_LOG_MSG
+        (app->logger,
+         "model loaded `%s'\n",
+         argv[1]->value_list[0].data.string);
     } else {
-      APP_LOG_ERR(app->logger, "Model loading error\n");
+      APP_LOG_ERR(app->logger, "model loading error\n");
     }
   } else {
     assert(false);
@@ -162,84 +114,76 @@ cmd_load(struct app* app, size_t argc UNUSED, struct app_cmdarg* argv)
 }
 
 static void
-cmd_help(struct app* app, size_t argc UNUSED, struct app_cmdarg* argv)
+cmd_help(struct app* app, size_t argc UNUSED, const struct app_cmdarg** argv)
 {
-  struct app_command** cmd = NULL;
+  enum app_error app_err = APP_NO_ERROR;
   assert(app != NULL
       && argc == 2
       && argv != NULL
-      && argv[0].type == APP_CMDARG_STRING
-      && argv[1].type == APP_CMDARG_STRING);
+      && argv[1]->type == APP_CMDARG_STRING
+      && argv[1]->value_list[0].is_defined == true);
 
-  SL(hash_table_find(app->cmd.htbl, &argv[1].value.string, (void**)&cmd));
-  if(!cmd) {
-    APP_LOG_ERR(app->logger, "%s: command not found\n", argv[1].value.string);
-  } else {
-    if((*cmd)->description) {
-      APP_LOG_MSG(app->logger, "%s", (*cmd)->description);
-    } else {
-      APP_LOG_MSG(app->logger, "none\n");
-    }
+  rewind(app->cmd.stream);
+  app_err = app_man_command
+    (app, argv[1]->value_list[0].data.string, app->cmd.stream);
+  if(app_err == APP_NO_ERROR) {
+    const char* ptr = NULL;
+    size_t i = 1;
+
+    rewind(app->cmd.stream);
+    do {
+      ptr = fgets
+        (app->cmd.scratch + i ,
+         sizeof(app->cmd.scratch)/sizeof(char) - i,
+         app->cmd.stream);
+      i += strlen(app->cmd.scratch);
+    } while(ptr);
+    APP_LOG_MSG(app->logger, "%s", app->cmd.scratch);
   }
 }
 
-static struct app_cmdarg_value_list
-cmd_ls_options(struct app* app UNUSED, const char* input, size_t input_len)
-{
-  static const char* options[] = {
-      "--all",
-      "--commands",
-      "--model-instances",
-      "--models"
-  };
-  struct app_cmdarg_value_list value_list;
-  memset(&value_list, 0, sizeof(value_list));
-  setup_value_list
-    (&value_list,
-     options,
-     sizeof(options)/sizeof(const char*),
-     input,
-     input_len);
-  return value_list;
-}
-
 static void
-cmd_ls(struct app* app, size_t argc UNUSED, struct app_cmdarg* argv)
+cmd_ls(struct app* app, size_t argc UNUSED, const struct app_cmdarg** argv)
 {
   size_t len = 0;
   size_t i = 0;
-  bool all = false;
+  bool new_line = false;
 
   assert(app != NULL
-      && argc == 2
+      && argc == 4
       && argv != NULL
-      && argv[0].type == APP_CMDARG_STRING
-      && argv[1].type == APP_CMDARG_STRING);
+      && argv[1]->type == APP_CMDARG_LITERAL
+      && argv[2]->type == APP_CMDARG_LITERAL
+      && argv[3]->type == APP_CMDARG_LITERAL);
 
-  all = 0 == strcmp("--all", argv[1].value.string);
-
-  if(0 == strcmp("--commands", argv[1].value.string) || all) {
+  if(argv[1]->value_list[0].is_defined) { /* commands */
     const char** name_list = NULL;
     SL(flat_set_buffer
       (app->cmd.name_set, &len, NULL, NULL, (void**)&name_list));
     for(i = 0; i < len; ++i) {
       APP_LOG_MSG(app->logger, "%s\n", name_list[i]);
     }
-    APP_LOG_MSG(app->logger, "[total %zu commands]%s", len, all ? "\n\n":"\n");
+    APP_LOG_MSG(app->logger, "[total %zu commands]\n", len);
+    new_line = true;
   }
-  if(0 == strcmp("--models", argv[1].value.string) || all) {
+  if(argv[3]->value_list[0].is_defined) { /* models */
     struct app_model** model_list = NULL;
     APP(get_model_list(app, &len, &model_list));
+    if(new_line)
+      APP_LOG_MSG(app->logger, "\n");
     for(i = 0; i < len; ++i) {
       const char* name = NULL;
       APP(get_model_name(model_list[i], &name));
       APP_LOG_MSG(app->logger, "%s\n", name);
     }
-    APP_LOG_MSG(app->logger, "[total %zu models]%s", len, all ? "\n\n":"\n");
+    APP_LOG_MSG(app->logger, "[total %zu models]\n", len);
+    new_line = true;
   }
-  if(0 == strcmp("--model-instances", argv[1].value.string) || all) {
+  if(argv[2]->value_list[0].is_defined) { /* model-instances */
     struct app_model_instance** instance_list = NULL;
     APP(get_model_instance_list(app, &len,&instance_list));
+    if(new_line)
+      APP_LOG_MSG(app->logger, "\n");
     for(i = 0; i < len; ++i) {
       const char* name = NULL;
       APP(get_model_instance_name(instance_list[i], &name));
@@ -250,94 +194,61 @@ cmd_ls(struct app* app, size_t argc UNUSED, struct app_cmdarg* argv)
 }
 
 static void
-cmd_clear(struct app* app, size_t argc UNUSED, struct app_cmdarg* argv UNUSED)
+cmd_clear
+  (struct app* app,
+   size_t argc UNUSED,
+   const struct app_cmdarg** argv UNUSED)
 {
-  assert(app != NULL
-      && argc == 1
-      && argv != NULL
-      && argv[0].type == APP_CMDARG_STRING);
+  assert(app != NULL);
   RDR(clear_term(app->term.render_term, RDR_TERM_STDOUT));
 }
 
 static void
-cmd_spawn(struct app* app, size_t argc UNUSED, struct app_cmdarg* argv)
+cmd_spawn(struct app* app, size_t argc UNUSED, const struct app_cmdarg** argv)
 {
   bool b = false;
   assert(app != NULL
       && argc == 2
       && argv != NULL
-      && argv[0].type == APP_CMDARG_STRING
-      && argv[1].type == APP_CMDARG_STRING);
+      && argv[1]->type == APP_CMDARG_STRING);
 
-  APP(is_object_registered(app, APP_MODEL, &argv[1].value.string, &b));
-  if(b == false) {
-    APP_LOG_ERR
-      (app->logger, "the model `%s' does not exist\n", argv[1].value.string);
-  } else {
-    struct app_model** mdl = NULL;
-    struct app_model_instance* instance = NULL;
-    enum app_error app_err = APP_NO_ERROR;
-
-    APP(get_registered_object
-      (app, APP_MODEL, &argv[1].value.string, (void**)&mdl));
-    app_err = app_instantiate_model(app, *mdl, &instance);
-    if(app_err != APP_NO_ERROR) {
+  if(argv[1]->value_list[0].is_defined == true) {
+    APP(is_object_registered
+      (app, APP_MODEL, argv[1]->value_list[0].data.string, &b));
+    if(b == false) {
       APP_LOG_ERR
         (app->logger,
-         "error instantiating the model `%s': %s\n",
-         argv[1].value.string,
-         app_error_string(app_err));
+         "the model `%s' does not exist\n",
+         argv[1]->value_list[0].data.string);
     } else {
-      app_err = app_world_add_model_instances(app->world, 1, &instance);
+      struct app_model** mdl = NULL;
+      struct app_model_instance* instance = NULL;
+      enum app_error app_err = APP_NO_ERROR;
+
+      APP(get_registered_object
+          (app, APP_MODEL, argv[1]->value_list[0].data.string, (void**)&mdl));
+      app_err = app_instantiate_model(app, *mdl, &instance);
       if(app_err != APP_NO_ERROR) {
-        const char* cstr = NULL;
-        APP(get_model_instance_name(instance, &cstr));
         APP_LOG_ERR
           (app->logger,
-           "error adding the instance `%s' to the world: %s\n",
-           cstr,
+           "error instantiating the model `%s': %s\n",
+           argv[1]->value_list[0].data.string,
            app_error_string(app_err));
-        APP(model_instance_ref_put(instance));
+      } else {
+        app_err = app_world_add_model_instances(app->world, 1, &instance);
+        if(app_err != APP_NO_ERROR) {
+          const char* cstr = NULL;
+          APP(get_model_instance_name(instance, &cstr));
+          APP_LOG_ERR
+            (app->logger,
+             "error adding the instance `%s' to the world: %s\n",
+             cstr,
+             app_error_string(app_err));
+          APP(model_instance_ref_put(instance));
+        }
       }
     }
   }
-}
-
-static struct app_cmdarg_value_list
-cmd_model_list(struct app* app, const char* input, size_t input_len)
-{
-  struct app_cmdarg_value_list value_list;
-  const char** model_list = NULL;
-  size_t len = 0;
-  memset(&value_list, 0, sizeof(value_list));
-
-  SL(flat_map_key_buffer
-    (app->object_map[APP_MODEL], &len, NULL, NULL, (void**)&model_list));
-  setup_value_list
-    (&value_list,
-     model_list,
-     len,
-     input,
-     input_len);
-  return value_list;
-}
-
-static struct app_cmdarg_value_list
-cmd_command_list(struct app* app, const char* input, size_t input_len)
-{
-  struct app_cmdarg_value_list value_list;
-  const char** command_list = NULL;
-  size_t len = 0;
-  memset(&value_list, 0, sizeof(value_list));
-  SL(flat_set_buffer
-    (app->cmd.name_set, &len, NULL, NULL, (void**)&command_list));
-  setup_value_list
-    (&value_list,
-     command_list,
-     len,
-     input,
-     input_len);
-  return value_list;
 }
 
 /*******************************************************************************
@@ -354,36 +265,34 @@ app_setup_builtin_commands(struct app* app)
   #define CALL(func) if(APP_NO_ERROR != (app_err = func)) goto error
 
   CALL(app_add_command
-    (app, "clear", cmd_clear, 0, NULL, "clear - clear the terminal screen\n"));
+    (app, "clear", cmd_clear, NULL, NULL, "clear the terminal screen"));
   CALL(app_add_command
-    (app, "exit", cmd_exit, 0, NULL, "exit - cause the application to exit\n"));
+    (app, "exit", cmd_exit, NULL, NULL, "cause the application to exit"));
   CALL(app_add_command
-    (app, "help", cmd_help,
-     1, APP_CMDARGV(APP_CMDARG_APPEND_STRING(cmd_command_list)),
-     "help - give command informations\n"
-     "Usage: help COMMAND\n"));
+    (app, "help", cmd_help, app_command_name_completion, APP_CMDARGV
+     (APP_CMDARG_APPEND_STRING(NULL, NULL, "<command>", NULL, 1, 1, NULL),
+      APP_CMDARG_END),
+     "give command informations"));
   CALL(app_add_command
-    (app, "ls", cmd_ls,
-     1, APP_CMDARGV(APP_CMDARG_APPEND_STRING(cmd_ls_options)),
-     "ls - list application contents\n"
-     "Usage: ls OPTION\n"
-     "\t--all print all the listable objects\n"
-     "\t--model-instances list the spawned model instances\n"
-     "\t--models list the loaded models\n"
-     "\t--commands list the registered commands\n"));
+    (app, "ls", cmd_ls, NULL, APP_CMDARGV
+     (APP_CMDARG_APPEND_LITERAL
+      ("c", "commands", "list the registered commands", 0, 1),
+      APP_CMDARG_APPEND_LITERAL
+      ("i", "model-instances", "list the spawned model instances", 0, 1),
+      APP_CMDARG_APPEND_LITERAL
+      ("m", "models", "list the loaded models", 0, 1),
+      APP_CMDARG_END),
+     "list application contents"));
   CALL(app_add_command
-    (app, "load", cmd_load,
-     2, APP_CMDARGV
-      (APP_CMDARG_APPEND_STRING(cmd_load_options),
-       APP_CMDARG_APPEND_STRING(NULL)),
-     "load - load resources\n"
-     "Usage: load --model PATH\n"));
+    (app, "load", cmd_load, NULL, APP_CMDARGV
+     (APP_CMDARG_APPEND_FILE("m", "model", "<path>", NULL, 0, 1),
+      APP_CMDARG_END),
+     "load resources"));
   CALL(app_add_command
-    (app, "spawn", cmd_spawn,
-     1, APP_CMDARGV(APP_CMDARG_APPEND_STRING(cmd_model_list)),
-     "spawn - spawn a instance of MODEL_NAME into the world\n"
-     "Usage: spawn MODEL_NAME\n"));
-
+    (app, "spawn", cmd_spawn, app_model_name_completion, APP_CMDARGV
+     (APP_CMDARG_APPEND_STRING("m", "model", "<model-name>", NULL, 0, 1, NULL),
+      APP_CMDARG_END),
+     "spawn an instance into the world"));
   #undef CALL
 
 exit:

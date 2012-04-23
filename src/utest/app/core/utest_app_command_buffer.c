@@ -20,6 +20,7 @@
     CHECK(strlen(dump), len); \
   } while(0)
 
+#if 0
 static const char* options[] = { "foo", "opt", "opt0", "optionA", "optionB" };
 
 static struct app_cmdarg_value_list
@@ -60,6 +61,7 @@ foo(struct app* app UNUSED, size_t argc, struct app_cmdarg* argv UNUSED)
   }
   CHECK(b, true);
 }
+#endif
 
 int
 main(int argc, char** argv)
@@ -350,7 +352,7 @@ main(int argc, char** argv)
   CHECK_CMDBUF(buf, len, dump, "cmd4");
   CHECK(app_execute_command_buffer(buf), CMD_ERR);
 
-
+#if 0
   CHECK(app_clear_command_buffer(buf), OK);
   CHECK_CMDBUF(buf, len, dump, "");
   CHECK(app_add_command
@@ -434,6 +436,7 @@ main(int argc, char** argv)
   CHECK_CMDBUF(buf, len, dump, "foo__ optionA0");
   CHECK(len2, 0);
   CHECK(list, NULL);
+#endif
   
   CHECK(app_command_buffer_ref_get(NULL), BAD_ARG);
   CHECK(app_command_buffer_ref_get(buf), OK);

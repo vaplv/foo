@@ -44,5 +44,14 @@ app_get_model_name
   (const struct app_model* model,
    const char** name);
 
+extern enum app_error
+app_model_name_completion
+  (struct app* app,
+   const char* mdl_name,
+   size_t mdl_name_len,
+   size_t* completion_list_len,
+   const char** completion_list[]);
+
+
 #endif /* APP_MODEL_H */
 

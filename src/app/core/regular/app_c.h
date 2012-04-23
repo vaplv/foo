@@ -56,7 +56,8 @@ struct app {
   struct sl_flat_map* object_map[APP_NB_OBJECT_TYPES]; /* maps of {char*, object*}. */
 
   struct command_system {
-    char scratch[1024];
+    ALIGN(16) char scratch[1024];
+    FILE* stream;
     struct sl_hash_table* htbl; /* htbl of commands. */
     struct sl_flat_set* name_set; /* set of const char*. Used by completion and ls.*/
   } cmd;
@@ -95,42 +96,43 @@ extern enum app_error
 app_register_object
   (struct app* app,
    enum app_object_type type,
-   const void* key,
+   const char* key,
    void* object);
 
 extern enum app_error
 app_unregister_object
   (struct app* app,
    enum app_object_type type,
-   const void* key);
+   const char* name);
 
 extern enum app_error
 app_is_object_registered
   (struct app* app,
    enum app_object_type type,
-   const void* key,
+   const char* name,
    bool* is_registered);
 
 extern enum app_error
 app_get_registered_object
   (struct app* app,
    enum app_object_type type,
-   const void* key,
+   const char* name,
    void** object);
+
+extern enum app_error
+app_object_name_completion
+  (struct app* app,
+   enum app_object_type type,
+   const char* name,
+   size_t name_len,
+   size_t* completion_list_len,
+   const char** completion_list[]);
 
 extern enum app_error
 app_invoke_callbacks
   (struct app* app,
    enum app_signal signal,
    ...);
-
-extern enum app_error
-app_setup_model_map
-  (struct app* app);
-
-extern enum app_error
-app_setup_model_instance_map
-  (struct app* app);
 
 extern enum rdr_attrib_usage
 rsrc_to_rdr_attrib_usage

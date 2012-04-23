@@ -39,18 +39,6 @@ struct app_model {
  * Helper functions.
  *
  ******************************************************************************/
-static int
-cmp_str(const void* a, const void* b)
-{
-  const char* str0 = NULL;
-  const char* str1 = NULL;
-  assert(a && b);
-  str0 = *(const char**)a;
-  str1 = *(const char**)b;
-  assert(str0 && str1);
-  return strcmp(str0, str1);
-}
-
 /* Clear the render data of the model, i.e. the material/mesh/model lists. */
 static enum app_error
 clear_model_render_data(struct app_model* model)
@@ -190,10 +178,10 @@ release_model(struct ref* ref)
 
   SL(string_get(model->name, &cstr));
   APP(is_object_registered
-    (model->app, APP_MODEL, &cstr, &is_registered));
+    (model->app, APP_MODEL, cstr, &is_registered));
   if(is_registered) {
     APP(invoke_callbacks(model->app, APP_SIGNAL_DESTROY_MODEL, model));
-    APP(unregister_object(model->app, APP_MODEL, &cstr));
+    APP(unregister_object(model->app, APP_MODEL, cstr));
   }
 
   APP(clear_model(model));
@@ -289,14 +277,14 @@ app_create_model(struct app* app, const char* path, struct app_model** model)
   --len;
 
   SL(string_get(mdl->name, &cstr));
-  for(i = 0; APP(is_object_registered(app, APP_MODEL, &cstr, &b)), b; ++i) {
+  for(i = 0; APP(is_object_registered(app, APP_MODEL, cstr, &b)), b; ++i) {
     char buf[16] = { [15] = '\0' };
     SL(string_erase(mdl->name, len, SIZE_MAX));
     snprintf(buf, 15, "%zu", i);
     CALL(sl_string_append(mdl->name, buf));
     SL(string_get(mdl->name, &cstr));
   }
-  app_err = app_register_object(app, APP_MODEL, &cstr, mdl);
+  app_err = app_register_object(app, APP_MODEL, cstr, mdl);
   if(app_err != APP_NO_ERROR)
     goto error;
 
@@ -390,7 +378,7 @@ app_load_model(const char* path, struct app_model* model)
     (model->app->rsrc.wavefront_obj, path);
   if(rsrc_err != RSRC_NO_ERROR) {
     APP_LOG_ERR
-      (model->app->logger, "Error loading geometry resource `%s'\n", path);
+      (model->app->logger, "error loading geometry resource `%s'\n", path);
     app_err = rsrc_to_app_error(rsrc_err);
     goto error;
   }
@@ -465,15 +453,15 @@ app_set_model_name(struct app_model* model, const char* name)
   /* Re-register the model in order to re-order the app model set with respect
    * to its new name. */
   SL(string_get(model->name, &cstr));
-  if(APP(is_object_registered(model->app, APP_MODEL, &cstr, &b)), b) {
-    APP(unregister_object(model->app, APP_MODEL, &cstr));
+  if(APP(is_object_registered(model->app, APP_MODEL, cstr, &b)), b) {
+    APP(unregister_object(model->app, APP_MODEL, cstr));
     sl_err = sl_string_set(model->name, name);
     if(sl_err != SL_NO_ERROR) {
       app_err = sl_to_app_error(sl_err);
       goto error;
     }
     SL(string_get(model->name, &cstr));
-    APP(register_object(model->app, APP_MODEL, &cstr, model));
+    APP(register_object(model->app, APP_MODEL, cstr, model));
   }  else {
     sl_err = sl_string_set(model->name, name);
     if(sl_err != SL_NO_ERROR) {
@@ -507,6 +495,23 @@ exit:
   return app_err;
 error:
   goto exit;
+}
+
+EXPORT_SYM enum app_error
+app_model_name_completion
+  (struct app* app,
+   const char* mdl_name,
+   size_t mdl_name_len,
+   size_t* completion_list_len,
+   const char** completion_list[])
+{
+  return app_object_name_completion
+    (app, 
+     APP_MODEL, 
+     mdl_name, 
+     mdl_name_len, 
+     completion_list_len, 
+     completion_list);
 }
 
 /*******************************************************************************
@@ -580,7 +585,7 @@ app_instantiate_model
 
   SL(string_get(instance->name, &cstr));
   for(i = 0;
-      APP(is_object_registered(app, APP_MODEL_INSTANCE, &cstr, &b)),b;
+      APP(is_object_registered(app, APP_MODEL_INSTANCE, cstr, &b)),b;
       ++i) {
     char buf[16] = { [15] = '\0' };
     SL(string_erase(instance->name, len, SIZE_MAX));
@@ -590,7 +595,7 @@ app_instantiate_model
   }
 
   app_err = app_register_object
-    (app, APP_MODEL_INSTANCE, &cstr, instance);
+    (app, APP_MODEL_INSTANCE, cstr, instance);
   if(app_err != APP_NO_ERROR)
     goto error;
   APP(invoke_callbacks(app, APP_SIGNAL_CREATE_MODEL_INSTANCE, instance));
@@ -612,39 +617,6 @@ error:
   }
   if(is_ref_get)
     APP(model_ref_put(model));
-  goto exit;
-}
-
-/*******************************************************************************
- *
- * Private app functions.
- *
- ******************************************************************************/
-enum app_error
-app_setup_model_map(struct app* app)
-{
-  enum app_error app_err = APP_NO_ERROR;
-  enum sl_error sl_err = SL_NO_ERROR;
-
-  if(!app) {
-    app_err = APP_INVALID_ARGUMENT;
-    goto error;
-  }
-  sl_err = sl_create_flat_map
-    (sizeof(const char*),
-     ALIGNOF(const char*),
-     sizeof(struct app_model*),
-     ALIGNOF(struct app_model*),
-     cmp_str,
-     app->allocator,
-     &app->object_map[APP_MODEL]);
-  if(sl_err != SL_NO_ERROR) {
-    app_err = sl_to_app_error(sl_err);
-    goto error;
-  }
-exit:
-  return app_err;
-error:
   goto exit;
 }
 
