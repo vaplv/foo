@@ -78,7 +78,7 @@ foo(struct app* app UNUSED, size_t argc, const struct app_cmdarg** argv)
 int
 main(int argc, char** argv)
 {
-  const char** list = NULL; 
+  const char** list = NULL;
   char dump[BUFFER_SIZE] = { [0] = 'a', [1] = '\0' };
   struct app_args args = { NULL, NULL, NULL, NULL };
   struct app* app = NULL;
@@ -366,10 +366,10 @@ main(int argc, char** argv)
 
   CHECK(app_clear_command_buffer(buf), OK);
   CHECK_CMDBUF(buf, len, dump, "");
-  CHECK(app_add_command(app, "foo__", foo, option_completion, 
+  CHECK(app_add_command(app, "foo__", foo, option_completion,
     APP_CMDARGV(
      APP_CMDARG_APPEND_STRING(NULL, NULL, NULL, NULL, 1, 1, options),
-     APP_CMDARG_END), 
+     APP_CMDARG_END),
     NULL), OK);
 
   CHECK(app_command_buffer_completion(NULL, NULL, NULL), BAD_ARG);
@@ -388,7 +388,7 @@ main(int argc, char** argv)
   CHECK_CMDBUF(buf, len, dump, "");
   NCHECK(len2, 0);
   NCHECK(list, NULL);
- 
+
   CHECK(app_command_buffer_write_string(buf, "foo_"), OK);
   CHECK(app_command_buffer_completion(buf, &len2, &list), OK);
   CHECK(list, NULL);
@@ -449,7 +449,15 @@ main(int argc, char** argv)
   CHECK_CMDBUF(buf, len, dump, "foo__ optionA0");
   CHECK(len2, 0);
   CHECK(list, NULL);
-  
+
+  CHECK(app_clear_command_buffer(buf), OK);
+  CHECK(app_command_buffer_write_string(buf, "foo_ op"), OK);
+  CHECK_CMDBUF(buf, len, dump, "foo_ op");
+  CHECK(app_command_buffer_completion(buf, &len2, &list), OK);
+  CHECK_CMDBUF(buf, len, dump, "foo_ op");
+  CHECK(len2, 0);
+  CHECK(list, NULL);
+
   CHECK(app_command_buffer_ref_get(NULL), BAD_ARG);
   CHECK(app_command_buffer_ref_get(buf), OK);
   CHECK(app_command_buffer_ref_put(NULL), BAD_ARG);

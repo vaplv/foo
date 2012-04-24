@@ -24,15 +24,18 @@ cbk(struct app_model* model, void* data)
 int
 main(int argc, char** argv)
 {
+  #define MODEL_COUNT 5
   struct app_args args = { NULL, NULL, NULL, NULL };
   struct app* app = NULL;
   struct app_model* model = NULL;
   struct app_model* model2 = NULL;
   struct app_model* model3 = NULL;
-  struct app_model* model_list[5];
+  struct app_model* model_list[MODEL_COUNT];
   struct app_model_instance* instance = NULL;
+  const char** lst = NULL;
   FILE* fp = NULL;
   size_t i = 0;
+  size_t len = 0;
 
   if(argc != 2) {
     printf("usage: %s RB_DRIVER\n", argv[0]);
@@ -108,13 +111,61 @@ main(int argc, char** argv)
 
   CHECK(app_set_model_name(NULL, NULL), BAD_ARG);
   CHECK(app_set_model_name(model, NULL), BAD_ARG);
-  CHECK(app_set_model_name(NULL, "mdl0"), BAD_ARG);
-  CHECK(app_set_model_name(model, "mdl0"), OK);
+  CHECK(app_set_model_name(NULL, "Mdl0"), BAD_ARG);
+  CHECK(app_set_model_name(model, "Mdl0"), OK);
   CHECK(model2, NULL);
 
   /* This model may be freed when the application will be shut down. */
-  for(i = 0; i < sizeof(model_list) / sizeof(struct model*); ++i)
+  for(i = 0; i < MODEL_COUNT; ++i) {
+    char name[8];
+    STATIC_ASSERT(MODEL_COUNT < 9999, Unexpected_MODEL_COUNT);
+    snprintf(name, 7, "mdl%zu", i + 1);
+    name[7] = '\0';
     CHECK(app_create_model(app, PATH, &model_list[i]), OK);
+    CHECK(app_set_model_name(model_list[i], name), OK);
+  }
+
+  CHECK(app_model_name_completion(NULL, NULL, 0, NULL, NULL), BAD_ARG);
+  CHECK(app_model_name_completion(app, NULL, 0, NULL, NULL), BAD_ARG);
+  CHECK(app_model_name_completion(NULL, "M", 0, NULL, NULL), BAD_ARG);
+  CHECK(app_model_name_completion(app, "M", 0, NULL, NULL), BAD_ARG);
+  CHECK(app_model_name_completion(NULL, NULL, 0, &len, NULL), BAD_ARG);
+  CHECK(app_model_name_completion(app, NULL, 0, &len, NULL), BAD_ARG);
+  CHECK(app_model_name_completion(NULL, "M", 0, &len, NULL), BAD_ARG);
+  CHECK(app_model_name_completion(app, "M", 0, &len, NULL), BAD_ARG);
+  CHECK(app_model_name_completion(NULL, NULL, 0, NULL, &lst), BAD_ARG);
+  CHECK(app_model_name_completion(app, NULL, 0, NULL, &lst), BAD_ARG);
+  CHECK(app_model_name_completion(NULL, "M", 0, NULL, &lst), BAD_ARG);
+  CHECK(app_model_name_completion(app, "M", 0, NULL, &lst), BAD_ARG);
+  CHECK(app_model_name_completion(NULL, NULL, 0, &len, &lst), BAD_ARG);
+  CHECK(app_model_name_completion(app, NULL, 0, &len, &lst), OK);
+  CHECK(len, MODEL_COUNT + 1);
+  NCHECK(lst, NULL);
+  for(i = 1; i < MODEL_COUNT + 1; ++i) {
+    CHECK(strcmp(lst[i-1], lst[i]) <= 0, true);
+  }
+  CHECK(app_model_name_completion(NULL, "M", 0, &len, &lst), BAD_ARG);
+  CHECK(app_model_name_completion(app, "M", 0, &len, &lst), OK);
+  CHECK(len, MODEL_COUNT + 1);
+  NCHECK(lst, NULL);
+  for(i = 1; i < MODEL_COUNT + 1; ++i) {
+    CHECK(strcmp(lst[i-1], lst[i]) <= 0, true);
+  }
+  CHECK(app_model_name_completion(app, "Mxx", 1, &len, &lst), OK);
+  CHECK(len, 1);
+  NCHECK(lst, NULL);
+  CHECK(strcmp(lst[0], "Mdl0"), 0);
+  CHECK(app_model_name_completion(app, "Mxx", 2, &len, &lst), OK);
+  CHECK(len, 0);
+  CHECK(lst, NULL);
+  CHECK(app_model_name_completion(app, "mdl", 3, &len, &lst), OK);
+  CHECK(len, MODEL_COUNT);
+  NCHECK(lst, NULL);
+  CHECK(strncmp(lst[0], "mdl", 3), 0);
+  for(i = 1; i < MODEL_COUNT; ++i) {
+    CHECK(strcmp(lst[i-1], lst[i]) <= 0, true);
+    CHECK(strncmp(lst[i], "mdl", 3), 0);
+  }
 
   CHECK(app_instantiate_model(NULL, NULL, NULL), BAD_ARG);
   CHECK(app_instantiate_model(app, NULL, NULL), BAD_ARG);

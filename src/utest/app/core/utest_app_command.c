@@ -119,15 +119,46 @@ static const char* day_list__[MAX_DAY_COUNT];
 static size_t day_count__ = 0;
 
 static const char* days[] = {
-  "Monday",
-  "Tuesday",
-  "Wednesday",
-  "Thursday",
   "Friday",
+  "Monday",
   "Saturday",
   "Sunday",
+  "Thursday",
+  "Tuesday",
+  "Wednesday",
   NULL
 };
+
+static enum app_error
+day_completion
+  (struct app* app,
+   const char* input,
+   size_t input_len,
+   size_t* completion_list_len,
+   const char** completion_list[])
+{
+  const size_t len = sizeof(days)/sizeof(const char*) - 1; /* -1 <=> NULL. */
+
+  if(!app
+  || (input_len && !input)
+  || !completion_list_len
+  || !completion_list) {
+    return APP_INVALID_ARGUMENT;
+  }
+
+  if(!input || !input_len) {
+    *completion_list_len = len;
+    *completion_list = days;
+  } else {
+    size_t i = 0;
+    size_t j = 0;
+    for(i = 0; i < len && strncmp(days[i], input, input_len) < 0; ++i);
+    for(j = i; j < len && strncmp(days[j], input, input_len) == 0; ++j);
+    *completion_list = days + i;
+    *completion_list_len = j - i;
+  }
+  return APP_NO_ERROR;
+}
 
 static void
 day(struct app* app UNUSED, size_t argc, const struct app_cmdarg** argv)
@@ -365,7 +396,7 @@ main(int argc, char **argv)
     (app, "__setf3 -r -1.5 -b 0.5e0 -g 0.78 -g 1"), CMD_ERR);
 
   CHECK(app_add_command
-    (app, "__day", day, NULL,
+    (app, "__day", day, day_completion,
      APP_CMDARGV
       (APP_CMDARG_APPEND_STRING(NULL, NULL, "<day>", "day name", 1, 3, days),
        APP_CMDARG_END),
@@ -405,6 +436,77 @@ main(int argc, char **argv)
   CHECK(app_execute_command(app, "__day Monday Friday"), OK);
   day_list__[day_count__++] = "Saturday";
   CHECK(app_execute_command(app, "__day Monday Friday Saturday"), OK);
+
+  CHECK(app_command_arg_completion(NULL, NULL, NULL, 0, NULL, NULL), BAD_ARG);
+  CHECK(app_command_arg_completion(app, NULL, NULL, 0, NULL, NULL), BAD_ARG);
+  CHECK(app_command_arg_completion(NULL, "__day", NULL, 0, NULL, NULL), BAD_ARG);
+  CHECK(app_command_arg_completion(app, "__day", NULL, 0, NULL, NULL), BAD_ARG);
+  CHECK(app_command_arg_completion(NULL, NULL, "S", 0, NULL, NULL), BAD_ARG);
+  CHECK(app_command_arg_completion(app, NULL, "S", 0, NULL, NULL), BAD_ARG);
+  CHECK(app_command_arg_completion(NULL, "__day", "S", 0, NULL, NULL), BAD_ARG);
+  CHECK(app_command_arg_completion(app, "__day", "S", 0, NULL, NULL), BAD_ARG);
+  CHECK(app_command_arg_completion(NULL, NULL, NULL, 0, &len, NULL), BAD_ARG);
+  CHECK(app_command_arg_completion(app, NULL, NULL, 0, &len, NULL), BAD_ARG);
+  CHECK(app_command_arg_completion(NULL, "__day", NULL, 0, &len, NULL), BAD_ARG);
+  CHECK(app_command_arg_completion(app, "__day", NULL, 0, &len, NULL), BAD_ARG);
+  CHECK(app_command_arg_completion(NULL, NULL, "S", 0, &len, NULL), BAD_ARG);
+  CHECK(app_command_arg_completion(app, NULL, "S", 0, &len, NULL), BAD_ARG);
+  CHECK(app_command_arg_completion(NULL, "__day", "S", 0, &len, NULL), BAD_ARG);
+  CHECK(app_command_arg_completion(app, "__day", "S", 0, &len, NULL), BAD_ARG);
+
+  CHECK(app_command_arg_completion(NULL, NULL, NULL, 0, NULL, &lst), BAD_ARG);
+  CHECK(app_command_arg_completion(app, NULL, NULL, 0, NULL, &lst), BAD_ARG);
+  CHECK(app_command_arg_completion(NULL, "__day", NULL, 0, NULL, &lst), BAD_ARG);
+  CHECK(app_command_arg_completion(app, "__day", NULL, 0, NULL, &lst), BAD_ARG);
+  CHECK(app_command_arg_completion(NULL, NULL, "S", 0, NULL, &lst), BAD_ARG);
+  CHECK(app_command_arg_completion(app, NULL, "S", 0, NULL, &lst), BAD_ARG);
+  CHECK(app_command_arg_completion(NULL, "__day", "S", 0, NULL, &lst), BAD_ARG);
+  CHECK(app_command_arg_completion(app, "__day", "S", 0, NULL, &lst), BAD_ARG);
+  CHECK(app_command_arg_completion(NULL, NULL, NULL, 0, &len, &lst), BAD_ARG);
+  CHECK(app_command_arg_completion(app, NULL, NULL, 0, &len, &lst), BAD_ARG);
+  CHECK(app_command_arg_completion(NULL, "__day", NULL, 0, &len, &lst), BAD_ARG);
+  CHECK(app_command_arg_completion(app, "__day", NULL, 0, &len, &lst), OK);
+  CHECK(len, 7);
+  NCHECK(lst, NULL);
+  CHECK(strcmp(lst[0], "Friday"), 0);
+  CHECK(strcmp(lst[1], "Monday"), 0);
+  CHECK(strcmp(lst[2], "Saturday"), 0);
+  CHECK(strcmp(lst[3], "Sunday"), 0);
+  CHECK(strcmp(lst[4], "Thursday"), 0);
+  CHECK(strcmp(lst[5], "Tuesday"), 0);
+  CHECK(strcmp(lst[6], "Wednesday"), 0);
+  CHECK(app_command_arg_completion(NULL, NULL, "S", 0, &len, &lst), BAD_ARG);
+  CHECK(app_command_arg_completion(app, NULL, "S", 0, &len, &lst), BAD_ARG);
+  CHECK(app_command_arg_completion(NULL, "__day", "S", 0, &len, &lst), BAD_ARG);
+  CHECK(app_command_arg_completion(app, "__day", "S", 0, &len, &lst), OK);
+  CHECK(len, 7);
+  NCHECK(lst, NULL);
+  CHECK(strcmp(lst[0], "Friday"), 0);
+  CHECK(strcmp(lst[1], "Monday"), 0);
+  CHECK(strcmp(lst[2], "Saturday"), 0);
+  CHECK(strcmp(lst[3], "Sunday"), 0);
+  CHECK(strcmp(lst[4], "Thursday"), 0);
+  CHECK(strcmp(lst[5], "Tuesday"), 0);
+  CHECK(strcmp(lst[6], "Wednesday"), 0);
+  CHECK(app_command_arg_completion(app, "__day", "Saxxx", 1, &len, &lst), OK);
+  CHECK(len, 2);
+  NCHECK(lst, NULL);
+  CHECK(strcmp(lst[0], "Saturday"), 0);
+  CHECK(strcmp(lst[1], "Sunday"), 0);
+  CHECK(app_command_arg_completion(app, "__day", "Saxxx", 2, &len, &lst), OK);
+  CHECK(len, 1);
+  NCHECK(lst, NULL);
+  CHECK(strcmp(lst[0], "Saturday"), 0);
+  CHECK(app_command_arg_completion(app, "__day", "Saxxx", 3, &len, &lst), OK);
+  CHECK(len, 0);
+  NCHECK(lst, NULL);
+  CHECK(app_command_arg_completion(app, "__day", "Wed", 1, &len, &lst), OK);
+  CHECK(len, 1);
+  NCHECK(lst, NULL);
+  CHECK(strcmp(lst[0], "Wednesday"), 0);
+  CHECK(app_command_arg_completion(app, "__day", "wed", 3, &len, &lst), OK);
+  CHECK(len, 0);
+  NCHECK(lst, NULL);
 
   CHECK(app_add_command
     (app, "__cat", cat, NULL,
@@ -495,7 +597,7 @@ main(int argc, char **argv)
   CHECK(app_command_name_completion(app, "__lxxxx", 4, &len, &lst), OK);
   CHECK(len, 0);
   CHECK(lst, NULL);
- 
+
   CHECK(app_has_command(NULL, NULL, NULL), BAD_ARG);
   CHECK(app_has_command(app, NULL, NULL), BAD_ARG);
   CHECK(app_has_command(NULL, "__seti", NULL), BAD_ARG);
