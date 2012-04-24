@@ -163,7 +163,7 @@ app_command_name_completion
    const char* cmd_name,
    size_t cmd_name_len,
    size_t* completion_list_len,
-   const char** completion_list[]); 
+   const char** completion_list[]);
 
 #endif /* APP_COMMAND2_H */
 

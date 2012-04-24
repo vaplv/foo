@@ -130,7 +130,7 @@ init_domain_and_table
     }
   }
 
-  cmd->arg_table[i] = arg_end(16);
+  cmd->arg_table[i] = arg_end(1);
   if(arg_nullcheck(cmd->arg_table)) {
     app_err = APP_MEMORY_ERROR;
     goto error;
@@ -568,13 +568,12 @@ app_execute_command(struct app* app, const char* command)
     arg_print_errors
       (app->cmd.stream, (struct arg_end*)cmd->arg_table[cmd->argc - 1], name);
     rewind(app->cmd.stream);
-    do {
-      ptr = fgets
-        (app->cmd.scratch,
-         sizeof(app->cmd.scratch)/sizeof(char) - 1,
-         app->cmd.stream);
+    ptr = fgets
+      (app->cmd.scratch,
+       sizeof(app->cmd.scratch)/sizeof(char) - 1,
+       app->cmd.stream);
+    if(ptr)
       APP_LOG_ERR(app->logger, "%s", ptr);
-    } while(ptr);
     app_err = APP_COMMAND_ERROR;
     goto error;
   }
@@ -618,7 +617,6 @@ app_man_command(struct app* app, const char* name, FILE* stream)
     fprintf(stream, "%s\n", cstr);
   }
   arg_print_glossary(stream, cmd->arg_table, NULL);
-  fprintf(stream, "\n");
 exit:
   return app_err;
 error:
@@ -645,14 +643,12 @@ app_command_arg_completion
     return APP_INVALID_ARGUMENT;
   }
   SL(hash_table_find(app->cmd.htbl, &cmd_name, (void**)&cmd));
-  if(cmd) {
-    if((*cmd)->completion) {
-      app_err = (*cmd)->completion
-        (app, arg_str, arg_str_len, completion_list_len, completion_list);
-    } else {
-      *completion_list_len = 0;
-      *completion_list = NULL;
-    }
+  if(cmd == NULL || (*cmd)->completion == NULL) {
+    *completion_list_len = 0;
+    *completion_list = NULL;
+  } else {
+    app_err = (*cmd)->completion
+      (app, arg_str, arg_str_len, completion_list_len, completion_list);
   }
   return app_err;
 }

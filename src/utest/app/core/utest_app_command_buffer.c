@@ -20,48 +20,60 @@
     CHECK(strlen(dump), len); \
   } while(0)
 
-#if 0
-static const char* options[] = { "foo", "opt", "opt0", "optionA", "optionB" };
+static const char* options[] = { "foo", "opt", "opt0", "optionA", "optionB", NULL };
 
-static struct app_cmdarg_value_list
-cmd_option_list
-  (struct app* app UNUSED,
+static enum app_error
+option_completion
+  (struct app* app,
    const char* input,
-   size_t input_len)
+   size_t input_len,
+   size_t* completion_list_len,
+   const char** completion_list[])
+
 {
-  struct app_cmdarg_value_list option_list;
-  const size_t len = sizeof(options)/sizeof(const char*);
-  memset(&option_list, 0, sizeof(option_list));
+  const size_t len = sizeof(options)/sizeof(const char*) - 1; /* -1 <=> NULL. */
+
+  if(!app
+  || (input_len && !input)
+  || !completion_list_len
+  || !completion_list) {
+    return APP_INVALID_ARGUMENT;
+  }
 
   if(!input || !input_len) {
-    option_list.buffer = options;
-    option_list.length = len;
+    *completion_list_len = len;
+    *completion_list = options;
   } else {
     size_t i = 0;
     size_t j = 0;
     for(i = 0; i < len && strncmp(options[i], input, input_len) < 0; ++i);
     for(j = i; j < len && strncmp(options[j], input, input_len) == 0; ++j);
-    option_list.buffer = options + i;
-    option_list.length = j - i;
+    *completion_list = options + i;
+    *completion_list_len = j - i;
   }
-  return option_list;
+  return APP_NO_ERROR;
 }
 
 static void
-foo(struct app* app UNUSED, size_t argc, struct app_cmdarg* argv UNUSED)
+foo(struct app* app UNUSED, size_t argc, const struct app_cmdarg** argv)
 {
   size_t i = 0;
   bool b = false;
+  assert(app && argv);
+
   CHECK(argc, 2);
-  CHECK(argv[0].type, APP_CMDARG_STRING);
-  CHECK(argv[1].type, APP_CMDARG_STRING);
-  CHECK(strcmp(argv[0].value.string, "foo__"), 0);
+  CHECK(argv[0]->type, APP_CMDARG_STRING);
+  CHECK(argv[0]->count, 1);
+  CHECK(argv[0]->value_list[0].is_defined, true);
+  CHECK(argv[1]->type, APP_CMDARG_STRING);
+  CHECK(argv[1]->count, 1);
+  CHECK(argv[1]->value_list[0].is_defined, true);
+  CHECK(strcmp(argv[0]->value_list[0].data.string, "foo__"), 0);
   for(i = 0, b = false; !b && i < sizeof(options)/sizeof(const char*); ++i) {
-    b = !strcmp(options[i], argv[1].value.string);
+    b = !strcmp(options[i], argv[1]->value_list[0].data.string);
   }
   CHECK(b, true);
 }
-#endif
 
 int
 main(int argc, char** argv)
@@ -352,13 +364,14 @@ main(int argc, char** argv)
   CHECK_CMDBUF(buf, len, dump, "cmd4");
   CHECK(app_execute_command_buffer(buf), CMD_ERR);
 
-#if 0
   CHECK(app_clear_command_buffer(buf), OK);
   CHECK_CMDBUF(buf, len, dump, "");
-  CHECK(app_add_command
-    (app, "foo__", foo, 
-     1, APP_CMDARGV(APP_CMDARG_APPEND_STRING(cmd_option_list)), 
-     NULL), OK);
+  CHECK(app_add_command(app, "foo__", foo, option_completion, 
+    APP_CMDARGV(
+     APP_CMDARG_APPEND_STRING(NULL, NULL, NULL, NULL, 1, 1, options),
+     APP_CMDARG_END), 
+    NULL), OK);
+
   CHECK(app_command_buffer_completion(NULL, NULL, NULL), BAD_ARG);
   CHECK(app_command_buffer_completion(buf, NULL, NULL), OK);
   CHECK_CMDBUF(buf, len, dump, "");
@@ -436,7 +449,6 @@ main(int argc, char** argv)
   CHECK_CMDBUF(buf, len, dump, "foo__ optionA0");
   CHECK(len2, 0);
   CHECK(list, NULL);
-#endif
   
   CHECK(app_command_buffer_ref_get(NULL), BAD_ARG);
   CHECK(app_command_buffer_ref_get(buf), OK);

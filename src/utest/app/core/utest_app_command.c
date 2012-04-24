@@ -215,6 +215,8 @@ main(int argc, char **argv)
 {
   struct app_args args = { NULL, NULL, NULL, NULL };
   struct app* app = NULL;
+  const char** lst = NULL;
+  size_t len = 0;
   bool b = false;
 
   if(argc != 2) {
@@ -444,6 +446,56 @@ main(int argc, char **argv)
   seti_int_list__[seti_int_count__++] = 7;
   CHECK(app_execute_command(app, "__seti -i 0 -i 6 -i 9"), OK);
 
+  CHECK(app_command_name_completion(NULL, NULL, 0, NULL, NULL), BAD_ARG);
+  CHECK(app_command_name_completion(app, NULL, 0, NULL, NULL), BAD_ARG);
+  CHECK(app_command_name_completion(NULL, "_", 0, NULL, NULL), BAD_ARG);
+  CHECK(app_command_name_completion(app, "_", 0, NULL, NULL), BAD_ARG);
+  CHECK(app_command_name_completion(NULL, NULL, 0, &len, NULL), BAD_ARG);
+  CHECK(app_command_name_completion(app, NULL, 0, &len, NULL), BAD_ARG);
+  CHECK(app_command_name_completion(NULL, "_", 0, &len, NULL), BAD_ARG);
+  CHECK(app_command_name_completion(app, "_", 0, &len, NULL), BAD_ARG);
+  CHECK(app_command_name_completion(NULL, NULL, 0, NULL, &lst), BAD_ARG);
+  CHECK(app_command_name_completion(app, NULL, 0, NULL, &lst), BAD_ARG);
+  CHECK(app_command_name_completion(NULL, "_", 0, NULL, &lst), BAD_ARG);
+  CHECK(app_command_name_completion(app, "_", 0, NULL, &lst), BAD_ARG);
+  CHECK(app_command_name_completion(NULL, NULL, 0, &len, &lst), BAD_ARG);
+  CHECK(app_command_name_completion(app, NULL, 0, &len, &lst), OK);
+  NCHECK(len, 0);
+  NCHECK(lst, NULL);
+  CHECK(app_command_name_completion(app, NULL, 1, &len, &lst), BAD_ARG);
+  CHECK(app_command_name_completion(NULL, "_", 0, &len, &lst), BAD_ARG);
+  CHECK(app_command_name_completion(app, "_", 0, &len, &lst), OK);
+  NCHECK(len, 0);
+  NCHECK(lst, NULL);
+  CHECK(app_command_name_completion(app, "_", 1, &len, &lst), OK);
+  CHECK(len, 5);
+  NCHECK(lst, NULL);
+  CHECK(strcmp(lst[0], "__cat"), 0);
+  CHECK(strcmp(lst[1], "__day"), 0);
+  CHECK(strcmp(lst[2], "__load"), 0);
+  CHECK(strcmp(lst[3], "__setf3"), 0);
+  CHECK(strcmp(lst[4], "__seti"), 0);
+  CHECK(app_command_name_completion(app, "__s", 2, &len, &lst), OK);
+  CHECK(len, 5);
+  NCHECK(lst, NULL);
+  CHECK(strcmp(lst[0], "__cat"), 0);
+  CHECK(strcmp(lst[1], "__day"), 0);
+  CHECK(strcmp(lst[2], "__load"), 0);
+  CHECK(strcmp(lst[3], "__setf3"), 0);
+  CHECK(strcmp(lst[4], "__seti"), 0);
+  CHECK(app_command_name_completion(app, "__s", 3, &len, &lst), OK);
+  CHECK(len, 2);
+  NCHECK(lst, NULL);
+  CHECK(strcmp(lst[0], "__setf3"), 0);
+  CHECK(strcmp(lst[1], "__seti"), 0);
+  CHECK(app_command_name_completion(app, "__lxxxx", 3, &len, &lst), OK);
+  CHECK(len, 1);
+  NCHECK(lst, NULL);
+  CHECK(strcmp(lst[0], "__load"), 0);
+  CHECK(app_command_name_completion(app, "__lxxxx", 4, &len, &lst), OK);
+  CHECK(len, 0);
+  CHECK(lst, NULL);
+ 
   CHECK(app_has_command(NULL, NULL, NULL), BAD_ARG);
   CHECK(app_has_command(app, NULL, NULL), BAD_ARG);
   CHECK(app_has_command(NULL, "__seti", NULL), BAD_ARG);
