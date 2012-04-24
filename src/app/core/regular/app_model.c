@@ -414,7 +414,7 @@ error:
 }
 
 EXPORT_SYM enum app_error
-app_get_model_path
+app_model_path
   (const struct app_model* model,
    const char** path)
 {
@@ -442,31 +442,39 @@ app_set_model_name(struct app_model* model, const char* name)
 {
   const char* cstr = NULL;
   enum app_error app_err = APP_NO_ERROR;
-  enum sl_error sl_err = SL_NO_ERROR;
-  bool b = false;
 
   if(!model || !name) {
     app_err = APP_INVALID_ARGUMENT;
     goto error;
   }
 
-  /* Re-register the model in order to re-order the app model set with respect
-   * to its new name. */
   SL(string_get(model->name, &cstr));
-  if(APP(is_object_registered(model->app, APP_MODEL, cstr, &b)), b) {
-    APP(unregister_object(model->app, APP_MODEL, cstr));
-    sl_err = sl_string_set(model->name, name);
-    if(sl_err != SL_NO_ERROR) {
-      app_err = sl_to_app_error(sl_err);
+  if(strcmp(cstr, name) != 0) {
+    enum sl_error sl_err = SL_NO_ERROR;
+    bool b = false;
+
+    if(APP(is_object_registered(model->app, APP_MODEL, name, &b)), b) {
+      app_err = APP_INVALID_ARGUMENT;
       goto error;
     }
-    SL(string_get(model->name, &cstr));
-    APP(register_object(model->app, APP_MODEL, cstr, model));
-  }  else {
-    sl_err = sl_string_set(model->name, name);
-    if(sl_err != SL_NO_ERROR) {
-      app_err = sl_to_app_error(sl_err);
-      goto error;
+
+    /* Re-register the model in order to re-order the app model set with
+     * respect to its new name. */
+    if(APP(is_object_registered(model->app, APP_MODEL, cstr, &b)), b) {
+      APP(unregister_object(model->app, APP_MODEL, cstr));
+      sl_err = sl_string_set(model->name, name);
+      if(sl_err != SL_NO_ERROR) {
+        app_err = sl_to_app_error(sl_err);
+        goto error;
+      }
+      SL(string_get(model->name, &cstr));
+      APP(register_object(model->app, APP_MODEL, cstr, model));
+    }  else {
+      sl_err = sl_string_set(model->name, name);
+      if(sl_err != SL_NO_ERROR) {
+        app_err = sl_to_app_error(sl_err);
+        goto error;
+      }
     }
   }
 exit:
@@ -476,7 +484,7 @@ error:
 }
 
 EXPORT_SYM enum app_error
-app_get_model_name(const struct app_model* model, const char** name)
+app_model_name(const struct app_model* model, const char** name)
 {
   enum app_error app_err = APP_NO_ERROR;
   bool is_empty = false;
@@ -506,11 +514,11 @@ app_model_name_completion
    const char** completion_list[])
 {
   return app_object_name_completion
-    (app, 
-     APP_MODEL, 
-     mdl_name, 
-     mdl_name_len, 
-     completion_list_len, 
+    (app,
+     APP_MODEL,
+     mdl_name,
+     mdl_name_len,
+     completion_list_len,
      completion_list);
 }
 

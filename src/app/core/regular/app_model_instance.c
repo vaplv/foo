@@ -96,7 +96,7 @@ app_model_instance_get_model
 }
 
 EXPORT_SYM enum app_error
-app_get_model_instance_name
+app_model_instance_name
   (const struct app_model_instance* instance,
    const char** cstr)
 {
@@ -104,6 +104,15 @@ app_get_model_instance_name
     return APP_INVALID_ARGUMENT;
   SL(string_get(instance->name, cstr));
   return APP_NO_ERROR;
+}
+
+EXPORT_SYM enum app_error
+app_set_model_instance_name
+  (struct app_model_instance* instance UNUSED,
+   const char* name UNUSED)
+{
+  assert(0);
+  return APP_INVALID_ARGUMENT;
 }
 
 EXPORT_SYM enum app_error

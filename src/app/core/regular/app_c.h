@@ -120,6 +120,12 @@ app_get_registered_object
    void** object);
 
 extern enum app_error
+app_set_object_name
+  (struct app* app,
+   enum app_object_type type,
+   const char* name);
+
+extern enum app_error
 app_object_name_completion
   (struct app* app,
    enum app_object_type type,

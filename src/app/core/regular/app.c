@@ -1257,7 +1257,54 @@ exit:
   return app_err;
 error:
   goto exit;
+}
 
+enum app_error
+app_set_object_name
+  (struct app* app UNUSED,
+   enum app_object_type type UNUSED,  
+   const char* name UNUSED)
+{
+#if 1
+  assert(0);
+  return APP_INVALID_ARGUMENT;
+#else
+  enum sl_error sl_err = SL_NO_ERROR;
+  bool b = false;
+  assert(app && type != APP_NB_OBJECT_TYPES && name);
+
+  if(APP(is_object_registered(app, type, name, &b)), b == true) {
+    app_err = APP_INVALID_ARGUMENT;
+    goto error;
+  }
+
+  if(APP(is_object_registered(app, type, cstr, &b)), b == false) {
+    app_err = APP_INVALID_ARGUMENT;
+    goto error;
+  }
+
+  /* Re-register the model in order to re-order the app model set with
+   * respect to its new name. */
+    APP(unregister_object(model->app, APP_MODEL, cstr));
+    sl_err = sl_string_set(model->name, name);
+    if(sl_err != SL_NO_ERROR) {
+      app_err = sl_to_app_error(sl_err);
+      goto error;
+    }
+    SL(string_get(model->name, &cstr));
+    APP(register_object(model->app, APP_MODEL, cstr, model));
+  }  else {
+    sl_err = sl_string_set(model->name, name);
+    if(sl_err != SL_NO_ERROR) {
+      app_err = sl_to_app_error(sl_err);
+      goto error;
+    }
+  }
+exit:
+  return app_err;
+error:
+  goto exit;
+#endif
 }
 
 enum app_error

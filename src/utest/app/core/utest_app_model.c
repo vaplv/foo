@@ -33,6 +33,7 @@ main(int argc, char** argv)
   struct app_model* model_list[MODEL_COUNT];
   struct app_model_instance* instance = NULL;
   const char** lst = NULL;
+  const char* cstr = NULL;
   FILE* fp = NULL;
   size_t i = 0;
   size_t len = 0;
@@ -109,11 +110,24 @@ main(int argc, char** argv)
   CHECK(app_load_model(NULL, model), BAD_ARG);
   CHECK(app_load_model(PATH, model), OK);
 
+  CHECK(app_model_path(NULL, NULL), BAD_ARG);
+  CHECK(app_model_path(model, NULL), BAD_ARG);
+  CHECK(app_model_path(NULL, &cstr), BAD_ARG);
+  CHECK(app_model_path(model, &cstr), OK);
+  CHECK(strcmp(cstr, PATH), 0);
+
   CHECK(app_set_model_name(NULL, NULL), BAD_ARG);
   CHECK(app_set_model_name(model, NULL), BAD_ARG);
   CHECK(app_set_model_name(NULL, "Mdl0"), BAD_ARG);
   CHECK(app_set_model_name(model, "Mdl0"), OK);
+  CHECK(app_set_model_name(model, "Mdl0"), OK); /* Set the same name. */
   CHECK(model2, NULL);
+
+  CHECK(app_model_name(NULL, NULL), BAD_ARG);
+  CHECK(app_model_name(model, NULL), BAD_ARG);
+  CHECK(app_model_name(NULL, &cstr), BAD_ARG);
+  CHECK(app_model_name(model, &cstr), OK);
+  CHECK(strcmp(cstr, "Mdl0"), 0);
 
   /* This model may be freed when the application will be shut down. */
   for(i = 0; i < MODEL_COUNT; ++i) {
@@ -166,6 +180,10 @@ main(int argc, char** argv)
     CHECK(strcmp(lst[i-1], lst[i]) <= 0, true);
     CHECK(strncmp(lst[i], "mdl", 3), 0);
   }
+
+  STATIC_ASSERT(MODEL_COUNT != 0, Unexpected_MODEL_COUNT);
+  CHECK(app_model_name(model_list[0], &cstr), OK);
+  CHECK(app_set_model_name(model, cstr), BAD_ARG);
 
   CHECK(app_instantiate_model(NULL, NULL, NULL), BAD_ARG);
   CHECK(app_instantiate_model(app, NULL, NULL), BAD_ARG);

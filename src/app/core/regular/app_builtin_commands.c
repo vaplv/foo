@@ -174,7 +174,7 @@ cmd_ls(struct app* app, size_t argc UNUSED, const struct app_cmdarg** argv)
       APP_LOG_MSG(app->logger, "\n");
     for(i = 0; i < len; ++i) {
       const char* name = NULL;
-      APP(get_model_name(model_list[i], &name));
+      APP(model_name(model_list[i], &name));
       APP_LOG_MSG(app->logger, "%s\n", name);
     }
     APP_LOG_MSG(app->logger, "[total %zu models]\n", len);
@@ -187,7 +187,7 @@ cmd_ls(struct app* app, size_t argc UNUSED, const struct app_cmdarg** argv)
       APP_LOG_MSG(app->logger, "\n");
     for(i = 0; i < len; ++i) {
       const char* name = NULL;
-      APP(get_model_instance_name(instance_list[i], &name));
+      APP(model_instance_name(instance_list[i], &name));
       APP_LOG_MSG(app->logger, "%s\n", name);
     }
     APP_LOG_MSG(app->logger, "[total %zu model instances]\n", len);
@@ -239,7 +239,7 @@ cmd_spawn(struct app* app, size_t argc UNUSED, const struct app_cmdarg** argv)
         app_err = app_world_add_model_instances(app->world, 1, &instance);
         if(app_err != APP_NO_ERROR) {
           const char* cstr = NULL;
-          APP(get_model_instance_name(instance, &cstr));
+          APP(model_instance_name(instance, &cstr));
           APP_LOG_ERR
             (app->logger,
              "error adding the instance `%s' to the world: %s\n",

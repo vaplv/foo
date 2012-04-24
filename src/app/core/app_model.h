@@ -30,7 +30,7 @@ app_load_model
    struct app_model* model);
 
 extern enum app_error
-app_get_model_path
+app_model_path
   (const struct app_model* model,
    const char** path);
 
@@ -40,7 +40,7 @@ app_set_model_name
    const char* name);
 
 extern enum app_error
-app_get_model_name
+app_model_name
   (const struct app_model* model,
    const char** name);
 
@@ -51,7 +51,6 @@ app_model_name_completion
    size_t mdl_name_len,
    size_t* completion_list_len,
    const char** completion_list[]);
-
 
 #endif /* APP_MODEL_H */
 
