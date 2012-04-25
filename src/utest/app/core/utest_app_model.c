@@ -181,10 +181,6 @@ main(int argc, char** argv)
     CHECK(strncmp(lst[i], "mdl", 3), 0);
   }
 
-  STATIC_ASSERT(MODEL_COUNT != 0, Unexpected_MODEL_COUNT);
-  CHECK(app_model_name(model_list[0], &cstr), OK);
-  CHECK(app_set_model_name(model, cstr), BAD_ARG);
-
   CHECK(app_instantiate_model(NULL, NULL, NULL), BAD_ARG);
   CHECK(app_instantiate_model(app, NULL, NULL), BAD_ARG);
   CHECK(app_instantiate_model(NULL, model, NULL), BAD_ARG);

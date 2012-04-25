@@ -27,20 +27,13 @@ release_model_instance(struct ref* ref)
     (ref, struct app_model_instance, ref);
   struct app* app = instance->app;
   struct rdr_model_instance** render_instance_lstbuf = NULL;
-  const char* cstr = NULL;
   size_t len = 0;
   size_t i = 0;
-  bool is_registered = false;
   assert(app != NULL);
 
-  SL(string_get(instance->name, &cstr));
-  APP(is_object_registered
-    (instance->app, APP_MODEL_INSTANCE, cstr, &is_registered));
-  if(is_registered) {
+  if(instance->invoke_clbk)
     APP(invoke_callbacks
       (instance->app, APP_SIGNAL_DESTROY_MODEL_INSTANCE, instance));
-    APP(unregister_object(instance->app, APP_MODEL_INSTANCE, cstr));
-  }
 
  if(instance->model_instance_list) {
     SL(vector_buffer
@@ -53,8 +46,8 @@ release_model_instance(struct ref* ref)
       RDR(model_instance_ref_put(render_instance_lstbuf[i]));
     SL(free_vector(instance->model_instance_list));
   }
-  if(instance->name)
-    SL(free_string(instance->name));
+
+  APP(release_object(instance->app, &instance->obj));
 
   APP(model_ref_put(instance->model));
   MEM_FREE(app->allocator, instance);
@@ -98,21 +91,21 @@ app_model_instance_get_model
 EXPORT_SYM enum app_error
 app_model_instance_name
   (const struct app_model_instance* instance,
-   const char** cstr)
+   const char** name)
 {
-  if(!instance || !cstr)
+  if(!instance)
     return APP_INVALID_ARGUMENT;
-  SL(string_get(instance->name, cstr));
-  return APP_NO_ERROR;
+  return app_object_name(instance->app, &instance->obj, name);
 }
 
 EXPORT_SYM enum app_error
 app_set_model_instance_name
-  (struct app_model_instance* instance UNUSED,
-   const char* name UNUSED)
+  (struct app_model_instance* instance,
+   const char* name)
 {
-  assert(0);
-  return APP_INVALID_ARGUMENT;
+  if(!instance)
+    return APP_INVALID_ARGUMENT;
+  return app_set_object_name(instance->app, &instance->obj, name);
 }
 
 EXPORT_SYM enum app_error
@@ -159,16 +152,17 @@ app_create_model_instance
   ref_init(&instance->ref);
   APP(ref_get(app));
   instance->app = app;
+
+  app_err = app_init_object
+    (app, &instance->obj, APP_MODEL_INSTANCE, "mdl_instance");
+  if(app_err != APP_NO_ERROR)
+    goto error;
+
   sl_err = sl_create_vector
     (sizeof(struct rdr_model_instance*),
      ALIGNOF(struct rdr_model_instance*),
      app->allocator,
      &instance->model_instance_list);
-  if(sl_err != SL_NO_ERROR) {
-    app_err = sl_to_app_error(sl_err);
-    goto error;
-  }
-  sl_err = sl_create_string(NULL, app->allocator, &instance->name);
   if(sl_err != SL_NO_ERROR) {
     app_err = sl_to_app_error(sl_err);
     goto error;
@@ -179,7 +173,7 @@ exit:
   return app_err;
 error:
   if(instance) {
-    while(!ref_put(&instance->ref, release_model_instance));
+    APP(model_instance_ref_put(instance));
     instance = NULL;
   }
   goto exit;

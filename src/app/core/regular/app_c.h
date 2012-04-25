@@ -1,6 +1,7 @@
 #ifndef APP_C_H
 #define APP_C_H
 
+#include "app/core/regular/app_object.h"
 #include "app/core/app.h"
 #include "renderer/rdr_attrib.h"
 #include "resources/rsrc.h"
@@ -21,12 +22,6 @@
 #define APP_WARN_PREFIX "warning: "
 #define APP_LOG_WARN(logger, ...) \
   SL(logger_print((logger), APP_WARN_PREFIX __VA_ARGS__))
-
-enum app_object_type {
-  APP_MODEL,
-  APP_MODEL_INSTANCE,
-  APP_NB_OBJECT_TYPES
-};
 
 struct app_model;
 struct app_model_instance;
@@ -91,48 +86,6 @@ struct app {
 
   bool post_exit;
 };
-
-extern enum app_error
-app_register_object
-  (struct app* app,
-   enum app_object_type type,
-   const char* key,
-   void* object);
-
-extern enum app_error
-app_unregister_object
-  (struct app* app,
-   enum app_object_type type,
-   const char* name);
-
-extern enum app_error
-app_is_object_registered
-  (struct app* app,
-   enum app_object_type type,
-   const char* name,
-   bool* is_registered);
-
-extern enum app_error
-app_get_registered_object
-  (struct app* app,
-   enum app_object_type type,
-   const char* name,
-   void** object);
-
-extern enum app_error
-app_set_object_name
-  (struct app* app,
-   enum app_object_type type,
-   const char* name);
-
-extern enum app_error
-app_object_name_completion
-  (struct app* app,
-   enum app_object_type type,
-   const char* name,
-   size_t name_len,
-   size_t* completion_list_len,
-   const char** completion_list[]);
 
 extern enum app_error
 app_invoke_callbacks

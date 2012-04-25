@@ -1,6 +1,8 @@
 #include "app/core/regular/app_builtin_commands.h"
 #include "app/core/regular/app_c.h"
 #include "app/core/regular/app_command_c.h"
+#include "app/core/regular/app_model_c.h"
+#include "app/core/regular/app_object.h"
 #include "app/core/app_command.h"
 #include "app/core/app_model.h"
 #include "app/core/app_model_instance.h"
@@ -207,28 +209,26 @@ cmd_clear
 static void
 cmd_spawn(struct app* app, size_t argc UNUSED, const struct app_cmdarg** argv)
 {
-  bool b = false;
   assert(app != NULL
       && argc == 2
       && argv != NULL
       && argv[1]->type == APP_CMDARG_STRING);
 
   if(argv[1]->value_list[0].is_defined == true) {
-    APP(is_object_registered
-      (app, APP_MODEL, argv[1]->value_list[0].data.string, &b));
-    if(b == false) {
+    struct app_object* obj = NULL;
+    APP(get_object
+      (app, APP_MODEL, argv[1]->value_list[0].data.string, &obj));
+    if(obj == NULL) {
       APP_LOG_ERR
         (app->logger,
          "the model `%s' does not exist\n",
          argv[1]->value_list[0].data.string);
     } else {
-      struct app_model** mdl = NULL;
+      struct app_model* mdl = app_object_to_model(obj);
       struct app_model_instance* instance = NULL;
       enum app_error app_err = APP_NO_ERROR;
 
-      APP(get_registered_object
-          (app, APP_MODEL, argv[1]->value_list[0].data.string, (void**)&mdl));
-      app_err = app_instantiate_model(app, *mdl, &instance);
+      app_err = app_instantiate_model(app, mdl, &instance);
       if(app_err != APP_NO_ERROR) {
         APP_LOG_ERR
           (app->logger,
@@ -286,7 +286,7 @@ app_setup_builtin_commands(struct app* app)
      "list application contents"));
   CALL(app_add_command
     (app, "load", cmd_load, NULL, APP_CMDARGV
-     (APP_CMDARG_APPEND_FILE("m", "model", "<path>", NULL, 0, 1),
+     (APP_CMDARG_APPEND_FILE("m", "model", "<path>", NULL, 1, 1),
       APP_CMDARG_END),
      "load resources"));
   CALL(app_add_command
