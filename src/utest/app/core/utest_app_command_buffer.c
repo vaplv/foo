@@ -458,6 +458,12 @@ main(int argc, char** argv)
   CHECK(len2, 0);
   CHECK(list, NULL);
 
+  CHECK(app_clear_command_buffer(buf), OK);
+  CHECK(app_command_buffer_write_string(buf, "help ls"), OK);
+  CHECK(app_execute_command_buffer(buf), OK);
+  CHECK(app_command_buffer_write_string(buf, "help spawn"), OK);
+  CHECK(app_execute_command_buffer(buf), OK);
+
   CHECK(app_command_buffer_ref_get(NULL), BAD_ARG);
   CHECK(app_command_buffer_ref_get(buf), OK);
   CHECK(app_command_buffer_ref_put(NULL), BAD_ARG);

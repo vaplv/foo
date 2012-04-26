@@ -127,22 +127,13 @@ cmd_help(struct app* app, size_t argc UNUSED, const struct app_cmdarg** argv)
 
   rewind(app->cmd.stream);
   app_err = app_man_command
-    (app, argv[1]->value_list[0].data.string, app->cmd.stream);
-  if(app_err == APP_NO_ERROR) {
-    const char* ptr = NULL;
-    size_t i = 0;
-
-    rewind(app->cmd.stream);
-    do {
-      ptr = fgets
-        (app->cmd.scratch + i ,
-         sizeof(app->cmd.scratch)/sizeof(char) - i - 1, /* -1 <=> '\0' */
-         app->cmd.stream);
-      if(ptr)
-        i += strlen(ptr);
-    } while(ptr);
+    (app, 
+     argv[1]->value_list[0].data.string, 
+     NULL, 
+     sizeof(app->cmd.scratch)/sizeof(char),
+     app->cmd.scratch);
+  if(app_err == APP_NO_ERROR)
     APP_LOG_MSG(app->logger, "%s", app->cmd.scratch);
-  }
 }
 
 static void

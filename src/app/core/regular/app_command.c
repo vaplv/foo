@@ -11,6 +11,7 @@
 #include <argtable2.h>
 #include <stddef.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include <string.h>
 
 struct app_command {
@@ -570,7 +571,7 @@ app_execute_command(struct app* app, const char* command)
     rewind(app->cmd.stream);
     ptr = fgets
       (app->cmd.scratch,
-       sizeof(app->cmd.scratch)/sizeof(char) - 1,
+       sizeof(app->cmd.scratch)/sizeof(char) - 1, /* -1 <=> '/0' char. */
        app->cmd.stream);
     if(ptr)
       APP_LOG_ERR(app->logger, "%s", ptr);
@@ -592,13 +593,19 @@ error:
 }
 
 EXPORT_SYM enum app_error
-app_man_command(struct app* app, const char* name, FILE* stream)
+app_man_command
+  (struct app* app, 
+   const char* name, 
+   size_t* len, 
+   size_t max_buf_len,
+   char* buffer)
 {
   struct app_command** pcmd = NULL;
   struct app_command* cmd = NULL;
   enum app_error app_err = APP_NO_ERROR;
+  long fpos = 0; 
 
-  if(!app || !name || !stream) {
+  if(!app || !name || (max_buf_len && !buffer)) {
     app_err = APP_INVALID_ARGUMENT;
     goto error;
   }
@@ -609,14 +616,29 @@ app_man_command(struct app* app, const char* name, FILE* stream)
     goto error;
   }
   cmd = *pcmd;
-  fprintf(stream, "%s", name);
-  arg_print_syntaxv(stream, cmd->arg_table, "\n");
+
+  rewind(app->cmd.stream);
+  fprintf(app->cmd.stream, "%s", name);
+  arg_print_syntaxv(app->cmd.stream, cmd->arg_table, "\n");
   if(cmd->description) {
     const char* cstr = NULL;
     SL(string_get(cmd->description, &cstr));
-    fprintf(stream, "%s\n", cstr);
+    fprintf(app->cmd.stream, "%s\n", cstr);
   }
-  arg_print_glossary(stream, cmd->arg_table, NULL);
+  arg_print_glossary(app->cmd.stream, cmd->arg_table, NULL);
+  fpos = ftell(app->cmd.stream);
+  assert(fpos > 0);
+
+  if(len)
+    *len = fpos / sizeof(char);
+  if(buffer && max_buf_len) {
+    const size_t size = MIN((max_buf_len - 1) * sizeof(char), (size_t)fpos);
+
+    fflush(app->cmd.stream);
+    rewind(app->cmd.stream);
+    fread(buffer, size, 1, app->cmd.stream);
+    buffer[size/sizeof(char)] = '\0';
+  }
 exit:
   return app_err;
 error:

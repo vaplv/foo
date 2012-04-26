@@ -51,7 +51,7 @@ struct app {
   struct sl_flat_map* object_map[APP_NB_OBJECT_TYPES]; /* maps of {char*, object*}. */
 
   struct command_system {
-    ALIGN(16) char scratch[1024];
+    char scratch[1024];
     FILE* stream;
     struct sl_hash_table* htbl; /* htbl of commands. */
     struct sl_flat_set* name_set; /* set of const char*. Used by completion and ls.*/

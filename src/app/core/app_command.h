@@ -145,7 +145,9 @@ extern enum app_error
 app_man_command
   (struct app* app,
    const char* command,
-   FILE* stream);
+   size_t* len, /* May be NULL. */
+   size_t max_buf_len,
+   char* buffer); /* May be NULL. */
 
 extern enum app_error
 app_command_arg_completion

@@ -244,6 +244,7 @@ seti(struct app* app UNUSED, size_t argc, const struct app_cmdarg** argv)
 int
 main(int argc, char **argv)
 {
+  char buf[16];
   struct app_args args = { NULL, NULL, NULL, NULL };
   struct app* app = NULL;
   const char** lst = NULL;
@@ -348,15 +349,56 @@ main(int argc, char **argv)
   CHECK(app_execute_command
     (app, "__load -n=my_name --model \"my_model.obj\""), OK);
 
-  CHECK(app_man_command(NULL, NULL, NULL), BAD_ARG);
-  CHECK(app_man_command(app, NULL, NULL), BAD_ARG);
-  CHECK(app_man_command(NULL, "_load_", NULL), BAD_ARG);
-  CHECK(app_man_command(app, "_load_", NULL), BAD_ARG);
-  CHECK(app_man_command(NULL, NULL, stdout), BAD_ARG);
-  CHECK(app_man_command(app, NULL, stdout), BAD_ARG);
-  CHECK(app_man_command(NULL, "_load_", stdout), BAD_ARG);
-  CHECK(app_man_command(app, "_load_", stdout), CMD_ERR);
-  CHECK(app_man_command(app, "__load", stdout), OK);
+  CHECK(app_man_command(NULL, NULL, NULL, 0, NULL), BAD_ARG);
+  CHECK(app_man_command(app, NULL, NULL, 0, NULL), BAD_ARG);
+  CHECK(app_man_command(NULL, "_load", NULL, 0, NULL), BAD_ARG);
+  CHECK(app_man_command(app, "_load_", NULL, 0, NULL), CMD_ERR);
+  CHECK(app_man_command(app, "__load", NULL, 0, NULL), OK);
+  CHECK(app_man_command(NULL, NULL, &len, 0, NULL), BAD_ARG);
+  CHECK(app_man_command(app, NULL, &len, 0, NULL), BAD_ARG);
+  CHECK(app_man_command(NULL, "_load_", &len, 0, NULL), BAD_ARG);
+  CHECK(app_man_command(app, "_load_", &len, 0, NULL), CMD_ERR);
+  CHECK(app_man_command(app, "__load", &len, 0, NULL), OK);
+  CHECK(app_man_command(NULL, NULL, NULL, 8, NULL), BAD_ARG);
+  CHECK(app_man_command(app, NULL, NULL, 8, NULL), BAD_ARG);
+  CHECK(app_man_command(NULL, "_load", NULL, 8, NULL), BAD_ARG);
+  CHECK(app_man_command(app, "_load_", NULL, 8, NULL), BAD_ARG);
+  CHECK(app_man_command(app, "__load", NULL, 8, NULL), BAD_ARG);
+  CHECK(app_man_command(NULL, NULL, &len, 8, NULL), BAD_ARG);
+  CHECK(app_man_command(app, NULL, &len, 8, NULL), BAD_ARG);
+  CHECK(app_man_command(NULL, "_load_", &len, 8, NULL), BAD_ARG);
+  CHECK(app_man_command(app, "_load_", &len, 8, NULL), BAD_ARG);
+  CHECK(app_man_command(app, "__load", &len, 8, NULL), BAD_ARG);
+  CHECK(app_man_command(NULL, NULL, NULL, 0, buf), BAD_ARG);
+  CHECK(app_man_command(app, NULL, NULL, 0, buf), BAD_ARG);
+  CHECK(app_man_command(NULL, "_load", NULL, 0, buf), BAD_ARG);
+  CHECK(app_man_command(app, "_load_", NULL, 0, buf), CMD_ERR);
+  CHECK(app_man_command(app, "__load", NULL, 0, buf), OK);
+  CHECK(app_man_command(NULL, NULL, &len, 0, buf), BAD_ARG);
+  CHECK(app_man_command(app, NULL, &len, 0, buf), BAD_ARG);
+  CHECK(app_man_command(NULL, "_load_", &len, 0, buf), BAD_ARG);
+  CHECK(app_man_command(app, "_load_", &len, 0, buf), CMD_ERR);
+  CHECK(app_man_command(app, "__load", &len, 0, buf), OK);
+  printf("%s\n", buf);
+  CHECK(strlen(buf) <= len, true);
+  CHECK(app_man_command(NULL, NULL, NULL, 8, buf), BAD_ARG);
+  CHECK(app_man_command(app, NULL, NULL, 8, buf), BAD_ARG);
+  CHECK(app_man_command(NULL, "_load", NULL, 8, buf), BAD_ARG);
+  CHECK(app_man_command(app, "_load_", NULL, 8, buf), CMD_ERR);
+  CHECK(app_man_command(app, "__load", NULL, 8, buf), OK);
+  printf("%s\n", buf);
+  CHECK(strlen(buf) <= len, true);
+  CHECK(app_man_command(NULL, NULL, &len, 8, buf), BAD_ARG);
+  CHECK(app_man_command(app, NULL, &len, 8, buf), BAD_ARG);
+  CHECK(app_man_command(NULL, "_load_", &len, 8, buf), BAD_ARG);
+  CHECK(app_man_command(app, "_load_", &len, 8, buf), CMD_ERR);
+  CHECK(app_man_command(app, "__load", &len, 8, buf), OK);
+  printf("%s\n", buf);
+  CHECK(strlen(buf) <= len, true);
+  CHECK(app_man_command(app, "__load", &len, 16, buf), OK);
+  printf("%s\n", buf);
+  CHECK(strlen(buf) <= len, true);
+
 
   CHECK(app_add_command
     (app, "__setf3", setf3, NULL,
