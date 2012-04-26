@@ -442,7 +442,7 @@ app_model_name_completion
 struct app_model*
 app_object_to_model(struct app_object* obj)
 {
-  assert(obj);
+  assert(obj && obj->type == APP_MODEL);
   return CONTAINER_OF(obj, struct app_model, obj);
 }
 
@@ -455,6 +455,7 @@ EXPORT_SYM enum app_error
 app_instantiate_model
   (struct app* app,
    struct app_model* model,
+   const char* name,
    struct app_model_instance** out_instance)
 {
   struct app_model_instance* instance = NULL;
@@ -466,7 +467,7 @@ app_instantiate_model
   enum sl_error sl_err = SL_NO_ERROR;
   bool is_ref_get = false;
 
-  if(!app || !model || !out_instance) {
+  if(!app || !model) {
     app_err = APP_INVALID_ARGUMENT;
     goto error;
   }
@@ -479,7 +480,7 @@ app_instantiate_model
       } \
     } while(0)
 
-  app_err = app_create_model_instance(app, &instance);
+  app_err = app_create_model_instance(app, name, &instance);
   if(app_err != APP_NO_ERROR)
     goto error;
 
@@ -500,6 +501,7 @@ app_instantiate_model
       render_instance = NULL;
     }
   }
+
   app_err = app_model_ref_get(model);
   if(app_err != APP_NO_ERROR)
     goto error;

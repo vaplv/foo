@@ -32,6 +32,7 @@ main(int argc, char** argv)
   struct app_model* model3 = NULL;
   struct app_model* model_list[MODEL_COUNT];
   struct app_model_instance* instance = NULL;
+  struct app_model_instance* instance1 = NULL;
   const char** lst = NULL;
   const char* cstr = NULL;
   FILE* fp = NULL;
@@ -152,6 +153,7 @@ main(int argc, char** argv)
   CHECK(app_model_name_completion(NULL, "M", 0, NULL, &lst), BAD_ARG);
   CHECK(app_model_name_completion(app, "M", 0, NULL, &lst), BAD_ARG);
   CHECK(app_model_name_completion(NULL, NULL, 0, &len, &lst), BAD_ARG);
+  CHECK(app_model_name_completion(app, NULL, 1, &len, &lst), BAD_ARG);
   CHECK(app_model_name_completion(app, NULL, 0, &len, &lst), OK);
   CHECK(len, MODEL_COUNT + 1);
   NCHECK(lst, NULL);
@@ -181,15 +183,79 @@ main(int argc, char** argv)
     CHECK(strncmp(lst[i], "mdl", 3), 0);
   }
 
-  CHECK(app_instantiate_model(NULL, NULL, NULL), BAD_ARG);
-  CHECK(app_instantiate_model(app, NULL, NULL), BAD_ARG);
-  CHECK(app_instantiate_model(NULL, model, NULL), BAD_ARG);
-  CHECK(app_instantiate_model(app, model, NULL), BAD_ARG);
-  CHECK(app_instantiate_model(NULL, NULL, &instance), BAD_ARG);
-  CHECK(app_instantiate_model(app, NULL, &instance), BAD_ARG);
-  CHECK(app_instantiate_model(NULL, model, &instance), BAD_ARG);
-  CHECK(app_instantiate_model(app, model, &instance), OK);
+  CHECK(app_instantiate_model(NULL, NULL, NULL, NULL), BAD_ARG);
+  CHECK(app_instantiate_model(app, NULL, NULL, NULL), BAD_ARG);
+  CHECK(app_instantiate_model(NULL, model, NULL, NULL), BAD_ARG);
+  CHECK(app_instantiate_model(app, model, NULL, NULL), OK);
+  CHECK(app_instantiate_model(NULL, NULL, "inst0", NULL), BAD_ARG);
+  CHECK(app_instantiate_model(app, NULL, "inst0", NULL), BAD_ARG);
+  CHECK(app_instantiate_model(NULL, model, "inst0", NULL), BAD_ARG);
+  CHECK(app_instantiate_model(app, model, "inst0", NULL), OK);
+  CHECK(app_instantiate_model(NULL, NULL, NULL, &instance), BAD_ARG);
+  CHECK(app_instantiate_model(app, NULL, NULL, &instance), BAD_ARG);
+  CHECK(app_instantiate_model(NULL, model, NULL, &instance), BAD_ARG);
+  CHECK(app_instantiate_model(app, model, NULL, &instance), OK);
+  CHECK(app_instantiate_model(NULL, NULL, "inst1", &instance1), BAD_ARG);
+  CHECK(app_instantiate_model(app, NULL, "inst1", &instance1), BAD_ARG);
+  CHECK(app_instantiate_model(NULL, model, "inst1", &instance1), BAD_ARG);
+  CHECK(app_instantiate_model(app, model, "inst1", &instance1), OK);
 
+  CHECK(app_set_model_instance_name(NULL, NULL), BAD_ARG);
+  CHECK(app_set_model_instance_name(instance, NULL), BAD_ARG);
+  CHECK(app_set_model_instance_name(NULL, "my_inst0"), BAD_ARG);
+  CHECK(app_set_model_instance_name(instance, "my_inst0"), OK);
+
+  CHECK(app_model_instance_name(NULL, NULL), BAD_ARG);
+  CHECK(app_model_instance_name(instance, NULL), BAD_ARG);
+  CHECK(app_model_instance_name(NULL, &cstr), BAD_ARG);
+  CHECK(app_model_instance_name(instance, &cstr), OK);
+  CHECK(strcmp(cstr, "my_inst0"), 0);
+
+  CHECK(app_instantiate_model(app, model, "my_inst", NULL), OK);
+  CHECK(app_instantiate_model(app, model, "inst1", NULL), OK);
+  CHECK(app_instantiate_model(app, model, "myinst", NULL), OK);
+
+  CHECK(app_model_instance_name_completion(NULL, NULL, 0, NULL, NULL), BAD_ARG);
+  CHECK(app_model_instance_name_completion(app, NULL, 0, NULL, NULL), BAD_ARG);
+  CHECK(app_model_instance_name_completion(NULL, "m", 0, NULL, NULL), BAD_ARG);
+  CHECK(app_model_instance_name_completion(app, "m", 0, NULL, NULL), BAD_ARG);
+  CHECK(app_model_instance_name_completion(NULL, NULL, 0, &len, NULL), BAD_ARG);
+  CHECK(app_model_instance_name_completion(app, NULL, 0, &len, NULL), BAD_ARG);
+  CHECK(app_model_instance_name_completion(NULL, "m", 0, &len, NULL), BAD_ARG);
+  CHECK(app_model_instance_name_completion(app, "m", 0, &len, NULL), BAD_ARG);
+  CHECK(app_model_instance_name_completion(NULL, NULL, 0, NULL, &lst), BAD_ARG);
+  CHECK(app_model_instance_name_completion(app, NULL, 0, NULL, &lst), BAD_ARG);
+  CHECK(app_model_instance_name_completion(NULL, "m", 0, NULL, &lst), BAD_ARG);
+  CHECK(app_model_instance_name_completion(app, "m", 0, NULL, &lst), BAD_ARG);
+  CHECK(app_model_instance_name_completion(NULL, NULL, 0, &len, &lst), BAD_ARG);
+  CHECK(app_model_instance_name_completion(app, NULL, 1, &len, &lst), BAD_ARG);
+  CHECK(app_model_instance_name_completion(app, NULL, 0, &len, &lst), OK);
+  CHECK(len, 7);
+  for(i = 1; i < len; ++i) {
+    CHECK(strcmp(lst[i-1], lst[i]) <= 0, true);
+  }
+  CHECK(app_model_instance_name_completion(NULL, "m", 0, &len, &lst), BAD_ARG);
+  CHECK(app_model_instance_name_completion(app, "m", 0, &len, &lst), OK);
+  CHECK(len, 7);
+  for(i = 1; i < len; ++i) {
+    CHECK(strcmp(lst[i-1], lst[i]) <= 0, true);
+  }
+  CHECK(app_model_instance_name_completion(app, "my", 2, &len, &lst), OK);
+  CHECK(len < 7, true);
+  CHECK(strncmp(lst[0], "my", 2), 0);
+  for(i = 1; i < len; ++i) {
+    CHECK(strcmp(lst[i-1], lst[i]) <= 0, true);
+    CHECK(strncmp(lst[i], "my", 2), 0);
+  } 
+  i = len;
+  CHECK(app_model_instance_name_completion(app, "my_", 3, &len, &lst), OK);
+  CHECK(len < i, true);
+  CHECK(strncmp(lst[0], "my_", 3), 0);
+  for(i = 1; i < len; ++i) {
+    CHECK(strcmp(lst[i-1], lst[i]) <= 0, true);
+    CHECK(strncmp(lst[i], "my_", 3), 0);
+  } 
+ 
   CHECK(app_model_instance_ref_get(NULL), BAD_ARG);
   CHECK(app_model_instance_ref_get(instance), OK);
   CHECK(app_model_instance_ref_put(NULL), BAD_ARG);

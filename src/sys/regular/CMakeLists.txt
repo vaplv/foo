@@ -1,3 +1,4 @@
 cmake_minimum_required(VERSION 2.6)
 
-add_library(sys SHARED mem_allocator.c)
+file(GLOB SYS_FILES *.c)
+add_library(sys SHARED ${SYS_FILES})

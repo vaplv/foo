@@ -1,4 +1,6 @@
 cmake_minimum_required(VERSION 2.6)
 
-add_library(rbnull SHARED rb_null.c)
+file(GLOB RBNULL_FILES *.c)
+add_library(rbnull SHARED ${RBNULL_FILES})
 target_link_libraries(rbnull)
+

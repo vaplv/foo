@@ -133,6 +133,7 @@ app_model_instance_name_completion
 extern enum app_error
 app_create_model_instance
   (struct app* app,
+   const char* name,
    struct app_model_instance** out_instance)
 {
   struct app_model_instance* instance = NULL;
@@ -154,7 +155,7 @@ app_create_model_instance
   instance->app = app;
 
   app_err = app_init_object
-    (app, &instance->obj, APP_MODEL_INSTANCE, "mdl_instance");
+    (app, &instance->obj, APP_MODEL_INSTANCE, name ? name : "mdl_instance");
   if(app_err != APP_NO_ERROR)
     goto error;
 
@@ -177,5 +178,12 @@ error:
     instance = NULL;
   }
   goto exit;
+}
+
+struct app_model_instance*
+app_object_to_model_instance(struct app_object* obj)
+{
+  assert(obj && obj->type == APP_MODEL_INSTANCE);
+  return CONTAINER_OF(obj, struct app_model_instance, obj);
 }
 

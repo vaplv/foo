@@ -2,7 +2,7 @@
 #define SL_WSTRING_H
 
 #define SL_STRING_TYPE SL_STRING_WIDE 
-  #include "stdlib/sl_string_def.h"
+  #include "stdlib/sl_string.h.def"
 #undef SL_STRING_TYPE
 
 extern enum sl_error

@@ -11,18 +11,7 @@ if(NOT GLFW_LIB_PATH)
   message(FATAL_ERROR "Can't find glfw.")
 endif()
 
-
-add_library(appcore SHARED 
-  app.c
-  app_builtin_commands.c
-  app_command.c
-  app_command_buffer.c
-  app_error.c
-  app_model.c
-  app_model_instance.c
-  app_object.c
-  app_term.c
-  app_view.c
-  app_world.c)
+file(GLOB APPCORE_FILES *.c)
+add_library(appcore SHARED ${APPCORE_FILES})
 
 target_link_libraries(appcore renderer rsrc sl sys wmglfw argtable2)

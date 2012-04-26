@@ -20,7 +20,7 @@
 #undef SL_STRING_STD
 #undef SL_STRING_WIDE
 
-#include "stdlib/sl_string_def.h"
+#include "stdlib/sl_string.h.def"
 
 #define STR_BUFFER_SIZE 16
 #define STR_ALLOC_GRANULARITY 32

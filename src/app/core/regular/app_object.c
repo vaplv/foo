@@ -1,8 +1,13 @@
 #include "app/core/regular/app_c.h"
 #include "app/core/regular/app_error_c.h"
+#include "app/core/regular/app_model_c.h"
+#include "app/core/regular/app_model_instance_c.h"
 #include "app/core/regular/app_object.h"
+#include "app/core/app_model.h"
+#include "app/core/app_model_instance.h"
 #include "stdlib/sl.h"
 #include "stdlib/sl_flat_map.h"
+#include "stdlib/sl_pair.h"
 #include "stdlib/sl_string.h"
 #include "sys/sys.h"
 #include <string.h>
@@ -12,6 +17,18 @@
  * Helper functions.
  *
  ******************************************************************************/
+static int
+cmp_str(const void* a, const void* b)
+{
+  const char* str0 = NULL;
+  const char* str1 = NULL;
+  assert(a && b);
+  str0 = *(const char**)a;
+  str1 = *(const char**)b;
+  assert(str0 && str1);
+  return strcmp(str0, str1);
+}
+
 static enum app_error
 register_object(struct app* app, struct app_object* obj)
 {
@@ -64,6 +81,43 @@ is_object_registered(struct app* app, struct app_object* obj)
   SL(string_get(obj->name, &cstr));
   SL(flat_map_find(app->object_map[obj->type], &cstr, &data));
   return (data != NULL);
+}
+
+static void
+release_objects(struct app* app, enum app_object_type type)
+{
+  size_t len = 0;
+  size_t i = 0;
+  assert(app && type != APP_NB_OBJECT_TYPES);
+
+  /* When the object is put, it is unregistered from the application if its ref
+   * count reaches 0. That's why we have to use the `at' function of the
+   * container at each iteration rather than retrieving its internal buffer and
+   * iterating onto it. */
+  if(app->object_map[type]) {
+    SL(flat_map_length(app->object_map[type], &len));
+
+    for(i = len; i > 0; ) {
+      struct sl_pair pair = { NULL, NULL };
+      struct app_object* obj = NULL;
+
+      SL(flat_map_at(app->object_map[type], --i, &pair));
+      assert(SL_IS_PAIR_VALID(&pair));
+      obj = *(struct app_object**)pair.data;
+
+      switch((enum app_object_type)type) {
+        case APP_MODEL:
+          APP(model_ref_put(app_object_to_model(obj)));
+          break;
+        case APP_MODEL_INSTANCE:
+          APP(model_instance_ref_put(app_object_to_model_instance(obj)));
+          break;
+        default:
+          assert(false);
+          break;
+      }
+    }
+  }
 }
 
 /*******************************************************************************
@@ -290,5 +344,75 @@ exit:
   return app_err;
 error:
   goto exit;
+}
+
+enum app_error
+app_init_object_system(struct app* app)
+{
+  enum app_error app_err = APP_NO_ERROR;
+  enum sl_error sl_err = SL_NO_ERROR;
+  int i = 0;
+  if(!app) {
+    app_err = APP_INVALID_ARGUMENT;
+    goto error;
+  }
+  for(i = 0; i < APP_NB_OBJECT_TYPES; ++i) {
+    sl_err = sl_create_flat_map
+      (sizeof(const char*),
+       ALIGNOF(const char*),
+       sizeof(struct app_object*),
+       ALIGNOF(struct app_object*),
+       cmp_str,
+       app->allocator,
+       &app->object_map[i]);
+    if(sl_err != SL_NO_ERROR) {
+      app_err = sl_to_app_error(sl_err);
+      goto error;
+    }
+  }
+exit:
+  return app_err;
+error:
+  APP(shutdown_object_system(app));
+  goto exit;
+}
+
+enum app_error
+app_shutdown_object_system(struct app* app)
+{
+  int i = 0;
+
+  if(!app)
+    return APP_INVALID_ARGUMENT;
+
+  for(i = 0; i < APP_NB_OBJECT_TYPES; ++i) {
+    if(app->object_map[i]) {
+      #ifndef NDEBUG
+      size_t len = 0;
+      SL(flat_map_length(app->object_map[i], &len));
+      assert(len == 0);
+      #endif
+      SL(free_flat_map(app->object_map[i]));
+      app->object_map[i] = NULL;
+    }
+  }
+  return APP_NO_ERROR;
+}
+
+enum app_error
+app_clear_object_system(struct app* app)
+{
+  int type_id = 0;
+
+  if(!app) 
+    return APP_INVALID_ARGUMENT;
+  
+  release_objects(app, APP_MODEL_INSTANCE);
+  release_objects(app, APP_MODEL);
+
+  for(type_id = 0; type_id < APP_NB_OBJECT_TYPES; ++type_id)
+    SL(clear_flat_map(app->object_map[type_id]));
+
+  return APP_NO_ERROR;
 }
 

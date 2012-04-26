@@ -11,16 +11,10 @@ if(NOT GL_LIB_PATH)
   message(FATAL_ERROR "Can't find the OpenGL libraries.")
 endif()
 
+file(GLOB RBOGL3_FILES *.c)
+
 add_definitions(-DGL_GLEXT_PROTOTYPES)
-add_library(rbogl3 SHARED 
-  rb_ogl3_attrib.c
-  rb_ogl3_buffers.c
-  rb_ogl3_context.c
-  rb_ogl3_miscellaneous.c
-  rb_ogl3_program.c
-  rb_ogl3_sampler.c
-  rb_ogl3_shader.c
-  rb_ogl3_texture.c
-  rb_ogl3_uniform.c
-  rb_ogl3_vertex_array.c)
+add_library(rbogl3 SHARED ${RBOGL3_FILES})
+
 target_link_libraries(rbogl3 GL GLU)
+

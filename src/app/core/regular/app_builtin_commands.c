@@ -228,7 +228,7 @@ cmd_spawn(struct app* app, size_t argc UNUSED, const struct app_cmdarg** argv)
       struct app_model_instance* instance = NULL;
       enum app_error app_err = APP_NO_ERROR;
 
-      app_err = app_instantiate_model(app, mdl, &instance);
+      app_err = app_instantiate_model(app, mdl, NULL, &instance);
       if(app_err != APP_NO_ERROR) {
         APP_LOG_ERR
           (app->logger,

@@ -12,7 +12,8 @@ extern enum app_error
 app_instantiate_model
   (struct app* app,
    struct app_model* model,
-   struct app_model_instance** instance);
+   const char* name, /* May be NULL. */
+   struct app_model_instance** instance); /* May be NULL. */
 
 extern enum app_error
 app_model_instance_get_model

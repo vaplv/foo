@@ -24,7 +24,6 @@
 #include "stdlib/sl_flat_map.h"
 #include "stdlib/sl_flat_set.h"
 #include "stdlib/sl_logger.h"
-#include "stdlib/sl_pair.h"
 #include "stdlib/sl_vector.h"
 #include "sys/mem_allocator.h"
 #include "sys/sys.h"
@@ -113,18 +112,6 @@ compare_callbacks(const void* a, const void* b)
  * Helper functions.
  *
  ******************************************************************************/
-static int
-cmp_str(const void* a, const void* b)
-{
-  const char* str0 = NULL;
-  const char* str1 = NULL;
-  assert(a && b);
-  str0 = *(const char**)a;
-  str1 = *(const char**)b;
-  assert(str0 && str1);
-  return strcmp(str0, str1);
-}
-
 static void
 std_log_func(const char* msg, void* data UNUSED)
 {
@@ -366,17 +353,6 @@ shutdown_common(struct app* app)
   enum app_error app_err = APP_NO_ERROR;
   assert(app != NULL);
 
-  for(i = 0; i < APP_NB_OBJECT_TYPES; ++i) {
-    if(app->object_map[i]) {
-      #ifndef NDEBUG
-      size_t len = 0;
-      SL(flat_map_length(app->object_map[i], &len));
-      assert(len == 0);
-      #endif
-      SL(free_flat_map(app->object_map[i]));
-      app->object_map[i] = NULL;
-    }
-  }
   for(i = 0; i < APP_NB_SIGNALS; ++i) {
     if(NULL != app->callback_list[i]) {
       SL(free_flat_set(app->callback_list[i]));
@@ -422,6 +398,7 @@ shutdown(struct app* app)
     #define CALL(func) if((app_err = func) != APP_NO_ERROR) goto error
     CALL(app_shutdown_command_system(app));
     CALL(app_shutdown_term(app));
+    CALL(app_shutdown_object_system(app));
     CALL(shutdown_common(app));
     CALL(shutdown_resources(&app->rsrc, app->logger));
     CALL(shutdown_renderer(&app->rdr, app->logger));
@@ -560,21 +537,6 @@ init_common(struct app* app)
         goto error; \
     } while(0)
 
-  for(i = 0; i < APP_NB_OBJECT_TYPES; ++i) {
-    sl_err = sl_create_flat_map
-      (sizeof(const char*),
-       ALIGNOF(const char*),
-       sizeof(void*),
-       ALIGNOF(void*),
-       cmp_str,
-       app->allocator,
-       &app->object_map[i]);
-    if(sl_err != SL_NO_ERROR) {
-      app_err = sl_to_app_error(sl_err);
-      goto error;
-    }
-  }
-
   for(i = 0; i < APP_NB_SIGNALS; ++i) {
     sl_err = sl_create_flat_set
       (sizeof(struct callback),
@@ -654,30 +616,35 @@ init(struct app* app, const char* graphic_driver)
 
   app_err = init_window_manager(&app->wm);
   if(app_err !=  APP_NO_ERROR) {
-    APP_LOG_ERR(app->logger, "Error intializing window manager\n");
+    APP_LOG_ERR(app->logger, "error intializing window manager\n");
     goto error;
   }
   app_err = init_renderer(&app->rdr, graphic_driver, app->logger);
   if(app_err != APP_NO_ERROR) {
-    APP_LOG_ERR(app->logger, "Error initializing renderer\n");
+    APP_LOG_ERR(app->logger, "error initializing renderer\n");
     goto error;
   }
   app_err = init_resources(&app->rsrc);
   if(app_err != APP_NO_ERROR) {
-    APP_LOG_ERR(app->logger, "Error initializing resource module\n");
+    APP_LOG_ERR(app->logger, "error initializing resource module\n");
     goto error;
   }
   app_err = init_common(app);
   if(app_err != APP_NO_ERROR)
     goto error;
+  app_err = app_init_object_system(app);
+  if(app_err != APP_NO_ERROR) {
+    APP_LOG_ERR(app->logger, "error initializing object system\n");
+    goto error;
+  }
   app_err = app_init_term(app);
   if(app_err != APP_NO_ERROR) {
-    APP_LOG_ERR(app->logger, "Error initializing terminal\n");
+    APP_LOG_ERR(app->logger, "error initializing terminal\n");
     goto error;
   }
   app_err = app_init_command_system(app);
   if(app_err != APP_NO_ERROR) {
-    APP_LOG_ERR(app->logger, "Error intializing command system\n");
+    APP_LOG_ERR(app->logger, "error intializing command system\n");
     goto error;
   }
 
@@ -747,7 +714,7 @@ app_init(struct app_args* args, struct app** out_app)
   if(args->model) {
     /* Create the model and add an instance of it to the world. */
     if(APP_NO_ERROR == app_create_model(app, args->model, &mdl)) {
-      app_err = app_instantiate_model(app, mdl, &mdl_instance);
+      app_err = app_instantiate_model(app, mdl, NULL, &mdl_instance);
       if(app_err != APP_NO_ERROR)
         goto error;
       app_err = app_world_add_model_instances(app->world, 1, &mdl_instance);
@@ -820,51 +787,7 @@ error:
 EXPORT_SYM enum app_error
 app_cleanup(struct app* app)
 {
-  size_t len = 0;
-  size_t i = 0;
-  int type_id = 0;
-  enum app_error app_err = APP_NO_ERROR;
-
-  if(!app) {
-    app_err = APP_INVALID_ARGUMENT;
-    goto error;
-  }
-  /* When the object is put, it is unregistered from the application if its ref
-   * count reaches 0. That's why we have to use the `at' function of the
-   * container at each iteration rather than retrieving its internal buffer and
-   * iterating onto it. In addition, each object may by referenced by another
-   * one. For instance the model_instance keep a reference onto the
-   * instantiated model. Consequently, we cannot ensure that an object list is
-   * empty exepted when all the created object are released. */
-  for(type_id = 0; type_id < APP_NB_OBJECT_TYPES; ++type_id) {
-    if(app->object_map[type_id]) {
-      SL(flat_map_length(app->object_map[type_id], &len));
-      for(i = len; i > 0; ) {
-        struct sl_pair pair = { NULL, NULL };
-        SL(flat_map_at(app->object_map[type_id], --i, &pair));
-        assert(SL_IS_PAIR_VALID(&pair));
-
-        switch((enum app_object_type)type_id) {
-          case APP_MODEL:
-            APP(model_ref_put(*(struct app_model**)pair.data));
-            break;
-          case APP_MODEL_INSTANCE:
-            APP(model_instance_ref_put(*(struct app_model_instance**)pair.data));
-            break;
-          default:
-            assert(false);
-            break;
-        }
-      }
-    }
-  }
-  for(type_id = 0; type_id < APP_NB_OBJECT_TYPES; ++type_id) {
-    SL(clear_flat_map(app->object_map[type_id]));
- }
-exit:
-  return app_err;
-error:
-  goto exit;
+  return app_clear_object_system(app);
 }
 
 EXPORT_SYM enum app_error

@@ -40,8 +40,8 @@ main(int argc, char** argv)
 
   CHECK(app_init(&args, &app), OK);
   CHECK(app_create_model(app, PATH, &model), OK);
-  CHECK(app_instantiate_model(app, model, &instances[0]), OK);
-  CHECK(app_instantiate_model(app, model, &instances[1]), OK);
+  CHECK(app_instantiate_model(app, model, NULL, &instances[0]), OK);
+  CHECK(app_instantiate_model(app, model, NULL, &instances[1]), OK);
 
   CHECK(app_create_world(NULL, NULL), BAD_ARG);
   CHECK(app_create_world(app, NULL), BAD_ARG);

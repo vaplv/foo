@@ -59,5 +59,17 @@ app_object_name_completion
    size_t* completion_list_len,
    const char** completion_list[]);
 
+extern enum app_error
+app_init_object_system
+  (struct app* app);
+
+extern enum app_error
+app_shutdown_object_system
+  (struct app* app);
+
+extern enum app_error
+app_clear_object_system
+  (struct app* app);
+
 #endif /* APP_OBJECT_H */
 

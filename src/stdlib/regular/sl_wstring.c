@@ -1,5 +1,5 @@
 #define SL_STRING_TYPE SL_STRING_WIDE
-  #include "stdlib/regular/sl_string_def.c"
+  #include "stdlib/regular/sl_string.c.def"
 #undef SL_STRING_TYPE
 
 #include "stdlib/sl_wstring.h"

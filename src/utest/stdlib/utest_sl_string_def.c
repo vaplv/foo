@@ -33,7 +33,7 @@
  * (sl_wstring.h) header file rather thant the generic string definition
  * header. However, we use the genericity mecanism defines into the
  * sl_string_def header to factorize the test of the wide and std string. */
-#include "stdlib/sl_string_def.h"
+#include "stdlib/sl_string.h.def"
 
 #define TEST(type) CONCAT(test_, type)
 #define BAD_ARG SL_INVALID_ARGUMENT
