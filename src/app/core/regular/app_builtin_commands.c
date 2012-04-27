@@ -208,18 +208,36 @@ cmd_clear
 }
 
 static void
-cmd_rename(struct app* app, size_t argc UNUSED, const struct app_cmdarg** argv)
+cmd_rename_model
+  (struct app* app, 
+   size_t argc UNUSED, 
+   const struct app_cmdarg** argv)
 {
   assert(app != NULL
-      && argc == 4
+      && argc == 3
       && argv != NULL
       && argv[0]->type == APP_CMDARG_STRING
       && argv[1]->type == APP_CMDARG_STRING
       && argv[2]->type == APP_CMDARG_STRING
-      && argv[3]->type == APP_CMDARG_STRING
       && argv[0]->count == 1
       && argv[1]->count == 1
-      && argv[2]->count == 1
+      && argv[2]->count == 1);
+}
+
+static void
+cmd_rename_instance
+  (struct app* app,
+   size_t argc UNUSED, 
+   const struct app_cmdarg** argv)
+{
+  assert(app != NULL
+      && argc == 3
+      && argv != NULL
+      && argv[0]->type == APP_CMDARG_STRING
+      && argv[1]->type == APP_CMDARG_STRING
+      && argv[2]->type == APP_CMDARG_STRING
+      && argv[0]->count == 1
+      && argv[1]->count == 1
       && argv[2]->count == 1);
 }
 
@@ -319,13 +337,13 @@ app_setup_builtin_commands(struct app* app)
       APP_CMDARG_END),
      "load resources"));
   CALL(app_add_command
-    (app, "rename", cmd_rename, app_model_name_completion, APP_CMDARGV
+    (app, "rename", cmd_rename_model, app_model_name_completion, APP_CMDARGV
      (APP_CMDARG_APPEND_STRING("m", "model", "<model>", NULL, 1, 1, NULL),
       APP_CMDARG_APPEND_STRING(NULL, NULL, "<name>", NULL, 1, 1, NULL),
       APP_CMDARG_END),
      "rename model"));
   CALL(app_add_command
-    (app, "rename", cmd_rename, app_model_instance_name_completion, APP_CMDARGV
+    (app, "rename", cmd_rename_instance, app_model_instance_name_completion, APP_CMDARGV
      (APP_CMDARG_APPEND_STRING("i", "instance", "<instance>", NULL, 1, 1, NULL),
       APP_CMDARG_APPEND_STRING(NULL, NULL, "<name>", NULL, 1, 1, NULL),
       APP_CMDARG_END),
