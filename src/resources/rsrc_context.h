@@ -19,5 +19,14 @@ extern enum rsrc_error
 rsrc_context_ref_put
   (struct rsrc_context* ctxt);
 
+extern enum rsrc_error
+rsrc_get_error_string
+  (struct rsrc_context* ctxt,
+   const char** str_err);
+
+extern enum rsrc_error
+rsrc_flush_error
+  (struct rsrc_context* ctxt);
+
 #endif /* RSRC_CONTEXT_H */
 

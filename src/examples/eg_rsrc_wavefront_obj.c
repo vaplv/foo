@@ -16,6 +16,7 @@ main(int argc, char** argv)
   struct rsrc_context* ctxt = NULL;
   struct rsrc_wavefront_obj* wobj = NULL;
   struct rsrc_geometry* geom = NULL;
+  const char* errstr = NULL;
   size_t nb_prim_set = 0;
   size_t prim_set_id = 0;
   size_t total_nb_vertices = 0;
@@ -36,9 +37,13 @@ main(int argc, char** argv)
 
   err = gettimeofday(&t0, NULL);
   assert(err == 0);
+  RSRC(flush_error(ctxt));
   rsrc_err = rsrc_load_wavefront_obj(wobj, argv[1]);
   if(rsrc_err != RSRC_NO_ERROR) {
     fprintf(stderr, "Error loading the wavefront obj: %s\n", argv[1]);
+    RSRC(get_error_string(ctxt, &errstr));
+    if(errstr)
+      fprintf(stderr, "%s", errstr);
     goto error;
   }
   err = gettimeofday(&t1, NULL);
@@ -48,9 +53,13 @@ main(int argc, char** argv)
 
   err = gettimeofday(&t0, NULL);
   assert(err == 0);
+  RSRC(flush_error(ctxt));
   rsrc_err = rsrc_geometry_from_wavefront_obj(geom, wobj);
   if(rsrc_err != RSRC_NO_ERROR) {
     fprintf(stderr, "Error creating the geometry from the wavefront obj.\n");
+    RSRC(get_error_string(ctxt, &errstr));
+    if(errstr)
+      fprintf(stderr, "%s", errstr);
     goto error;
   }
   err = gettimeofday(&t1, NULL);

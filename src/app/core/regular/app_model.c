@@ -10,6 +10,7 @@
 #include "renderer/rdr_mesh.h"
 #include "renderer/rdr_model.h"
 #include "renderer/rdr_model_instance.h"
+#include "resources/rsrc_context.h"
 #include "resources/rsrc_geometry.h"
 #include "resources/rsrc_wavefront_obj.h"
 #include "stdlib/sl.h"
@@ -339,15 +340,20 @@ app_model_ref_put(struct app_model* model)
 EXPORT_SYM enum app_error
 app_load_model(const char* path, struct app_model* model)
 {
+  const char* str_err = NULL;
   enum rsrc_error rsrc_err = RSRC_NO_ERROR;
   enum app_error app_err = APP_NO_ERROR;
   enum sl_error sl_err = SL_NO_ERROR;
+  bool may_have_errors = false;
 
   if(!path || !model) {
     app_err = APP_INVALID_ARGUMENT;
     goto error;
   }
   assert(model->app && model->app->rsrc.wavefront_obj != NULL);
+
+  RSRC(flush_error(model->app->rsrc.context));
+  may_have_errors = true;
 
   rsrc_err = rsrc_load_wavefront_obj
     (model->app->rsrc.wavefront_obj, path);
@@ -378,6 +384,12 @@ exit:
 error:
   if(model)
     APP(clear_model(model));
+  if(may_have_errors) {
+    RSRC(get_error_string(model->app->rsrc.context, &str_err));
+    if(str_err) {
+      APP_LOG_ERR(model->app->logger, "%s", str_err);
+    }
+  }
   goto exit;
 }
 

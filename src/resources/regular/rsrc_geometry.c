@@ -63,7 +63,8 @@ compare(const void* p0, const void* p1)
  * the vert_list into out_vert_id_list. */
 static enum rsrc_error
 triangulate
-  (struct rsrc_wavefront_obj_face* vert_list UNUSED, 
+  (struct rsrc_context* ctxt,
+   struct rsrc_wavefront_obj_face* vert_list UNUSED, 
    size_t nb_verts,
    size_t max_nb_verts,
    size_t* out_nb_vert_ids,
@@ -79,6 +80,11 @@ triangulate
   /* Right now only triangles (sic!) and quads are supported. 
    * TODO implement a generic triangulation algorithm. */
   if(nb_verts != 3 && nb_verts != 4) {
+    RSRC(print_error
+      (ctxt, 
+       "unexpected polygon with %zu vertices: "
+       "only triangles or quads are supported\n", 
+       nb_verts));
     rsrc_err = RSRC_PARSING_ERROR;
     goto error;
   }
@@ -186,7 +192,8 @@ build_triangle_list
         (void**)&face_verts));
 
     err = triangulate
-      (face_verts, 
+      (ctxt,
+       face_verts, 
        nb_verts, 
        MAX_TRIANGULATE_FACE_IDS, 
        &nb_vert_ids, 
@@ -217,6 +224,7 @@ build_triangle_list
         if(key.vt > 0) {
           if(tex[key.vt - 1][2] != 0.f 
           && tex[key.vt - 1][2] != 1.f) {  /* We expect 2d tex coords. */
+            RSRC(print_error(ctxt, "unexpected 3D tex coords."));
             err = RSRC_PARSING_ERROR;
             goto error;
           }

@@ -6,15 +6,18 @@
 #include "stdlib/sl_flat_set.h"
 #include "stdlib/sl_hash_table.h"
 #include "stdlib/sl_string.h"
+#include "sys/list.h"
 #include "sys/mem_allocator.h"
 #include "sys/sys.h"
 #include <argtable2.h>
+#include <limits.h>
 #include <stddef.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 
 struct app_command {
+  struct list_node node;
   size_t argc;
   void(*func)(struct app*, size_t, const struct app_cmdarg**);
   enum app_error (*completion)
@@ -238,6 +241,7 @@ register_command
    struct app_command* cmd,
    const char* name)
 {
+  struct list_node* list = NULL;
   char* cmd_name = NULL;
   enum app_error app_err = APP_NO_ERROR;
   enum sl_error sl_err = SL_NO_ERROR;
@@ -245,27 +249,39 @@ register_command
   bool is_inserted_in_fset = false;
   assert(app && cmd && name);
 
-  /* Register the command against the command system. */
-  cmd_name = MEM_CALLOC(app->allocator, strlen(name) + 1, sizeof(char));
-  if(NULL == cmd_name) {
-    app_err = APP_MEMORY_ERROR;
-    goto error;
-  }
-  strcpy(cmd_name, name);
-  assert(app->cmd.htbl);
-  sl_err = sl_hash_table_insert(app->cmd.htbl, &cmd_name, &cmd);
-  if(SL_NO_ERROR != sl_err) {
-    app_err = sl_to_app_error(sl_err);
-    goto error;
-  }
-  is_inserted_in_htbl = true;
-  sl_err = sl_flat_set_insert(app->cmd.name_set, &cmd_name, NULL);
-  if(SL_NO_ERROR != sl_err) {
-    app_err = sl_to_app_error(sl_err);
-    goto error;
-  }
-  is_inserted_in_fset = true;
+  SL(hash_table_find(app->cmd.htbl, &name, (void**)&list));
 
+  /* Register the command agains the command system if it does not exist. */
+  if(list == NULL) {
+    cmd_name = MEM_CALLOC(app->allocator, strlen(name) + 1, sizeof(char));
+    if(NULL == cmd_name) {
+      app_err = APP_MEMORY_ERROR;
+      goto error;
+    }
+    strcpy(cmd_name, name);
+
+    sl_err = sl_hash_table_insert
+      (app->cmd.htbl, &cmd_name, (struct list_node[]){{NULL, NULL}});
+    if(SL_NO_ERROR != sl_err) {
+      app_err = sl_to_app_error(sl_err);
+      goto error;
+    }
+    is_inserted_in_htbl = true;
+
+    SL(hash_table_find(app->cmd.htbl, &cmd_name, (void**)&list));
+    assert(list != NULL);
+    list_init(list);
+
+    sl_err = sl_flat_set_insert(app->cmd.name_set, &cmd_name, NULL);
+    if(SL_NO_ERROR != sl_err) {
+      app_err = sl_to_app_error(sl_err);
+      goto error;
+    }
+    is_inserted_in_fset = true;
+  }
+
+  list_add(list, &cmd->node);
+  
 exit:
   return app_err;
 error:
@@ -293,19 +309,29 @@ del_all_commands(struct app* app)
 
   SL(hash_table_begin(app->cmd.htbl, &it, &b));
   while(!b) {
-    struct app_command* cmd = *(struct app_command**)it.pair.data;
+    struct list_node* list = (struct list_node*)it.pair.data;
+    struct list_node* pos = NULL;
+    struct list_node* tmp = NULL;
     size_t i = 0;
 
-    if(cmd->description)
-      SL(free_string(cmd->description));
-    for(i = 0; i < cmd->argc; ++i) {
-      MEM_FREE(app->allocator, cmd->argv[i]);
+    assert(is_list_empty(list) == false);
+
+    LIST_FOR_EACH_SAFE(pos, tmp, list) {
+      struct app_command* cmd = CONTAINER_OF(pos, struct app_command, node);
+      list_del(pos);
+
+      if(cmd->description)
+        SL(free_string(cmd->description));
+      for(i = 0; i < cmd->argc; ++i) {
+        MEM_FREE(app->allocator, cmd->argv[i]);
+      }
+      MEM_FREE(app->allocator, cmd->argv);
+      MEM_FREE(app->allocator, cmd->arg_domain);
+      arg_freetable(cmd->arg_table, cmd->argc + 1); /* +1 <=> arg_end. */
+      MEM_FREE(app->allocator, cmd->arg_table);
+      MEM_FREE(app->allocator, cmd);
     }
-    MEM_FREE(app->allocator, cmd->argv);
-    MEM_FREE(app->allocator, cmd->arg_domain);
-    arg_freetable(cmd->arg_table, cmd->argc + 1); /* +1 <=> arg_end. */
-    MEM_FREE(app->allocator, cmd->arg_table);
-    MEM_FREE(app->allocator, cmd);
+
     MEM_FREE(app->allocator, (*(char**)it.pair.key));
     SL(hash_table_it_next(&it, &b));
   }
@@ -327,7 +353,6 @@ app_add_command
    const struct app_cmdarg_desc argv_desc[],
    const char* description)
 {
-  void* ptr = NULL;
   struct app_command* cmd = NULL;
   size_t argc = 0;
   size_t buffer_len = 0;
@@ -341,17 +366,13 @@ app_add_command
     app_err = APP_INVALID_ARGUMENT;
     goto error;
   }
-  SL(hash_table_find(app->cmd.htbl, &name, &ptr));
-  if(ptr) {
-    app_err = APP_INVALID_ARGUMENT;
-    goto error;
-  }
 
   cmd = MEM_CALLOC(app->allocator, 1, sizeof(struct app_command));
   if(NULL == cmd) {
     app_err = APP_MEMORY_ERROR;
     goto error;
   }
+  list_init(&cmd->node);
   cmd->func = func;
 
   if(argv_desc != NULL) {
@@ -467,7 +488,9 @@ EXPORT_SYM enum app_error
 app_del_command(struct app* app, const char* name)
 {
   struct sl_pair pair;
-  struct app_command* cmd = NULL;
+  struct list_node* list = NULL;
+  struct list_node* pos = NULL;
+  struct list_node* tmp = NULL;
   char* cmd_name = NULL;
   size_t i = 0;
   enum app_error app_err = APP_NO_ERROR;
@@ -482,24 +505,33 @@ app_del_command(struct app* app, const char* name)
     app_err = APP_INVALID_ARGUMENT;
     goto error;
   }
+
+  /* Free the command syntaxes. */
+  list = (struct list_node*)pair.data;
+  LIST_FOR_EACH_SAFE(pos, tmp, list) {
+    struct app_command* cmd = CONTAINER_OF(pos, struct app_command, node);
+    list_del(pos);
+
+    if(cmd->description)
+      SL(free_string(cmd->description));
+    for(i = 0; i < cmd->argc; ++i) {
+      MEM_FREE(app->allocator, cmd->argv[i]);
+    }
+    MEM_FREE(app->allocator, cmd->argv);
+    MEM_FREE(app->allocator, cmd->arg_domain);
+    arg_freetable(cmd->arg_table, cmd->argc + 1); /* +1 <=> arg_end. */
+    MEM_FREE(app->allocator, cmd->arg_table);
+    MEM_FREE(app->allocator, cmd);
+  }
+
+
+  /* Free the command name. */
   cmd_name = *(char**)pair.key;
-  cmd = *(struct app_command**)pair.data;
-  SL(hash_table_erase(app->cmd.htbl, &name, &i));
+  SL(flat_set_erase(app->cmd.name_set, &cmd_name, NULL));
+  SL(hash_table_erase(app->cmd.htbl, &cmd_name, &i));
   assert(1 == i);
-  SL(flat_set_erase(app->cmd.name_set, &name, NULL));
   MEM_FREE(app->allocator, cmd_name);
 
-  /* Free the command. */
-  if(cmd->description)
-    SL(free_string(cmd->description));
-  for(i = 0; i < cmd->argc; ++i) {
-    MEM_FREE(app->allocator, cmd->argv[i]);
-  }
-  MEM_FREE(app->allocator, cmd->argv);
-  MEM_FREE(app->allocator, cmd->arg_domain);
-  arg_freetable(cmd->arg_table, cmd->argc + 1); /* +1 <=> arg_end. */
-  MEM_FREE(app->allocator, cmd->arg_table);
-  MEM_FREE(app->allocator, cmd);
 exit:
   return app_err;
 error:
@@ -522,13 +554,14 @@ app_execute_command(struct app* app, const char* command)
 {
   #define MAX_ARG_COUNT 128
   char* argv[MAX_ARG_COUNT];
-  struct app_command** pcmd = NULL;
-  struct app_command* cmd = NULL;
+  struct list_node* command_list = NULL;
+  struct list_node* node = NULL;
+  struct app_command* active_cmd = NULL;
   char* name = NULL;
   char* ptr = NULL;
   size_t argc = 0;
   enum app_error app_err = APP_NO_ERROR;
-  int parsing_error_count = 0;
+  int parsing_error_count = INT_MAX;
 
   if(!app || !command) {
     app_err = APP_INVALID_ARGUMENT;
@@ -543,31 +576,45 @@ app_execute_command(struct app* app, const char* command)
 
   /* Retrieve the first token <=> command name. */
   name = strtok(app->cmd.scratch, " \t");
-  SL(hash_table_find(app->cmd.htbl, &name, (void**)&pcmd));
-  if(!pcmd) {
+  SL(hash_table_find(app->cmd.htbl, &name, (void**)&command_list));
+  if(!command_list) {
     APP_LOG_ERR(app->logger, "%s: command not found\n", name);
     app_err = APP_COMMAND_ERROR;
     goto error;
   }
-  cmd = *pcmd;
 
-  /* Parse the command. */
-  assert(cmd->argc > 0);
-  argv[0] = name;
-  for(argc = 1; NULL != (ptr = strtok(NULL, " \t")); ++argc) {
-    if(argc >= MAX_ARG_COUNT) {
-      app_err = APP_MEMORY_ERROR;
-      goto error;
+  LIST_FOR_EACH(node, command_list) {
+    struct app_command* cmd = CONTAINER_OF(node, struct app_command, node);
+    int nerror = 0;
+
+    /* Parse the command. */
+    assert(cmd->argc > 0);
+    argv[0] = name;
+    for(argc = 1; NULL != (ptr = strtok(NULL, " \t")); ++argc) {
+      if(argc >= MAX_ARG_COUNT) {
+        app_err = APP_MEMORY_ERROR;
+        goto error;
+      }
+      argv[argc] = ptr;
     }
-    argv[argc] = ptr;
+    nerror = arg_parse(argc, argv, cmd->arg_table);
+
+    if(nerror < parsing_error_count) {
+      active_cmd = cmd;
+      parsing_error_count = nerror;
+    }
+
+    if(nerror == 0)
+      break;
   }
-  parsing_error_count = arg_parse(argc, argv, cmd->arg_table);
+
   if(parsing_error_count != 0) {
     const char* ptr = NULL;
 
     rewind(app->cmd.stream);
     arg_print_errors
-      (app->cmd.stream, (struct arg_end*)cmd->arg_table[cmd->argc - 1], name);
+      (app->cmd.stream, 
+       (struct arg_end*)active_cmd->arg_table[active_cmd->argc - 1], name);
     rewind(app->cmd.stream);
     ptr = fgets
       (app->cmd.scratch,
@@ -580,10 +627,11 @@ app_execute_command(struct app* app, const char* command)
   }
 
   /* Setup the args and invoke the commands. */
-  app_err = setup_cmd_arg(app, cmd, name);
+  app_err = setup_cmd_arg(app, active_cmd, name);
   if(app_err != APP_NO_ERROR)
     goto error;
-  cmd->func(app, cmd->argc, (const struct app_cmdarg**)cmd->argv);
+  active_cmd->func
+    (app, active_cmd->argc, (const struct app_cmdarg**)active_cmd->argv);
 
   #undef MAX_ARG_COUNT
 exit:
@@ -600,8 +648,8 @@ app_man_command
    size_t max_buf_len,
    char* buffer)
 {
-  struct app_command** pcmd = NULL;
-  struct app_command* cmd = NULL;
+  struct list_node* cmd_list = NULL;
+  struct list_node* node = NULL;
   enum app_error app_err = APP_NO_ERROR;
   long fpos = 0; 
 
@@ -609,25 +657,30 @@ app_man_command
     app_err = APP_INVALID_ARGUMENT;
     goto error;
   }
-  SL(hash_table_find(app->cmd.htbl, &name, (void**)&pcmd));
-  if(!pcmd) {
+
+  SL(hash_table_find(app->cmd.htbl, &name, (void**)&cmd_list));
+  if(!cmd_list) {
     APP_LOG_ERR(app->logger, "%s: command not found\n", name);
     app_err = APP_COMMAND_ERROR;
     goto error;
   }
-  cmd = *pcmd;
+  assert(is_list_empty(cmd_list) == false);
 
   rewind(app->cmd.stream);
-  fprintf(app->cmd.stream, "%s", name);
-  arg_print_syntaxv(app->cmd.stream, cmd->arg_table, "\n");
-  if(cmd->description) {
-    const char* cstr = NULL;
-    SL(string_get(cmd->description, &cstr));
-    fprintf(app->cmd.stream, "%s\n", cstr);
+  LIST_FOR_EACH(node, cmd_list) {
+    struct app_command* cmd = CONTAINER_OF(node, struct app_command, node);
+
+    fprintf(app->cmd.stream, "%s", name);
+    arg_print_syntaxv(app->cmd.stream, cmd->arg_table, "\n");
+    if(cmd->description) {
+      const char* cstr = NULL;
+      SL(string_get(cmd->description, &cstr));
+      fprintf(app->cmd.stream, "%s\n", cstr);
+    }
+    arg_print_glossary(app->cmd.stream, cmd->arg_table, NULL);
+    fpos += ftell(app->cmd.stream);
+    assert(fpos > 0);
   }
-  arg_print_glossary(app->cmd.stream, cmd->arg_table, NULL);
-  fpos = ftell(app->cmd.stream);
-  assert(fpos > 0);
 
   if(len)
     *len = fpos / sizeof(char);
@@ -654,7 +707,7 @@ app_command_arg_completion
    size_t* completion_list_len,
    const char** completion_list[])
 {
-  struct app_command** cmd = NULL;
+  struct list_node* cmd_list = NULL;
   enum app_error app_err = APP_NO_ERROR;
 
   if(!app
@@ -664,13 +717,21 @@ app_command_arg_completion
   || !completion_list) {
     return APP_INVALID_ARGUMENT;
   }
-  SL(hash_table_find(app->cmd.htbl, &cmd_name, (void**)&cmd));
-  if(cmd == NULL || (*cmd)->completion == NULL) {
-    *completion_list_len = 0;
-    *completion_list = NULL;
-  } else {
-    app_err = (*cmd)->completion
-      (app, arg_str, arg_str_len, completion_list_len, completion_list);
+  *completion_list_len = 0;
+  *completion_list = NULL;
+
+  SL(hash_table_find(app->cmd.htbl, &cmd_name, (void**)&cmd_list));
+  /* TODO return the union of the completion lists rather than the first one. */
+  if(cmd_list != NULL) {
+    struct app_command* cmd = NULL;
+    assert(is_list_empty(cmd_list) == false);
+
+    cmd = CONTAINER_OF(cmd_list->next, struct app_command, node);
+
+    if(cmd->completion != NULL) {
+      app_err = cmd->completion
+        (app, arg_str, arg_str_len, completion_list_len, completion_list);
+    }
   }
   return app_err;
 }
@@ -746,8 +807,8 @@ app_init_command_system(struct app* app)
   sl_err = sl_create_hash_table
     (sizeof(const char*),
      ALIGNOF(const char*),
-     sizeof(struct app_command*),
-     ALIGNOF(struct app_command*),
+     sizeof(struct list_node),
+     ALIGNOF(struct list_node),
      hash_str,
      eq_str,
      app->allocator,
@@ -788,14 +849,14 @@ app_shutdown_command_system(struct app* app)
   if(!app)
     return APP_INVALID_ARGUMENT;
 
-  if(app->cmd.name_set) {
-    SL(free_flat_set(app->cmd.name_set));
-    app->cmd.name_set = NULL;
-  }
   if(app->cmd.htbl) {
     del_all_commands(app);
     SL(free_hash_table(app->cmd.htbl));
     app->cmd.htbl = NULL;
+  }
+  if(app->cmd.name_set) {
+    SL(free_flat_set(app->cmd.name_set));
+    app->cmd.name_set = NULL;
   }
   if(app->cmd.stream)
     fclose(app->cmd.stream);

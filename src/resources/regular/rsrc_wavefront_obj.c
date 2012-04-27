@@ -1142,6 +1142,7 @@ rsrc_load_wavefront_obj
   }
   fptr = fopen(path, "r");
   if(!fptr) {
+    RSRC(print_error(wobj->ctxt, "error opening file `%s'\n", path));
     err = RSRC_IO_ERROR;
     goto error;
   }

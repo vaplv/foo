@@ -244,7 +244,7 @@ seti(struct app* app UNUSED, size_t argc, const struct app_cmdarg** argv)
 int
 main(int argc, char **argv)
 {
-  char buf[16];
+  char buf[16] = { [0] = '\0' };
   struct app_args args = { NULL, NULL, NULL, NULL };
   struct app* app = NULL;
   const char** lst = NULL;
@@ -266,20 +266,22 @@ main(int argc, char **argv)
   CHECK(app_add_command(NULL, NULL, foo, NULL, NULL, NULL), BAD_ARG);
   CHECK(app_add_command(app, NULL, foo, NULL, NULL, NULL), BAD_ARG);
   CHECK(app_add_command(NULL, NULL, foo, NULL, NULL, NULL), BAD_ARG);
+
   CHECK(app_add_command(app, "__foo", foo, NULL, NULL, NULL), OK);
-  CHECK(app_add_command(app, "__foo", foo, NULL, NULL, NULL), BAD_ARG);
-  CHECK(app_add_command
+  CHECK(app_add_command(app, "__foo", foo, NULL, NULL, NULL), OK);
+  CHECK(app_add_command 
     (app, "__foo", foo, NULL, APP_CMDARGV(
-      APP_CMDARG_APPEND_LITERAL("vV", "verbose, verb", NULL, 0, 1),
+      APP_CMDARG_APPEND_LITERAL("vV", "verbose, verb", NULL, 1, 1),
       APP_CMDARG_END),
      NULL),
-    BAD_ARG);
+    OK);
 
   CHECK(app_execute_command(NULL, NULL), BAD_ARG);
   CHECK(app_execute_command(app, NULL), BAD_ARG);
   CHECK(app_execute_command(NULL, "__foox"), BAD_ARG);
   CHECK(app_execute_command(app, "__foox"), CMD_ERR);
   CHECK(app_execute_command(app, "__foo"), OK);
+  CHECK(app_execute_command(app, "__foo -v"), OK);
 
   CHECK(app_del_command(NULL, NULL), BAD_ARG);
   CHECK(app_del_command(app, NULL), BAD_ARG);
