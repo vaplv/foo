@@ -134,7 +134,7 @@ init_domain_and_table
     }
   }
 
-  cmd->arg_table[i] = arg_end(1);
+  cmd->arg_table[i] = arg_end(16);
   if(arg_nullcheck(cmd->arg_table)) {
     app_err = APP_MEMORY_ERROR;
     goto error;
@@ -582,6 +582,14 @@ app_execute_command(struct app* app, const char* command)
     app_err = APP_COMMAND_ERROR;
     goto error;
   }
+  argv[0] = name;
+  for(argc = 1; NULL != (ptr = strtok(NULL, " \t")); ++argc) {
+    if(argc >= MAX_ARG_COUNT) {
+      app_err = APP_MEMORY_ERROR;
+      goto error;
+    }
+    argv[argc] = ptr;
+  }
 
   LIST_FOR_EACH(node, command_list) {
     struct app_command* cmd = CONTAINER_OF(node, struct app_command, node);
@@ -589,39 +597,31 @@ app_execute_command(struct app* app, const char* command)
 
     /* Parse the command. */
     assert(cmd->argc > 0);
-    argv[0] = name;
-    for(argc = 1; NULL != (ptr = strtok(NULL, " \t")); ++argc) {
-      if(argc >= MAX_ARG_COUNT) {
-        app_err = APP_MEMORY_ERROR;
-        goto error;
-      }
-      argv[argc] = ptr;
-    }
     nerror = arg_parse(argc, argv, cmd->arg_table);
 
     if(nerror < parsing_error_count) {
       active_cmd = cmd;
       parsing_error_count = nerror;
     }
-
     if(nerror == 0)
       break;
   }
 
   if(parsing_error_count != 0) {
-    const char* ptr = NULL;
+    long fpos = 0;
+    size_t size =0; 
 
     rewind(app->cmd.stream);
     arg_print_errors
-      (app->cmd.stream, 
-       (struct arg_end*)active_cmd->arg_table[active_cmd->argc - 1], name);
+      (app->cmd.stream,
+       (struct arg_end*)active_cmd->arg_table[active_cmd->argc - 1], 
+       name);
+    fpos = ftell(app->cmd.stream);
+    size = MIN((size_t)fpos, sizeof(app->cmd.scratch)/sizeof(char) - 1);
     rewind(app->cmd.stream);
-    ptr = fgets
-      (app->cmd.scratch,
-       sizeof(app->cmd.scratch)/sizeof(char) - 1, /* -1 <=> '/0' char. */
-       app->cmd.stream);
-    if(ptr)
-      APP_LOG_ERR(app->logger, "%s", ptr);
+    fread(app->cmd.scratch, size, 1, app->cmd.stream);
+    app->cmd.scratch[size] = '\0';
+    APP_LOG_ERR(app->logger, "%s", app->cmd.scratch);
     app_err = APP_COMMAND_ERROR;
     goto error;
   }
@@ -669,6 +669,9 @@ app_man_command
   rewind(app->cmd.stream);
   LIST_FOR_EACH(node, cmd_list) {
     struct app_command* cmd = CONTAINER_OF(node, struct app_command, node);
+
+    if(node != list_head(cmd_list))
+       fprintf(app->cmd.stream, "\n");
 
     fprintf(app->cmd.stream, "%s", name);
     arg_print_syntaxv(app->cmd.stream, cmd->arg_table, "\n");
