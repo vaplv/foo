@@ -260,7 +260,7 @@ parse_uvw
    struct lex* lex,
    struct sl_vector* vec)
 {
-  float f3[3];
+  float f3[3] = { 0.f, 0.f, 0.f };
   char* token = NULL;
   enum sl_error sl_err = SL_NO_ERROR;
   enum rsrc_error err = RSRC_NO_ERROR;
@@ -1140,23 +1140,19 @@ rsrc_load_wavefront_obj
     err = RSRC_NO_ERROR;
     goto error;
   }
-
   fptr = fopen(path, "r");
   if(!fptr) {
     err = RSRC_IO_ERROR;
     goto error;
   }
-
   if(fseek(fptr, 0, SEEK_END) != 0) {
     err = RSRC_IO_ERROR;
     goto error;
   }
-
   if((file_len = ftell(fptr)) < 0) {
     err = RSRC_IO_ERROR;
     goto error;
   }
-
   if(fseek(fptr, 0L, SEEK_SET) != 0) {
     err = RSRC_IO_ERROR;
     goto error;
@@ -1168,7 +1164,6 @@ rsrc_load_wavefront_obj
     err = RSRC_MEMORY_ERROR;
     goto error;
   }
-
   nb_bytes = fread(file_content, sizeof(char), file_len, fptr);
   if(nb_bytes != (size_t)file_len) {
     err = RSRC_IO_ERROR;
@@ -1182,7 +1177,6 @@ rsrc_load_wavefront_obj
   err = clear_wavefront_obj(wobj);
   if(err != RSRC_NO_ERROR)
     goto error;
-
   err = parse_wavefront_obj(wobj, path, file_content);
   if(err != RSRC_NO_ERROR)
     goto error;

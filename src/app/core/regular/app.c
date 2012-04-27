@@ -713,7 +713,7 @@ app_init(struct app_args* args, struct app** out_app)
 
   if(args->model) {
     /* Create the model and add an instance of it to the world. */
-    if(APP_NO_ERROR == app_create_model(app, args->model, &mdl)) {
+    if(APP_NO_ERROR == app_create_model(app, args->model, NULL, &mdl)) {
       app_err = app_instantiate_model(app, mdl, NULL, &mdl_instance);
       if(app_err != APP_NO_ERROR)
         goto error;

@@ -86,10 +86,10 @@ main(int argc, char** argv)
     (app, APP_SIGNAL_DESTROY_MODEL, APP_CALLBACK(cbk), &model3), OK);
 
   model2 = NULL;
-  CHECK(app_create_model(NULL, NULL, NULL), BAD_ARG);
-  CHECK(app_create_model(app, NULL, NULL), BAD_ARG);
-  CHECK(app_create_model(NULL, NULL, &model), BAD_ARG);
-  CHECK(app_create_model(app, NULL, &model), OK);
+  CHECK(app_create_model(NULL, NULL, NULL, NULL), BAD_ARG);
+  CHECK(app_create_model(app, NULL, NULL, NULL), BAD_ARG);
+  CHECK(app_create_model(NULL, NULL, NULL, &model), BAD_ARG);
+  CHECK(app_create_model(app, NULL, NULL, &model), OK);
   CHECK(model, model2);
 
   model3 = NULL;
@@ -98,7 +98,7 @@ main(int argc, char** argv)
   CHECK(model, model3);
 
   model2 = NULL;
-  CHECK(app_create_model(app, PATH, &model), OK);
+  CHECK(app_create_model(app, PATH, NULL, &model), OK);
   CHECK(model, model2);
 
   model2 = NULL;
@@ -136,8 +136,9 @@ main(int argc, char** argv)
     STATIC_ASSERT(MODEL_COUNT < 9999, Unexpected_MODEL_COUNT);
     snprintf(name, 7, "mdl%zu", i + 1);
     name[7] = '\0';
-    CHECK(app_create_model(app, PATH, &model_list[i]), OK);
-    CHECK(app_set_model_name(model_list[i], name), OK);
+    CHECK(app_create_model(app, PATH, name, &model_list[i]), OK);
+    CHECK(app_model_name(model_list[i], &cstr), OK);
+    CHECK(strcmp(cstr, name), 0);
   }
 
   CHECK(app_model_name_completion(NULL, NULL, 0, NULL, NULL), BAD_ARG);
@@ -246,7 +247,7 @@ main(int argc, char** argv)
   for(i = 1; i < len; ++i) {
     CHECK(strcmp(lst[i-1], lst[i]) <= 0, true);
     CHECK(strncmp(lst[i], "my", 2), 0);
-  } 
+  }
   i = len;
   CHECK(app_model_instance_name_completion(app, "my_", 3, &len, &lst), OK);
   CHECK(len < i, true);
@@ -254,8 +255,8 @@ main(int argc, char** argv)
   for(i = 1; i < len; ++i) {
     CHECK(strcmp(lst[i-1], lst[i]) <= 0, true);
     CHECK(strncmp(lst[i], "my_", 3), 0);
-  } 
- 
+  }
+
   CHECK(app_model_instance_ref_get(NULL), BAD_ARG);
   CHECK(app_model_instance_ref_get(instance), OK);
   CHECK(app_model_instance_ref_put(NULL), BAD_ARG);

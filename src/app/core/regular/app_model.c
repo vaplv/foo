@@ -208,7 +208,11 @@ release_model(struct ref* ref)
  *
  ******************************************************************************/
 EXPORT_SYM enum app_error
-app_create_model(struct app* app, const char* path, struct app_model** model)
+app_create_model
+  (struct app* app, 
+   const char* path,
+   const char* name,
+   struct app_model** model)
 {
   struct app_model* mdl = NULL;
   enum rsrc_error rsrc_err = RSRC_NO_ERROR;
@@ -229,7 +233,7 @@ app_create_model(struct app* app, const char* path, struct app_model** model)
   APP(ref_get(app));
   mdl->app = app;
 
-  app_err = app_init_object(app, &mdl->obj, APP_MODEL, path);
+  app_err = app_init_object(app, &mdl->obj, APP_MODEL, name);
   if(app_err != APP_NO_ERROR)
     goto error;
 

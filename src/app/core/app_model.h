@@ -9,7 +9,8 @@ struct app_model;
 extern enum app_error
 app_create_model
   (struct app* app,
-   const char* path, /* May be null. */
+   const char* path, /* May be NULL. */
+   const char* name, /* May be NULL. */
    struct app_model** model);
 
 extern enum app_error

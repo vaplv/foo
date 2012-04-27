@@ -95,13 +95,23 @@ cmd_load(struct app* app, size_t argc UNUSED, const struct app_cmdarg** argv)
   struct app_model* mdl = NULL;
   enum app_error app_err = APP_NO_ERROR;
   assert(app != NULL
-      && argc == 2
+      && argc == 3
       && argv != NULL
+      && argv[0]->type == APP_CMDARG_STRING
       && argv[1]->type == APP_CMDARG_FILE
-      && argv[1]->count == 1);
+      && argv[2]->type == APP_CMDARG_STRING
+      && argv[0]->count == 1
+      && argv[1]->count == 1
+      && argv[2]->count == 1);
 
   if(argv[1]->value_list[0].is_defined) {
-    app_err = app_create_model(app, argv[1]->value_list[0].data.string, &mdl);
+    app_err = app_create_model
+      (app,
+       argv[1]->value_list[0].data.string,
+       argv[2]->value_list[0].is_defined
+        ? argv[2]->value_list[0].data.string
+        : NULL,
+       &mdl);
     if(app_err == APP_NO_ERROR) {
       APP_LOG_MSG
         (app->logger,
@@ -127,9 +137,9 @@ cmd_help(struct app* app, size_t argc UNUSED, const struct app_cmdarg** argv)
 
   rewind(app->cmd.stream);
   app_err = app_man_command
-    (app, 
-     argv[1]->value_list[0].data.string, 
-     NULL, 
+    (app,
+     argv[1]->value_list[0].data.string,
+     NULL,
      sizeof(app->cmd.scratch)/sizeof(char),
      app->cmd.scratch);
   if(app_err == APP_NO_ERROR)
@@ -201,9 +211,14 @@ static void
 cmd_spawn(struct app* app, size_t argc UNUSED, const struct app_cmdarg** argv)
 {
   assert(app != NULL
-      && argc == 2
+      && argc == 3
       && argv != NULL
-      && argv[1]->type == APP_CMDARG_STRING);
+      && argv[0]->type == APP_CMDARG_STRING
+      && argv[1]->type == APP_CMDARG_STRING
+      && argv[2]->type == APP_CMDARG_STRING
+      && argv[0]->count == 1
+      && argv[1]->count == 1
+      && argv[2]->count == 1);
 
   if(argv[1]->value_list[0].is_defined == true) {
     struct app_object* obj = NULL;
@@ -219,7 +234,13 @@ cmd_spawn(struct app* app, size_t argc UNUSED, const struct app_cmdarg** argv)
       struct app_model_instance* instance = NULL;
       enum app_error app_err = APP_NO_ERROR;
 
-      app_err = app_instantiate_model(app, mdl, NULL, &instance);
+      app_err = app_instantiate_model
+        (app,
+         mdl,
+         argv[2]->value_list[0].is_defined
+          ? argv[2]->value_list[0].data.string
+          : NULL,
+         &instance);
       if(app_err != APP_NO_ERROR) {
         APP_LOG_ERR
           (app->logger,
@@ -278,11 +299,19 @@ app_setup_builtin_commands(struct app* app)
   CALL(app_add_command
     (app, "load", cmd_load, NULL, APP_CMDARGV
      (APP_CMDARG_APPEND_FILE("m", "model", "<path>", NULL, 1, 1),
+      APP_CMDARG_APPEND_STRING("n", "name", "<name>", NULL, 0, 1, NULL),
       APP_CMDARG_END),
      "load resources"));
   CALL(app_add_command
     (app, "spawn", cmd_spawn, app_model_name_completion, APP_CMDARGV
-     (APP_CMDARG_APPEND_STRING("m", "model", "<model-name>", NULL, 0, 1, NULL),
+     (APP_CMDARG_APPEND_STRING
+        ("m", "model", "<model>",
+         "name of the model from which an instance is spawned",
+         0, 1, NULL),
+      APP_CMDARG_APPEND_STRING
+        ("n", "name", "<name>",
+         "name of the spawned instance",
+         0, 1, NULL),
       APP_CMDARG_END),
      "spawn an instance into the world"));
   #undef CALL

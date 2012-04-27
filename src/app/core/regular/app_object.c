@@ -284,7 +284,11 @@ app_get_object
   if(!app || type == APP_NB_OBJECT_TYPES || !name || !out_obj)
     return APP_INVALID_ARGUMENT;
   SL(flat_map_find(app->object_map[type], &name, (void**)&obj));
-  *out_obj = *obj;
+  if(!obj) {
+    *out_obj = NULL;
+  } else {
+    *out_obj = *obj;
+  }
   return APP_NO_ERROR;
 }
 

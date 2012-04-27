@@ -39,7 +39,7 @@ main(int argc, char** argv)
   CHECK(fclose(fp), 0);
 
   CHECK(app_init(&args, &app), OK);
-  CHECK(app_create_model(app, PATH, &model), OK);
+  CHECK(app_create_model(app, PATH, NULL, &model), OK);
   CHECK(app_instantiate_model(app, model, NULL, &instances[0]), OK);
   CHECK(app_instantiate_model(app, model, NULL, &instances[1]), OK);
 
