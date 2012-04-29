@@ -46,6 +46,12 @@ app_model_name
    const char** name);
 
 extern enum app_error
+app_get_model
+  (struct app* app,
+   const char* mdl_name,
+   struct app_model** mdl); /* Set to NULL if not found. */
+
+extern enum app_error
 app_model_name_completion
   (struct app* app,
    const char* mdl_name,

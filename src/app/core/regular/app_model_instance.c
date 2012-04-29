@@ -109,6 +109,34 @@ app_set_model_instance_name
 }
 
 EXPORT_SYM enum app_error
+app_get_model_instance
+  (struct app* app,
+   const char* name,
+   struct app_model_instance** instance)
+{
+  struct app_object* obj = NULL;
+  enum app_error app_err = APP_NO_ERROR;
+
+  if(!instance) {
+    app_err = APP_INVALID_ARGUMENT;
+    goto error;
+  }
+  app_err = app_get_object(app, APP_MODEL_INSTANCE, name, &obj);
+  if(app_err != APP_NO_ERROR)
+    goto error;
+
+  if(obj) {
+    *instance = app_object_to_model_instance(obj);
+  } else {
+    *instance = NULL;
+  }
+exit:
+  return app_err;
+error:
+  goto exit;
+}
+
+EXPORT_SYM enum app_error
 app_model_instance_name_completion
   (struct app* app,
    const char* instance_name,

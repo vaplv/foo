@@ -130,6 +130,17 @@ main(int argc, char** argv)
   CHECK(app_model_name(model, &cstr), OK);
   CHECK(strcmp(cstr, "Mdl0"), 0);
 
+  CHECK(app_get_model(NULL, NULL, NULL), BAD_ARG);
+  CHECK(app_get_model(app, NULL, NULL), BAD_ARG);
+  CHECK(app_get_model(NULL, "Mdl0", NULL), BAD_ARG);
+  CHECK(app_get_model(app, "Mdl0", NULL), BAD_ARG);
+  CHECK(app_get_model(NULL, NULL, &model), BAD_ARG);
+  CHECK(app_get_model(app, NULL, &model), BAD_ARG);
+  CHECK(app_get_model(NULL, "Mdl0", &model), BAD_ARG);
+  CHECK(app_get_model(app, "Mdl0", &model), OK);
+  CHECK(app_model_name(model, &cstr), OK);
+  CHECK(strcmp(cstr, "Mdl0"), 0);
+
   /* This model may be freed when the application will be shut down. */
   for(i = 0; i < MODEL_COUNT; ++i) {
     char name[8];
@@ -209,6 +220,17 @@ main(int argc, char** argv)
   CHECK(app_model_instance_name(NULL, NULL), BAD_ARG);
   CHECK(app_model_instance_name(instance, NULL), BAD_ARG);
   CHECK(app_model_instance_name(NULL, &cstr), BAD_ARG);
+  CHECK(app_model_instance_name(instance, &cstr), OK);
+  CHECK(strcmp(cstr, "my_inst0"), 0);
+
+  CHECK(app_get_model_instance(NULL, NULL, NULL), BAD_ARG);
+  CHECK(app_get_model_instance(app, NULL, NULL), BAD_ARG);
+  CHECK(app_get_model_instance(NULL, "my_inst0", NULL), BAD_ARG);
+  CHECK(app_get_model_instance(app, "my_inst0", NULL), BAD_ARG);
+  CHECK(app_get_model_instance(NULL, NULL, &instance), BAD_ARG);
+  CHECK(app_get_model_instance(app, NULL, &instance), BAD_ARG);
+  CHECK(app_get_model_instance(NULL, "my_inst0", &instance), BAD_ARG);
+  CHECK(app_get_model_instance(app, "my_inst0", &instance), OK);
   CHECK(app_model_instance_name(instance, &cstr), OK);
   CHECK(strcmp(cstr, "my_inst0"), 0);
 

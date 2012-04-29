@@ -209,10 +209,12 @@ cmd_clear
 
 static void
 cmd_rename_model
-  (struct app* app, 
-   size_t argc UNUSED, 
+  (struct app* app,
+   size_t argc UNUSED,
    const struct app_cmdarg** argv)
 {
+  struct app_model* mdl = NULL;
+
   assert(app != NULL
       && argc == 3
       && argv != NULL
@@ -222,14 +224,26 @@ cmd_rename_model
       && argv[0]->count == 1
       && argv[1]->count == 1
       && argv[2]->count == 1);
+
+  APP(get_model(app, argv[1]->value_list[0].data.string, &mdl));
+  if(mdl) {
+    APP(set_model_name(mdl, argv[2]->value_list[0].data.string));
+  } else {
+    APP_LOG_ERR
+      (app->logger,
+       "the model `%s' does not exist\n",
+       argv[1]->value_list[0].data.string);
+  }
 }
 
 static void
 cmd_rename_instance
   (struct app* app,
-   size_t argc UNUSED, 
+   size_t argc UNUSED,
    const struct app_cmdarg** argv)
 {
+  struct app_model_instance* instance = NULL;
+
   assert(app != NULL
       && argc == 3
       && argv != NULL
@@ -239,6 +253,16 @@ cmd_rename_instance
       && argv[0]->count == 1
       && argv[1]->count == 1
       && argv[2]->count == 1);
+
+  APP(get_model_instance(app, argv[1]->value_list[0].data.string, &instance));
+  if(instance) {
+    APP(set_model_instance_name(instance, argv[2]->value_list[0].data.string));
+  } else {
+    APP_LOG_ERR
+      (app->logger,
+       "the instance `%s' does not exist\n",
+       argv[1]->value_list[0].data.string);
+  }
 }
 
 static void
@@ -316,13 +340,13 @@ app_setup_builtin_commands(struct app* app)
   CALL(app_add_command
     (app, "exit", cmd_exit, NULL, NULL, "cause the application to exit"));
   CALL(app_add_command
-    (app, "help", cmd_help, app_command_name_completion, 
+    (app, "help", cmd_help, app_command_name_completion,
      APP_CMDARGV
      (APP_CMDARG_APPEND_STRING(NULL, NULL, "<command>", NULL, 1, 1, NULL),
       APP_CMDARG_END),
      "give command informations"));
   CALL(app_add_command
-    (app, "ls", cmd_ls, NULL, 
+    (app, "ls", cmd_ls, NULL,
      APP_CMDARGV
      (APP_CMDARG_APPEND_LITERAL
       ("c", "commands", "list the registered commands", 0, 1),
@@ -333,28 +357,28 @@ app_setup_builtin_commands(struct app* app)
       APP_CMDARG_END),
      "list application contents"));
   CALL(app_add_command
-    (app, "load", cmd_load, NULL, 
+    (app, "load", cmd_load, NULL,
      APP_CMDARGV
      (APP_CMDARG_APPEND_FILE("m", "model", "<path>", NULL, 1, 1),
       APP_CMDARG_APPEND_STRING("n", "name", "<name>", NULL, 0, 1, NULL),
       APP_CMDARG_END),
      "load resources"));
   CALL(app_add_command
-    (app, "rename", cmd_rename_model, app_model_name_completion, 
+    (app, "rename", cmd_rename_model, app_model_name_completion,
      APP_CMDARGV
      (APP_CMDARG_APPEND_STRING("m", "model", "<model>", NULL, 1, 1, NULL),
       APP_CMDARG_APPEND_STRING(NULL, NULL, "<name>", NULL, 1, 1, NULL),
       APP_CMDARG_END),
      "rename model"));
   CALL(app_add_command
-    (app, "rename", cmd_rename_instance, app_model_instance_name_completion, 
+    (app, "rename", cmd_rename_instance, app_model_instance_name_completion,
      APP_CMDARGV
      (APP_CMDARG_APPEND_STRING("i", "instance", "<instance>", NULL, 1, 1, NULL),
       APP_CMDARG_APPEND_STRING(NULL, NULL, "<name>", NULL, 1, 1, NULL),
       APP_CMDARG_END),
      "rename instance"));
   CALL(app_add_command
-    (app, "spawn", cmd_spawn, app_model_name_completion, 
+    (app, "spawn", cmd_spawn, app_model_name_completion,
      APP_CMDARGV
      (APP_CMDARG_APPEND_STRING
         ("m", "model", "<model>",

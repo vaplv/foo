@@ -434,6 +434,31 @@ app_model_name(const struct app_model* model, const char** name)
 }
 
 EXPORT_SYM enum app_error
+app_get_model(struct app* app, const char* mdl_name, struct app_model** mdl)
+{
+  struct app_object* obj = NULL;
+  enum app_error app_err = APP_NO_ERROR;
+
+  if(!mdl) {
+    app_err = APP_INVALID_ARGUMENT;
+    goto error;
+  }
+  app_err = app_get_object(app, APP_MODEL, mdl_name, &obj);
+  if(app_err != APP_NO_ERROR)
+    goto error;
+
+  if(obj) {
+    *mdl = app_object_to_model(obj);
+  } else {
+    *mdl = NULL;
+  }
+exit:
+  return app_err;
+error:
+  goto exit;
+}
+
+EXPORT_SYM enum app_error
 app_model_name_completion
   (struct app* app,
    const char* mdl_name,
