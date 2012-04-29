@@ -269,7 +269,7 @@ main(int argc, char **argv)
 
   CHECK(app_add_command(app, "__foo", foo, NULL, NULL, NULL), OK);
   CHECK(app_add_command(app, "__foo", foo, NULL, NULL, NULL), OK);
-  CHECK(app_add_command 
+  CHECK(app_add_command
     (app, "__foo", foo, NULL, APP_CMDARGV(
       APP_CMDARG_APPEND_LITERAL("vV", "verbose, verb", NULL, 1, 1),
       APP_CMDARG_END),
@@ -481,35 +481,63 @@ main(int argc, char **argv)
   day_list__[day_count__++] = "Saturday";
   CHECK(app_execute_command(app, "__day Monday Friday Saturday"), OK);
 
-  CHECK(app_command_arg_completion(NULL, NULL, NULL, 0, NULL, NULL), BAD_ARG);
-  CHECK(app_command_arg_completion(app, NULL, NULL, 0, NULL, NULL), BAD_ARG);
-  CHECK(app_command_arg_completion(NULL, "__day", NULL, 0, NULL, NULL), BAD_ARG);
-  CHECK(app_command_arg_completion(app, "__day", NULL, 0, NULL, NULL), BAD_ARG);
-  CHECK(app_command_arg_completion(NULL, NULL, "S", 0, NULL, NULL), BAD_ARG);
-  CHECK(app_command_arg_completion(app, NULL, "S", 0, NULL, NULL), BAD_ARG);
-  CHECK(app_command_arg_completion(NULL, "__day", "S", 0, NULL, NULL), BAD_ARG);
-  CHECK(app_command_arg_completion(app, "__day", "S", 0, NULL, NULL), BAD_ARG);
-  CHECK(app_command_arg_completion(NULL, NULL, NULL, 0, &len, NULL), BAD_ARG);
-  CHECK(app_command_arg_completion(app, NULL, NULL, 0, &len, NULL), BAD_ARG);
-  CHECK(app_command_arg_completion(NULL, "__day", NULL, 0, &len, NULL), BAD_ARG);
-  CHECK(app_command_arg_completion(app, "__day", NULL, 0, &len, NULL), BAD_ARG);
-  CHECK(app_command_arg_completion(NULL, NULL, "S", 0, &len, NULL), BAD_ARG);
-  CHECK(app_command_arg_completion(app, NULL, "S", 0, &len, NULL), BAD_ARG);
-  CHECK(app_command_arg_completion(NULL, "__day", "S", 0, &len, NULL), BAD_ARG);
-  CHECK(app_command_arg_completion(app, "__day", "S", 0, &len, NULL), BAD_ARG);
+  CHECK(app_command_arg_completion
+    (NULL, NULL, NULL, 0, 0, NULL, NULL, NULL), BAD_ARG);
+  CHECK(app_command_arg_completion
+    (app, NULL, NULL, 0, 0, NULL, NULL, NULL), BAD_ARG);
+  CHECK(app_command_arg_completion
+    (NULL, "__day", NULL, 0, 0, NULL, NULL, NULL), BAD_ARG);
+  CHECK(app_command_arg_completion
+    (app, "__day", NULL, 0, 0, NULL, NULL, NULL), BAD_ARG);
+  CHECK(app_command_arg_completion
+    (NULL, NULL, "S", 0, 0, NULL, NULL, NULL), BAD_ARG);
+  CHECK(app_command_arg_completion
+    (app, NULL, "S", 0, 0, NULL, NULL, NULL), BAD_ARG);
+  CHECK(app_command_arg_completion
+    (NULL, "__day", "S", 0, 0, NULL, NULL, NULL), BAD_ARG);
+  CHECK(app_command_arg_completion
+    (app, "__day", "S", 0, 0, NULL, NULL, NULL), BAD_ARG);
+  CHECK(app_command_arg_completion
+    (NULL, NULL, NULL, 0, 0, NULL, &len, NULL), BAD_ARG);
+  CHECK(app_command_arg_completion
+    (app, NULL, NULL, 0, 0, NULL, &len, NULL), BAD_ARG);
+  CHECK(app_command_arg_completion
+    (NULL, "__day", NULL, 0, 0, NULL, &len, NULL), BAD_ARG);
+  CHECK(app_command_arg_completion
+    (app, "__day", NULL, 0, 0, NULL, &len, NULL), BAD_ARG);
+  CHECK(app_command_arg_completion
+    (NULL, NULL, "S", 0, 0, NULL, &len, NULL), BAD_ARG);
+  CHECK(app_command_arg_completion
+    (app, NULL, "S", 0, 0, NULL, &len, NULL), BAD_ARG);
+  CHECK(app_command_arg_completion
+    (NULL, "__day", "S", 0, 0, NULL, &len, NULL), BAD_ARG);
+  CHECK(app_command_arg_completion
+    (app, "__day", "S", 0, 0, NULL, &len, NULL), BAD_ARG);
 
-  CHECK(app_command_arg_completion(NULL, NULL, NULL, 0, NULL, &lst), BAD_ARG);
-  CHECK(app_command_arg_completion(app, NULL, NULL, 0, NULL, &lst), BAD_ARG);
-  CHECK(app_command_arg_completion(NULL, "__day", NULL, 0, NULL, &lst), BAD_ARG);
-  CHECK(app_command_arg_completion(app, "__day", NULL, 0, NULL, &lst), BAD_ARG);
-  CHECK(app_command_arg_completion(NULL, NULL, "S", 0, NULL, &lst), BAD_ARG);
-  CHECK(app_command_arg_completion(app, NULL, "S", 0, NULL, &lst), BAD_ARG);
-  CHECK(app_command_arg_completion(NULL, "__day", "S", 0, NULL, &lst), BAD_ARG);
-  CHECK(app_command_arg_completion(app, "__day", "S", 0, NULL, &lst), BAD_ARG);
-  CHECK(app_command_arg_completion(NULL, NULL, NULL, 0, &len, &lst), BAD_ARG);
-  CHECK(app_command_arg_completion(app, NULL, NULL, 0, &len, &lst), BAD_ARG);
-  CHECK(app_command_arg_completion(NULL, "__day", NULL, 0, &len, &lst), BAD_ARG);
-  CHECK(app_command_arg_completion(app, "__day", NULL, 0, &len, &lst), OK);
+  CHECK(app_command_arg_completion
+    (NULL, NULL, NULL, 0, 0, NULL, NULL, &lst), BAD_ARG);
+  CHECK(app_command_arg_completion
+    (app, NULL, NULL, 0, 0, NULL, NULL, &lst), BAD_ARG);
+  CHECK(app_command_arg_completion
+    (NULL, "__day", NULL, 0, 0, NULL, NULL, &lst), BAD_ARG);
+  CHECK(app_command_arg_completion
+    (app, "__day", NULL, 0, 0, NULL, NULL, &lst), BAD_ARG);
+  CHECK(app_command_arg_completion
+    (NULL, NULL, "S", 0, 0, NULL, NULL, &lst), BAD_ARG);
+  CHECK(app_command_arg_completion
+    (app, NULL, "S", 0, 0, NULL, NULL, &lst), BAD_ARG);
+  CHECK(app_command_arg_completion
+    (NULL, "__day", "S", 0, 0, NULL, NULL, &lst), BAD_ARG);
+  CHECK(app_command_arg_completion
+    (app, "__day", "S", 0, 0, NULL, NULL, &lst), BAD_ARG);
+  CHECK(app_command_arg_completion
+    (NULL, NULL, NULL, 0, 0, NULL, &len, &lst), BAD_ARG);
+  CHECK(app_command_arg_completion
+    (app, NULL, NULL, 0, 0, NULL, &len, &lst), BAD_ARG);
+  CHECK(app_command_arg_completion
+    (NULL, "__day", NULL, 0, 0, NULL, &len, &lst), BAD_ARG);
+  CHECK(app_command_arg_completion
+    (app, "__day", NULL, 0, 0, NULL, &len, &lst), OK);
   CHECK(len, 7);
   NCHECK(lst, NULL);
   CHECK(strcmp(lst[0], "Friday"), 0);
@@ -519,10 +547,14 @@ main(int argc, char **argv)
   CHECK(strcmp(lst[4], "Thursday"), 0);
   CHECK(strcmp(lst[5], "Tuesday"), 0);
   CHECK(strcmp(lst[6], "Wednesday"), 0);
-  CHECK(app_command_arg_completion(NULL, NULL, "S", 0, &len, &lst), BAD_ARG);
-  CHECK(app_command_arg_completion(app, NULL, "S", 0, &len, &lst), BAD_ARG);
-  CHECK(app_command_arg_completion(NULL, "__day", "S", 0, &len, &lst), BAD_ARG);
-  CHECK(app_command_arg_completion(app, "__day", "S", 0, &len, &lst), OK);
+  CHECK(app_command_arg_completion
+    (NULL, NULL, "S", 0, 0, NULL, &len, &lst), BAD_ARG);
+  CHECK(app_command_arg_completion
+    (app, NULL, "S", 0, 0, NULL, &len, &lst), BAD_ARG);
+  CHECK(app_command_arg_completion
+    (NULL, "__day", "S", 0, 0, NULL, &len, &lst), BAD_ARG);
+  CHECK(app_command_arg_completion
+    (app, "__day", "S", 0, 0, NULL, &len, &lst), OK);
   CHECK(len, 7);
   NCHECK(lst, NULL);
   CHECK(strcmp(lst[0], "Friday"), 0);
@@ -532,30 +564,36 @@ main(int argc, char **argv)
   CHECK(strcmp(lst[4], "Thursday"), 0);
   CHECK(strcmp(lst[5], "Tuesday"), 0);
   CHECK(strcmp(lst[6], "Wednesday"), 0);
-  CHECK(app_command_arg_completion(app, "__day", "Saxxx", 1, &len, &lst), OK);
+  CHECK(app_command_arg_completion
+    (app, "__day", "Saxxx", 1, 0, NULL, &len, &lst), OK);
   CHECK(len, 2);
   NCHECK(lst, NULL);
   CHECK(strcmp(lst[0], "Saturday"), 0);
   CHECK(strcmp(lst[1], "Sunday"), 0);
-  CHECK(app_command_arg_completion(app, "__day", "Saxxx", 2, &len, &lst), OK);
+  CHECK(app_command_arg_completion
+    (app, "__day", "Saxxx", 2, 0, NULL, &len, &lst), OK);
   CHECK(len, 1);
   NCHECK(lst, NULL);
   CHECK(strcmp(lst[0], "Saturday"), 0);
-  CHECK(app_command_arg_completion(app, "__day", "Saxxx", 3, &len, &lst), OK);
+  CHECK(app_command_arg_completion
+    (app, "__day", "Saxxx", 3, 0, NULL, &len, &lst), OK);
   CHECK(len, 0);
   NCHECK(lst, NULL);
-  CHECK(app_command_arg_completion(app, "__day", "Wed", 1, &len, &lst), OK);
+  CHECK(app_command_arg_completion
+    (app, "__day", "Wed", 1, 0, NULL, &len, &lst), OK);
   CHECK(len, 1);
   NCHECK(lst, NULL);
   CHECK(strcmp(lst[0], "Wednesday"), 0);
-  CHECK(app_command_arg_completion(app, "__day", "wed", 3, &len, &lst), OK);
+  CHECK(app_command_arg_completion
+    (app, "__day", "wed", 3, 0, NULL, &len, &lst), OK);
   CHECK(len, 0);
   NCHECK(lst, NULL);
 
   CHECK(app_add_command
     (app, "__cat", cat, NULL,
      APP_CMDARGV
-      (APP_CMDARG_APPEND_FILE(NULL, NULL, "<file> ...", "files", 1, MAX_FILE_COUNT),
+      (APP_CMDARG_APPEND_FILE
+       (NULL, NULL, "<file> ...", "files", 1, MAX_FILE_COUNT),
        APP_CMDARG_END),
       NULL),
     OK);

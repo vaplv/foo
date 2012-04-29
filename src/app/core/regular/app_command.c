@@ -151,6 +151,75 @@ error:
   goto exit;
 }
 
+static FINLINE void
+set_optvalue_flag(struct app_command* cmd, const bool val)
+{
+  size_t argv_id = 0;
+  size_t tbl_id = 0;
+  assert(cmd);
+
+  #define SET_OPTVAL(arg, val) \
+    do { \
+      if(val) \
+        (arg)->hdr.flag |= ARG_HASOPTVALUE; \
+      else \
+        (arg)->hdr.flag &= ~ARG_HASOPTVALUE; \
+    } while(0)
+
+  for(argv_id = 1, tbl_id = 0; argv_id < cmd->argc; ++argv_id, ++tbl_id) {
+    switch(cmd->argv[argv_id]->type) {
+      case APP_CMDARG_INT:
+        SET_OPTVAL((struct arg_int*)cmd->arg_table[tbl_id], val);
+        break;
+      case APP_CMDARG_FILE:
+        SET_OPTVAL((struct arg_file*)cmd->arg_table[tbl_id], val);
+        break;
+      case APP_CMDARG_FLOAT:
+        SET_OPTVAL((struct arg_dbl*)cmd->arg_table[tbl_id], val);
+        break;
+      case APP_CMDARG_STRING:
+        SET_OPTVAL((struct arg_str*)cmd->arg_table[tbl_id], val);
+        break;
+      case APP_CMDARG_LITERAL:
+        SET_OPTVAL((struct arg_lit*)cmd->arg_table[tbl_id], val);
+        break;
+      default: assert(0); break;
+    }
+  }
+  #undef SET_OPTVAL
+}
+
+static int
+defined_args_count(struct app_command* cmd)
+{
+  int count = 0;
+  size_t argv_id = 0;
+  size_t tbl_id = 0;
+  assert(cmd);
+
+  for(argv_id = 1, tbl_id = 0; argv_id < cmd->argc; ++argv_id, ++tbl_id) {
+    switch(cmd->argv[argv_id]->type) {
+      case APP_CMDARG_INT:
+        count += ((struct arg_int*)cmd->arg_table[tbl_id])->count;
+        break;
+      case APP_CMDARG_FILE:
+        count += ((struct arg_file*)cmd->arg_table[tbl_id])->count;
+        break;
+      case APP_CMDARG_FLOAT:
+        count += ((struct arg_dbl*)cmd->arg_table[tbl_id])->count;
+        break;
+      case APP_CMDARG_STRING:
+        count += ((struct arg_str*)cmd->arg_table[tbl_id])->count;
+        break;
+      case APP_CMDARG_LITERAL:
+        count += ((struct arg_lit*)cmd->arg_table[tbl_id])->count;
+        break;
+      default: assert(0); break;
+    }
+  }
+  return count;
+}
+
 static enum app_error
 setup_cmd_arg(struct app* app, struct app_command* cmd, const char* name)
 {
@@ -281,7 +350,7 @@ register_command
   }
 
   list_add(list, &cmd->node);
-  
+
 exit:
   return app_err;
 error:
@@ -556,12 +625,12 @@ app_execute_command(struct app* app, const char* command)
   char* argv[MAX_ARG_COUNT];
   struct list_node* command_list = NULL;
   struct list_node* node = NULL;
-  struct app_command* active_cmd = NULL;
+  struct app_command* valid_cmd = NULL;
   char* name = NULL;
   char* ptr = NULL;
   size_t argc = 0;
   enum app_error app_err = APP_NO_ERROR;
-  int parsing_error_count = INT_MAX;
+  int min_nerror = 0;
 
   if(!app || !command) {
     app_err = APP_INVALID_ARGUMENT;
@@ -591,31 +660,34 @@ app_execute_command(struct app* app, const char* command)
     argv[argc] = ptr;
   }
 
+  min_nerror = INT_MAX;
   LIST_FOR_EACH(node, command_list) {
     struct app_command* cmd = CONTAINER_OF(node, struct app_command, node);
     int nerror = 0;
 
-    /* Parse the command. */
     assert(cmd->argc > 0);
     nerror = arg_parse(argc, argv, cmd->arg_table);
 
-    if(nerror < parsing_error_count) {
-      active_cmd = cmd;
-      parsing_error_count = nerror;
+    if(nerror <= min_nerror) {
+      if(nerror < min_nerror) {
+        min_nerror = nerror;
+        rewind(app->cmd.stream);
+      }
+      fprintf(app->cmd.stream, "\n%s", name);
+      arg_print_syntaxv(app->cmd.stream, cmd->arg_table, "\n");
+      arg_print_errors
+        (app->cmd.stream, (struct arg_end*)cmd->arg_table[cmd->argc - 1], name);
     }
-    if(nerror == 0)
+    if(nerror == 0) {
+      valid_cmd = cmd;
       break;
+    }
   }
 
-  if(parsing_error_count != 0) {
+  if(min_nerror != 0) {
     long fpos = 0;
-    size_t size =0; 
+    size_t size =0;
 
-    rewind(app->cmd.stream);
-    arg_print_errors
-      (app->cmd.stream,
-       (struct arg_end*)active_cmd->arg_table[active_cmd->argc - 1], 
-       name);
     fpos = ftell(app->cmd.stream);
     size = MIN((size_t)fpos, sizeof(app->cmd.scratch)/sizeof(char) - 1);
     rewind(app->cmd.stream);
@@ -627,11 +699,11 @@ app_execute_command(struct app* app, const char* command)
   }
 
   /* Setup the args and invoke the commands. */
-  app_err = setup_cmd_arg(app, active_cmd, name);
+  app_err = setup_cmd_arg(app, valid_cmd, name);
   if(app_err != APP_NO_ERROR)
     goto error;
-  active_cmd->func
-    (app, active_cmd->argc, (const struct app_cmdarg**)active_cmd->argv);
+  valid_cmd->func
+    (app, valid_cmd->argc, (const struct app_cmdarg**)valid_cmd->argv);
 
   #undef MAX_ARG_COUNT
 exit:
@@ -642,16 +714,16 @@ error:
 
 EXPORT_SYM enum app_error
 app_man_command
-  (struct app* app, 
-   const char* name, 
-   size_t* len, 
+  (struct app* app,
+   const char* name,
+   size_t* len,
    size_t max_buf_len,
    char* buffer)
 {
   struct list_node* cmd_list = NULL;
   struct list_node* node = NULL;
   enum app_error app_err = APP_NO_ERROR;
-  long fpos = 0; 
+  long fpos = 0;
 
   if(!app || !name || (max_buf_len && !buffer)) {
     app_err = APP_INVALID_ARGUMENT;
@@ -707,6 +779,8 @@ app_command_arg_completion
    const char* cmd_name,
    const char* arg_str,
    size_t arg_str_len,
+   size_t hint_argc,
+   char* hint_argv[],
    size_t* completion_list_len,
    const char** completion_list[])
 {
@@ -716,27 +790,78 @@ app_command_arg_completion
   if(!app
   || !cmd_name
   || (arg_str_len && !arg_str)
+  || (hint_argc && !hint_argv)
   || !completion_list_len
   || !completion_list) {
-    return APP_INVALID_ARGUMENT;
+    app_err =  APP_INVALID_ARGUMENT;
+    goto error;
   }
+  /* Default completion list value. */
   *completion_list_len = 0;
   *completion_list = NULL;
 
   SL(hash_table_find(app->cmd.htbl, &cmd_name, (void**)&cmd_list));
-  /* TODO return the union of the completion lists rather than the first one. */
   if(cmd_list != NULL) {
     struct app_command* cmd = NULL;
     assert(is_list_empty(cmd_list) == false);
 
-    cmd = CONTAINER_OF(cmd_list->next, struct app_command, node);
+    /* No multi syntax. */
+    if(list_head(cmd_list) == list_tail(cmd_list)) { 
+      cmd = CONTAINER_OF(list_head(cmd_list), struct app_command, node);
+      if(cmd->completion) {
+        app_err = cmd->completion
+          (app, arg_str, arg_str_len, completion_list_len, completion_list);
+        if(app_err != APP_NO_ERROR)
+          goto error;
+      }
+    /* Multi syntax. */
+    } else { 
+      struct app_command* valid_cmd = NULL;
+      struct list_node* node = NULL;
+      size_t nb_valid_cmd = 0;
+      int min_nerror = INT_MAX;
+      int max_ndefargs = INT_MIN;
 
-    if(cmd->completion != NULL) {
-      app_err = cmd->completion
-        (app, arg_str, arg_str_len, completion_list_len, completion_list);
+      LIST_FOR_EACH(node, cmd_list) {
+        int nerror = 0;
+        int ndefargs = 0;
+
+        cmd = CONTAINER_OF(node, struct app_command, node);
+        set_optvalue_flag(cmd, true);
+        nerror = arg_parse(hint_argc, hint_argv, cmd->arg_table);
+        ndefargs = defined_args_count(cmd);
+
+        /* Define as the completion function the one defined by the command
+         * syntax which match the best the hint arguments. If the minimal
+         * number of parsing error is obtained by several syntaxes, we select
+         * the syntax which have the maximum of its argument defined by the
+         * hint command. */
+        if(nerror < min_nerror
+        || (nerror == min_nerror && ndefargs > max_ndefargs)) {
+          valid_cmd = cmd;
+          nb_valid_cmd = 0;
+        }
+        min_nerror = MIN(nerror, min_nerror);
+        max_ndefargs = MAX(ndefargs, max_ndefargs);
+        nb_valid_cmd += ((ndefargs == max_ndefargs) & (nerror == min_nerror));
+        set_optvalue_flag(cmd, false);
+      }
+      /* Perform the completion only if an unique syntax match the previous
+       * completion heuristic and and if its completion process is defined. */
+      if(nb_valid_cmd == 1 && valid_cmd->completion) {
+        app_err = valid_cmd->completion
+          (app, arg_str, arg_str_len, completion_list_len, completion_list);
+      }
     }
   }
+exit:
   return app_err;
+error:
+  if(completion_list_len)
+    *completion_list_len = 0;
+  if(completion_list)
+    *completion_list = NULL;
+  goto exit;
 }
 
 EXPORT_SYM enum app_error

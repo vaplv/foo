@@ -157,6 +157,8 @@ app_command_arg_completion
    const char* cmd_name,
    const char* arg_str,
    size_t arg_str_len,
+   size_t hint_argc,
+   char* hint_argv[],
    size_t* completion_list_len,
    const char** completion_list[]);
 

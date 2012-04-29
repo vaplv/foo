@@ -401,11 +401,15 @@ app_command_buffer_completion
    const char** out_list[])
 {
   #define SCRATCH_SIZE 512
+  #define MAX_HINT_ARGS 8
   char scratch[SCRATCH_SIZE];
+  char* hint_argv[MAX_HINT_ARGS];
+  char* ptr = NULL;
+  char* tkn = NULL;
+  char* cmd_name = NULL;
   const char** list = NULL;
-  const char* ptr = NULL;
-  const char* tkn = NULL;
-  const char* cmd_name = NULL;
+  const char* cstr = NULL;
+  size_t hint_argc = 0;
   size_t len = 0;
   size_t tkn_id = 0;
   size_t tkn_len = 0;
@@ -420,14 +424,18 @@ app_command_buffer_completion
     app_err = APP_MEMORY_ERROR;
     goto error;
   }
-  SL(string_get(buf->cmd->current->str, &ptr));
-  strncpy(scratch, ptr, buf->cursor);
+  SL(string_get(buf->cmd->current->str, &cstr));
+  strncpy(scratch, cstr, buf->cursor);
   scratch[buf->cursor] = '\0';
 
   /* Find the token to complete. */
   cmd_name = tkn = strtok(scratch, " \t=");
+  hint_argv[hint_argc++] = tkn;
   for(tkn_id = 0; NULL != (ptr = strtok(NULL, " \t=")); ++tkn_id) {
     tkn = ptr;
+    if(hint_argc < MAX_HINT_ARGS) {
+      hint_argv[hint_argc++] = tkn;
+    }
   }
 
   if(!tkn) {
@@ -445,7 +453,8 @@ app_command_buffer_completion
   if(tkn_id == 0) {
     APP(command_name_completion(buf->app, cmd_name, buf->cursor, &len, &list));
   } else {
-    APP(command_arg_completion(buf->app, cmd_name, tkn, tkn_len, &len, &list));
+    APP(command_arg_completion
+      (buf->app, cmd_name, tkn, tkn_len, hint_argc, hint_argv, &len, &list));
   }
   if(len != 0) {
     const size_t last = len - 1;
@@ -464,6 +473,7 @@ app_command_buffer_completion
   if(out_list)
     *out_list = list;
   #undef SCRATCH_SIZE
+  #undef MAX_HINT_ARGS
 exit:
   return app_err;
 error:

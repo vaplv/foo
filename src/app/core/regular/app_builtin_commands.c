@@ -316,12 +316,14 @@ app_setup_builtin_commands(struct app* app)
   CALL(app_add_command
     (app, "exit", cmd_exit, NULL, NULL, "cause the application to exit"));
   CALL(app_add_command
-    (app, "help", cmd_help, app_command_name_completion, APP_CMDARGV
+    (app, "help", cmd_help, app_command_name_completion, 
+     APP_CMDARGV
      (APP_CMDARG_APPEND_STRING(NULL, NULL, "<command>", NULL, 1, 1, NULL),
       APP_CMDARG_END),
      "give command informations"));
   CALL(app_add_command
-    (app, "ls", cmd_ls, NULL, APP_CMDARGV
+    (app, "ls", cmd_ls, NULL, 
+     APP_CMDARGV
      (APP_CMDARG_APPEND_LITERAL
       ("c", "commands", "list the registered commands", 0, 1),
       APP_CMDARG_APPEND_LITERAL
@@ -331,29 +333,33 @@ app_setup_builtin_commands(struct app* app)
       APP_CMDARG_END),
      "list application contents"));
   CALL(app_add_command
-    (app, "load", cmd_load, NULL, APP_CMDARGV
+    (app, "load", cmd_load, NULL, 
+     APP_CMDARGV
      (APP_CMDARG_APPEND_FILE("m", "model", "<path>", NULL, 1, 1),
       APP_CMDARG_APPEND_STRING("n", "name", "<name>", NULL, 0, 1, NULL),
       APP_CMDARG_END),
      "load resources"));
   CALL(app_add_command
-    (app, "rename", cmd_rename_model, app_model_name_completion, APP_CMDARGV
+    (app, "rename", cmd_rename_model, app_model_name_completion, 
+     APP_CMDARGV
      (APP_CMDARG_APPEND_STRING("m", "model", "<model>", NULL, 1, 1, NULL),
       APP_CMDARG_APPEND_STRING(NULL, NULL, "<name>", NULL, 1, 1, NULL),
       APP_CMDARG_END),
      "rename model"));
   CALL(app_add_command
-    (app, "rename", cmd_rename_instance, app_model_instance_name_completion, APP_CMDARGV
+    (app, "rename", cmd_rename_instance, app_model_instance_name_completion, 
+     APP_CMDARGV
      (APP_CMDARG_APPEND_STRING("i", "instance", "<instance>", NULL, 1, 1, NULL),
       APP_CMDARG_APPEND_STRING(NULL, NULL, "<name>", NULL, 1, 1, NULL),
       APP_CMDARG_END),
      "rename instance"));
   CALL(app_add_command
-    (app, "spawn", cmd_spawn, app_model_name_completion, APP_CMDARGV
+    (app, "spawn", cmd_spawn, app_model_name_completion, 
+     APP_CMDARGV
      (APP_CMDARG_APPEND_STRING
         ("m", "model", "<model>",
          "name of the model from which an instance is spawned",
-         0, 1, NULL),
+         1, 1, NULL),
       APP_CMDARG_APPEND_STRING
         ("n", "name", "<name>",
          "name of the spawned instance",

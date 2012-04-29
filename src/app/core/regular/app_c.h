@@ -48,13 +48,14 @@ struct app {
   struct mem_allocator* allocator; /* allocator of this (app). */
   struct sl_logger* logger;
   struct sl_flat_set* callback_list[APP_NB_SIGNALS];
-  struct sl_flat_map* object_map[APP_NB_OBJECT_TYPES]; /* maps of {char*, object*}. */
+  struct sl_flat_map* object_map[APP_NB_OBJECT_TYPES]; /* {char*, object*}. */
 
   struct command_system {
     char scratch[1024];
     FILE* stream;
     struct sl_hash_table* htbl; /* htbl of commands. */
-    struct sl_flat_set* name_set; /* set of const char*. Used by completion and ls.*/
+    /* set of const char*. Used by completion and ls.*/
+    struct sl_flat_set* name_set; 
   } cmd;
 
   struct term {
