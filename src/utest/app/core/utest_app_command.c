@@ -160,6 +160,53 @@ day_completion
   return APP_NO_ERROR;
 }
 
+static const char* monthes[] = {
+  "April",
+  "August",
+  "December"
+  "February",
+  "January",
+  "July",
+  "June",
+  "March",
+  "May",
+  "November",
+  "October",
+  "September",
+  NULL
+};
+
+static enum app_error
+month_completion
+  (struct app* app,
+   const char* input,
+   size_t input_len,
+   size_t* completion_list_len,
+   const char** completion_list[])
+{
+  const size_t len = sizeof(monthes)/sizeof(const char*) - 1; /* -1 <=> NULL. */
+
+  if(!app
+  || (input_len && !input)
+  || !completion_list_len
+  || !completion_list) {
+    return APP_INVALID_ARGUMENT;
+  }
+
+  if(!input || !input_len) {
+    *completion_list_len = len;
+    *completion_list = monthes;
+  } else {
+    size_t i = 0;
+    size_t j = 0;
+    for(i = 0; i < len && strncmp(monthes[i], input, input_len) < 0; ++i);
+    for(j = i; j < len && strncmp(monthes[j], input, input_len) == 0; ++j);
+    *completion_list = monthes + i;
+    *completion_list_len = j - i;
+  }
+  return APP_NO_ERROR;
+}
+
 static void
 day(struct app* app UNUSED, size_t argc, const struct app_cmdarg** argv)
 {
@@ -188,6 +235,54 @@ day(struct app* app UNUSED, size_t argc, const struct app_cmdarg** argv)
     NCHECK(days[i], NULL);
   }
   CHECK(i, day_count__);
+}
+
+static void
+date_day(struct app* app, size_t argc, const struct app_cmdarg** argv)
+{
+  const size_t len = sizeof(days)/sizeof(const char*) - 1; /* -1 <=> NULL. */
+  size_t i = 0;
+
+  NCHECK(app, NULL);
+  CHECK(argc, 2);
+  CHECK(argv[0]->type, APP_CMDARG_STRING);
+  CHECK(argv[0]->count, 1);
+  CHECK(argv[0]->value_list[0].is_defined, true);
+
+  CHECK(argv[0]->type, APP_CMDARG_STRING);
+  CHECK(argv[0]->count, 1);
+  CHECK(argv[0]->value_list[0].is_defined, true);
+
+  CHECK(strcmp(argv[0]->value_list[0].data.string, "__date"), 0);
+  for(i =0; i < len; ++i) {
+    if(strcmp(argv[1]->value_list[1].data.string, days[i]) == 0)
+       break;
+  }
+  NCHECK(i, len);
+}
+
+static void
+date_month(struct app* app, size_t argc, const struct app_cmdarg** argv)
+{
+  const size_t len = sizeof(monthes)/sizeof(const char*) - 1; /* -1 <=> NULL. */
+  size_t i = 0;
+
+  NCHECK(app, NULL);
+  CHECK(argc, 2);
+  CHECK(argv[0]->type, APP_CMDARG_STRING);
+  CHECK(argv[0]->count, 1);
+  CHECK(argv[0]->value_list[0].is_defined, true);
+
+  CHECK(argv[0]->type, APP_CMDARG_STRING);
+  CHECK(argv[0]->count, 1);
+  CHECK(argv[0]->value_list[0].is_defined, true);
+
+  CHECK(strcmp(argv[0]->value_list[0].data.string, "__date"), 0);
+  for(i =0; i < len; ++i) {
+    if(strcmp(argv[1]->value_list[1].data.string, monthes[i]) == 0)
+       break;
+  }
+  NCHECK(i, len);
 }
 
 #define MAX_FILE_COUNT 4
@@ -381,7 +476,7 @@ main(int argc, char **argv)
   CHECK(app_man_command(NULL, "_load_", &len, 0, buf), BAD_ARG);
   CHECK(app_man_command(app, "_load_", &len, 0, buf), CMD_ERR);
   CHECK(app_man_command(app, "__load", &len, 0, buf), OK);
-  printf("%s\n", buf);
+  printf("%s", buf);
   CHECK(strlen(buf) <= len, true);
   CHECK(app_man_command(NULL, NULL, NULL, 8, buf), BAD_ARG);
   CHECK(app_man_command(app, NULL, NULL, 8, buf), BAD_ARG);
@@ -513,7 +608,6 @@ main(int argc, char **argv)
     (NULL, "__day", "S", 0, 0, NULL, &len, NULL), BAD_ARG);
   CHECK(app_command_arg_completion
     (app, "__day", "S", 0, 0, NULL, &len, NULL), BAD_ARG);
-
   CHECK(app_command_arg_completion
     (NULL, NULL, NULL, 0, 0, NULL, NULL, &lst), BAD_ARG);
   CHECK(app_command_arg_completion
@@ -578,7 +672,7 @@ main(int argc, char **argv)
   CHECK(app_command_arg_completion
     (app, "__day", "Saxxx", 3, 0, NULL, &len, &lst), OK);
   CHECK(len, 0);
-  NCHECK(lst, NULL);
+  CHECK(lst, NULL);
   CHECK(app_command_arg_completion
     (app, "__day", "Wed", 1, 0, NULL, &len, &lst), OK);
   CHECK(len, 1);
@@ -587,7 +681,84 @@ main(int argc, char **argv)
   CHECK(app_command_arg_completion
     (app, "__day", "wed", 3, 0, NULL, &len, &lst), OK);
   CHECK(len, 0);
+  CHECK(lst, NULL);
+
+  /* Multi syntax. */
+  CHECK(app_add_command
+    (app, "__date", date_day, day_completion,
+     APP_CMDARGV
+     (APP_CMDARG_APPEND_STRING("d", "day", "<day>", NULL, 1, 1, NULL),
+      APP_CMDARG_END),
+     NULL), OK);
+  CHECK(app_add_command
+    (app, "__date", date_month, month_completion,
+     APP_CMDARGV
+     (APP_CMDARG_APPEND_STRING("m", "month", "<month>", NULL, 1, 1, NULL),
+      APP_CMDARG_END),
+     NULL), OK);
+
+  CHECK(app_command_arg_completion
+    (app, "__date", NULL, 0, 5, NULL, &len, &lst), BAD_ARG);
+  CHECK(app_command_arg_completion
+    (app, "__date",
+     NULL, 0, 
+     0, (char*[]){"foo"}, 
+     &len, &lst), OK);
+  CHECK(len, 0);
+  CHECK(lst, NULL);
+
+  CHECK(app_command_arg_completion
+    (app, "__date", "Thu", 1,  1, (char*[]){"__date"}, &len, &lst), OK);
+  CHECK(len, 0);
+  CHECK(lst, NULL);
+  CHECK(app_command_arg_completion
+    (app, "__date", "Thu", 1, 1, (char*[]){"-d"}, &len, &lst), OK);
+  CHECK(len, 0);
+  CHECK(lst, NULL);
+  CHECK(app_command_arg_completion
+    (app, "__date", "Thu", 1, 2, (char*[]){"__date", "-d"}, &len, &lst), OK);
+  CHECK(len, 2);
   NCHECK(lst, NULL);
+  CHECK(strcmp(lst[0], "Thursday"), 0);
+  CHECK(strcmp(lst[1], "Tuesday"), 0);
+  CHECK(app_command_arg_completion
+    (app, "__date", "Thu", 2, 2, (char*[]){"__date", "-d"}, &len, &lst), OK);
+  CHECK(len, 1);
+  NCHECK(lst, NULL);
+  CHECK(strcmp(lst[0], "Thursday"), 0);
+  CHECK(app_command_arg_completion
+    (app, "__date", "Thu", 2, 3, (char*[]){"__date", "-d", "foo"}, &len, &lst), OK);
+  CHECK(len, 1);
+  NCHECK(lst, NULL);
+  CHECK(strcmp(lst[0], "Thursday"), 0);
+  CHECK(app_command_arg_completion
+    (app, "__date", "Thu", 2, 2, (char*[]){"__date", "-m"} , &len, &lst), OK);
+  CHECK(len, 0);
+  CHECK(lst, NULL);
+  CHECK(app_command_arg_completion
+    (app, "__date", "Ju", 1, 2, (char*[]){"__date", "-m"} , &len, &lst), OK);
+  CHECK(len, 3);
+  NCHECK(lst, NULL);
+  CHECK(strcmp(lst[0], "January"), 0);
+  CHECK(strcmp(lst[1], "July"), 0);
+  CHECK(strcmp(lst[2], "June"), 0);
+  CHECK(app_command_arg_completion
+    (app, "__date", "Ju", 2, 2, (char*[]){"__date", "-m"} , &len, &lst), OK);
+  CHECK(len, 2);
+  CHECK(strcmp(lst[0], "July"), 0);
+  CHECK(strcmp(lst[1], "June"), 0);
+
+  CHECK(app_command_arg_completion
+    (app, "__date", "Sep", 3, 2, (char*[]){"__date", "-m"} , &len, &lst), OK);
+  CHECK(len, 1);
+  NCHECK(lst, NULL);
+  CHECK(strcmp(lst[0], "September"), 0);
+  CHECK(app_command_arg_completion
+    (app, "__date", "Sep", 3, 2, (char*[]){"__date", "-d"} , &len, &lst), OK);
+  CHECK(len, 0);
+  CHECK(lst, NULL);
+
+  CHECK(app_del_command(app, "__date"), OK);
 
   CHECK(app_add_command
     (app, "__cat", cat, NULL,

@@ -687,11 +687,13 @@ app_execute_command(struct app* app, const char* command)
   if(min_nerror != 0) {
     long fpos = 0;
     size_t size =0;
+    size_t nb = 0;
 
     fpos = ftell(app->cmd.stream);
     size = MIN((size_t)fpos, sizeof(app->cmd.scratch)/sizeof(char) - 1);
     rewind(app->cmd.stream);
-    fread(app->cmd.scratch, size, 1, app->cmd.stream);
+    nb = fread(app->cmd.scratch, size, 1, app->cmd.stream);
+    assert(nb == 1);
     app->cmd.scratch[size] = '\0';
     APP_LOG_ERR(app->logger, "%s", app->cmd.scratch);
     app_err = APP_COMMAND_ERROR;
@@ -761,10 +763,12 @@ app_man_command
     *len = fpos / sizeof(char);
   if(buffer && max_buf_len) {
     const size_t size = MIN((max_buf_len - 1) * sizeof(char), (size_t)fpos);
+    size_t nb = 0;
 
     fflush(app->cmd.stream);
     rewind(app->cmd.stream);
-    fread(buffer, size, 1, app->cmd.stream);
+    nb = fread(buffer, size, 1, app->cmd.stream);
+    assert(nb == 1);
     buffer[size/sizeof(char)] = '\0';
   }
 exit:
@@ -854,6 +858,8 @@ app_command_arg_completion
       }
     }
   }
+  if(*completion_list_len == 0)
+    *completion_list = NULL;
 exit:
   return app_err;
 error:
