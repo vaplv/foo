@@ -444,7 +444,30 @@ test_rdr_model_instance(const char* driver_name)
   CHECK(rdr_get_model_instance_transform(inst,NULL), BAD_ARG);
   CHECK(rdr_get_model_instance_transform(NULL, m), BAD_ARG);
   CHECK(rdr_get_model_instance_transform(inst, m), OK);
+  CHECK(m[0],  1.f); CHECK(m[1],  0.f); CHECK(m[2],  0.f); CHECK(m[3],  0.f);
+  CHECK(m[4],  0.f); CHECK(m[5],  1.f); CHECK(m[6],  0.f); CHECK(m[7],  0.f);
+  CHECK(m[8],  0.f); CHECK(m[9],  0.f); CHECK(m[10], 1.f); CHECK(m[11], 0.f);
+  CHECK(m[12], 0.f); CHECK(m[13], 0.f); CHECK(m[14], 0.f); CHECK(m[15], 1.f);
 
+  CHECK(rdr_translate_model_instance(NULL, false, NULL), BAD_ARG);
+  CHECK(rdr_translate_model_instance(inst, false, NULL), BAD_ARG);
+  CHECK(rdr_translate_model_instance
+    (NULL, false, (float[]){1.f, 5.f, 3.f}), BAD_ARG);
+  CHECK(rdr_translate_model_instance
+    (inst, false, (float[]){1.f, 5.f, 3.f}), OK);
+  CHECK(rdr_get_model_instance_transform(inst, m), OK);
+  CHECK(m[0],  1.f); CHECK(m[1],  0.f); CHECK(m[2],  0.f); CHECK(m[3],  0.f);
+  CHECK(m[4],  0.f); CHECK(m[5],  1.f); CHECK(m[6],  0.f); CHECK(m[7],  0.f);
+  CHECK(m[8],  0.f); CHECK(m[9],  0.f); CHECK(m[10], 1.f); CHECK(m[11], 0.f);
+  CHECK(m[12], 1.f); CHECK(m[13], 5.f); CHECK(m[14], 3.f); CHECK(m[15], 1.f);
+  CHECK(rdr_translate_model_instance
+    (inst, false, (float[]){-4.f, 2.1f, 1.f}), OK);
+  CHECK(rdr_get_model_instance_transform(inst, m), OK);
+  CHECK(m[0],  1.f); CHECK(m[1],  0.f); CHECK(m[2],  0.f); CHECK(m[3],  0.f);
+  CHECK(m[4],  0.f); CHECK(m[5],  1.f); CHECK(m[6],  0.f); CHECK(m[7],  0.f);
+  CHECK(m[8],  0.f); CHECK(m[9],  0.f); CHECK(m[10], 1.f); CHECK(m[11], 0.f);
+  CHECK(m[12],-3.f); CHECK(m[13],7.1f); CHECK(m[14], 4.f); CHECK(m[15], 1.f);
+  
   CHECK(rdr_model_instance_material_density(NULL, RDR_OPAQUE), BAD_ARG);
   CHECK(rdr_model_instance_material_density(inst, RDR_OPAQUE), OK);
   CHECK(rdr_get_model_instance_material_density(NULL, NULL), BAD_ARG);

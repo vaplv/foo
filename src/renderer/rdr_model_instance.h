@@ -73,6 +73,12 @@ rdr_get_model_instance_transform
    float transform[16]);
 
 extern enum rdr_error
+rdr_translate_model_instance
+  (struct rdr_model_instance* instance,
+   bool local_translation,
+   const float translation[3]);
+
+extern enum rdr_error
 rdr_model_instance_material_density
   (struct rdr_model_instance* instance,
    enum rdr_material_density density);

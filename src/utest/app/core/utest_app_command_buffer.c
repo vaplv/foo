@@ -463,6 +463,8 @@ main(int argc, char** argv)
   CHECK(app_execute_command_buffer(buf), OK);
   CHECK(app_command_buffer_write_string(buf, "help spawn"), OK);
   CHECK(app_execute_command_buffer(buf), OK);
+  CHECK(app_command_buffer_write_string(buf, "help translate"), OK);
+  CHECK(app_execute_command_buffer(buf), OK);
 
   CHECK(app_command_buffer_ref_get(NULL), BAD_ARG);
   CHECK(app_command_buffer_ref_get(buf), OK);

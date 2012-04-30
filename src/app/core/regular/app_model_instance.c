@@ -109,6 +109,32 @@ app_set_model_instance_name
 }
 
 EXPORT_SYM enum app_error
+app_translate_model_instance
+  (struct app_model_instance* instance,
+   bool local_translation,
+   const float translation[3])
+{
+  struct rdr_model_instance** render_instance_list = NULL;
+  size_t nb_render_instances = 0;
+  size_t i = 0;
+
+  if(!instance)
+    return APP_INVALID_ARGUMENT;
+
+  SL(vector_buffer
+    (instance->model_instance_list, 
+     &nb_render_instances, 
+     NULL, 
+     NULL,
+     (void**)&render_instance_list));
+  for(i = 0; i < nb_render_instances; ++i) {
+    RDR(translate_model_instance
+      (render_instance_list[i], local_translation, translation));
+  }
+  return RDR_NO_ERROR;
+}
+
+EXPORT_SYM enum app_error
 app_get_model_instance
   (struct app* app,
    const char* name,

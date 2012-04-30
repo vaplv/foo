@@ -226,6 +226,17 @@ app_get_view_basis
 }
 
 EXPORT_SYM enum app_error
+app_get_raw_view_transform
+  (const struct app_view* view,
+   const struct aosf44** transform)
+{
+  if(!view || !transform)
+    return APP_INVALID_ARGUMENT;
+  *transform = &view->transform;
+  return APP_NO_ERROR;
+}
+
+EXPORT_SYM enum app_error
 app_get_view_projection
   (struct app_view* view,
    float* fov_x,

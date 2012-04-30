@@ -5,6 +5,7 @@
 
 struct app;
 struct app_view;
+struct aosf44;
 
 extern enum app_error
 app_create_view
@@ -55,6 +56,11 @@ app_get_view_basis
    float right[3],
    float up[3],
    float forward[3]);
+
+extern enum app_error
+app_get_raw_view_transform
+  (const struct app_view* view,
+   const struct aosf44** transform);
 
 extern enum app_error
 app_get_view_projection

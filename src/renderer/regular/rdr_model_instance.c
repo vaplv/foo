@@ -669,6 +669,32 @@ rdr_get_model_instance_transform
 }
 
 EXPORT_SYM enum rdr_error
+rdr_translate_model_instance
+  (struct rdr_model_instance* instance,
+   bool local_translation,
+   const float translation[3])
+{
+  vf4_t trans;
+
+  if(!instance || !translation)
+    return RDR_INVALID_ARGUMENT;
+
+  trans = vf4_set(translation[0], translation[1], translation[2], 1.f);
+  if(local_translation == false) {
+    instance->transform.c3 = aosf44_mulf4(&instance->transform, trans);
+  } else {
+    const struct aosf33 local = { 
+      .c0 = instance->transform.c0, 
+      .c1 = instance->transform.c1, 
+      .c2 = instance->transform.c2 
+    };
+    const vf4_t local_trans = aosf33_mulf3(&local, trans);
+    instance->transform.c3 = aosf44_mulf4(&instance->transform, local_trans);
+  }
+  return RDR_NO_ERROR;
+}
+
+EXPORT_SYM enum rdr_error
 rdr_model_instance_material_density
   (struct rdr_model_instance* instance,
    enum rdr_material_density density)

@@ -39,6 +39,12 @@ app_model_instance_name
    const char** cstr);
 
 extern enum app_error
+app_translate_model_instance
+  (struct app_model_instance* instance,
+   bool local_translation,
+   const float translation[3]);
+
+extern enum app_error
 app_get_model_instance
   (struct app* app,
    const char* name,
