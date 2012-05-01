@@ -22,6 +22,8 @@
 #include <stdbool.h>
 #include <string.h>
 
+#define ARGVAL(argv, i) (argv)[i]->value_list[0]
+
 /*******************************************************************************
  *
  * Command functions.
@@ -276,39 +278,151 @@ cmd_translate
    const struct app_cmdarg** argv)
 {
   size_t nb_defined_flags = 0;
-
-  #define ARGVAL(argv, i) (argv)[i]->value_list[0]
+  enum {
+    CMD_NAME,
+    EYE_SPACE_FLAG,
+    LOCAL_SPACE_FLAG,
+    WORLD_SPACE_FLAG,
+    INSTANCE_NAME,
+    TRANS_X,
+    TRANS_Y,
+    TRANS_Z,
+    ARGC
+  };
 
   assert(app != NULL
-      && argc == 8
+      && argc == ARGC
       && argv != NULL
-      && argv[0]->type == APP_CMDARG_STRING /* cmd name */
-      && argv[1]->type == APP_CMDARG_LITERAL /* eye flag */
-      && argv[2]->type == APP_CMDARG_LITERAL /* local flag */
-      && argv[3]->type == APP_CMDARG_LITERAL /* world flag */
-      && argv[4]->type == APP_CMDARG_STRING /* instance name */
-      && argv[5]->type == APP_CMDARG_FLOAT /* x translation */
-      && argv[6]->type == APP_CMDARG_FLOAT /* y translation */
-      && argv[7]->type == APP_CMDARG_FLOAT /* z translation */
-      && argv[0]->count == 1
-      && argv[1]->count == 1
-      && argv[2]->count == 1
-      && argv[3]->count == 1
-      && argv[4]->count == 1
-      && argv[5]->count == 1
-      && argv[6]->count == 1
-      && argv[7]->count == 1);
+      && argv[CMD_NAME]->type == APP_CMDARG_STRING
+      && argv[EYE_SPACE_FLAG]->type == APP_CMDARG_LITERAL
+      && argv[LOCAL_SPACE_FLAG]->type == APP_CMDARG_LITERAL
+      && argv[WORLD_SPACE_FLAG]->type == APP_CMDARG_LITERAL
+      && argv[INSTANCE_NAME]->type == APP_CMDARG_STRING
+      && argv[TRANS_X]->type == APP_CMDARG_FLOAT
+      && argv[TRANS_Y]->type == APP_CMDARG_FLOAT
+      && argv[TRANS_Z]->type == APP_CMDARG_FLOAT
+      && argv[CMD_NAME]->count == 1
+      && argv[EYE_SPACE_FLAG]->count == 1
+      && argv[LOCAL_SPACE_FLAG]->count == 1
+      && argv[WORLD_SPACE_FLAG]->count == 1
+      && argv[INSTANCE_NAME]->count == 1
+      && argv[TRANS_X]->count == 1
+      && argv[TRANS_Y]->count == 1
+      && argv[TRANS_Z]->count == 1);
 
   nb_defined_flags =
-      (ARGVAL(argv, 1).is_defined == true)
-    + (ARGVAL(argv, 2).is_defined == true)
-    + (ARGVAL(argv, 3).is_defined == true);
+      (ARGVAL(argv, EYE_SPACE_FLAG).is_defined == true)
+    + (ARGVAL(argv, LOCAL_SPACE_FLAG).is_defined == true)
+    + (ARGVAL(argv, WORLD_SPACE_FLAG).is_defined == true);
 
   if(nb_defined_flags != 1) {
     if(nb_defined_flags == 0) {
       APP_LOG_ERR(app->logger, "no translation space defined");
     } else {
       APP_LOG_ERR(app->logger, "only one translation space must be defined");
+    }
+  } else {
+    struct app_model_instance* instance = NULL;
+    const char* instance_name = ARGVAL(argv, INSTANCE_NAME).data.string;
+
+    APP(get_model_instance(app, instance_name, &instance));
+    if(instance == NULL) {
+      APP_LOG_ERR
+        (app->logger, "the instance `%s' does not exist\n", instance_name);
+    } else {
+      const float trans[3] = {
+        [0] = ARGVAL(argv, TRANS_X).is_defined
+            ? ARGVAL(argv, TRANS_X).data.real
+            : 0.f,
+        [1] = ARGVAL(argv, TRANS_Y).is_defined
+            ? ARGVAL(argv, TRANS_Y).data.real
+            : 0.f,
+        [2] = ARGVAL(argv, TRANS_Z).is_defined
+            ? ARGVAL(argv, TRANS_Z).data.real
+            : 0.f
+      };
+
+      if(trans[0] != 0.f || trans[1] != 0.f || trans[2] != 0.f) {
+        if(ARGVAL(argv, LOCAL_SPACE_FLAG).is_defined) { /* object space */
+          APP(translate_model_instance(instance, true, trans));
+        } else if(ARGVAL(argv, WORLD_SPACE_FLAG).is_defined) { /* world space */
+          APP(translate_model_instance(instance, false, trans));
+        } else { /* eye space */
+          const struct aosf44* view_transform = NULL;
+          struct aosf33 f33;
+          struct app_view* view = NULL;
+          ALIGN(16) float tmp[4];
+          vf4_t vec;
+          assert(ARGVAL(argv, EYE_SPACE_FLAG).is_defined);
+
+          APP(get_main_view(app, &view));
+          APP(get_raw_view_transform(view, &view_transform));
+          f33.c0 = view_transform->c0;
+          f33.c1 = view_transform->c1;
+          f33.c2 = view_transform->c2;
+
+          vec = aosf33_inverse(&f33, &f33);
+          assert((vf4_store(tmp, vec), tmp[0] != 0.f));
+          vec = vf4_set(trans[0], trans[1], trans[2], 1.f);
+          vec = aosf33_mulf3(&f33, vec);
+          vf4_store(tmp, vec);
+
+          APP(translate_model_instance(instance, false, tmp));
+        }
+      }
+    }
+  }
+}
+
+static void
+cmd_rotate(struct app* app, size_t argc UNUSED, const struct app_cmdarg** argv)
+{
+  size_t nb_defined_flags = 0;
+  enum {
+    CMD_NAME,
+    EYE_SPACE_FLAG,
+    LOCAL_SPACE_FLAG,
+    WORLD_SPACE_FLAG,
+    INSTANCE_NAME,
+    PITCH_ROTATION,
+    YAW_ROTATION,
+    ROLL_ROTATION,
+    RADIAN_FLAG,
+    ARGC
+  };
+
+  assert(app != NULL
+      && argc == ARGC
+      && argv != NULL
+      && argv[CMD_NAME]->type == APP_CMDARG_STRING
+      && argv[EYE_SPACE_FLAG]->type == APP_CMDARG_LITERAL
+      && argv[LOCAL_SPACE_FLAG]->type == APP_CMDARG_LITERAL
+      && argv[WORLD_SPACE_FLAG]->type == APP_CMDARG_LITERAL
+      && argv[INSTANCE_NAME]->type == APP_CMDARG_STRING
+      && argv[PITCH_ROTATION]->type == APP_CMDARG_FLOAT
+      && argv[YAW_ROTATION]->type == APP_CMDARG_FLOAT
+      && argv[ROLL_ROTATION]->type == APP_CMDARG_FLOAT
+      && argv[RADIAN_FLAG]->type == APP_CMDARG_LITERAL
+      && argv[CMD_NAME]->count == 1
+      && argv[EYE_SPACE_FLAG]->count == 1
+      && argv[LOCAL_SPACE_FLAG]->count == 1
+      && argv[WORLD_SPACE_FLAG]->count == 1
+      && argv[INSTANCE_NAME]->count == 1
+      && argv[PITCH_ROTATION]->count == 1
+      && argv[YAW_ROTATION]->count == 1
+      && argv[ROLL_ROTATION]->count == 1
+      && argv[RADIAN_FLAG]->count == 1);
+
+  nb_defined_flags =
+      (ARGVAL(argv, EYE_SPACE_FLAG).is_defined == true)
+    + (ARGVAL(argv, LOCAL_SPACE_FLAG).is_defined == true)
+    + (ARGVAL(argv, WORLD_SPACE_FLAG).is_defined == true);
+
+  if(nb_defined_flags != 1) {
+    if(nb_defined_flags == 0) {
+      APP_LOG_ERR(app->logger, "no rotation space defined");
+    } else {
+      APP_LOG_ERR(app->logger, "only one rotation space must be defined");
     }
   } else {
     struct app_model_instance* instance = NULL;
@@ -319,34 +433,53 @@ cmd_translate
       APP_LOG_ERR
         (app->logger, "the instance `%s' does not exist\n", instance_name);
     } else {
-      const float trans[3] = {
-        [0] = ARGVAL(argv, 5).is_defined ? ARGVAL(argv, 5).data.real : 0.f,
-        [1] = ARGVAL(argv, 6).is_defined ? ARGVAL(argv, 6).data.real : 0.f,
-        [2] = ARGVAL(argv, 7).is_defined ? ARGVAL(argv, 7).data.real : 0.f
+      float rot[3] = {
+        [0] = ARGVAL(argv, PITCH_ROTATION).is_defined
+            ? ARGVAL(argv, PITCH_ROTATION).data.real
+            : 0.f,
+        [1] = ARGVAL(argv, YAW_ROTATION).is_defined
+            ? ARGVAL(argv, YAW_ROTATION).data.real
+            : 0.f,
+        [2] = ARGVAL(argv, ROLL_ROTATION).is_defined
+            ? ARGVAL(argv, ROLL_ROTATION).data.real
+            : 0.f
       };
 
-      if(trans[0] != 0.f || trans[1] != 0.f || trans[2] != 0.f) {
-        if(ARGVAL(argv, 2).is_defined) { /* object space */
-          APP(translate_model_instance(instance, true, trans));
-        } else if(ARGVAL(argv, 3).is_defined) { /* world space */
-          APP(translate_model_instance(instance, false, trans));
-        } else { /* eye space */
-          struct aosf33 view_basis;
-          vf4_t vec = vf4_set(trans[0], trans[1], trans[2], 1.f);
-          ALIGN(16) float eye_trans[4] = {0.f, 0.f, 0.f, 0.f};
+      if(rot[0] != 0.f || rot[1] != 0.f || rot[2] != 0.f) {
+        if(ARGVAL(argv, RADIAN_FLAG).is_defined == false) {
+          rot[0] = DEG2RAD(rot[0]);
+          rot[1] = DEG2RAD(rot[1]);
+          rot[2] = DEG2RAD(rot[2]);
+        }
+        if(ARGVAL(argv, LOCAL_SPACE_FLAG).is_defined) {
+          APP(rotate_model_instance(instance, true, rot));
+        } else if(ARGVAL(argv, WORLD_SPACE_FLAG).is_defined) {
+          APP(rotate_model_instance(instance, false, rot));
+        } else {
+          struct aosf44 inv_view_4x4;
+          struct aosf44 tmp_4x4;
+          struct aosf33 rot_3x3;
+          struct aosf33 tmp_3x3;
+          vf4_t vec;
+          UNUSED ALIGN(16) float tmp[4];
+          const struct aosf44* view_4x4 = NULL;
           struct app_view* view = NULL;
-          const struct aosf44* view_transform = NULL;
+          assert(ARGVAL(argv, EYE_SPACE_FLAG).is_defined);
 
-          assert(ARGVAL(argv, 1).is_defined);
-
+          /* Get the view matrix and its inverse. */
           APP(get_main_view(app, &view));
-          APP(get_raw_view_transform(view, &view_transform));
-          view_basis.c0 = view_transform->c0;
-          view_basis.c1 = view_transform->c1;
-          view_basis.c2 = view_transform->c2;
-          vec = aosf33_mulf3(&view_basis, vec);
-          vf4_store(eye_trans, vec);
-          APP(translate_model_instance(instance, false, eye_trans));
+          APP(get_raw_view_transform(view, &view_4x4));
+          vec = aosf44_inverse(&inv_view_4x4, view_4x4);
+          assert((vf4_store(tmp, vec), tmp[0] != 0.f));
+
+          /* Compute the matrix to apply to the model. */
+          aosf33_rotation(&rot_3x3, rot[0], rot[1], rot[2]);
+          aosf33_set(&tmp_3x3, view_4x4->c0, view_4x4->c1, view_4x4->c2);
+          aosf33_mulf33(&tmp_3x3, &rot_3x3, &tmp_3x3);
+          aosf44_set(&tmp_4x4, tmp_3x3.c0, tmp_3x3.c1, tmp_3x3.c2,view_4x4->c3);
+          aosf44_mulf44(&tmp_4x4, &inv_view_4x4, &tmp_4x4);
+
+          APP(transform_model_instance(instance, true, &tmp_4x4));
         }
       }
     }
@@ -409,6 +542,26 @@ app_setup_builtin_commands(struct app* app)
       APP_CMDARG_END),
      "rename instance"));
   CALL(app_add_command
+    (app, "rotate", cmd_rotate, app_model_instance_name_completion,
+     APP_CMDARGV
+     (APP_CMDARG_APPEND_LITERAL("e", "eye", "eye space rotation", 0, 1),
+      APP_CMDARG_APPEND_LITERAL("l", "local", "object space rotation", 0, 1),
+      APP_CMDARG_APPEND_LITERAL("w", "world", "world space rotation", 0, 1),
+      APP_CMDARG_APPEND_STRING
+        ("i", "instance", "<name>", "instance to rotate", 1, 1, NULL),
+      APP_CMDARG_APPEND_FLOAT
+        ("x", NULL, "<real>", "pitch angle", 0, 1, -FLT_MAX, FLT_MAX),
+      APP_CMDARG_APPEND_FLOAT
+        ("y", NULL, "<real>", "yaw angle", 0, 1, -FLT_MAX, FLT_MAX),
+      APP_CMDARG_APPEND_FLOAT
+        ("z", NULL, "<real>", "roll angle", 0, 1, -FLT_MAX, FLT_MAX),
+      APP_CMDARG_APPEND_LITERAL
+        ("r", "radian",
+         "the input angles are expressed into radians rather than in degrees",
+         0, 1),
+      APP_CMDARG_END),
+     "rotate a model instance"));
+  CALL(app_add_command
     (app, "spawn", cmd_spawn, app_model_name_completion,
      APP_CMDARGV
      (APP_CMDARG_APPEND_STRING
@@ -428,7 +581,7 @@ app_setup_builtin_commands(struct app* app)
       APP_CMDARG_APPEND_LITERAL("l", "local", "object space translation", 0, 1),
       APP_CMDARG_APPEND_LITERAL("w", "world", "local space translation", 0, 1),
       APP_CMDARG_APPEND_STRING
-        ("i", "intance", "<name>", "instance to translate", 1, 1, NULL),
+        ("i", "instance", "<name>", "instance to translate", 1, 1, NULL),
       APP_CMDARG_APPEND_FLOAT
         ("x", NULL, "<real>", NULL, 0, 1, -FLT_MAX, FLT_MAX),
       APP_CMDARG_APPEND_FLOAT
@@ -445,4 +598,6 @@ exit:
 error:
   goto exit;
 }
+
+#undef ARGVAL
 

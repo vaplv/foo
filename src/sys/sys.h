@@ -8,6 +8,12 @@
   #error "Unsupported compiler."
 #endif
 
+#define DEG2RAD(x) \
+  ((x)*0.0174532925199432957692369076848861L)
+
+#define RAD2DEG(x) \
+  ((x)*57.2957795130823208767981548141051703L)
+
 #define MAX(a, b) \
   ((a) > (b) ? (a) : (b))
 

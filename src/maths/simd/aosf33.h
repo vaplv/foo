@@ -4,6 +4,7 @@
 #include "maths/simd/simd.h"
 #include "sys/sys.h"
 #include <assert.h>
+#include <math.h>
 
 /* Column major float33 data structure. */
 struct aosf33 { vf4_t c0, c1, c2; };
@@ -226,6 +227,23 @@ aosf33_col(const struct aosf33* m, int id)
 
   return (&m->c0)[id];
 }
+
+/* Build functions. */
+static FINLINE void
+aosf33_rotation(struct aosf33* res, float pitch, float yaw, float roll)
+{
+  /* XYZ norm. */
+  const float c1 = cos(pitch);
+  const float c2 = cos(yaw);
+  const float c3 = cos(roll);
+  const float s1 = sin(pitch);
+  const float s2 = sin(yaw);
+  const float s3 = sin(roll);
+  res->c0 = vf4_set(c2*c3, c1*s3 + c3*s1*s2, s1*s3 - c1*c3*s2, 0.f);
+  res->c1 = vf4_set(-c2*s3, c1*c3 - s1*s2*s3, c1*s2*s3 + c3*s1, 0.f);
+  res->c2 = vf4_set(s2, -c2*s1, c1*c2, 0.f);
+}
+
 
 #endif /* AOSF33_H */
 

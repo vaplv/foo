@@ -4,6 +4,7 @@
 #include "app/core/app_error.h"
 #include "sys/ref_count.h"
 
+struct aosf44;
 struct app;
 struct app_model;
 struct app_model_instance;
@@ -43,6 +44,18 @@ app_translate_model_instance
   (struct app_model_instance* instance,
    bool local_translation,
    const float translation[3]);
+
+extern enum app_error
+app_rotate_model_instance
+  (struct app_model_instance* instance,
+   bool local_rotation,
+   const float rotation[3]);
+
+extern enum app_error
+app_transform_model_instance
+  (struct app_model_instance* instance,
+   bool local_transformation,
+   const struct aosf44* transform);
 
 extern enum app_error
 app_get_model_instance

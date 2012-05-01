@@ -3,11 +3,8 @@
 #include "app/core/app_view.h"
 #include "sys/mem_allocator.h"
 #include "sys/sys.h"
-#include <math.h>
 #include <stdlib.h>
 #include <string.h>
-
-#define DEG2RAD(x) ((x)*0.0174532925199432957692369076848861L)
 
 /*******************************************************************************
  *
@@ -156,29 +153,17 @@ app_view_rotate
    float yaw,
    float roll)
 {
-  struct aosf44 f44;
-  float c1, c2, c3;
-  float s1, s2, s3;
+  struct aosf33 f33;
 
   if(!view)
     return APP_INVALID_ARGUMENT;
-
   if(!yaw && !pitch && !roll)
     return APP_NO_ERROR;
-
-  c1 = cos(pitch);
-  c2 = cos(yaw);
-  c3 = cos(roll);
-  s1 = sin(pitch);
-  s2 = sin(yaw);
-  s3 = sin(roll);
-
-  f44.c0 = vf4_set(c2*c3, c1*s3 + c3*s1*s2, s1*s3 - c1*c3*s2, 0.f);
-  f44.c1 = vf4_set(-c2*s3, c1*c3 - s1*s2*s3, c1*s2*s3 + c3*s1, 0.f);
-  f44.c2 = vf4_set(s2, -c2*s1, c1*c2, 0.f);
-  f44.c3 = vf4_set(0.f, 0.f, 0.f, 1.f);
-  aosf44_mulf44(&view->transform, &f44, &view->transform);
-
+  aosf33_rotation(&f33, pitch, yaw, roll);
+  aosf44_mulf44
+    (&view->transform, 
+     (struct aosf44[]){{f33.c0, f33.c1, f33.c2, vf4_set(0.f, 0.f, 0.f, 1.f)}},
+     &view->transform);
   return APP_NO_ERROR;
 }
 

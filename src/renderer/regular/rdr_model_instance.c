@@ -14,6 +14,7 @@
 #include "sys/ref_count.h"
 #include "sys/sys.h"
 #include <assert.h>
+#include <math.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -447,16 +448,16 @@ release_model_instance(struct ref* ref)
     SL(free_flat_set(instance->callback_set));
   }
   RDR(is_model_callback_attached
-    (instance->model, 
-     RDR_MODEL_SIGNAL_UPDATE_DATA, 
-     model_callback_func, 
-     instance, 
+    (instance->model,
+     RDR_MODEL_SIGNAL_UPDATE_DATA,
+     model_callback_func,
+     instance,
      &b));
   if(b) {
     RDR(detach_model_callback
-      (instance->model, 
-       RDR_MODEL_SIGNAL_UPDATE_DATA, 
-       model_callback_func, 
+      (instance->model,
+       RDR_MODEL_SIGNAL_UPDATE_DATA,
+       model_callback_func,
        instance));
   }
   if(instance->uniform_buffer)
@@ -672,24 +673,63 @@ EXPORT_SYM enum rdr_error
 rdr_translate_model_instance
   (struct rdr_model_instance* instance,
    bool local_translation,
-   const float translation[3])
+   const float trans[3])
 {
-  vf4_t trans;
 
-  if(!instance || !translation)
+  if(!instance || !trans)
     return RDR_INVALID_ARGUMENT;
 
-  trans = vf4_set(translation[0], translation[1], translation[2], 1.f);
-  if(local_translation == false) {
-    instance->transform.c3 = aosf44_mulf4(&instance->transform, trans);
+  if(local_translation) {
+    const vf4_t vec = vf4_set(trans[0], trans[1], trans[2], 1.f);
+    instance->transform.c3 = aosf44_mulf4(&instance->transform, vec);
   } else {
-    const struct aosf33 local = { 
-      .c0 = instance->transform.c0, 
-      .c1 = instance->transform.c1, 
-      .c2 = instance->transform.c2 
-    };
-    const vf4_t local_trans = aosf33_mulf3(&local, trans);
-    instance->transform.c3 = aosf44_mulf4(&instance->transform, local_trans);
+    const vf4_t vec = vf4_set(trans[0], trans[1], trans[2], 0.f);
+    instance->transform.c3 = vf4_add(instance->transform.c3, vec);
+  } 
+  return RDR_NO_ERROR;
+}
+
+EXPORT_SYM enum rdr_error
+rdr_rotate_model_instance
+  (struct rdr_model_instance* instance,
+   bool local_rotation,
+   const float rotation[3])
+{
+  struct aosf33 f33;
+  struct aosf44 f44;
+
+  enum { PITCH, YAW, ROLL };
+
+  if(!instance || !rotation)
+    return RDR_INVALID_ARGUMENT;
+
+  if((!rotation[PITCH]) & (!rotation[YAW]) & (!rotation[ROLL]))
+     return RDR_NO_ERROR;
+
+  /* Build rotation matrix. */
+  aosf33_rotation(&f33, rotation[PITCH], rotation[YAW], rotation[ROLL]);
+  aosf44_set(&f44, f33.c0, f33.c1, f33.c2, vf4_set(0.f, 0.f, 0.f, 1.f));
+  if(local_rotation) {
+    aosf44_mulf44(&instance->transform, &instance->transform, &f44);
+  } else {
+    aosf44_mulf44(&instance->transform, &f44, &instance->transform);
+  }
+  return RDR_NO_ERROR;
+}
+
+EXPORT_SYM enum rdr_error
+rdr_transform_model_instance
+  (struct rdr_model_instance* instance,
+   bool local_transformation,
+   const struct aosf44* transform)
+{
+  if(!instance || !transform)
+    return RDR_INVALID_ARGUMENT;
+
+  if(local_transformation) {
+    aosf44_mulf44(&instance->transform, &instance->transform, transform);
+  } else {
+    aosf44_mulf44(&instance->transform, transform, &instance->transform);
   }
   return RDR_NO_ERROR;
 }

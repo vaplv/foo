@@ -21,6 +21,7 @@ enum rdr_cull_mode {
   RDR_CULL_NONE
 };
 
+struct aosf44;
 struct rdr_model;
 struct rdr_model_instance;
 struct rdr_system;
@@ -77,6 +78,18 @@ rdr_translate_model_instance
   (struct rdr_model_instance* instance,
    bool local_translation,
    const float translation[3]);
+
+extern enum rdr_error
+rdr_rotate_model_instance
+  (struct rdr_model_instance* instance,
+   bool local_rotation,
+   const float rotation[3]);
+
+extern enum rdr_error
+rdr_transform_model_instance
+  (struct rdr_model_instance* instance,
+   bool local_transformation,
+   const struct aosf44* transform);
 
 extern enum rdr_error
 rdr_model_instance_material_density
