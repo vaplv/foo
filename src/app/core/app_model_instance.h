@@ -58,6 +58,11 @@ app_scale_model_instance
    const float scale[3]);
 
 extern enum app_error
+app_move_model_instance
+  (struct app_model_instance* instance,
+   const float pos[3]);
+
+extern enum app_error
 app_transform_model_instance
   (struct app_model_instance* instance,
    bool local_transformation,

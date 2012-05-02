@@ -26,7 +26,7 @@
 
 /*******************************************************************************
  *
- * Command functions.
+ * Miscellaneous command functions.
  *
  ******************************************************************************/
 static void
@@ -271,6 +271,11 @@ cmd_spawn(struct app* app, size_t argc UNUSED, const struct app_cmdarg** argv)
   }
 }
 
+/*******************************************************************************
+ *
+ * Move command functions.
+ *
+ ******************************************************************************/
 static void
 cmd_translate
   (struct app* app,
@@ -426,7 +431,7 @@ cmd_rotate(struct app* app, size_t argc UNUSED, const struct app_cmdarg** argv)
     }
   } else {
     struct app_model_instance* instance = NULL;
-    const char* instance_name = ARGVAL(argv, 4).data.string;
+    const char* instance_name = ARGVAL(argv, INSTANCE_NAME).data.string;
 
     APP(get_model_instance(app, instance_name, &instance));
     if(instance == NULL) {
@@ -535,7 +540,7 @@ cmd_scale(struct app* app, size_t argc UNUSED, const struct app_cmdarg** argv)
     }
   } else {
     struct app_model_instance* instance = NULL;
-    const char* instance_name = ARGVAL(argv, 4).data.string;
+    const char* instance_name = ARGVAL(argv, INSTANCE_NAME).data.string;
 
     APP(get_model_instance(app, instance_name, &instance));
     if(instance == NULL) {
@@ -592,6 +597,42 @@ cmd_scale(struct app* app, size_t argc UNUSED, const struct app_cmdarg** argv)
   }
 }
 
+static void
+cmd_move(struct app* app, size_t argc UNUSED, const struct app_cmdarg** argv)
+{
+  struct app_model_instance* instance = NULL;
+  const char* instance_name = NULL;
+  enum { CMD_NAME, INSTANCE_NAME, POS_X, POS_Y, POS_Z, ARGC };
+
+  assert(app != NULL
+      && argc == ARGC
+      && argv != NULL
+      && argv[CMD_NAME]->type == APP_CMDARG_STRING
+      && argv[INSTANCE_NAME]->type == APP_CMDARG_STRING
+      && argv[POS_X]->type == APP_CMDARG_FLOAT
+      && argv[POS_Y]->type == APP_CMDARG_FLOAT
+      && argv[POS_Z]->type == APP_CMDARG_FLOAT
+      && argv[CMD_NAME]->count == 1
+      && argv[INSTANCE_NAME]->count == 1
+      && argv[POS_X]->count == 1
+      && argv[POS_Y]->count == 1
+      && argv[POS_Z]->count == 1);
+
+  instance_name = ARGVAL(argv, INSTANCE_NAME).data.string;
+  APP(get_model_instance(app, instance_name, &instance));
+  if(instance == NULL) {
+    APP_LOG_ERR
+      (app->logger, "the instance `%s' does not exist\n", instance_name);
+  } else {
+    const float pos[3] = { 
+      ARGVAL(argv, POS_X).data.real,
+      ARGVAL(argv, POS_Y).data.real,
+      ARGVAL(argv, POS_Z).data.real
+    };
+    APP(move_model_instance(instance, pos));
+  }
+}
+
 /*******************************************************************************
  *
  * Builtin commands registration.
@@ -605,6 +646,7 @@ app_setup_builtin_commands(struct app* app)
 
   #define CALL(func) if(APP_NO_ERROR != (app_err = func)) goto error
 
+  /* Miscellaneous commands. */
   CALL(app_add_command
     (app, "clear", cmd_clear, NULL, NULL, "clear the terminal screen"));
   CALL(app_add_command
@@ -647,6 +689,36 @@ app_setup_builtin_commands(struct app* app)
       APP_CMDARG_APPEND_STRING(NULL, NULL, "<name>", NULL, 1, 1, NULL),
       APP_CMDARG_END),
      "rename instance"));
+  CALL(app_add_command
+    (app, "spawn", cmd_spawn, app_model_name_completion,
+     APP_CMDARGV
+     (APP_CMDARG_APPEND_STRING
+        ("m", "model", "<model>",
+         "name of the model from which an instance is spawned",
+         1, 1, NULL),
+      APP_CMDARG_APPEND_STRING
+        ("n", "name", "<name>",
+         "name of the spawned instance",
+         0, 1, NULL),
+      APP_CMDARG_END),
+     "spawn an instance into the world"));
+
+  /* Move commands. */
+  CALL(app_add_command
+    (app, "move", cmd_move, app_model_instance_name_completion,
+     APP_CMDARGV
+     (APP_CMDARG_APPEND_STRING
+        ("i", "instance", "<name>",
+         "define the instance to move",
+         1, 1, NULL),
+      APP_CMDARG_APPEND_FLOAT
+        ("x", NULL, "<real>", NULL, 1, 1, -FLT_MAX, FLT_MAX),
+      APP_CMDARG_APPEND_FLOAT
+        ("y", NULL, "<real>", NULL, 1, 1, -FLT_MAX, FLT_MAX),
+      APP_CMDARG_APPEND_FLOAT
+        ("z", NULL, "<real>", NULL, 1, 1, -FLT_MAX, FLT_MAX),
+      APP_CMDARG_END),
+     "move a model instance"));
   CALL(app_add_command
     (app, "rotate", cmd_rotate, app_model_instance_name_completion,
      APP_CMDARGV
@@ -703,19 +775,6 @@ app_setup_builtin_commands(struct app* app)
         ("z", NULL, "<real>", NULL, 0, 1, -FLT_MAX, FLT_MAX),
       APP_CMDARG_END),
      "scale a model instance"));
-  CALL(app_add_command
-    (app, "spawn", cmd_spawn, app_model_name_completion,
-     APP_CMDARGV
-     (APP_CMDARG_APPEND_STRING
-        ("m", "model", "<model>",
-         "name of the model from which an instance is spawned",
-         1, 1, NULL),
-      APP_CMDARG_APPEND_STRING
-        ("n", "name", "<name>",
-         "name of the spawned instance",
-         0, 1, NULL),
-      APP_CMDARG_END),
-     "spawn an instance into the world"));
   CALL(app_add_command
     (app, "translate", cmd_translate, app_model_instance_name_completion,
      APP_CMDARGV

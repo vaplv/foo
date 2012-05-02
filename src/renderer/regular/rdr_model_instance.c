@@ -768,6 +768,15 @@ rdr_scale_model_instance
 }
 
 EXPORT_SYM enum rdr_error
+rdr_move_model_instance(struct rdr_model_instance* instance, const float pos[3])
+{
+  if(!instance || !pos)
+    return RDR_INVALID_ARGUMENT;
+  instance->transform.c3 = vf4_set(pos[0], pos[1], pos[2], 1.f);
+  return RDR_NO_ERROR;
+}
+
+EXPORT_SYM enum rdr_error
 rdr_transform_model_instance
   (struct rdr_model_instance* instance,
    bool local_transformation,

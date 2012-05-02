@@ -92,6 +92,11 @@ rdr_scale_model_instance
    const float scale[3]);
 
 extern enum rdr_error
+rdr_move_model_instance
+  (struct rdr_model_instance* instance,
+   const float pos[3]);
+
+extern enum rdr_error
 rdr_transform_model_instance
   (struct rdr_model_instance* instance,
    bool local_transformation,
