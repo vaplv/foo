@@ -685,7 +685,7 @@ rdr_translate_model_instance
   } else {
     const vf4_t vec = vf4_set(trans[0], trans[1], trans[2], 0.f);
     instance->transform.c3 = vf4_add(instance->transform.c3, vec);
-  } 
+  }
   return RDR_NO_ERROR;
 }
 
@@ -696,22 +696,72 @@ rdr_rotate_model_instance
    const float rotation[3])
 {
   struct aosf33 f33;
-  struct aosf44 f44;
-
   enum { PITCH, YAW, ROLL };
 
   if(!instance || !rotation)
     return RDR_INVALID_ARGUMENT;
-
   if((!rotation[PITCH]) & (!rotation[YAW]) & (!rotation[ROLL]))
      return RDR_NO_ERROR;
 
-  /* Build rotation matrix. */
   aosf33_rotation(&f33, rotation[PITCH], rotation[YAW], rotation[ROLL]);
-  aosf44_set(&f44, f33.c0, f33.c1, f33.c2, vf4_set(0.f, 0.f, 0.f, 1.f));
+
   if(local_rotation) {
-    aosf44_mulf44(&instance->transform, &instance->transform, &f44);
+    const struct aosf33 tmp = {
+      .c0 = instance->transform.c0,
+      .c1 = instance->transform.c1,
+      .c2 = instance->transform.c2
+    };
+    aosf33_mulf33(&f33, &tmp, &f33);
+    instance->transform.c0 = f33.c0;
+    instance->transform.c1 = f33.c1;
+    instance->transform.c2 = f33.c2;
   } else {
+    const struct aosf44 f44 = {
+      .c0 = f33.c0,
+      .c1 = f33.c1,
+      .c2 = f33.c2,
+      .c3 = vf4_set(0.f, 0.f, 0.f, 1.f)
+    };
+    aosf44_mulf44(&instance->transform, &f44, &instance->transform);
+  }
+  return RDR_NO_ERROR;
+}
+
+EXPORT_SYM enum rdr_error
+rdr_scale_model_instance
+  (struct rdr_model_instance* instance,
+   bool local_scale,
+   const float scale[3])
+{
+  struct aosf33 f33;
+
+  if(!instance || !scale)
+    return RDR_INVALID_ARGUMENT;
+
+  if((!scale[0]) & (!scale[1]) & (!scale[2]))
+    return RDR_NO_ERROR;
+
+  f33.c0 = vf4_set(scale[0], 0.f, 0.f, 0.f);
+  f33.c1 = vf4_set(0.f, scale[1], 0.f, 0.f);
+  f33.c2 = vf4_set(0.f, 0.f, scale[2], 0.f);
+
+  if(local_scale) {
+    const struct aosf33 tmp = {
+      .c0 = instance->transform.c0,
+      .c1 = instance->transform.c1,
+      .c2 = instance->transform.c2
+    };
+    aosf33_mulf33(&f33, &tmp, &f33);
+    instance->transform.c0 = f33.c0;
+    instance->transform.c1 = f33.c1;
+    instance->transform.c2 = f33.c2;
+  } else {
+    const struct aosf44 f44 = {
+      .c0 = f33.c0,
+      .c1 = f33.c1,
+      .c2 = f33.c2,
+      .c3 = vf4_set(0.f, 0.f, 0.f, 1.f)
+    };
     aosf44_mulf44(&instance->transform, &f44, &instance->transform);
   }
   return RDR_NO_ERROR;

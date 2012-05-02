@@ -161,7 +161,7 @@ app_view_rotate
     return APP_NO_ERROR;
   aosf33_rotation(&f33, pitch, yaw, roll);
   aosf44_mulf44
-    (&view->transform, 
+    (&view->transform,
      (struct aosf44[]){{f33.c0, f33.c1, f33.c2, vf4_set(0.f, 0.f, 0.f, 1.f)}},
      &view->transform);
   return APP_NO_ERROR;

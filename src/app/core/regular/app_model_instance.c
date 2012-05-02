@@ -118,7 +118,7 @@ app_translate_model_instance
   size_t nb_render_instances = 0;
   size_t i = 0;
 
-  if(!instance)
+  if(!instance || !translation)
     return APP_INVALID_ARGUMENT;
 
   SL(vector_buffer
@@ -144,7 +144,7 @@ app_rotate_model_instance
   size_t nb_render_instances = 0;
   size_t i = 0;
 
-  if(!instance)
+  if(!instance || !rotation)
     return APP_INVALID_ARGUMENT;
 
   SL(vector_buffer
@@ -161,6 +161,32 @@ app_rotate_model_instance
 }
 
 EXPORT_SYM enum app_error
+app_scale_model_instance
+  (struct app_model_instance* instance,
+   bool local_scale,
+   const float scale[3])
+{
+  struct rdr_model_instance** render_instance_list = NULL;
+  size_t nb_render_instances = 0;
+  size_t i = 0;
+
+  if(!instance || !scale)
+    return APP_INVALID_ARGUMENT;
+
+  SL(vector_buffer
+    (instance->model_instance_list, 
+     &nb_render_instances, 
+     NULL, 
+     NULL,
+     (void**)&render_instance_list));
+  for(i = 0; i < nb_render_instances; ++i) {
+    RDR(scale_model_instance
+      (render_instance_list[i], local_scale, scale));
+  }
+  return APP_NO_ERROR;
+}
+
+EXPORT_SYM enum app_error
 app_transform_model_instance
   (struct app_model_instance* instance,
    bool local_transform,
@@ -170,7 +196,7 @@ app_transform_model_instance
   size_t nb_render_instances = 0;
   size_t i = 0;
 
-  if(!instance)
+  if(!instance || !transform)
     return APP_INVALID_ARGUMENT;
 
   SL(vector_buffer

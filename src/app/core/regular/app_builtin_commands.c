@@ -319,7 +319,7 @@ cmd_translate
     if(nb_defined_flags == 0) {
       APP_LOG_ERR(app->logger, "no translation space defined");
     } else {
-      APP_LOG_ERR(app->logger, "only one translation space must be defined");
+      APP_LOG_ERR(app->logger, "only one coordinate system must be defined");
     }
   } else {
     struct app_model_instance* instance = NULL;
@@ -422,7 +422,7 @@ cmd_rotate(struct app* app, size_t argc UNUSED, const struct app_cmdarg** argv)
     if(nb_defined_flags == 0) {
       APP_LOG_ERR(app->logger, "no rotation space defined");
     } else {
-      APP_LOG_ERR(app->logger, "only one rotation space must be defined");
+      APP_LOG_ERR(app->logger, "only one coordinate system must be defined");
     }
   } else {
     struct app_model_instance* instance = NULL;
@@ -476,6 +476,112 @@ cmd_rotate(struct app* app, size_t argc UNUSED, const struct app_cmdarg** argv)
           aosf33_rotation(&rot_3x3, rot[0], rot[1], rot[2]);
           aosf33_set(&tmp_3x3, view_4x4->c0, view_4x4->c1, view_4x4->c2);
           aosf33_mulf33(&tmp_3x3, &rot_3x3, &tmp_3x3);
+          aosf44_set(&tmp_4x4, tmp_3x3.c0, tmp_3x3.c1, tmp_3x3.c2,view_4x4->c3);
+          aosf44_mulf44(&tmp_4x4, &inv_view_4x4, &tmp_4x4);
+
+          APP(transform_model_instance(instance, true, &tmp_4x4));
+        }
+      }
+    }
+  }
+}
+
+static void
+cmd_scale(struct app* app, size_t argc UNUSED, const struct app_cmdarg** argv)
+{
+  size_t nb_defined_flags = 0;
+  enum {
+    CMD_NAME,
+    EYE_SPACE_FLAG,
+    LOCAL_SPACE_FLAG,
+    WORLD_SPACE_FLAG,
+    INSTANCE_NAME,
+    SCALE_X,
+    SCALE_Y,
+    SCALE_Z,
+    ARGC
+  };
+
+  assert(app != NULL
+      && argc == ARGC
+      && argv != NULL
+      && argv[CMD_NAME]->type == APP_CMDARG_STRING
+      && argv[EYE_SPACE_FLAG]->type == APP_CMDARG_LITERAL
+      && argv[LOCAL_SPACE_FLAG]->type == APP_CMDARG_LITERAL
+      && argv[WORLD_SPACE_FLAG]->type == APP_CMDARG_LITERAL
+      && argv[INSTANCE_NAME]->type == APP_CMDARG_STRING
+      && argv[SCALE_X]->type == APP_CMDARG_FLOAT
+      && argv[SCALE_Y]->type == APP_CMDARG_FLOAT
+      && argv[SCALE_Z]->type == APP_CMDARG_FLOAT
+      && argv[CMD_NAME]->count == 1
+      && argv[EYE_SPACE_FLAG]->count == 1
+      && argv[LOCAL_SPACE_FLAG]->count == 1
+      && argv[WORLD_SPACE_FLAG]->count == 1
+      && argv[INSTANCE_NAME]->count == 1
+      && argv[SCALE_X]->count == 1
+      && argv[SCALE_Y]->count == 1
+      && argv[SCALE_Z]->count == 1);
+
+  nb_defined_flags =
+      (ARGVAL(argv, EYE_SPACE_FLAG).is_defined == true)
+    + (ARGVAL(argv, LOCAL_SPACE_FLAG).is_defined == true)
+    + (ARGVAL(argv, WORLD_SPACE_FLAG).is_defined == true);
+
+  if(nb_defined_flags != 1) {
+    if(nb_defined_flags == 0) {
+      APP_LOG_ERR(app->logger, "no scaling space defined");
+    } else {
+      APP_LOG_ERR(app->logger, "only one coordinate system must be defined");
+    }
+  } else {
+    struct app_model_instance* instance = NULL;
+    const char* instance_name = ARGVAL(argv, 4).data.string;
+
+    APP(get_model_instance(app, instance_name, &instance));
+    if(instance == NULL) {
+      APP_LOG_ERR
+        (app->logger, "the instance `%s' does not exist\n", instance_name);
+    } else {
+      const float scale[3] = {
+        [0] = ARGVAL(argv, SCALE_X).is_defined
+            ? ARGVAL(argv, SCALE_X).data.real
+            : 1.f,
+        [1] = ARGVAL(argv, SCALE_Y).is_defined
+            ? ARGVAL(argv, SCALE_Y).data.real
+            : 1.f,
+        [2] = ARGVAL(argv, SCALE_Z).is_defined
+            ? ARGVAL(argv, SCALE_Z).data.real
+            : 1.f
+      };
+
+      if((scale[0] != 0.f) | (scale[1] != 0.f) | (scale[2] != 0.f)) {
+        if(ARGVAL(argv, LOCAL_SPACE_FLAG).is_defined) {
+          APP(scale_model_instance(instance, true, scale));
+        } else if(ARGVAL(argv, WORLD_SPACE_FLAG).is_defined) {
+          APP(scale_model_instance(instance, false, scale));
+        } else {
+          struct aosf44 inv_view_4x4;
+          struct aosf44 tmp_4x4;
+          struct aosf33 scale_3x3;
+          struct aosf33 tmp_3x3;
+          vf4_t vec;
+          UNUSED ALIGN(16) float tmp[4];
+          const struct aosf44* view_4x4 = NULL;
+          struct app_view* view = NULL;
+          assert(ARGVAL(argv, EYE_SPACE_FLAG).is_defined);
+
+          /* Get the view matrix and its inverse. */
+          APP(get_main_view(app, &view));
+          APP(get_raw_view_transform(view, &view_4x4));
+          vec = aosf44_inverse(&inv_view_4x4, view_4x4);
+          assert((vf4_store(tmp, vec), tmp[0] != 0.f));
+
+          /* Compute the matrix to apply to the model. */
+          scale_3x3.c0 = vf4_set(scale[0], 0.f, 0.f, 0.f);
+          scale_3x3.c1 = vf4_set(0.f, scale[1], 0.f, 0.f);
+          scale_3x3.c2 = vf4_set(0.f, 0.f, scale[2], 0.f);
+          aosf33_set(&tmp_3x3, view_4x4->c0, view_4x4->c1, view_4x4->c2);
+          aosf33_mulf33(&tmp_3x3, &scale_3x3, &tmp_3x3);
           aosf44_set(&tmp_4x4, tmp_3x3.c0, tmp_3x3.c1, tmp_3x3.c2,view_4x4->c3);
           aosf44_mulf44(&tmp_4x4, &inv_view_4x4, &tmp_4x4);
 
@@ -544,11 +650,22 @@ app_setup_builtin_commands(struct app* app)
   CALL(app_add_command
     (app, "rotate", cmd_rotate, app_model_instance_name_completion,
      APP_CMDARGV
-     (APP_CMDARG_APPEND_LITERAL("e", "eye", "eye space rotation", 0, 1),
-      APP_CMDARG_APPEND_LITERAL("l", "local", "object space rotation", 0, 1),
-      APP_CMDARG_APPEND_LITERAL("w", "world", "world space rotation", 0, 1),
+     (APP_CMDARG_APPEND_LITERAL
+        ("e", "eye",
+         "perform the rotation with respect to eye coordinates",
+         0, 1),
+      APP_CMDARG_APPEND_LITERAL
+        ("l", "local",
+         "perform the rotation with respect to object coordinates",
+         0, 1),
+      APP_CMDARG_APPEND_LITERAL
+        ("w", "world",
+         "perform the rotation with respect to world coordinates",
+         0, 1),
       APP_CMDARG_APPEND_STRING
-        ("i", "instance", "<name>", "instance to rotate", 1, 1, NULL),
+        ("i", "instance", "<name>",
+         "define the instance to rotate",
+         1, 1, NULL),
       APP_CMDARG_APPEND_FLOAT
         ("x", NULL, "<real>", "pitch angle", 0, 1, -FLT_MAX, FLT_MAX),
       APP_CMDARG_APPEND_FLOAT
@@ -556,11 +673,36 @@ app_setup_builtin_commands(struct app* app)
       APP_CMDARG_APPEND_FLOAT
         ("z", NULL, "<real>", "roll angle", 0, 1, -FLT_MAX, FLT_MAX),
       APP_CMDARG_APPEND_LITERAL
-        ("r", "radian",
-         "the input angles are expressed into radians rather than in degrees",
-         0, 1),
+        ("r", "radian", "set the angle unit to radian", 0, 1),
       APP_CMDARG_END),
      "rotate a model instance"));
+  CALL(app_add_command
+    (app, "scale", cmd_scale, app_model_instance_name_completion,
+     APP_CMDARGV
+     (APP_CMDARG_APPEND_LITERAL
+        ("e", "eye",
+         "perform the scale with respect to eye coordinates",
+         0, 1),
+      APP_CMDARG_APPEND_LITERAL
+        ("l", "local",
+         "perform the scale with respect to object coordinates",
+         0, 1),
+      APP_CMDARG_APPEND_LITERAL
+        ("w", "world",
+         "perform the scale with respect to world coordinates",
+         0, 1),
+      APP_CMDARG_APPEND_STRING
+        ("i", "instance", "<name>",
+         "define the instance to scale",
+         1, 1, NULL),
+      APP_CMDARG_APPEND_FLOAT
+        ("x", NULL, "<real>", NULL, 0, 1, -FLT_MAX, FLT_MAX),
+      APP_CMDARG_APPEND_FLOAT
+        ("y", NULL, "<real>", NULL, 0, 1, -FLT_MAX, FLT_MAX),
+      APP_CMDARG_APPEND_FLOAT
+        ("z", NULL, "<real>", NULL, 0, 1, -FLT_MAX, FLT_MAX),
+      APP_CMDARG_END),
+     "scale a model instance"));
   CALL(app_add_command
     (app, "spawn", cmd_spawn, app_model_name_completion,
      APP_CMDARGV
@@ -577,11 +719,22 @@ app_setup_builtin_commands(struct app* app)
   CALL(app_add_command
     (app, "translate", cmd_translate, app_model_instance_name_completion,
      APP_CMDARGV
-     (APP_CMDARG_APPEND_LITERAL("e", "eye", "eye space translation", 0, 1),
-      APP_CMDARG_APPEND_LITERAL("l", "local", "object space translation", 0, 1),
-      APP_CMDARG_APPEND_LITERAL("w", "world", "local space translation", 0, 1),
+     (APP_CMDARG_APPEND_LITERAL
+        ("e", "eye",
+         "perform the translation with respect to eye coordinates",
+         0, 1),
+      APP_CMDARG_APPEND_LITERAL
+        ("l", "local",
+         "perform the translation with respect to object coordinates",
+         0, 1),
+      APP_CMDARG_APPEND_LITERAL
+        ("w", "world",
+         "perform the translation with respect to world coordinates",
+         0, 1),
       APP_CMDARG_APPEND_STRING
-        ("i", "instance", "<name>", "instance to translate", 1, 1, NULL),
+        ("i", "instance", "<name>",
+         "define the instance to translate",
+         1, 1, NULL),
       APP_CMDARG_APPEND_FLOAT
         ("x", NULL, "<real>", NULL, 0, 1, -FLT_MAX, FLT_MAX),
       APP_CMDARG_APPEND_FLOAT

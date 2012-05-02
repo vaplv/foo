@@ -52,6 +52,12 @@ app_rotate_model_instance
    const float rotation[3]);
 
 extern enum app_error
+app_scale_model_instance
+  (struct app_model_instance* instance,
+   bool local_scale,
+   const float scale[3]);
+
+extern enum app_error
 app_transform_model_instance
   (struct app_model_instance* instance,
    bool local_transformation,
