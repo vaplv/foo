@@ -767,15 +767,15 @@ rdr_scale_model_instances
   if(local_scale) {
     for(i = 0; i < nb_instances; ++i) {
       struct rdr_model_instance* instance = instance_list[i];
-      const struct aosf33 tmp = {
+      struct aosf33 tmp = {
         .c0 = instance->transform.c0,
         .c1 = instance->transform.c1,
         .c2 = instance->transform.c2
       };
-      aosf33_mulf33(&f33, &tmp, &f33);
-      instance->transform.c0 = f33.c0;
-      instance->transform.c1 = f33.c1;
-      instance->transform.c2 = f33.c2;
+      aosf33_mulf33(&tmp, &tmp, &f33);
+      instance->transform.c0 = tmp.c0;
+      instance->transform.c1 = tmp.c1;
+      instance->transform.c2 = tmp.c2;
     }
   } else {
     const struct aosf44 f44 = {

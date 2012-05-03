@@ -363,6 +363,7 @@ test_rdr_model_instance(const char* driver_name)
     0.f, 0.f, 0.f, 1.f
   };
   struct aosf44 f44;
+  struct aosf44 f44a;
   struct aosf33 f33;
   ALIGN(16) float tmp[16];
   enum rdr_material_density density;
@@ -370,26 +371,27 @@ test_rdr_model_instance(const char* driver_name)
   bool null_driver = is_driver_null(driver_name);
   bool b = false;
 
+  #define EPS 1.e-8f
   #define CHECK_TRANSFORM(inst, a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p)\
     do { \
       float m__[16]; \
       CHECK(rdr_get_model_instance_transform(inst, m__), OK); \
-      CHECK(m__[0], a); \
-      CHECK(m__[1], b); \
-      CHECK(m__[2], c); \
-      CHECK(m__[3], d); \
-      CHECK(m__[4], e); \
-      CHECK(m__[5], f); \
-      CHECK(m__[6], g); \
-      CHECK(m__[7], h); \
-      CHECK(m__[8], i); \
-      CHECK(m__[9], j); \
-      CHECK(m__[10], k); \
-      CHECK(m__[11], l); \
-      CHECK(m__[12], m); \
-      CHECK(m__[13], n); \
-      CHECK(m__[14], o); \
-      CHECK(m__[15], p); \
+      CHECK(fabsf(m__[0] - a) < EPS, true); \
+      CHECK(fabsf(m__[1] - b) < EPS, true); \
+      CHECK(fabsf(m__[2] - c) < EPS, true); \
+      CHECK(fabsf(m__[3] - d) < EPS, true); \
+      CHECK(fabsf(m__[4] - e) < EPS, true); \
+      CHECK(fabsf(m__[5] - f) < EPS, true); \
+      CHECK(fabsf(m__[6] - g) < EPS, true); \
+      CHECK(fabsf(m__[7] - h) < EPS, true); \
+      CHECK(fabsf(m__[8] - i) < EPS, true); \
+      CHECK(fabsf(m__[9] - j) < EPS, true); \
+      CHECK(fabsf(m__[10] - k) < EPS, true); \
+      CHECK(fabsf(m__[11] - l) < EPS, true); \
+      CHECK(fabsf(m__[12] - m) < EPS, true); \
+      CHECK(fabsf(m__[13] - n) < EPS, true); \
+      CHECK(fabsf(m__[14] - o) < EPS, true); \
+      CHECK(fabsf(m__[15] - p) < EPS, true); \
     } while(0)
 
   memset(&instance_cbk_data, 0, SZ(struct instance_cbk_data));
@@ -543,28 +545,29 @@ test_rdr_model_instance(const char* driver_name)
   CHECK(rdr_rotate_model_instances(NULL, 0, false, NULL), BAD_ARG);
   CHECK(rdr_rotate_model_instances(&inst, 0, false, NULL), BAD_ARG);
   CHECK(rdr_rotate_model_instances
-    (NULL, 0, false, (float[]){DEG2RAD(45.f), 0.f, 0.f}), OK);
+    (NULL, 0, false, (float[]){0.785f, 0.f, 0.f}), OK);
   CHECK_TRANSFORM(inst, 
      1.f, 0.f, 0.f, 0.f,
      0.f, 1.f, 0.f, 0.f,
      0.f, 0.f, 1.f, 0.f,
      0.f, 0.f, 0.f, 1.f);
   CHECK(rdr_rotate_model_instances
-    (&inst, 0, false, (float[]){DEG2RAD(45.f), 0.f, 0.f}), OK);
+    (&inst, 0, false, (float[]){0.785f, 0.f, 0.f}), OK);
   CHECK_TRANSFORM(inst, 
      1.f, 0.f, 0.f, 0.f,
      0.f, 1.f, 0.f, 0.f,
      0.f, 0.f, 1.f, 0.f,
      0.f, 0.f, 0.f, 1.f);
   CHECK(rdr_rotate_model_instances
-    (&inst, 1, false, (float[]){DEG2RAD(45.f), 0.f, 0.f}), OK);
-  aosf33_rotation(&f33, DEG2RAD(45.f), 0.f, 0.f);
+    (&inst, 1, false, (float[]){0.785f, 0.f, 0.f}), OK);
+  aosf33_rotation(&f33, 0.785f, 0.f, 0.f);
   f44.c0 = f33.c0;
   f44.c1 = f33.c1;
   f44.c2 = f33.c2;
   f44.c3 = vf4_set(0.f, 0.f, 0.f, 1.f);
+  CHECK(rdr_get_model_instance_transform(inst, tmp), OK);
   aosf44_store(tmp, &f44);
-  CHECK_TRANSFORM(inst, 
+    CHECK_TRANSFORM(inst, 
      tmp[0], tmp[1], tmp[2], tmp[3],
      tmp[4], tmp[5], tmp[6], tmp[7],
      tmp[8], tmp[9], tmp[10], tmp[11],
@@ -603,9 +606,8 @@ test_rdr_model_instance(const char* driver_name)
      tmp[8], tmp[9], tmp[10], tmp[11],
      tmp[12], tmp[13], tmp[14], tmp[15]);
   CHECK(rdr_rotate_model_instances
-    (&inst, 1, true, 
-     (float[]){DEG2RAD(45.f), DEG2RAD(11.f), DEG2RAD(87.f)}), OK);
-  aosf33_rotation(&f33, DEG2RAD(45.f), DEG2RAD(11.f), DEG2RAD(87.f));
+    (&inst, 1, true, (float[]){0.785f, 0.11f, 0.87f}), OK);
+  aosf33_rotation(&f33, 0.785f, 0.11f, 0.87f);
   aosf33_mulf33(&f33, (struct aosf33[]) {{f44.c0, f44.c1, f44.c2}}, &f33);
   f44.c0 = f33.c0;
   f44.c1 = f33.c1;
@@ -617,9 +619,8 @@ test_rdr_model_instance(const char* driver_name)
      tmp[8], tmp[9], tmp[10], tmp[11],
      tmp[12], tmp[13], tmp[14], tmp[15]);
   CHECK(rdr_rotate_model_instances
-    (&inst, 1, false, 
-     (float[]){DEG2RAD(45.f), DEG2RAD(11.f), DEG2RAD(87.f)}), OK);
-  aosf33_rotation(&f33, DEG2RAD(45.f), DEG2RAD(11.f), DEG2RAD(87.f));
+    (&inst, 1, false, (float[]){0.785f, 0.11f, 0.87f}), OK);
+  aosf33_rotation(&f33, 0.785f, 0.11f, 0.87f);
   aosf44_mulf44
     (&f44, 
      (struct aosf44[]) {{f33.c0, f33.c1, f33.c2, vf4_set(0.f, 0.f, 0.f, 1.f)}},
@@ -666,12 +667,12 @@ test_rdr_model_instance(const char* driver_name)
      tmp[8], tmp[9], tmp[10], tmp[11],
      tmp[12], tmp[13], tmp[14], tmp[15]);
   CHECK(rdr_scale_model_instances
-    (&inst, 1, false, (float[]){7.f, 1.1f, 0.5f}), OK);
+    (&inst, 1, false, (float[]){7.1f, 1.98f, 0.5f}), OK);
   aosf44_mulf44
     (&f44, 
      (struct aosf44[]) {{
-      vf4_set(7.f, 0.f, 0.f, 0.f),
-      vf4_set(0.f, 1.1f, 0.f, 0.f),
+      vf4_set(7.1f, 0.f, 0.f, 0.f),
+      vf4_set(0.f, 1.98f, 0.f, 0.f),
       vf4_set(0.f, 0.f, 0.5f, 0.f),
       vf4_set(0.f, 0.f, 0.f, 1.f)}},
      &f44);
@@ -738,6 +739,281 @@ test_rdr_model_instance(const char* driver_name)
      tmp[8], tmp[9], tmp[10], tmp[11],
      tmp[12], tmp[13], tmp[14], tmp[15]);
 
+  CHECK(rdr_create_model_instance(sys, model, &inst1), OK);
+  CHECK(rdr_get_model_instance_transform(inst1, tmp), OK);
+  aosf44_set
+    (&f44a, 
+     vf4_set(tmp[0], tmp[1], tmp[2], tmp[3]),
+     vf4_set(tmp[4], tmp[5], tmp[6], tmp[7]),
+     vf4_set(tmp[8], tmp[9], tmp[10], tmp[11]),
+     vf4_set(tmp[12], tmp[13], tmp[14], tmp[15]));
+
+  CHECK(rdr_translate_model_instances
+    ((struct rdr_model_instance*[]){inst, inst1}, 2,
+     false, (float[]){5.f, 1.f, 4.f}), OK);
+  aosf44_mulf44
+    (&f44,
+     (struct aosf44[]){{
+      vf4_set(1.f, 0.f, 0.f, 0.f),
+      vf4_set(0.f, 1.f, 0.f, 0.f),
+      vf4_set(0.f, 0.f, 1.f, 0.f),
+      vf4_set(5.f, 1.f, 4.f, 1.f)}},
+     &f44);
+  aosf44_store(tmp, &f44);
+  CHECK_TRANSFORM(inst, 
+     tmp[0], tmp[1], tmp[2], tmp[3],
+     tmp[4], tmp[5], tmp[6], tmp[7],
+     tmp[8], tmp[9], tmp[10], tmp[11],
+     tmp[12], tmp[13], tmp[14], tmp[15]);
+  aosf44_mulf44
+    (&f44a,
+     (struct aosf44[]){{
+      vf4_set(1.f, 0.f, 0.f, 0.f),
+      vf4_set(0.f, 1.f, 0.f, 0.f),
+      vf4_set(0.f, 0.f, 1.f, 0.f),
+      vf4_set(5.f, 1.f, 4.f, 1.f)}},
+     &f44a);
+  aosf44_store(tmp, &f44);
+  CHECK_TRANSFORM(inst, 
+     tmp[0], tmp[1], tmp[2], tmp[3],
+     tmp[4], tmp[5], tmp[6], tmp[7],
+     tmp[8], tmp[9], tmp[10], tmp[11],
+     tmp[12], tmp[13], tmp[14], tmp[15]);
+  CHECK(rdr_translate_model_instances
+    ((struct rdr_model_instance*[]){inst, inst1}, 2,
+     true, (float[]){5.f, 1.f, 4.f}), OK);
+  aosf44_mulf44
+    (&f44,
+     &f44,
+     (struct aosf44[]){{
+      vf4_set(1.f, 0.f, 0.f, 0.f),
+      vf4_set(0.f, 1.f, 0.f, 0.f),
+      vf4_set(0.f, 0.f, 1.f, 0.f),
+      vf4_set(5.f, 1.f, 4.f, 1.f)}});
+  aosf44_store(tmp, &f44);
+  CHECK_TRANSFORM(inst, 
+     tmp[0], tmp[1], tmp[2], tmp[3],
+     tmp[4], tmp[5], tmp[6], tmp[7],
+     tmp[8], tmp[9], tmp[10], tmp[11],
+     tmp[12], tmp[13], tmp[14], tmp[15]);
+  aosf44_mulf44
+    (&f44a,
+     &f44a,
+     (struct aosf44[]){{
+      vf4_set(1.f, 0.f, 0.f, 0.f),
+      vf4_set(0.f, 1.f, 0.f, 0.f),
+      vf4_set(0.f, 0.f, 1.f, 0.f),
+      vf4_set(5.f, 1.f, 4.f, 1.f)}});
+  aosf44_store(tmp, &f44);
+  CHECK_TRANSFORM(inst, 
+     tmp[0], tmp[1], tmp[2], tmp[3],
+     tmp[4], tmp[5], tmp[6], tmp[7],
+     tmp[8], tmp[9], tmp[10], tmp[11],
+     tmp[12], tmp[13], tmp[14], tmp[15]);
+
+  CHECK(rdr_rotate_model_instances
+    ((struct rdr_model_instance*[]){inst, inst1}, 2,
+     false, (float[]){0.785f, 0.12f, 0.08f}), OK);
+  aosf33_rotation(&f33, 0.785f, 0.12f, 0.08f);
+  aosf44_mulf44
+    (&f44, 
+     (struct aosf44[]) {{f33.c0, f33.c1, f33.c2, vf4_set(0.f, 0.f, 0.f, 1.f)}},
+     &f44);
+  aosf44_store(tmp, &f44);
+  CHECK_TRANSFORM(inst, 
+     tmp[0], tmp[1], tmp[2], tmp[3],
+     tmp[4], tmp[5], tmp[6], tmp[7],
+     tmp[8], tmp[9], tmp[10], tmp[11],
+     tmp[12], tmp[13], tmp[14], tmp[15]);
+  aosf44_mulf44
+    (&f44a, 
+     (struct aosf44[]) {{f33.c0, f33.c1, f33.c2, vf4_set(0.f, 0.f, 0.f, 1.f)}},
+     &f44a);
+  aosf44_store(tmp, &f44a);
+  CHECK_TRANSFORM(inst1, 
+     tmp[0], tmp[1], tmp[2], tmp[3],
+     tmp[4], tmp[5], tmp[6], tmp[7],
+     tmp[8], tmp[9], tmp[10], tmp[11],
+     tmp[12], tmp[13], tmp[14], tmp[15]);
+  CHECK(rdr_rotate_model_instances
+    ((struct rdr_model_instance*[]){inst, inst1}, 2,
+     true, (float[]){0.785f, 0.12f, 0.08f}), OK);
+  aosf33_rotation(&f33, 0.785f, 0.12f, 0.08f);
+  aosf33_mulf33(&f33, (struct aosf33[]) {{f44.c0, f44.c1, f44.c2}}, &f33);
+  f44.c0 = f33.c0;
+  f44.c1 = f33.c1;
+  f44.c2 = f33.c2;
+  aosf44_store(tmp, &f44);
+  CHECK_TRANSFORM(inst, 
+     tmp[0], tmp[1], tmp[2], tmp[3],
+     tmp[4], tmp[5], tmp[6], tmp[7],
+     tmp[8], tmp[9], tmp[10], tmp[11],
+     tmp[12], tmp[13], tmp[14], tmp[15]);
+  aosf33_mulf33(&f33, (struct aosf33[]) {{f44a.c0, f44a.c1, f44a.c2}}, &f33);
+  f44a.c0 = f33.c0;
+  f44a.c1 = f33.c1;
+  f44a.c2 = f33.c2;
+  aosf44_store(tmp, &f44a);
+  CHECK_TRANSFORM(inst1, 
+     tmp[0], tmp[1], tmp[2], tmp[3],
+     tmp[4], tmp[5], tmp[6], tmp[7],
+     tmp[8], tmp[9], tmp[10], tmp[11],
+     tmp[12], tmp[13], tmp[14], tmp[15]);
+
+  CHECK(rdr_scale_model_instances
+    ((struct rdr_model_instance*[]){inst, inst1}, 2,
+     false, (float[]){0.5f, 0.789f, -2.78f}), OK);
+  aosf44_mulf44
+    (&f44, 
+     (struct aosf44[]) {{
+      vf4_set(0.5f, 0.f, 0.f, 0.f),
+      vf4_set(0.f, 0.789, 0.f, 0.f),
+      vf4_set(0.f, 0.f, -2.78f, 0.f),
+      vf4_set(0.f, 0.f, 0.f, 1.f)}},
+     &f44);
+  aosf44_store(tmp, &f44);
+  CHECK_TRANSFORM(inst, 
+     tmp[0], tmp[1], tmp[2], tmp[3],
+     tmp[4], tmp[5], tmp[6], tmp[7],
+     tmp[8], tmp[9], tmp[10], tmp[11],
+     tmp[12], tmp[13], tmp[14], tmp[15]);
+  aosf44_mulf44
+    (&f44a, 
+     (struct aosf44[]) {{
+      vf4_set(0.5f, 0.f, 0.f, 0.f),
+      vf4_set(0.f, 0.789, 0.f, 0.f),
+      vf4_set(0.f, 0.f, -2.78f, 0.f),
+      vf4_set(0.f, 0.f, 0.f, 1.f)}},
+     &f44a);
+  aosf44_store(tmp, &f44a);
+  CHECK_TRANSFORM(inst1, 
+     tmp[0], tmp[1], tmp[2], tmp[3],
+     tmp[4], tmp[5], tmp[6], tmp[7],
+     tmp[8], tmp[9], tmp[10], tmp[11],
+     tmp[12], tmp[13], tmp[14], tmp[15]);
+  CHECK(rdr_scale_model_instances
+    ((struct rdr_model_instance*[]){inst, inst1}, 2,
+     true, (float[]){0.5f, 0.789f, -2.78f}), OK);
+  aosf33_mulf33
+    (&f33, 
+     (struct aosf33[]) {{f44.c0, f44.c1, f44.c2}}, 
+     (struct aosf33[]) {{
+      vf4_set(0.5f, 0.f, 0.f, 0.f),
+      vf4_set(0.f, 0.789f, 0.f, 0.f),
+      vf4_set(0.f, 0.f, -2.78f, 0.f)}});
+  f44.c0 = f33.c0;
+  f44.c1 = f33.c1;
+  f44.c2 = f33.c2;
+  aosf44_store(tmp, &f44);
+  CHECK_TRANSFORM(inst, 
+     tmp[0], tmp[1], tmp[2], tmp[3],
+     tmp[4], tmp[5], tmp[6], tmp[7],
+     tmp[8], tmp[9], tmp[10], tmp[11],
+     tmp[12], tmp[13], tmp[14], tmp[15]);
+  aosf33_mulf33
+    (&f33, 
+     (struct aosf33[]) {{f44a.c0, f44a.c1, f44a.c2}}, 
+     (struct aosf33[]) {{
+      vf4_set(0.5f, 0.f, 0.f, 0.f),
+      vf4_set(0.f, 0.789f, 0.f, 0.f),
+      vf4_set(0.f, 0.f, -2.78f, 0.f)}});
+  f44a.c0 = f33.c0;
+  f44a.c1 = f33.c1;
+  f44a.c2 = f33.c2;
+  aosf44_store(tmp, &f44a);
+  CHECK_TRANSFORM(inst1, 
+     tmp[0], tmp[1], tmp[2], tmp[3],
+     tmp[4], tmp[5], tmp[6], tmp[7],
+     tmp[8], tmp[9], tmp[10], tmp[11],
+     tmp[12], tmp[13], tmp[14], tmp[15]);
+
+  CHECK(rdr_transform_model_instances
+    ((struct rdr_model_instance*[]){inst, inst1}, 2, false, 
+     (struct aosf44[]){{
+      vf4_set(45.f, 4.f, 7.8f, 0.f),
+      vf4_set(5.1f, 2.f, -6.f, 0.f),
+      vf4_set(0.5f, -50.f, 899.f, 0.f),
+      vf4_set(4.5f, 0.01f, -989.f, 1.f)}}), OK);
+  aosf44_mulf44
+    (&f44, 
+     (struct aosf44[]){{
+      vf4_set(45.f, 4.f, 7.8f, 0.f),
+      vf4_set(5.1f, 2.f, -6.f, 0.f),
+      vf4_set(0.5f, -50.f, 899.f, 0.f),
+      vf4_set(4.5f, 0.01f, -989.f, 1.f)}},
+     &f44);
+  aosf44_store(tmp, &f44);
+  CHECK_TRANSFORM(inst, 
+     tmp[0], tmp[1], tmp[2], tmp[3],
+     tmp[4], tmp[5], tmp[6], tmp[7],
+     tmp[8], tmp[9], tmp[10], tmp[11],
+     tmp[12], tmp[13], tmp[14], tmp[15]);
+  aosf44_mulf44
+    (&f44a, 
+     (struct aosf44[]){{
+      vf4_set(45.f, 4.f, 7.8f, 0.f),
+      vf4_set(5.1f, 2.f, -6.f, 0.f),
+      vf4_set(0.5f, -50.f, 899.f, 0.f),
+      vf4_set(4.5f, 0.01f, -989.f, 1.f)}},
+     &f44a);
+  aosf44_store(tmp, &f44a);
+  CHECK_TRANSFORM(inst1, 
+     tmp[0], tmp[1], tmp[2], tmp[3],
+     tmp[4], tmp[5], tmp[6], tmp[7],
+     tmp[8], tmp[9], tmp[10], tmp[11],
+     tmp[12], tmp[13], tmp[14], tmp[15]);
+  CHECK(rdr_transform_model_instances
+    ((struct rdr_model_instance*[]){inst, inst1}, 2, true, 
+     (struct aosf44[]){{
+      vf4_set(45.f, 4.f, 7.8f, 0.f),
+      vf4_set(5.1f, 2.f, -6.f, 0.f),
+      vf4_set(0.5f, -50.f, 899.f, 0.f),
+      vf4_set(4.5f, 0.01f, -989.f, 1.f)}}), OK);
+  aosf44_mulf44
+    (&f44, &f44,
+     (struct aosf44[]){{
+      vf4_set(45.f, 4.f, 7.8f, 0.f),
+      vf4_set(5.1f, 2.f, -6.f, 0.f),
+      vf4_set(0.5f, -50.f, 899.f, 0.f),
+      vf4_set(4.5f, 0.01f, -989.f, 1.f)}});
+  aosf44_store(tmp, &f44);
+  CHECK_TRANSFORM(inst, 
+     tmp[0], tmp[1], tmp[2], tmp[3],
+     tmp[4], tmp[5], tmp[6], tmp[7],
+     tmp[8], tmp[9], tmp[10], tmp[11],
+     tmp[12], tmp[13], tmp[14], tmp[15]);
+  aosf44_mulf44
+    (&f44a, &f44a,
+     (struct aosf44[]){{
+      vf4_set(45.f, 4.f, 7.8f, 0.f),
+      vf4_set(5.1f, 2.f, -6.f, 0.f),
+      vf4_set(0.5f, -50.f, 899.f, 0.f),
+      vf4_set(4.5f, 0.01f, -989.f, 1.f)}});
+  aosf44_store(tmp, &f44a);
+  CHECK_TRANSFORM(inst1, 
+     tmp[0], tmp[1], tmp[2], tmp[3],
+     tmp[4], tmp[5], tmp[6], tmp[7],
+     tmp[8], tmp[9], tmp[10], tmp[11],
+     tmp[12], tmp[13], tmp[14], tmp[15]);
+
+  CHECK(rdr_move_model_instances
+    ((struct rdr_model_instance*[]){inst, inst1}, 2,
+     (float[]){42.4f, -0.002f, 5.7f}), OK);
+  f44.c3 = vf4_set(42.4f, -0.002f, 5.7f, 1.f);
+  aosf44_store(tmp, &f44);
+  CHECK_TRANSFORM(inst, 
+     tmp[0], tmp[1], tmp[2], tmp[3],
+     tmp[4], tmp[5], tmp[6], tmp[7],
+     tmp[8], tmp[9], tmp[10], tmp[11],
+     tmp[12], tmp[13], tmp[14], tmp[15]);
+  f44a.c3 = vf4_set(42.4f, -0.002f, 5.7f, 1.f);
+  aosf44_store(tmp, &f44a);
+  CHECK_TRANSFORM(inst1, 
+     tmp[0], tmp[1], tmp[2], tmp[3],
+     tmp[4], tmp[5], tmp[6], tmp[7],
+     tmp[8], tmp[9], tmp[10], tmp[11],
+     tmp[12], tmp[13], tmp[14], tmp[15]);
+
   CHECK(rdr_model_instance_material_density(NULL, RDR_OPAQUE), BAD_ARG);
   CHECK(rdr_model_instance_material_density(inst, RDR_OPAQUE), OK);
   CHECK(rdr_get_model_instance_material_density(NULL, NULL), BAD_ARG);
@@ -768,8 +1044,6 @@ test_rdr_model_instance(const char* driver_name)
   CHECK(rdr_get_model_instance_rasterizer(inst, &rast), OK);
   CHECK(rast.fill_mode, RDR_SOLID);
   CHECK(rast.cull_mode, RDR_CULL_BACK);
-
-  CHECK(rdr_create_model_instance(sys, model, &inst1), OK);
 
   sources[RDR_VERTEX_SHADER] = vs_source;
   CHECK(rdr_material_program(mtr, sources), OK);
@@ -844,6 +1118,7 @@ test_rdr_model_instance(const char* driver_name)
   CHECK(rdr_system_ref_put(sys), OK);
 
   #undef CHECK_TRANSFORM
+  #undef EPS
 }
 
 int
