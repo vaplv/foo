@@ -50,39 +50,6 @@ error:
   goto exit;
 }
 
-static enum app_error
-unregister_object(struct app* app, struct app_object* obj)
-{
-  const char* cstr = NULL;
-  enum app_error app_err = APP_NO_ERROR;
-  enum sl_error sl_err = SL_NO_ERROR;
-  assert(obj && obj->name && app && obj->type != APP_NB_OBJECT_TYPES);
-
-  SL(string_get(obj->name, &cstr));
-
-  sl_err = sl_flat_map_erase(app->object_map[obj->type], &cstr, NULL);
-  if(sl_err != SL_NO_ERROR) {
-    app_err = sl_to_app_error(sl_err);
-    goto error;
-  }
-exit:
-  return app_err;
-error:
-  goto exit;
-}
-
-static bool
-is_object_registered(struct app* app, struct app_object* obj)
-{
-  void* data = NULL;
-  const char* cstr = NULL;
-  assert(obj && obj->name && app && obj->type != APP_NB_OBJECT_TYPES);
-
-  SL(string_get(obj->name, &cstr));
-  SL(flat_map_find(app->object_map[obj->type], &cstr, &data));
-  return (data != NULL);
-}
-
 static void
 release_objects(struct app* app, enum app_object_type type)
 {
@@ -161,20 +128,61 @@ error:
 enum app_error
 app_release_object(struct app* app, struct app_object* obj)
 {
+
   if(!obj || !app)
     return APP_INVALID_ARGUMENT;
 
   if(obj->name) {
-    if(is_object_registered(app, obj)) {
-      enum app_error app_err UNUSED = unregister_object(app, obj);
-      assert(app_err == APP_NO_ERROR);
-    }
+    bool b = false;
+    if(APP(is_object_registered(app, obj, &b)), b)
+      APP(unregister_object(app, obj));
     SL(free_string(obj->name));
   }
   return APP_NO_ERROR;
 }
 
-extern enum app_error
+enum app_error
+app_unregister_object(struct app* app, struct app_object* obj)
+{
+  const char* cstr = NULL;
+  enum app_error app_err = APP_NO_ERROR;
+  enum sl_error sl_err = SL_NO_ERROR;
+
+  if(!app || !obj) {
+    app_err = APP_INVALID_ARGUMENT;
+    goto error;
+  }
+  assert(obj->name && obj->type != APP_NB_OBJECT_TYPES);
+  SL(string_get(obj->name, &cstr));
+
+  sl_err = sl_flat_map_erase(app->object_map[obj->type], &cstr, NULL);
+  if(sl_err != SL_NO_ERROR) {
+    app_err = sl_to_app_error(sl_err);
+    goto error;
+  }
+exit:
+  return app_err;
+error:
+  goto exit;
+}
+
+enum app_error
+app_is_object_registered(struct app* app, struct app_object* obj, bool* b)
+{
+  void* data = NULL;
+  const char* cstr = NULL;
+
+  if(!app || !obj || !b)
+    return APP_INVALID_ARGUMENT;
+
+  assert(obj->name && obj->type != APP_NB_OBJECT_TYPES);
+  SL(string_get(obj->name, &cstr));
+  SL(flat_map_find(app->object_map[obj->type], &cstr, &data));
+  *b = (data != NULL);
+  return APP_NO_ERROR;
+}
+
+enum app_error
 app_set_object_name(struct app* app, struct app_object* obj, const char* name)
 {
   char scratch[256] = { [0] = '\0' };
@@ -202,6 +210,7 @@ app_set_object_name(struct app* app, struct app_object* obj, const char* name)
 
   if(empty_name || strncmp(cstr, name, strlen(name)) != 0) {
     bool erase = false;
+    bool b = false;
     size_t len = 0;
     size_t i = 0;
 
@@ -213,15 +222,14 @@ app_set_object_name(struct app* app, struct app_object* obj, const char* name)
       }
       strcpy(scratch, cstr);
       /* Unregister the object in order to keep the map order.*/
-      app_err = unregister_object(app, obj);
-      assert(app_err == APP_NO_ERROR);
+      APP(unregister_object(app, obj));
     }
 
     CALL(sl_string_set(obj->name, name));
     SL(string_length(obj->name, &len));
 
     erase = false;
-    for(i = 0; is_object_registered(app, obj) && i < SIZE_MAX; ++i) {
+    for(i=0; (APP(is_object_registered(app, obj, &b)), b) && i<SIZE_MAX; ++i) {
       char buf[32] = { [31] = '\0' };
       snprintf(buf, 15, "_%zu", i);
       if(erase) {

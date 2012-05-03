@@ -69,7 +69,7 @@ list_init(struct list_node* node)
 }
 
 static FINLINE int
-is_list_empty(struct list_node* node)
+is_list_empty(const struct list_node* node)
 {
   assert(node);
   return node->next == node;

@@ -31,13 +31,16 @@ main(int argc, char** argv)
   struct app_model* model2 = NULL;
   struct app_model* model3 = NULL;
   struct app_model* model_list[MODEL_COUNT];
+  struct app_model** mdl_lst = NULL;
   struct app_model_instance* instance = NULL;
   struct app_model_instance* instance1 = NULL;
+  struct app_model_instance** instance_list = NULL;
   const char** lst = NULL;
   const char* cstr = NULL;
   FILE* fp = NULL;
   size_t i = 0;
   size_t len = 0;
+  bool b = false;
 
   if(argc != 2) {
     printf("usage: %s RB_DRIVER\n", argv[0]);
@@ -282,12 +285,75 @@ main(int argc, char** argv)
   CHECK(app_model_instance_ref_get(NULL), BAD_ARG);
   CHECK(app_model_instance_ref_get(instance), OK);
   CHECK(app_model_instance_ref_put(NULL), BAD_ARG);
-  CHECK(app_model_instance_ref_put(instance), OK);
+
+  /* Check that the instance is registered. */
+  CHECK(app_get_model_instance_list(app, &len, &instance_list), OK);
+  CHECK(len, 7);
+  for(i = 0; i < len; ++i) {
+    if(instance_list[i] == instance)
+      break;
+  }
+  CHECK(i < len, true);
+  CHECK(app_remove_model_instance(NULL), BAD_ARG);
+  CHECK(app_remove_model_instance(instance), OK);
+  /* Check that the instance is *NOT* registered. */
+  CHECK(app_get_model_instance_list(app, &len, &instance_list), OK);
+  for(i = 0; i < len; ++i) {
+    if(instance_list[i] == instance)
+      break;
+  }
+  CHECK(len, 6);
+  CHECK(i < len, false);
+  /* Even though it is not registered the instance is still valid since we get
+   * a reference onto it. */
+  CHECK(app_model_instance_name(instance, &cstr), OK);
+  CHECK(strcmp(cstr, "my_inst0"), 0);
   CHECK(app_model_instance_ref_put(instance), OK);
 
+  /* Instantiate a new model. */
+  CHECK(app_create_model(app, PATH, NULL, &model2), OK);
+  CHECK(app_is_model_instantiated(NULL, NULL), BAD_ARG);
+  CHECK(app_is_model_instantiated(model2, NULL), BAD_ARG);
+  CHECK(app_is_model_instantiated(NULL, &b), BAD_ARG);
+  CHECK(app_is_model_instantiated(model2, &b), OK);
+  CHECK(b, false);
+  CHECK(app_instantiate_model(app, model2, NULL, &instance), OK);
+  CHECK(app_is_model_instantiated(model2, &b), OK);
+  CHECK(b, true);
+  CHECK(app_remove_model_instance(instance), OK);
+  CHECK(app_is_model_instantiated(model2, &b), OK);
+  CHECK(b, false);
+  CHECK(app_instantiate_model(app, model2, NULL, NULL), OK);
+  CHECK(app_instantiate_model(app, model2, NULL, NULL), OK);
+
+  /* Check that model is registered. */
+  CHECK(app_get_model_list(app, &len, &mdl_lst), OK);
+  for(i = 0; i < len; ++i) {
+    if(mdl_lst[i] == model)
+      break;
+  }
+  CHECK(i < len, true);
+  /* Get a ref onto the model and then remove the model. */
   CHECK(app_model_ref_get(NULL), BAD_ARG);
   CHECK(app_model_ref_get(model), OK);
-  CHECK(app_model_ref_put(model), OK);
+  CHECK(app_remove_model(NULL), BAD_ARG);
+  CHECK(app_remove_model(model), OK);
+  /* The model must be unregistered. */
+  CHECK(app_get_model_list(app, &len, &mdl_lst), OK);
+  for(i = 0; i < len; ++i) {
+    if(mdl_lst[i] == model)
+      break;
+  }
+  CHECK(i < len, false);
+  /* Check that even though the model is removed it is still valid since we
+   * previously owned it. */
+  CHECK(app_model_name(model, &cstr), OK);
+  CHECK(strcmp(cstr, "Mdl0"), 0);
+  /* Check that all the instances of the model are alse removed from the
+   * application. */
+  CHECK(app_get_model_instance_list(app, &len, &instance_list), OK);
+  CHECK(len, 2);
+ 
   CHECK(app_model_ref_put(model), OK);
 
   CHECK(app_cleanup(app), OK);

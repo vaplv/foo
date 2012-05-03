@@ -3,6 +3,7 @@
 
 #include "app/core/app_error.h"
 #include "sys/ref_count.h"
+#include <stdbool.h>
 #include <stddef.h>
 
 enum app_object_type {
@@ -19,6 +20,8 @@ struct app_object {
   enum app_object_type type;
 };
 
+/* The initialization automatically register the object against the
+ * application. */
 extern enum app_error
 app_init_object
   (struct app* app,
@@ -26,10 +29,25 @@ app_init_object
    enum app_object_type type,
    const char* name); /* May be NULL. */
 
+/* If the object is still registered the release function unregister it. */
 extern enum app_error
 app_release_object
   (struct app* app,
    struct app_object* obj);
+
+/* Force the unregistration of the object. Useful to defer the release of the
+ * object (e.g.: one want to delete the object but it is still referenced
+ * elsewhere. */
+extern enum app_error
+app_unregister_object
+  (struct app* app,
+   struct app_object* obj);
+
+extern enum app_error
+app_is_object_registered
+  (struct app* app,
+   struct app_object* obj,
+   bool* is_registered);
 
 extern enum app_error
 app_set_object_name

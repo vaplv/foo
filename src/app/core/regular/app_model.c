@@ -32,6 +32,7 @@ struct app_model {
   struct app* app;
   struct sl_string* resource_path;
   struct rsrc_geometry* geometry;
+  struct list_node instance_list; /* list of the instances spawned from this. */
   struct sl_vector* mesh_list; /* List of rdr_mesh*. */
   struct sl_vector* material_list; /* list of rdr_material*. */
   struct sl_vector* model_list; /* list of rdr_model*. */
@@ -179,6 +180,7 @@ release_model(struct ref* ref)
   assert(ref != NULL);
 
   model = CONTAINER_OF(ref, struct app_model, ref);
+  assert(is_list_empty(&model->instance_list));
 
   if(model->invoke_clbk)
     APP(invoke_callbacks(model->app, APP_SIGNAL_DESTROY_MODEL, model));
@@ -231,6 +233,7 @@ app_create_model
     goto error;
   }
   ref_init(&mdl->ref);
+  list_init(&mdl->instance_list);
   APP(ref_get(app));
   mdl->app = app;
 
@@ -317,6 +320,32 @@ exit:
   return app_err;
 error:
   goto exit;
+}
+
+EXPORT_SYM enum app_error
+app_remove_model(struct app_model* model)
+{
+  struct list_node* node = NULL;
+  struct list_node* tmp = NULL;
+  bool is_registered = false;
+
+  if(!model)
+    return APP_INVALID_ARGUMENT;
+
+  APP(is_object_registered(model->app, &model->obj, &is_registered));
+  if(is_registered == false)
+    return APP_INVALID_ARGUMENT;
+
+  /* Remove all of its associated instance. */
+  LIST_FOR_EACH_SAFE(node, tmp, &model->instance_list) {
+    struct app_model_instance* instance = CONTAINER_OF
+      (node, struct app_model_instance, node);
+    APP(remove_model_instance(instance));
+  }
+
+  if(ref_put(&model->ref, release_model) == 0)
+    APP(unregister_object(model->app, &model->obj));
+  return APP_NO_ERROR;
 }
 
 EXPORT_SYM enum app_error
@@ -434,6 +463,15 @@ app_model_name(const struct app_model* model, const char** name)
 }
 
 EXPORT_SYM enum app_error
+app_is_model_instantiated(const struct app_model* model, bool* b)
+{
+  if(!model || !b)
+    return APP_INVALID_ARGUMENT;
+  *b = (is_list_empty(&model->instance_list) == 0);
+  return APP_NO_ERROR;
+}
+
+EXPORT_SYM enum app_error
 app_get_model(struct app* app, const char* mdl_name, struct app_model** mdl)
 {
   struct app_object* obj = NULL;
@@ -548,6 +586,7 @@ app_instantiate_model
     goto error;
   is_ref_get = true;
   instance->model = model;
+  list_add(&model->instance_list, &instance->node);
 
   APP(invoke_callbacks(app, APP_SIGNAL_CREATE_MODEL_INSTANCE, instance));
   instance->invoke_clbk = true;

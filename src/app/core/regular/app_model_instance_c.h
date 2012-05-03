@@ -3,6 +3,7 @@
 
 #include "app/core/regular/app_object.h"
 #include "app/core/app_error.h"
+#include "sys/list.h"
 #include "sys/ref_count.h"
 #include <stdbool.h>
 
@@ -13,6 +14,7 @@ struct sl_vector;
 struct app_model_instance {
   struct app_object obj;
   struct ref ref;
+  struct list_node node; /* Used to linked the instance against its model. */
   struct app* app;
   struct app_model* model;
   struct sl_vector* model_instance_list; /* list of rdr_model_instance*. */

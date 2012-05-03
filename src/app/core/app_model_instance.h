@@ -16,6 +16,12 @@ app_instantiate_model
    const char* name, /* May be NULL. */
    struct app_model_instance** instance); /* May be NULL. */
 
+/* Remove the instance from the application. If the instance is referenced
+ * elsewehere, it is unregistered from the application without freeing it. */
+extern enum app_error
+app_remove_model_instance
+  (struct app_model_instance* instance);
+
 extern enum app_error
 app_model_instance_get_model
   (struct app_model_instance* instance,

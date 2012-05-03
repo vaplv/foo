@@ -215,6 +215,79 @@ cmd_rename_instance
 }
 
 static void
+cmd_rm_instance
+  (struct app* app,
+   size_t argc UNUSED,
+   const struct app_cmdarg** argv)
+{
+  struct app_model_instance* instance = NULL;
+  enum { CMD_NAME, INSTANCE_NAME, ARGC };
+
+  assert(app != NULL
+      && argc == ARGC
+      && argv != NULL
+      && argv[CMD_NAME]->type == APP_CMDARG_STRING
+      && argv[INSTANCE_NAME]->type == APP_CMDARG_STRING
+      && argv[CMD_NAME]->count == 1
+      && argv[INSTANCE_NAME]->count == 1);
+
+  APP(get_model_instance
+    (app, argv[INSTANCE_NAME]->value_list[0].data.string, &instance));
+  if(instance == NULL) {
+    APP_LOG_ERR
+      (app->logger,
+       "the instance `%s' does not exist\n",
+       argv[INSTANCE_NAME]->value_list[0].data.string);
+  } else {
+    APP(remove_model_instance(instance));
+  }
+}
+
+static void
+cmd_rm_model
+  (struct app* app,
+   size_t argc UNUSED,
+   const struct app_cmdarg** argv)
+{
+  struct app_model* mdl = NULL;
+  enum { CMD_NAME, FORCE_FLAG, MODEL_NAME, ARGC };
+
+  assert(app != NULL
+      && argc == ARGC
+      && argv != NULL
+      && argv[CMD_NAME]->type == APP_CMDARG_STRING
+      && argv[FORCE_FLAG]->type == APP_CMDARG_LITERAL
+      && argv[MODEL_NAME]->type == APP_CMDARG_STRING
+      && argv[CMD_NAME]->count == 1
+      && argv[FORCE_FLAG]->count == 1
+      && argv[MODEL_NAME]->count == 1);
+
+  APP(get_model(app, ARGVAL(argv, MODEL_NAME).data.string, &mdl));
+  if(mdl == NULL) {
+    APP_LOG_ERR
+      (app->logger, 
+       "the model `%s' does not exist\n",
+       ARGVAL(argv, MODEL_NAME).data.string);
+  } else {
+    if(ARGVAL(argv, FORCE_FLAG).is_defined) {
+      APP(remove_model(mdl));
+    } else {
+      bool is_instantiated;
+      APP(is_model_instantiated(mdl, &is_instantiated));
+      if(is_instantiated == false) {
+        APP(remove_model(mdl));
+      } else {
+        APP_LOG_ERR
+          (app->logger,
+           "rm: the model `%s' is still instantiated. Use the --force flag to"
+           "remove the model and its instances",
+           ARGVAL(argv, MODEL_NAME).data.string);
+      }
+    }
+  } 
+}
+
+static void
 cmd_spawn(struct app* app, size_t argc UNUSED, const struct app_cmdarg** argv)
 {
   assert(app != NULL
@@ -322,7 +395,7 @@ cmd_translate
 
   if(nb_defined_flags != 1) {
     if(nb_defined_flags == 0) {
-      APP_LOG_ERR(app->logger, "no translation space defined");
+      APP_LOG_ERR(app->logger, "missing coordinate system");
     } else {
       APP_LOG_ERR(app->logger, "only one coordinate system must be defined");
     }
@@ -424,7 +497,7 @@ cmd_rotate(struct app* app, size_t argc UNUSED, const struct app_cmdarg** argv)
 
   if(nb_defined_flags != 1) {
     if(nb_defined_flags == 0) {
-      APP_LOG_ERR(app->logger, "no rotation space defined");
+      APP_LOG_ERR(app->logger, "missing coordinate system");
     } else {
       APP_LOG_ERR(app->logger, "only one coordinate system must be defined");
     }
@@ -532,7 +605,7 @@ cmd_scale(struct app* app, size_t argc UNUSED, const struct app_cmdarg** argv)
 
   if(nb_defined_flags != 1) {
     if(nb_defined_flags == 0) {
-      APP_LOG_ERR(app->logger, "no scaling space defined");
+      APP_LOG_ERR(app->logger, "missing coordinate system");
     } else {
       APP_LOG_ERR(app->logger, "only one coordinate system must be defined");
     }
@@ -687,6 +760,21 @@ app_setup_builtin_commands(struct app* app)
       APP_CMDARG_APPEND_STRING(NULL, NULL, "<name>", NULL, 1, 1, NULL),
       APP_CMDARG_END),
      "rename instance"));
+  CALL(app_add_command
+    (app, "rm", cmd_rm_instance, app_model_instance_name_completion,
+     APP_CMDARGV
+     (APP_CMDARG_APPEND_STRING("i", "instance", "<instance>", NULL, 1, 1, NULL),
+      APP_CMDARG_END),
+     "remove a model instance"));
+  CALL(app_add_command
+    (app, "rm", cmd_rm_model, app_model_name_completion,
+     APP_CMDARGV
+     (APP_CMDARG_APPEND_LITERAL
+        ("f", "force", "remove the model even though it is instantiated", 0, 1),
+      APP_CMDARG_APPEND_STRING
+        ("m", "model", "<model>", "model to remove", 1, 1, NULL),
+      APP_CMDARG_END),
+     "remove a model"));
   CALL(app_add_command
     (app, "spawn", cmd_spawn, app_model_name_completion,
      APP_CMDARGV

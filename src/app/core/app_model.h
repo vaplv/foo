@@ -13,6 +13,14 @@ app_create_model
    const char* name, /* May be NULL. */
    struct app_model** model);
 
+
+/* Remove the model and its associated instance from the application. If the
+ * model is referenced elsewehere, it is unregistered from the application
+ * without freeing it. */
+extern enum app_error
+app_remove_model
+  (struct app_model* model);
+
 extern enum app_error
 app_model_ref_put
   (struct app_model* model);
@@ -44,6 +52,11 @@ extern enum app_error
 app_model_name
   (const struct app_model* model,
    const char** name);
+
+extern enum app_error
+app_is_model_instantiated
+  (const struct app_model* model,
+   bool* is_instantiated);
 
 extern enum app_error
 app_get_model

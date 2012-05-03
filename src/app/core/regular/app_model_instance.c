@@ -49,6 +49,7 @@ release_model_instance(struct ref* ref)
 
   APP(release_object(instance->app, &instance->obj));
 
+  list_del(&instance->node);
   APP(model_ref_put(instance->model));
   MEM_FREE(app->allocator, instance);
   APP(ref_put(app));
@@ -59,6 +60,24 @@ release_model_instance(struct ref* ref)
  * Implementation of the public model instance functions.
  *
  ******************************************************************************/
+EXPORT_SYM enum app_error
+app_remove_model_instance(struct app_model_instance* instance)
+{
+  bool is_registered = false;
+
+  if(!instance)
+    return APP_INVALID_ARGUMENT;
+  
+  APP(is_object_registered(instance->app, &instance->obj, &is_registered));
+  if(is_registered == false)
+    return APP_INVALID_ARGUMENT;
+
+  if(ref_put(&instance->ref, release_model_instance) == 0)
+    APP(unregister_object(instance->app, &instance->obj));
+
+  return APP_NO_ERROR;
+}
+
 EXPORT_SYM enum app_error
 app_model_instance_ref_get(struct app_model_instance* instance)
 {
@@ -130,9 +149,9 @@ app_translate_model_instances
         NULL, NULL,
         (void**)&render_instance_list));
     RDR(translate_model_instances
-      (render_instance_list,  
-       nb_render_instances, 
-       local_translation, 
+      (render_instance_list,
+       nb_render_instances,
+       local_translation,
        translation));
   }
   return APP_NO_ERROR;
@@ -160,9 +179,9 @@ app_rotate_model_instances
         NULL, NULL,
         (void**)&render_instance_list));
     RDR(rotate_model_instances
-      (render_instance_list, 
+      (render_instance_list,
        nb_render_instances,
-       local_rotation, 
+       local_rotation,
        rotation));
   }
   return APP_NO_ERROR;
@@ -190,9 +209,9 @@ app_scale_model_instances
         NULL, NULL,
         (void**)&render_instance_list));
     RDR(scale_model_instances
-      (render_instance_list, 
+      (render_instance_list,
        nb_render_instances,
-       local_scale, 
+       local_scale,
        scale));
   }
   return APP_NO_ERROR;
@@ -200,7 +219,7 @@ app_scale_model_instances
 
 EXPORT_SYM enum app_error
 app_move_model_instances
-  (struct app_model_instance* instance_list[], 
+  (struct app_model_instance* instance_list[],
    size_t nb_instances,
    const float pos[3])
 {
@@ -321,6 +340,7 @@ app_create_model_instance
     goto error;
   }
   ref_init(&instance->ref);
+  list_init(&instance->node);
   APP(ref_get(app));
   instance->app = app;
 
