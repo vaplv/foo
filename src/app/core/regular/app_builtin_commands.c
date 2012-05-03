@@ -349,9 +349,9 @@ cmd_translate
 
       if(trans[0] != 0.f || trans[1] != 0.f || trans[2] != 0.f) {
         if(ARGVAL(argv, LOCAL_SPACE_FLAG).is_defined) { /* object space */
-          APP(translate_model_instance(instance, true, trans));
+          APP(translate_model_instances(&instance, 1, true, trans));
         } else if(ARGVAL(argv, WORLD_SPACE_FLAG).is_defined) { /* world space */
-          APP(translate_model_instance(instance, false, trans));
+          APP(translate_model_instances(&instance, 1, false, trans));
         } else { /* eye space */
           const struct aosf44* view_transform = NULL;
           struct aosf33 f33;
@@ -372,7 +372,7 @@ cmd_translate
           vec = aosf33_mulf3(&f33, vec);
           vf4_store(tmp, vec);
 
-          APP(translate_model_instance(instance, false, tmp));
+          APP(translate_model_instances(&instance, 1, false, tmp));
         }
       }
     }
@@ -395,7 +395,6 @@ cmd_rotate(struct app* app, size_t argc UNUSED, const struct app_cmdarg** argv)
     RADIAN_FLAG,
     ARGC
   };
-
   assert(app != NULL
       && argc == ARGC
       && argv != NULL
@@ -457,9 +456,9 @@ cmd_rotate(struct app* app, size_t argc UNUSED, const struct app_cmdarg** argv)
           rot[2] = DEG2RAD(rot[2]);
         }
         if(ARGVAL(argv, LOCAL_SPACE_FLAG).is_defined) {
-          APP(rotate_model_instance(instance, true, rot));
+          APP(rotate_model_instances(&instance, 1, true, rot));
         } else if(ARGVAL(argv, WORLD_SPACE_FLAG).is_defined) {
-          APP(rotate_model_instance(instance, false, rot));
+          APP(rotate_model_instances(&instance, 1, false, rot));
         } else {
           struct aosf44 inv_view_4x4;
           struct aosf44 tmp_4x4;
@@ -484,7 +483,7 @@ cmd_rotate(struct app* app, size_t argc UNUSED, const struct app_cmdarg** argv)
           aosf44_set(&tmp_4x4, tmp_3x3.c0, tmp_3x3.c1, tmp_3x3.c2,view_4x4->c3);
           aosf44_mulf44(&tmp_4x4, &inv_view_4x4, &tmp_4x4);
 
-          APP(transform_model_instance(instance, true, &tmp_4x4));
+          APP(transform_model_instances(&instance, 1, true, &tmp_4x4));
         }
       }
     }
@@ -506,7 +505,6 @@ cmd_scale(struct app* app, size_t argc UNUSED, const struct app_cmdarg** argv)
     SCALE_Z,
     ARGC
   };
-
   assert(app != NULL
       && argc == ARGC
       && argv != NULL
@@ -561,9 +559,9 @@ cmd_scale(struct app* app, size_t argc UNUSED, const struct app_cmdarg** argv)
 
       if((scale[0] != 0.f) | (scale[1] != 0.f) | (scale[2] != 0.f)) {
         if(ARGVAL(argv, LOCAL_SPACE_FLAG).is_defined) {
-          APP(scale_model_instance(instance, true, scale));
+          APP(scale_model_instances(&instance, 1, true, scale));
         } else if(ARGVAL(argv, WORLD_SPACE_FLAG).is_defined) {
-          APP(scale_model_instance(instance, false, scale));
+          APP(scale_model_instances(&instance, 1, false, scale));
         } else {
           struct aosf44 inv_view_4x4;
           struct aosf44 tmp_4x4;
@@ -590,7 +588,7 @@ cmd_scale(struct app* app, size_t argc UNUSED, const struct app_cmdarg** argv)
           aosf44_set(&tmp_4x4, tmp_3x3.c0, tmp_3x3.c1, tmp_3x3.c2,view_4x4->c3);
           aosf44_mulf44(&tmp_4x4, &inv_view_4x4, &tmp_4x4);
 
-          APP(transform_model_instance(instance, true, &tmp_4x4));
+          APP(transform_model_instances(&instance, 1, true, &tmp_4x4));
         }
       }
     }
@@ -624,12 +622,12 @@ cmd_move(struct app* app, size_t argc UNUSED, const struct app_cmdarg** argv)
     APP_LOG_ERR
       (app->logger, "the instance `%s' does not exist\n", instance_name);
   } else {
-    const float pos[3] = { 
+    const float pos[3] = {
       ARGVAL(argv, POS_X).data.real,
       ARGVAL(argv, POS_Y).data.real,
       ARGVAL(argv, POS_Z).data.real
     };
-    APP(move_model_instance(instance, pos));
+    APP(move_model_instances(&instance, 1, pos));
   }
 }
 

@@ -670,35 +670,47 @@ rdr_get_model_instance_transform
 }
 
 EXPORT_SYM enum rdr_error
-rdr_translate_model_instance
-  (struct rdr_model_instance* instance,
+rdr_translate_model_instances
+  (struct rdr_model_instance* instance_list[],
+   size_t nb_instances,
    bool local_translation,
    const float trans[3])
 {
+  size_t i = 0;
 
-  if(!instance || !trans)
+  if((nb_instances && !instance_list) || !trans)
     return RDR_INVALID_ARGUMENT;
+  if((!trans[0]) & (!trans[1]) & (!trans[2]))
+    return RDR_NO_ERROR;
 
   if(local_translation) {
     const vf4_t vec = vf4_set(trans[0], trans[1], trans[2], 1.f);
-    instance->transform.c3 = aosf44_mulf4(&instance->transform, vec);
+    for(i = 0; i < nb_instances; ++i) {
+      struct rdr_model_instance* instance = instance_list[i];
+      instance->transform.c3 = aosf44_mulf4(&instance->transform, vec);
+    }
   } else {
     const vf4_t vec = vf4_set(trans[0], trans[1], trans[2], 0.f);
-    instance->transform.c3 = vf4_add(instance->transform.c3, vec);
+    for(i = 0; i < nb_instances; ++i) {
+      struct rdr_model_instance* instance = instance_list[i];
+      instance->transform.c3 = vf4_add(instance->transform.c3, vec);
+    }
   }
   return RDR_NO_ERROR;
 }
 
 EXPORT_SYM enum rdr_error
-rdr_rotate_model_instance
-  (struct rdr_model_instance* instance,
+rdr_rotate_model_instances
+  (struct rdr_model_instance* instance_list[],
+   size_t nb_instances,
    bool local_rotation,
    const float rotation[3])
 {
   struct aosf33 f33;
+  size_t i = 0;
   enum { PITCH, YAW, ROLL };
 
-  if(!instance || !rotation)
+  if((nb_instances && !instance_list) || !rotation)
     return RDR_INVALID_ARGUMENT;
   if((!rotation[PITCH]) & (!rotation[YAW]) & (!rotation[ROLL]))
      return RDR_NO_ERROR;
@@ -706,15 +718,18 @@ rdr_rotate_model_instance
   aosf33_rotation(&f33, rotation[PITCH], rotation[YAW], rotation[ROLL]);
 
   if(local_rotation) {
-    const struct aosf33 tmp = {
-      .c0 = instance->transform.c0,
-      .c1 = instance->transform.c1,
-      .c2 = instance->transform.c2
-    };
-    aosf33_mulf33(&f33, &tmp, &f33);
-    instance->transform.c0 = f33.c0;
-    instance->transform.c1 = f33.c1;
-    instance->transform.c2 = f33.c2;
+    for(i = 0; i < nb_instances; ++i) {
+      struct rdr_model_instance* instance = instance_list[i];
+      const struct aosf33 tmp = {
+        .c0 = instance->transform.c0,
+        .c1 = instance->transform.c1,
+        .c2 = instance->transform.c2
+      };
+      aosf33_mulf33(&f33, &tmp, &f33);
+      instance->transform.c0 = f33.c0;
+      instance->transform.c1 = f33.c1;
+      instance->transform.c2 = f33.c2;
+    }
   } else {
     const struct aosf44 f44 = {
       .c0 = f33.c0,
@@ -722,22 +737,26 @@ rdr_rotate_model_instance
       .c2 = f33.c2,
       .c3 = vf4_set(0.f, 0.f, 0.f, 1.f)
     };
-    aosf44_mulf44(&instance->transform, &f44, &instance->transform);
+    for(i = 0; i < nb_instances; ++i) {
+      struct rdr_model_instance* instance = instance_list[i];
+      aosf44_mulf44(&instance->transform, &f44, &instance->transform);
+    }
   }
   return RDR_NO_ERROR;
 }
 
 EXPORT_SYM enum rdr_error
-rdr_scale_model_instance
-  (struct rdr_model_instance* instance,
+rdr_scale_model_instances
+  (struct rdr_model_instance* instance_list[],
+   size_t nb_instances,
    bool local_scale,
    const float scale[3])
 {
   struct aosf33 f33;
+  size_t i = 0;
 
-  if(!instance || !scale)
+  if((nb_instances && !instance_list) || !scale)
     return RDR_INVALID_ARGUMENT;
-
   if((!scale[0]) & (!scale[1]) & (!scale[2]))
     return RDR_NO_ERROR;
 
@@ -746,15 +765,18 @@ rdr_scale_model_instance
   f33.c2 = vf4_set(0.f, 0.f, scale[2], 0.f);
 
   if(local_scale) {
-    const struct aosf33 tmp = {
-      .c0 = instance->transform.c0,
-      .c1 = instance->transform.c1,
-      .c2 = instance->transform.c2
-    };
-    aosf33_mulf33(&f33, &tmp, &f33);
-    instance->transform.c0 = f33.c0;
-    instance->transform.c1 = f33.c1;
-    instance->transform.c2 = f33.c2;
+    for(i = 0; i < nb_instances; ++i) {
+      struct rdr_model_instance* instance = instance_list[i];
+      const struct aosf33 tmp = {
+        .c0 = instance->transform.c0,
+        .c1 = instance->transform.c1,
+        .c2 = instance->transform.c2
+      };
+      aosf33_mulf33(&f33, &tmp, &f33);
+      instance->transform.c0 = f33.c0;
+      instance->transform.c1 = f33.c1;
+      instance->transform.c2 = f33.c2;
+    }
   } else {
     const struct aosf44 f44 = {
       .c0 = f33.c0,
@@ -762,33 +784,53 @@ rdr_scale_model_instance
       .c2 = f33.c2,
       .c3 = vf4_set(0.f, 0.f, 0.f, 1.f)
     };
-    aosf44_mulf44(&instance->transform, &f44, &instance->transform);
+    for(i = 0; i < nb_instances; ++i) {
+      struct rdr_model_instance* instance = instance_list[i];
+      aosf44_mulf44(&instance->transform, &f44, &instance->transform);
+    }
   }
   return RDR_NO_ERROR;
 }
 
 EXPORT_SYM enum rdr_error
-rdr_move_model_instance(struct rdr_model_instance* instance, const float pos[3])
+rdr_move_model_instances
+  (struct rdr_model_instance* instance_list[], 
+   size_t nb_instances,
+   const float pos[3])
 {
-  if(!instance || !pos)
+  size_t i = 0;
+  if((nb_instances && !instance_list) || !pos)
     return RDR_INVALID_ARGUMENT;
-  instance->transform.c3 = vf4_set(pos[0], pos[1], pos[2], 1.f);
+
+  for(i = 0; i < nb_instances; ++i) {
+    struct rdr_model_instance* instance = instance_list[i];
+    instance->transform.c3 = vf4_set(pos[0], pos[1], pos[2], 1.f);
+  }
   return RDR_NO_ERROR;
 }
 
 EXPORT_SYM enum rdr_error
-rdr_transform_model_instance
-  (struct rdr_model_instance* instance,
+rdr_transform_model_instances
+  (struct rdr_model_instance* instance_list[],
+   size_t nb_instances,
    bool local_transformation,
    const struct aosf44* transform)
 {
-  if(!instance || !transform)
+  size_t i = 0;
+
+  if((nb_instances && !instance_list) || !transform)
     return RDR_INVALID_ARGUMENT;
 
   if(local_transformation) {
-    aosf44_mulf44(&instance->transform, &instance->transform, transform);
+    for(i = 0; i < nb_instances; ++i) {
+      struct rdr_model_instance* instance = instance_list[i];
+      aosf44_mulf44(&instance->transform, &instance->transform, transform);
+    }
   } else {
-    aosf44_mulf44(&instance->transform, transform, &instance->transform);
+    for(i = 0; i < nb_instances; ++i) {
+      struct rdr_model_instance* instance = instance_list[i];
+      aosf44_mulf44(&instance->transform, transform, &instance->transform);
+    }
   }
   return RDR_NO_ERROR;
 }

@@ -74,31 +74,36 @@ rdr_get_model_instance_transform
    float transform[16]);
 
 extern enum rdr_error
-rdr_translate_model_instance
-  (struct rdr_model_instance* instance,
+rdr_translate_model_instances
+  (struct rdr_model_instance* instance_list[],
+   size_t nb_instances,
    bool local_translation,
    const float translation[3]);
 
 extern enum rdr_error
-rdr_rotate_model_instance
-  (struct rdr_model_instance* instance,
+rdr_rotate_model_instances
+  (struct rdr_model_instance* instance_list[],
+   size_t nb_instances,
    bool local_rotation,
    const float rotation[3]);
 
 extern enum rdr_error
-rdr_scale_model_instance
-  (struct rdr_model_instance* instance,
+rdr_scale_model_instances
+  (struct rdr_model_instance* instance_list[],
+   size_t nb_instances,
    bool local_scale,
    const float scale[3]);
 
 extern enum rdr_error
-rdr_move_model_instance
-  (struct rdr_model_instance* instance,
+rdr_move_model_instances
+  (struct rdr_model_instance* instance_list[],
+   size_t nb_instances,
    const float pos[3]);
 
 extern enum rdr_error
-rdr_transform_model_instance
-  (struct rdr_model_instance* instance,
+rdr_transform_model_instances
+  (struct rdr_model_instance* instance_list[],
+   size_t nb_instances,
    bool local_transformation,
    const struct aosf44* transform);
 

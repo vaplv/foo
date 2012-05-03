@@ -40,31 +40,36 @@ app_model_instance_name
    const char** cstr);
 
 extern enum app_error
-app_translate_model_instance
-  (struct app_model_instance* instance,
+app_translate_model_instances
+  (struct app_model_instance* instance_list[],
+   size_t nb_instances,
    bool local_translation,
    const float translation[3]);
 
 extern enum app_error
-app_rotate_model_instance
-  (struct app_model_instance* instance,
+app_rotate_model_instances
+  (struct app_model_instance* instance_list[],
+   size_t nb_instances,
    bool local_rotation,
    const float rotation[3]);
 
 extern enum app_error
-app_scale_model_instance
-  (struct app_model_instance* instance,
+app_scale_model_instances
+  (struct app_model_instance* instance_list[],
+   size_t nb_instances,
    bool local_scale,
    const float scale[3]);
 
 extern enum app_error
-app_move_model_instance
-  (struct app_model_instance* instance,
+app_move_model_instances
+  (struct app_model_instance* instance_list[],
+   size_t nb_instances,
    const float pos[3]);
 
 extern enum app_error
-app_transform_model_instance
-  (struct app_model_instance* instance,
+app_transform_model_instances
+  (struct app_model_instance* instance_list[],
+   size_t nb_instances,
    bool local_transformation,
    const struct aosf44* transform);
 

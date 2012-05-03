@@ -109,127 +109,143 @@ app_set_model_instance_name
 }
 
 EXPORT_SYM enum app_error
-app_translate_model_instance
-  (struct app_model_instance* instance,
+app_translate_model_instances
+  (struct app_model_instance* instance_list[],
+   size_t nb_instances,
    bool local_translation,
    const float translation[3])
 {
-  struct rdr_model_instance** render_instance_list = NULL;
-  size_t nb_render_instances = 0;
   size_t i = 0;
 
-  if(!instance || !translation)
+  if((nb_instances && !instance_list) || !translation)
     return APP_INVALID_ARGUMENT;
 
-  SL(vector_buffer
-    (instance->model_instance_list,
-     &nb_render_instances,
-     NULL,
-     NULL,
-     (void**)&render_instance_list));
-  for(i = 0; i < nb_render_instances; ++i) {
-    RDR(translate_model_instance
-      (render_instance_list[i], local_translation, translation));
+  for(i = 0; i < nb_instances; ++i) {
+    struct rdr_model_instance** render_instance_list = NULL;
+    size_t nb_render_instances = 0;
+
+    SL(vector_buffer
+       (instance_list[i]->model_instance_list,
+        &nb_render_instances,
+        NULL, NULL,
+        (void**)&render_instance_list));
+    RDR(translate_model_instances
+      (render_instance_list,  
+       nb_render_instances, 
+       local_translation, 
+       translation));
   }
   return APP_NO_ERROR;
 }
 
 EXPORT_SYM enum app_error
-app_rotate_model_instance
-  (struct app_model_instance* instance,
+app_rotate_model_instances
+  (struct app_model_instance* instance_list[],
+   size_t nb_instances,
    bool local_rotation,
    const float rotation[3])
 {
-  struct rdr_model_instance** render_instance_list = NULL;
-  size_t nb_render_instances = 0;
   size_t i = 0;
 
-  if(!instance || !rotation)
+  if((nb_instances && !instance_list) || !rotation)
     return APP_INVALID_ARGUMENT;
 
-  SL(vector_buffer
-    (instance->model_instance_list,
-     &nb_render_instances,
-     NULL,
-     NULL,
-     (void**)&render_instance_list));
-  for(i = 0; i < nb_render_instances; ++i) {
-    RDR(rotate_model_instance
-      (render_instance_list[i], local_rotation, rotation));
+  for(i = 0; i < nb_instances; ++i) {
+    struct rdr_model_instance** render_instance_list = NULL;
+    size_t nb_render_instances = 0;
+
+    SL(vector_buffer
+       (instance_list[i]->model_instance_list,
+        &nb_render_instances,
+        NULL, NULL,
+        (void**)&render_instance_list));
+    RDR(rotate_model_instances
+      (render_instance_list, 
+       nb_render_instances,
+       local_rotation, 
+       rotation));
   }
   return APP_NO_ERROR;
 }
 
 EXPORT_SYM enum app_error
-app_scale_model_instance
-  (struct app_model_instance* instance,
+app_scale_model_instances
+  (struct app_model_instance* instance_list[],
+   size_t nb_instances,
    bool local_scale,
    const float scale[3])
 {
-  struct rdr_model_instance** render_instance_list = NULL;
-  size_t nb_render_instances = 0;
   size_t i = 0;
 
-  if(!instance || !scale)
+  if((nb_instances && !instance_list) || !scale)
     return APP_INVALID_ARGUMENT;
 
-  SL(vector_buffer
-    (instance->model_instance_list,
-     &nb_render_instances,
-     NULL,
-     NULL,
-     (void**)&render_instance_list));
-  for(i = 0; i < nb_render_instances; ++i) {
-    RDR(scale_model_instance
-      (render_instance_list[i], local_scale, scale));
+  for(i = 0; i < nb_instances; ++i) {
+    struct rdr_model_instance** render_instance_list = NULL;
+    size_t nb_render_instances = 0;
+
+    SL(vector_buffer
+       (instance_list[i]->model_instance_list,
+        &nb_render_instances,
+        NULL, NULL,
+        (void**)&render_instance_list));
+    RDR(scale_model_instances
+      (render_instance_list, 
+       nb_render_instances,
+       local_scale, 
+       scale));
   }
   return APP_NO_ERROR;
 }
 
 EXPORT_SYM enum app_error
-app_move_model_instance(struct app_model_instance* instance, const float pos[3])
+app_move_model_instances
+  (struct app_model_instance* instance_list[], 
+   size_t nb_instances,
+   const float pos[3])
 {
-  struct rdr_model_instance** render_instance_list = NULL;
-  size_t nb_render_instances = 0;
   size_t i = 0;
 
-  if(!instance || !pos)
+  if((nb_instances && !instance_list) || !pos)
     return APP_INVALID_ARGUMENT;
 
-  SL(vector_buffer
-    (instance->model_instance_list,
-     &nb_render_instances,
-     NULL,
-     NULL,
-     (void**)&render_instance_list));
-  for(i = 0; i < nb_render_instances; ++i) {
-    RDR(move_model_instance(render_instance_list[i], pos));
+  for(i = 0; i < nb_instances; ++i) {
+    struct rdr_model_instance** render_instance_list = NULL;
+    size_t nb_render_instances = 0;
+
+    SL(vector_buffer
+       (instance_list[i]->model_instance_list,
+        &nb_render_instances,
+        NULL, NULL,
+        (void**)&render_instance_list));
+    RDR(move_model_instances(render_instance_list, nb_render_instances, pos));
   }
   return APP_NO_ERROR;
 }
 
 EXPORT_SYM enum app_error
-app_transform_model_instance
-  (struct app_model_instance* instance,
+app_transform_model_instances
+  (struct app_model_instance* instance_list[],
+   size_t nb_instances,
    bool local_transform,
    const struct aosf44* transform)
 {
-  struct rdr_model_instance** render_instance_list = NULL;
-  size_t nb_render_instances = 0;
   size_t i = 0;
 
-  if(!instance || !transform)
+  if((nb_instances && !instance_list) || !transform)
     return APP_INVALID_ARGUMENT;
 
-  SL(vector_buffer
-    (instance->model_instance_list,
-     &nb_render_instances,
-     NULL,
-     NULL,
-     (void**)&render_instance_list));
-  for(i = 0; i < nb_render_instances; ++i) {
-    RDR(transform_model_instance
-      (render_instance_list[i], local_transform, transform));
+  for(i = 0; i < nb_instances; ++i) {
+    struct rdr_model_instance** render_instance_list = NULL;
+    size_t nb_render_instances = 0;
+
+    SL(vector_buffer
+      (instance_list[i]->model_instance_list,
+       &nb_render_instances,
+       NULL, NULL,
+       (void**)&render_instance_list));
+    RDR(transform_model_instances
+      (render_instance_list, nb_render_instances, local_transform, transform));
   }
   return APP_NO_ERROR;
 }

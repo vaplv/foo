@@ -1,3 +1,5 @@
+#include "maths/simd/aosf33.h"
+#include "maths/simd/aosf44.h"
 #include "renderer/rdr_material.h"
 #include "renderer/rdr_mesh.h"
 #include "renderer/rdr_model.h"
@@ -360,11 +362,35 @@ test_rdr_model_instance(const char* driver_name)
     0.f, 0.f, 1.f, 0.f,
     0.f, 0.f, 0.f, 1.f
   };
-  float m[16];
+  struct aosf44 f44;
+  struct aosf33 f33;
+  ALIGN(16) float tmp[16];
   enum rdr_material_density density;
   struct rdr_rasterizer_desc rast;
   bool null_driver = is_driver_null(driver_name);
   bool b = false;
+
+  #define CHECK_TRANSFORM(inst, a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p)\
+    do { \
+      float m__[16]; \
+      CHECK(rdr_get_model_instance_transform(inst, m__), OK); \
+      CHECK(m__[0], a); \
+      CHECK(m__[1], b); \
+      CHECK(m__[2], c); \
+      CHECK(m__[3], d); \
+      CHECK(m__[4], e); \
+      CHECK(m__[5], f); \
+      CHECK(m__[6], g); \
+      CHECK(m__[7], h); \
+      CHECK(m__[8], i); \
+      CHECK(m__[9], j); \
+      CHECK(m__[10], k); \
+      CHECK(m__[11], l); \
+      CHECK(m__[12], m); \
+      CHECK(m__[13], n); \
+      CHECK(m__[14], o); \
+      CHECK(m__[15], p); \
+    } while(0)
 
   memset(&instance_cbk_data, 0, SZ(struct instance_cbk_data));
   memset(sources, 0, SZ(const char*) * RDR_NB_SHADER_USAGES);
@@ -442,32 +468,276 @@ test_rdr_model_instance(const char* driver_name)
   CHECK(rdr_model_instance_transform(inst, m44), OK);
   CHECK(rdr_get_model_instance_transform(NULL,NULL), BAD_ARG);
   CHECK(rdr_get_model_instance_transform(inst,NULL), BAD_ARG);
-  CHECK(rdr_get_model_instance_transform(NULL, m), BAD_ARG);
-  CHECK(rdr_get_model_instance_transform(inst, m), OK);
-  CHECK(m[0],  1.f); CHECK(m[1],  0.f); CHECK(m[2],  0.f); CHECK(m[3],  0.f);
-  CHECK(m[4],  0.f); CHECK(m[5],  1.f); CHECK(m[6],  0.f); CHECK(m[7],  0.f);
-  CHECK(m[8],  0.f); CHECK(m[9],  0.f); CHECK(m[10], 1.f); CHECK(m[11], 0.f);
-  CHECK(m[12], 0.f); CHECK(m[13], 0.f); CHECK(m[14], 0.f); CHECK(m[15], 1.f);
+  CHECK(rdr_get_model_instance_transform(NULL, tmp), BAD_ARG);
+  CHECK(rdr_get_model_instance_transform(inst, tmp), OK);
+  CHECK_TRANSFORM(inst, 
+     1.f, 0.f, 0.f, 0.f,
+     0.f, 1.f, 0.f, 0.f,
+     0.f, 0.f, 1.f, 0.f,
+     0.f, 0.f, 0.f, 1.f);
 
-  CHECK(rdr_translate_model_instance(NULL, false, NULL), BAD_ARG);
-  CHECK(rdr_translate_model_instance(inst, false, NULL), BAD_ARG);
-  CHECK(rdr_translate_model_instance
-    (NULL, false, (float[]){1.f, 5.f, 3.f}), BAD_ARG);
-  CHECK(rdr_translate_model_instance
-    (inst, false, (float[]){1.f, 5.f, 3.f}), OK);
-  CHECK(rdr_get_model_instance_transform(inst, m), OK);
-  CHECK(m[0],  1.f); CHECK(m[1],  0.f); CHECK(m[2],  0.f); CHECK(m[3],  0.f);
-  CHECK(m[4],  0.f); CHECK(m[5],  1.f); CHECK(m[6],  0.f); CHECK(m[7],  0.f);
-  CHECK(m[8],  0.f); CHECK(m[9],  0.f); CHECK(m[10], 1.f); CHECK(m[11], 0.f);
-  CHECK(m[12], 1.f); CHECK(m[13], 5.f); CHECK(m[14], 3.f); CHECK(m[15], 1.f);
-  CHECK(rdr_translate_model_instance
-    (inst, false, (float[]){-4.f, 2.1f, 1.f}), OK);
-  CHECK(rdr_get_model_instance_transform(inst, m), OK);
-  CHECK(m[0],  1.f); CHECK(m[1],  0.f); CHECK(m[2],  0.f); CHECK(m[3],  0.f);
-  CHECK(m[4],  0.f); CHECK(m[5],  1.f); CHECK(m[6],  0.f); CHECK(m[7],  0.f);
-  CHECK(m[8],  0.f); CHECK(m[9],  0.f); CHECK(m[10], 1.f); CHECK(m[11], 0.f);
-  CHECK(m[12],-3.f); CHECK(m[13],7.1f); CHECK(m[14], 4.f); CHECK(m[15], 1.f);
-  
+  CHECK(rdr_translate_model_instances(NULL, 1, false, NULL), BAD_ARG);
+  CHECK(rdr_translate_model_instances(&inst, 1, false, NULL), BAD_ARG);
+  CHECK(rdr_translate_model_instances
+    (NULL, 1, false, (float[]){1.f, 5.f, 3.f}), BAD_ARG);
+  CHECK(rdr_translate_model_instances
+    (&inst, 1, false, (float[]){1.f, 5.f, 3.f}), OK);
+  CHECK_TRANSFORM(inst, 
+     1.f, 0.f, 0.f, 0.f,
+     0.f, 1.f, 0.f, 0.f,
+     0.f, 0.f, 1.f, 0.f,
+     1.f, 5.f, 3.f, 1.f);
+  CHECK(rdr_translate_model_instances
+    (&inst, 1, false, (float[]){-4.f, 2.1f, 1.f}), OK);
+  CHECK_TRANSFORM(inst, 
+     1.f, 0.f, 0.f, 0.f,
+     0.f, 1.f, 0.f, 0.f,
+     0.f, 0.f, 1.f, 0.f,
+     -3.f, 7.1f, 4.f, 1.f);
+  CHECK(rdr_translate_model_instances
+    (&inst, 0, false, (float[]){-4.f, 2.1f, 1.f}), OK);
+  CHECK_TRANSFORM(inst, 
+     1.f, 0.f, 0.f, 0.f,
+     0.f, 1.f, 0.f, 0.f,
+     0.f, 0.f, 1.f, 0.f,
+     -3.f, 7.1f, 4.f, 1.f);
+  CHECK(rdr_translate_model_instances
+    (NULL, 0, false, (float[]){-4.f, 2.1f, 1.f}), OK);
+  CHECK_TRANSFORM(inst, 
+     1.f, 0.f, 0.f, 0.f,
+     0.f, 1.f, 0.f, 0.f,
+     0.f, 0.f, 1.f, 0.f,
+     -3.f, 7.1f, 4.f, 1.f);
+
+  CHECK(rdr_move_model_instances(NULL, 0, NULL), BAD_ARG);
+  CHECK(rdr_move_model_instances(&inst, 0, NULL), BAD_ARG);
+  CHECK(rdr_move_model_instances(NULL, 1, NULL), BAD_ARG);
+  CHECK(rdr_move_model_instances(&inst, 1, NULL), BAD_ARG);
+  CHECK(rdr_move_model_instances(NULL, 0, (float[]){0.f, 0.f, 0.f}), OK);
+  CHECK_TRANSFORM(inst, 
+     1.f, 0.f, 0.f, 0.f,
+     0.f, 1.f, 0.f, 0.f,
+     0.f, 0.f, 1.f, 0.f,
+     -3.f, 7.1f, 4.f, 1.f);
+  CHECK(rdr_move_model_instances(&inst, 0, (float[]){0.f, 0.f, 0.f}), OK);
+  CHECK_TRANSFORM(inst, 
+     1.f, 0.f, 0.f, 0.f,
+     0.f, 1.f, 0.f, 0.f,
+     0.f, 0.f, 1.f, 0.f,
+     -3.f, 7.1f, 4.f, 1.f);
+  CHECK(rdr_move_model_instances(NULL, 1, (float[]){0.f, 0.f, 0.f}), BAD_ARG);
+  CHECK(rdr_move_model_instances(&inst, 1, (float[]){0.f, 0.f, 0.f}), OK);
+  CHECK_TRANSFORM(inst, 
+     1.f, 0.f, 0.f, 0.f,
+     0.f, 1.f, 0.f, 0.f,
+     0.f, 0.f, 1.f, 0.f,
+     0.f, 0.f, 0.f, 1.f);
+  CHECK(rdr_move_model_instances(&inst, 1, (float[]){5.f, 3.1f, -1.8f}), OK);
+  CHECK_TRANSFORM(inst, 
+     1.f, 0.f, 0.f, 0.f,
+     0.f, 1.f, 0.f, 0.f,
+     0.f, 0.f, 1.f, 0.f,
+     5.f, 3.1f, -1.8f, 1.f);
+  CHECK(rdr_move_model_instances(&inst, 1, (float[]){0.f, 0.f, 0.f}), OK);
+
+  CHECK(rdr_rotate_model_instances(NULL, 0, false, NULL), BAD_ARG);
+  CHECK(rdr_rotate_model_instances(&inst, 0, false, NULL), BAD_ARG);
+  CHECK(rdr_rotate_model_instances
+    (NULL, 0, false, (float[]){DEG2RAD(45.f), 0.f, 0.f}), OK);
+  CHECK_TRANSFORM(inst, 
+     1.f, 0.f, 0.f, 0.f,
+     0.f, 1.f, 0.f, 0.f,
+     0.f, 0.f, 1.f, 0.f,
+     0.f, 0.f, 0.f, 1.f);
+  CHECK(rdr_rotate_model_instances
+    (&inst, 0, false, (float[]){DEG2RAD(45.f), 0.f, 0.f}), OK);
+  CHECK_TRANSFORM(inst, 
+     1.f, 0.f, 0.f, 0.f,
+     0.f, 1.f, 0.f, 0.f,
+     0.f, 0.f, 1.f, 0.f,
+     0.f, 0.f, 0.f, 1.f);
+  CHECK(rdr_rotate_model_instances
+    (&inst, 1, false, (float[]){DEG2RAD(45.f), 0.f, 0.f}), OK);
+  aosf33_rotation(&f33, DEG2RAD(45.f), 0.f, 0.f);
+  f44.c0 = f33.c0;
+  f44.c1 = f33.c1;
+  f44.c2 = f33.c2;
+  f44.c3 = vf4_set(0.f, 0.f, 0.f, 1.f);
+  aosf44_store(tmp, &f44);
+  CHECK_TRANSFORM(inst, 
+     tmp[0], tmp[1], tmp[2], tmp[3],
+     tmp[4], tmp[5], tmp[6], tmp[7],
+     tmp[8], tmp[9], tmp[10], tmp[11],
+     tmp[12], tmp[13], tmp[14], tmp[15]);
+
+  CHECK(rdr_translate_model_instances
+    (&inst, 1, false, (float[]){-4.f, 2.1f, 1.f}), OK);
+  aosf44_mulf44
+    (&f44, 
+     (struct aosf44[]) {{
+      vf4_set(1.f, 0.f, 0.f, 0.f),
+      vf4_set(0.f, 1.f, 0.f, 0.f),
+      vf4_set(0.f, 0.f, 1.f, 0.f),
+      vf4_set(-4.f, 2.1f, 1.f, 1.f)}},
+    &f44);
+  aosf44_store(tmp, &f44);
+  CHECK_TRANSFORM(inst, 
+     tmp[0], tmp[1], tmp[2], tmp[3],
+     tmp[4], tmp[5], tmp[6], tmp[7],
+     tmp[8], tmp[9], tmp[10], tmp[11],
+     tmp[12], tmp[13], tmp[14], tmp[15]);
+  CHECK(rdr_translate_model_instances
+    (&inst, 1, true, (float[]){-4.f, 2.1f, 1.f}), OK);
+  aosf44_mulf44
+    (&f44,
+     &f44,
+     (struct aosf44[]) {{
+      vf4_set(1.f, 0.f, 0.f, 0.f),
+      vf4_set(0.f, 1.f, 0.f, 0.f),
+      vf4_set(0.f, 0.f, 1.f, 0.f),
+      vf4_set(-4.f, 2.1f, 1.f, 1.f)}});
+  aosf44_store(tmp, &f44);
+  CHECK_TRANSFORM(inst, 
+     tmp[0], tmp[1], tmp[2], tmp[3],
+     tmp[4], tmp[5], tmp[6], tmp[7],
+     tmp[8], tmp[9], tmp[10], tmp[11],
+     tmp[12], tmp[13], tmp[14], tmp[15]);
+  CHECK(rdr_rotate_model_instances
+    (&inst, 1, true, 
+     (float[]){DEG2RAD(45.f), DEG2RAD(11.f), DEG2RAD(87.f)}), OK);
+  aosf33_rotation(&f33, DEG2RAD(45.f), DEG2RAD(11.f), DEG2RAD(87.f));
+  aosf33_mulf33(&f33, (struct aosf33[]) {{f44.c0, f44.c1, f44.c2}}, &f33);
+  f44.c0 = f33.c0;
+  f44.c1 = f33.c1;
+  f44.c2 = f33.c2;
+  aosf44_store(tmp, &f44);
+  CHECK_TRANSFORM(inst, 
+     tmp[0], tmp[1], tmp[2], tmp[3],
+     tmp[4], tmp[5], tmp[6], tmp[7],
+     tmp[8], tmp[9], tmp[10], tmp[11],
+     tmp[12], tmp[13], tmp[14], tmp[15]);
+  CHECK(rdr_rotate_model_instances
+    (&inst, 1, false, 
+     (float[]){DEG2RAD(45.f), DEG2RAD(11.f), DEG2RAD(87.f)}), OK);
+  aosf33_rotation(&f33, DEG2RAD(45.f), DEG2RAD(11.f), DEG2RAD(87.f));
+  aosf44_mulf44
+    (&f44, 
+     (struct aosf44[]) {{f33.c0, f33.c1, f33.c2, vf4_set(0.f, 0.f, 0.f, 1.f)}},
+     &f44);
+  aosf44_store(tmp, &f44);
+  CHECK_TRANSFORM(inst, 
+     tmp[0], tmp[1], tmp[2], tmp[3],
+     tmp[4], tmp[5], tmp[6], tmp[7],
+     tmp[8], tmp[9], tmp[10], tmp[11],
+     tmp[12], tmp[13], tmp[14], tmp[15]);
+
+  CHECK(rdr_scale_model_instances(NULL, 0, false, NULL), BAD_ARG);
+  CHECK(rdr_scale_model_instances(&inst, 0, false, NULL), BAD_ARG);
+  CHECK(rdr_scale_model_instances
+    (NULL, 0, true, (float[]){5.f, 4.f, 2.1f}), OK);
+  CHECK_TRANSFORM(inst, 
+     tmp[0], tmp[1], tmp[2], tmp[3],
+     tmp[4], tmp[5], tmp[6], tmp[7],
+     tmp[8], tmp[9], tmp[10], tmp[11],
+     tmp[12], tmp[13], tmp[14], tmp[15]);
+  CHECK(rdr_scale_model_instances
+    (&inst, 0, true, (float[]){5.f, 4.f, 2.1f}), OK);
+  CHECK_TRANSFORM(inst, 
+     tmp[0], tmp[1], tmp[2], tmp[3],
+     tmp[4], tmp[5], tmp[6], tmp[7],
+     tmp[8], tmp[9], tmp[10], tmp[11],
+     tmp[12], tmp[13], tmp[14], tmp[15]);
+  CHECK(rdr_scale_model_instances
+    (&inst, 1, true, (float[]){5.f, 4.f, 2.1f}), OK);
+  aosf33_mulf33
+    (&f33, 
+     (struct aosf33[]) {{f44.c0, f44.c1, f44.c2}}, 
+     (struct aosf33[]) {{
+      vf4_set(5.f, 0.f, 0.f, 0.f),
+      vf4_set(0.f, 4.f, 0.f, 0.f),
+      vf4_set(0.f, 0.f, 2.1f, 0.f)}});
+  f44.c0 = f33.c0;
+  f44.c1 = f33.c1;
+  f44.c2 = f33.c2;
+  aosf44_store(tmp, &f44);
+  CHECK_TRANSFORM(inst, 
+     tmp[0], tmp[1], tmp[2], tmp[3],
+     tmp[4], tmp[5], tmp[6], tmp[7],
+     tmp[8], tmp[9], tmp[10], tmp[11],
+     tmp[12], tmp[13], tmp[14], tmp[15]);
+  CHECK(rdr_scale_model_instances
+    (&inst, 1, false, (float[]){7.f, 1.1f, 0.5f}), OK);
+  aosf44_mulf44
+    (&f44, 
+     (struct aosf44[]) {{
+      vf4_set(7.f, 0.f, 0.f, 0.f),
+      vf4_set(0.f, 1.1f, 0.f, 0.f),
+      vf4_set(0.f, 0.f, 0.5f, 0.f),
+      vf4_set(0.f, 0.f, 0.f, 1.f)}},
+     &f44);
+  aosf44_store(tmp, &f44);
+  CHECK_TRANSFORM(inst, 
+     tmp[0], tmp[1], tmp[2], tmp[3],
+     tmp[4], tmp[5], tmp[6], tmp[7],
+     tmp[8], tmp[9], tmp[10], tmp[11],
+     tmp[12], tmp[13], tmp[14], tmp[15]);
+
+  CHECK(rdr_transform_model_instances(NULL, 0, true, NULL), BAD_ARG);
+  CHECK(rdr_transform_model_instances(&inst, 0, true, NULL), BAD_ARG);
+  CHECK(rdr_transform_model_instances(NULL, 0, true, &f44), OK);
+  CHECK_TRANSFORM(inst, 
+     tmp[0], tmp[1], tmp[2], tmp[3],
+     tmp[4], tmp[5], tmp[6], tmp[7],
+     tmp[8], tmp[9], tmp[10], tmp[11],
+     tmp[12], tmp[13], tmp[14], tmp[15]);
+  CHECK(rdr_transform_model_instances(&inst, 0, true, &f44), OK);
+  CHECK_TRANSFORM(inst, 
+     tmp[0], tmp[1], tmp[2], tmp[3],
+     tmp[4], tmp[5], tmp[6], tmp[7],
+     tmp[8], tmp[9], tmp[10], tmp[11],
+     tmp[12], tmp[13], tmp[14], tmp[15]);
+  CHECK(rdr_transform_model_instances
+    (&inst, 1, true,
+     (struct aosf44[]){{
+      vf4_set(45.f, 4.f, 7.8f, 0.f),
+      vf4_set(5.1f, 2.f, -6.f, 0.f),
+      vf4_set(0.5f, -50.f, 899.f, 0.f),
+      vf4_set(4.5f, 0.01f, -989.f, 1.f)}}), OK);
+  aosf44_mulf44
+    (&f44, &f44,
+     (struct aosf44[]){{
+     vf4_set(45.f, 4.f, 7.8f, 0.f),
+     vf4_set(5.1f, 2.f, -6.f, 0.f),
+     vf4_set(0.5f, -50.f, 899.f, 0.f),
+     vf4_set(4.5f, 0.01f, -989.f, 1.f)}});
+  aosf44_store(tmp, &f44);
+  CHECK_TRANSFORM(inst, 
+     tmp[0], tmp[1], tmp[2], tmp[3],
+     tmp[4], tmp[5], tmp[6], tmp[7],
+     tmp[8], tmp[9], tmp[10], tmp[11],
+     tmp[12], tmp[13], tmp[14], tmp[15]);
+  CHECK(rdr_transform_model_instances
+    (&inst, 1, false,
+     (struct aosf44[]){{
+      vf4_set(45.f, 4.f, 7.8f, 0.f),
+      vf4_set(5.1f, 2.f, -6.f, 0.f),
+      vf4_set(0.5f, -50.f, 899.f, 0.f),
+      vf4_set(4.5f, 0.01f, -989.f, 1.f)}}), OK);
+  aosf44_mulf44
+    (&f44,
+     (struct aosf44[]){{
+     vf4_set(45.f, 4.f, 7.8f, 0.f),
+     vf4_set(5.1f, 2.f, -6.f, 0.f),
+     vf4_set(0.5f, -50.f, 899.f, 0.f),
+     vf4_set(4.5f, 0.01f, -989.f, 1.f)}},
+     &f44);
+  aosf44_store(tmp, &f44);
+  CHECK_TRANSFORM(inst, 
+     tmp[0], tmp[1], tmp[2], tmp[3],
+     tmp[4], tmp[5], tmp[6], tmp[7],
+     tmp[8], tmp[9], tmp[10], tmp[11],
+     tmp[12], tmp[13], tmp[14], tmp[15]);
+
   CHECK(rdr_model_instance_material_density(NULL, RDR_OPAQUE), BAD_ARG);
   CHECK(rdr_model_instance_material_density(inst, RDR_OPAQUE), OK);
   CHECK(rdr_get_model_instance_material_density(NULL, NULL), BAD_ARG);
@@ -572,6 +842,8 @@ test_rdr_model_instance(const char* driver_name)
   CHECK(rdr_model_instance_ref_put(inst1), OK);
 
   CHECK(rdr_system_ref_put(sys), OK);
+
+  #undef CHECK_TRANSFORM
 }
 
 int
