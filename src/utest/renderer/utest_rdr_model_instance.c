@@ -9,15 +9,42 @@
 #include "utest/utest.h"
 #include "window_manager/wm_device.h"
 #include "window_manager/wm_window.h"
-#include <assert.h>
-#include <stdbool.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
+#include <math.h>
 
 #define BAD_ARG RDR_INVALID_ARGUMENT
 #define OK RDR_NO_ERROR
 #define SZ sizeof
+#define EPS 1.e-8f
+#define CHECK_TRANSFORM(inst, a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p) \
+  do { \
+    float m__[16]; \
+    CHECK(rdr_get_model_instance_transform(inst, m__), OK); \
+    CHECK(fabsf(m__[0] - a) < EPS, true); \
+    CHECK(fabsf(m__[1] - b) < EPS, true); \
+    CHECK(fabsf(m__[2] - c) < EPS, true); \
+    CHECK(fabsf(m__[3] - d) < EPS, true); \
+    CHECK(fabsf(m__[4] - e) < EPS, true); \
+    CHECK(fabsf(m__[5] - f) < EPS, true); \
+    CHECK(fabsf(m__[6] - g) < EPS, true); \
+    CHECK(fabsf(m__[7] - h) < EPS, true); \
+    CHECK(fabsf(m__[8] - i) < EPS, true); \
+    CHECK(fabsf(m__[9] - j) < EPS, true); \
+    CHECK(fabsf(m__[10] - k) < EPS, true); \
+    CHECK(fabsf(m__[11] - l) < EPS, true); \
+    CHECK(fabsf(m__[12] - m) < EPS, true); \
+    CHECK(fabsf(m__[13] - n) < EPS, true); \
+    CHECK(fabsf(m__[14] - o) < EPS, true); \
+    CHECK(fabsf(m__[15] - p) < EPS, true); \
+  } while(0)
+
+struct instance_cbk_data {
+  struct rdr_model_instance_data* uniform_list;
+  struct rdr_model_instance_data* attrib_list;
+  size_t nb_uniforms;
+  size_t nb_attribs;
+};
 
 static bool
 is_driver_null(const char* name)
@@ -34,205 +61,6 @@ is_driver_null(const char* name)
     && (p == name ? true : *(p-1) == '/')
     && (*(p + strlen(null_driver_name)) == '\0');
 }
-
-static void
-test_rdr_system(const char* driver_name)
-{
-  struct rdr_system* sys = NULL;
-
-  CHECK(rdr_create_system(NULL, NULL, NULL), BAD_ARG);
-  CHECK(rdr_create_system(NULL, NULL, &sys), BAD_ARG);
-  CHECK(rdr_create_system("__INVALID_DRIVER__", NULL, NULL), BAD_ARG);
-  CHECK(rdr_create_system("__INVALID_DRIVER__", NULL, &sys), RDR_DRIVER_ERROR);
-  CHECK(rdr_create_system(driver_name, NULL, &sys), OK);
-  CHECK(rdr_system_ref_put(NULL), BAD_ARG);
-  CHECK(rdr_system_ref_put(sys), OK);
-}
-
-static void
-test_rdr_mesh(const char* driver_name)
-{
-  struct rdr_system* sys = NULL;
-  struct rdr_mesh* mesh = NULL;
-  const float vert1[] = { 0.f, 0.f, 0.f };
-  const float vert2[] = { 0.f, 0.f, 0.f, 1.f, 1.f, 1.f };
-  const unsigned int indices1[] = { 0, 1, 2 };
-  const unsigned int indices2[] = { 0, 1, 2, 3 };
-  const struct rdr_mesh_attrib mesh_attr[] = {
-    { .usage = RDR_ATTRIB_POSITION, .type = RDR_FLOAT2 },
-    { .usage = RDR_ATTRIB_COLOR, .type = RDR_FLOAT },
-    { .usage = RDR_ATTRIB_UNKNOWN, .type = RDR_FLOAT }
-  };
-  const struct rdr_mesh_attrib mesh_attr2[] = {
-    { .usage = RDR_ATTRIB_NORMAL, .type = RDR_UNKNOWN_TYPE }
-  };
-  const struct rdr_mesh_attrib mesh_attr3[] = {
-    { .usage = RDR_ATTRIB_UNKNOWN, .type = RDR_FLOAT }
-  };
-
-  CHECK(rdr_create_system(driver_name, NULL, &sys), OK);
-
-  CHECK(rdr_create_mesh(NULL, NULL), BAD_ARG);
-  CHECK(rdr_create_mesh(NULL, &mesh), BAD_ARG);
-  CHECK(rdr_create_mesh(sys, NULL), BAD_ARG);
-  CHECK(rdr_create_mesh(sys, &mesh), OK);
-
-  CHECK(rdr_mesh_data(NULL, 0, NULL, 0, NULL), BAD_ARG);
-  CHECK(rdr_mesh_data(NULL, 1, NULL, 0, NULL), BAD_ARG);
-  CHECK(rdr_mesh_data(NULL, 0, mesh_attr, 0, NULL), BAD_ARG);
-  CHECK(rdr_mesh_data(NULL, 0, NULL, 0, NULL), BAD_ARG);
-  CHECK(rdr_mesh_data(mesh, 0, mesh_attr, SZ(vert1), vert1), BAD_ARG);
-  CHECK(rdr_mesh_data(mesh, 2, NULL, SZ(vert1), vert1), BAD_ARG);
-  CHECK(rdr_mesh_data(mesh, 2, mesh_attr, 0, vert1), BAD_ARG);
-  CHECK(rdr_mesh_data(mesh, 2, mesh_attr, SZ(vert1), NULL), BAD_ARG);
-  CHECK(rdr_mesh_data(mesh, 2, NULL, SZ(vert1), NULL), BAD_ARG);
-  CHECK(rdr_mesh_data(mesh, 1, mesh_attr, SZ(vert1), vert1), BAD_ARG);
-  CHECK(rdr_mesh_data(NULL, 2, mesh_attr, SZ(vert1), vert1), BAD_ARG);
-  CHECK(rdr_mesh_data(mesh, 1, mesh_attr2, SZ(vert1), vert1), BAD_ARG);
-  CHECK(rdr_mesh_data(mesh, 1, mesh_attr3, SZ(vert1), vert1), BAD_ARG);
-  CHECK(rdr_mesh_data(mesh, 0, mesh_attr, 0, vert1), OK);
-  CHECK(rdr_mesh_data(mesh, 0, NULL, 0, NULL), OK);
-  CHECK(rdr_mesh_data(mesh, 2, mesh_attr, SZ(vert1), vert1), OK);
-  CHECK(rdr_mesh_data(mesh, 2, mesh_attr, SZ(vert2), vert2), OK);
-  CHECK(rdr_mesh_data(mesh, 1, mesh_attr, SZ(vert2), vert2), OK);
-
-  CHECK(rdr_mesh_indices(NULL, 3, NULL), BAD_ARG);
-  CHECK(rdr_mesh_indices(mesh, 4, indices2), BAD_ARG);
-  CHECK(rdr_mesh_indices(mesh, 3, indices1), OK);
-  CHECK(rdr_mesh_indices(mesh, 0, indices1), OK);
-
-  CHECK(rdr_mesh_ref_get(NULL), BAD_ARG);
-  CHECK(rdr_mesh_ref_get(mesh), OK);
-  CHECK(rdr_mesh_ref_put(NULL), BAD_ARG);
-  CHECK(rdr_mesh_ref_put(mesh), OK);
-  CHECK(rdr_mesh_ref_put(mesh), OK);
-  CHECK(rdr_system_ref_put(sys), OK);
-}
-
-static void
-test_rdr_material(const char* driver_name)
-{
-  struct rdr_system* sys = NULL;
-  struct rdr_material* mtr = NULL;
-  const char* bad_source = "__INVALID_SOURCE_";
-  const char* good_source =
-    "#version 330\n"
-    "void main()\n"
-    "{\n"
-      "gl_Position = vec4(0.f,0.f,0.f,0.f);\n"
-    "}\n";
-  const char* log = NULL;
-  const char* sources[RDR_NB_SHADER_USAGES];
-  bool null_driver = is_driver_null(driver_name);
-
-  memset(sources, 0, SZ(const char*) * RDR_NB_SHADER_USAGES);
-
-  CHECK(rdr_create_system(driver_name, NULL, &sys), OK);
-
-  CHECK(rdr_create_material(NULL, NULL), BAD_ARG);
-  CHECK(rdr_create_material(sys, NULL), BAD_ARG);
-  CHECK(rdr_create_material(NULL, &mtr), BAD_ARG);
-  CHECK(rdr_create_material(sys, &mtr), OK);
-
-  sources[RDR_VERTEX_SHADER] = bad_source;
-  CHECK(rdr_material_program(NULL, NULL), BAD_ARG);
-  CHECK(rdr_material_program(mtr, NULL), BAD_ARG);
-  CHECK(rdr_material_program(NULL, sources), BAD_ARG);
-  if(null_driver == false)
-    CHECK(rdr_material_program(mtr, sources), RDR_DRIVER_ERROR);
-
-  CHECK(rdr_get_material_log(NULL, NULL), BAD_ARG);
-  CHECK(rdr_get_material_log(mtr, NULL), BAD_ARG);
-  CHECK(rdr_get_material_log(NULL, &log), BAD_ARG);
-  CHECK(rdr_get_material_log(mtr, &log), OK);
-
-  sources[RDR_VERTEX_SHADER] = good_source;
-  CHECK(rdr_material_program(mtr, sources), OK);
-
-  CHECK(rdr_material_ref_get(NULL), BAD_ARG);
-  CHECK(rdr_material_ref_get(mtr), OK);
-  CHECK(rdr_material_ref_put(NULL), BAD_ARG);
-  CHECK(rdr_material_ref_put(mtr), OK);
-  CHECK(rdr_material_ref_put(mtr), OK);
-
-  CHECK(rdr_system_ref_put(sys), OK);
-}
-
-static void
-test_rdr_model(const char* driver_name)
-{
-  struct rdr_system* sys = NULL;
-  struct rdr_material* mtr = NULL;
-  struct rdr_mesh* mesh = NULL;
-  struct rdr_model* model0 = NULL;
-  struct rdr_model* model1 = NULL;
-  const char* vs_source =
-    "#version 330\n"
-    "void main()\n"
-    "{\n"
-      "gl_Position = vec4(0.f,0.f,0.f,0.f);\n"
-    "}\n";
-  const char* sources[RDR_NB_SHADER_USAGES];
-  const float data[] = { 0.f, 0.f, 0.f, 1.f, 1.f, 1.f };
-  const struct rdr_mesh_attrib attr0[] = {
-    { .usage = RDR_ATTRIB_POSITION, .type = RDR_FLOAT2 },
-    { .usage = RDR_ATTRIB_COLOR, .type = RDR_FLOAT }
-  };
-  const struct rdr_mesh_attrib attr1[] = {
-    { .usage = RDR_ATTRIB_POSITION, .type = RDR_FLOAT2 }
-  };
-
-  memset(sources, 0, SZ(const char*) * RDR_NB_SHADER_USAGES);
-  sources[RDR_VERTEX_SHADER] = vs_source;
-
-  CHECK(rdr_create_system(driver_name, NULL, &sys), OK);
-  CHECK(rdr_create_mesh(sys, &mesh), OK);
-  CHECK(rdr_mesh_data(mesh, 2, attr0, SZ(data), data), OK);
-  CHECK(rdr_create_material(sys, &mtr), OK);
-  CHECK(rdr_material_program(mtr, sources), OK);
-
-  CHECK(rdr_create_model(NULL, NULL, NULL, NULL), BAD_ARG);
-  CHECK(rdr_create_model(sys, NULL, NULL, NULL), BAD_ARG);
-  CHECK(rdr_create_model(NULL, mesh, NULL, NULL), BAD_ARG);
-  CHECK(rdr_create_model(sys, mesh, NULL, NULL), BAD_ARG);
-
-  CHECK(rdr_create_model(NULL, NULL, mtr, NULL), BAD_ARG);
-  CHECK(rdr_create_model(sys, NULL, mtr, NULL), BAD_ARG);
-  CHECK(rdr_create_model(NULL, mesh, mtr, NULL), BAD_ARG);
-  CHECK(rdr_create_model(sys, mesh, mtr, NULL), BAD_ARG);
-
-  CHECK(rdr_create_model(NULL, NULL, mtr, &model0), BAD_ARG);
-  CHECK(rdr_create_model(sys, NULL, mtr, &model0), BAD_ARG);
-  CHECK(rdr_create_model(NULL, mesh, mtr, &model0), BAD_ARG);
-  CHECK(rdr_create_model(sys, mesh, mtr, &model0), OK);
-  CHECK(rdr_create_model(sys, mesh, mtr, &model1), OK);
-
-  CHECK(rdr_model_mesh(NULL, NULL), BAD_ARG);
-  CHECK(rdr_model_mesh(model0, NULL), BAD_ARG);
-  CHECK(rdr_model_mesh(NULL, mesh), BAD_ARG);
-  CHECK(rdr_model_mesh(model0, mesh), OK);
-
-  CHECK(rdr_mesh_data(mesh, 1, attr1, SZ(data), data), OK);
-
-  CHECK(rdr_model_ref_get(NULL), BAD_ARG);
-  CHECK(rdr_model_ref_get(model0), OK);
-
-  CHECK(rdr_model_ref_put(NULL), BAD_ARG);
-  CHECK(rdr_model_ref_put(model0), OK);
-  CHECK(rdr_model_ref_put(model0), OK);
-  CHECK(rdr_model_ref_put(model1), OK);
-
-  CHECK(rdr_mesh_ref_put(mesh), OK);
-  CHECK(rdr_material_ref_put(mtr), OK);
-  CHECK(rdr_system_ref_put(sys), OK);
-}
-
-struct instance_cbk_data {
-  struct rdr_model_instance_data* uniform_list;
-  struct rdr_model_instance_data* attrib_list;
-  size_t nb_uniforms;
-  size_t nb_attribs;
-};
 
 static void
 instance_cbk_func
@@ -310,11 +138,18 @@ instance_cbk_func
   }
 }
 
-static void
-test_rdr_model_instance(const char* driver_name)
+int
+main(int argc, char** argv)
 {
-  struct instance_cbk_data instance_cbk_data;
+  const char* driver_name = NULL;
+  FILE* file = NULL;
   struct rdr_system* sys = NULL;
+  struct wm_device* device = NULL;
+  struct wm_window* window = NULL;
+  struct wm_window_desc win_desc = {
+    .width = 800, .height = 600, .fullscreen = 0
+  };
+  struct instance_cbk_data instance_cbk_data;
   struct rdr_material* mtr = NULL;
   struct rdr_mesh* mesh = NULL;
   struct rdr_model* model = NULL;
@@ -368,35 +203,28 @@ test_rdr_model_instance(const char* driver_name)
   ALIGN(16) float tmp[16];
   enum rdr_material_density density;
   struct rdr_rasterizer_desc rast;
-  bool null_driver = is_driver_null(driver_name);
+  bool null_driver = false;
   bool b = false;
 
-  #define EPS 1.e-8f
-  #define CHECK_TRANSFORM(inst, a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p)\
-    do { \
-      float m__[16]; \
-      CHECK(rdr_get_model_instance_transform(inst, m__), OK); \
-      CHECK(fabsf(m__[0] - a) < EPS, true); \
-      CHECK(fabsf(m__[1] - b) < EPS, true); \
-      CHECK(fabsf(m__[2] - c) < EPS, true); \
-      CHECK(fabsf(m__[3] - d) < EPS, true); \
-      CHECK(fabsf(m__[4] - e) < EPS, true); \
-      CHECK(fabsf(m__[5] - f) < EPS, true); \
-      CHECK(fabsf(m__[6] - g) < EPS, true); \
-      CHECK(fabsf(m__[7] - h) < EPS, true); \
-      CHECK(fabsf(m__[8] - i) < EPS, true); \
-      CHECK(fabsf(m__[9] - j) < EPS, true); \
-      CHECK(fabsf(m__[10] - k) < EPS, true); \
-      CHECK(fabsf(m__[11] - l) < EPS, true); \
-      CHECK(fabsf(m__[12] - m) < EPS, true); \
-      CHECK(fabsf(m__[13] - n) < EPS, true); \
-      CHECK(fabsf(m__[14] - o) < EPS, true); \
-      CHECK(fabsf(m__[15] - p) < EPS, true); \
-    } while(0)
+  if(argc != 2) {
+    printf("usage: %s RB_DRIVER\n", argv[0]);
+    return -1;
+  }
+  driver_name = argv[1];
+  file = fopen(driver_name, "r");
+  if(!file) {
+    fprintf(stderr, "Invalid driver %s\n", driver_name);
+    return -1;
+  }
+  fclose(file);
 
+  null_driver = is_driver_null(driver_name);
   memset(&instance_cbk_data, 0, SZ(struct instance_cbk_data));
   memset(sources, 0, SZ(const char*) * RDR_NB_SHADER_USAGES);
   sources[RDR_VERTEX_SHADER] = vs_source;
+
+  CHECK(wm_create_device(NULL, &device), WM_NO_ERROR);
+  CHECK(wm_create_window(device, &win_desc, &window), WM_NO_ERROR);
 
   CHECK(rdr_create_system(driver_name, NULL, &sys), OK);
   CHECK(rdr_create_mesh(sys, &mesh), OK);
@@ -472,7 +300,7 @@ test_rdr_model_instance(const char* driver_name)
   CHECK(rdr_get_model_instance_transform(inst,NULL), BAD_ARG);
   CHECK(rdr_get_model_instance_transform(NULL, tmp), BAD_ARG);
   CHECK(rdr_get_model_instance_transform(inst, tmp), OK);
-  CHECK_TRANSFORM(inst, 
+  CHECK_TRANSFORM(inst,
      1.f, 0.f, 0.f, 0.f,
      0.f, 1.f, 0.f, 0.f,
      0.f, 0.f, 1.f, 0.f,
@@ -484,28 +312,28 @@ test_rdr_model_instance(const char* driver_name)
     (NULL, 1, false, (float[]){1.f, 5.f, 3.f}), BAD_ARG);
   CHECK(rdr_translate_model_instances
     (&inst, 1, false, (float[]){1.f, 5.f, 3.f}), OK);
-  CHECK_TRANSFORM(inst, 
+  CHECK_TRANSFORM(inst,
      1.f, 0.f, 0.f, 0.f,
      0.f, 1.f, 0.f, 0.f,
      0.f, 0.f, 1.f, 0.f,
      1.f, 5.f, 3.f, 1.f);
   CHECK(rdr_translate_model_instances
     (&inst, 1, false, (float[]){-4.f, 2.1f, 1.f}), OK);
-  CHECK_TRANSFORM(inst, 
+  CHECK_TRANSFORM(inst,
      1.f, 0.f, 0.f, 0.f,
      0.f, 1.f, 0.f, 0.f,
      0.f, 0.f, 1.f, 0.f,
      -3.f, 7.1f, 4.f, 1.f);
   CHECK(rdr_translate_model_instances
     (&inst, 0, false, (float[]){-4.f, 2.1f, 1.f}), OK);
-  CHECK_TRANSFORM(inst, 
+  CHECK_TRANSFORM(inst,
      1.f, 0.f, 0.f, 0.f,
      0.f, 1.f, 0.f, 0.f,
      0.f, 0.f, 1.f, 0.f,
      -3.f, 7.1f, 4.f, 1.f);
   CHECK(rdr_translate_model_instances
     (NULL, 0, false, (float[]){-4.f, 2.1f, 1.f}), OK);
-  CHECK_TRANSFORM(inst, 
+  CHECK_TRANSFORM(inst,
      1.f, 0.f, 0.f, 0.f,
      0.f, 1.f, 0.f, 0.f,
      0.f, 0.f, 1.f, 0.f,
@@ -516,26 +344,26 @@ test_rdr_model_instance(const char* driver_name)
   CHECK(rdr_move_model_instances(NULL, 1, NULL), BAD_ARG);
   CHECK(rdr_move_model_instances(&inst, 1, NULL), BAD_ARG);
   CHECK(rdr_move_model_instances(NULL, 0, (float[]){0.f, 0.f, 0.f}), OK);
-  CHECK_TRANSFORM(inst, 
+  CHECK_TRANSFORM(inst,
      1.f, 0.f, 0.f, 0.f,
      0.f, 1.f, 0.f, 0.f,
      0.f, 0.f, 1.f, 0.f,
      -3.f, 7.1f, 4.f, 1.f);
   CHECK(rdr_move_model_instances(&inst, 0, (float[]){0.f, 0.f, 0.f}), OK);
-  CHECK_TRANSFORM(inst, 
+  CHECK_TRANSFORM(inst,
      1.f, 0.f, 0.f, 0.f,
      0.f, 1.f, 0.f, 0.f,
      0.f, 0.f, 1.f, 0.f,
      -3.f, 7.1f, 4.f, 1.f);
   CHECK(rdr_move_model_instances(NULL, 1, (float[]){0.f, 0.f, 0.f}), BAD_ARG);
   CHECK(rdr_move_model_instances(&inst, 1, (float[]){0.f, 0.f, 0.f}), OK);
-  CHECK_TRANSFORM(inst, 
+  CHECK_TRANSFORM(inst,
      1.f, 0.f, 0.f, 0.f,
      0.f, 1.f, 0.f, 0.f,
      0.f, 0.f, 1.f, 0.f,
      0.f, 0.f, 0.f, 1.f);
   CHECK(rdr_move_model_instances(&inst, 1, (float[]){5.f, 3.1f, -1.8f}), OK);
-  CHECK_TRANSFORM(inst, 
+  CHECK_TRANSFORM(inst,
      1.f, 0.f, 0.f, 0.f,
      0.f, 1.f, 0.f, 0.f,
      0.f, 0.f, 1.f, 0.f,
@@ -546,14 +374,14 @@ test_rdr_model_instance(const char* driver_name)
   CHECK(rdr_rotate_model_instances(&inst, 0, false, NULL), BAD_ARG);
   CHECK(rdr_rotate_model_instances
     (NULL, 0, false, (float[]){0.785f, 0.f, 0.f}), OK);
-  CHECK_TRANSFORM(inst, 
+  CHECK_TRANSFORM(inst,
      1.f, 0.f, 0.f, 0.f,
      0.f, 1.f, 0.f, 0.f,
      0.f, 0.f, 1.f, 0.f,
      0.f, 0.f, 0.f, 1.f);
   CHECK(rdr_rotate_model_instances
     (&inst, 0, false, (float[]){0.785f, 0.f, 0.f}), OK);
-  CHECK_TRANSFORM(inst, 
+  CHECK_TRANSFORM(inst,
      1.f, 0.f, 0.f, 0.f,
      0.f, 1.f, 0.f, 0.f,
      0.f, 0.f, 1.f, 0.f,
@@ -567,7 +395,7 @@ test_rdr_model_instance(const char* driver_name)
   f44.c3 = vf4_set(0.f, 0.f, 0.f, 1.f);
   CHECK(rdr_get_model_instance_transform(inst, tmp), OK);
   aosf44_store(tmp, &f44);
-    CHECK_TRANSFORM(inst, 
+    CHECK_TRANSFORM(inst,
      tmp[0], tmp[1], tmp[2], tmp[3],
      tmp[4], tmp[5], tmp[6], tmp[7],
      tmp[8], tmp[9], tmp[10], tmp[11],
@@ -576,7 +404,7 @@ test_rdr_model_instance(const char* driver_name)
   CHECK(rdr_translate_model_instances
     (&inst, 1, false, (float[]){-4.f, 2.1f, 1.f}), OK);
   aosf44_mulf44
-    (&f44, 
+    (&f44,
      (struct aosf44[]) {{
       vf4_set(1.f, 0.f, 0.f, 0.f),
       vf4_set(0.f, 1.f, 0.f, 0.f),
@@ -584,7 +412,7 @@ test_rdr_model_instance(const char* driver_name)
       vf4_set(-4.f, 2.1f, 1.f, 1.f)}},
     &f44);
   aosf44_store(tmp, &f44);
-  CHECK_TRANSFORM(inst, 
+  CHECK_TRANSFORM(inst,
      tmp[0], tmp[1], tmp[2], tmp[3],
      tmp[4], tmp[5], tmp[6], tmp[7],
      tmp[8], tmp[9], tmp[10], tmp[11],
@@ -600,7 +428,7 @@ test_rdr_model_instance(const char* driver_name)
       vf4_set(0.f, 0.f, 1.f, 0.f),
       vf4_set(-4.f, 2.1f, 1.f, 1.f)}});
   aosf44_store(tmp, &f44);
-  CHECK_TRANSFORM(inst, 
+  CHECK_TRANSFORM(inst,
      tmp[0], tmp[1], tmp[2], tmp[3],
      tmp[4], tmp[5], tmp[6], tmp[7],
      tmp[8], tmp[9], tmp[10], tmp[11],
@@ -613,7 +441,7 @@ test_rdr_model_instance(const char* driver_name)
   f44.c1 = f33.c1;
   f44.c2 = f33.c2;
   aosf44_store(tmp, &f44);
-  CHECK_TRANSFORM(inst, 
+  CHECK_TRANSFORM(inst,
      tmp[0], tmp[1], tmp[2], tmp[3],
      tmp[4], tmp[5], tmp[6], tmp[7],
      tmp[8], tmp[9], tmp[10], tmp[11],
@@ -622,11 +450,11 @@ test_rdr_model_instance(const char* driver_name)
     (&inst, 1, false, (float[]){0.785f, 0.11f, 0.87f}), OK);
   aosf33_rotation(&f33, 0.785f, 0.11f, 0.87f);
   aosf44_mulf44
-    (&f44, 
+    (&f44,
      (struct aosf44[]) {{f33.c0, f33.c1, f33.c2, vf4_set(0.f, 0.f, 0.f, 1.f)}},
      &f44);
   aosf44_store(tmp, &f44);
-  CHECK_TRANSFORM(inst, 
+  CHECK_TRANSFORM(inst,
      tmp[0], tmp[1], tmp[2], tmp[3],
      tmp[4], tmp[5], tmp[6], tmp[7],
      tmp[8], tmp[9], tmp[10], tmp[11],
@@ -636,14 +464,14 @@ test_rdr_model_instance(const char* driver_name)
   CHECK(rdr_scale_model_instances(&inst, 0, false, NULL), BAD_ARG);
   CHECK(rdr_scale_model_instances
     (NULL, 0, true, (float[]){5.f, 4.f, 2.1f}), OK);
-  CHECK_TRANSFORM(inst, 
+  CHECK_TRANSFORM(inst,
      tmp[0], tmp[1], tmp[2], tmp[3],
      tmp[4], tmp[5], tmp[6], tmp[7],
      tmp[8], tmp[9], tmp[10], tmp[11],
      tmp[12], tmp[13], tmp[14], tmp[15]);
   CHECK(rdr_scale_model_instances
     (&inst, 0, true, (float[]){5.f, 4.f, 2.1f}), OK);
-  CHECK_TRANSFORM(inst, 
+  CHECK_TRANSFORM(inst,
      tmp[0], tmp[1], tmp[2], tmp[3],
      tmp[4], tmp[5], tmp[6], tmp[7],
      tmp[8], tmp[9], tmp[10], tmp[11],
@@ -651,8 +479,8 @@ test_rdr_model_instance(const char* driver_name)
   CHECK(rdr_scale_model_instances
     (&inst, 1, true, (float[]){5.f, 4.f, 2.1f}), OK);
   aosf33_mulf33
-    (&f33, 
-     (struct aosf33[]) {{f44.c0, f44.c1, f44.c2}}, 
+    (&f33,
+     (struct aosf33[]) {{f44.c0, f44.c1, f44.c2}},
      (struct aosf33[]) {{
       vf4_set(5.f, 0.f, 0.f, 0.f),
       vf4_set(0.f, 4.f, 0.f, 0.f),
@@ -661,7 +489,7 @@ test_rdr_model_instance(const char* driver_name)
   f44.c1 = f33.c1;
   f44.c2 = f33.c2;
   aosf44_store(tmp, &f44);
-  CHECK_TRANSFORM(inst, 
+  CHECK_TRANSFORM(inst,
      tmp[0], tmp[1], tmp[2], tmp[3],
      tmp[4], tmp[5], tmp[6], tmp[7],
      tmp[8], tmp[9], tmp[10], tmp[11],
@@ -669,7 +497,7 @@ test_rdr_model_instance(const char* driver_name)
   CHECK(rdr_scale_model_instances
     (&inst, 1, false, (float[]){7.1f, 1.98f, 0.5f}), OK);
   aosf44_mulf44
-    (&f44, 
+    (&f44,
      (struct aosf44[]) {{
       vf4_set(7.1f, 0.f, 0.f, 0.f),
       vf4_set(0.f, 1.98f, 0.f, 0.f),
@@ -677,7 +505,7 @@ test_rdr_model_instance(const char* driver_name)
       vf4_set(0.f, 0.f, 0.f, 1.f)}},
      &f44);
   aosf44_store(tmp, &f44);
-  CHECK_TRANSFORM(inst, 
+  CHECK_TRANSFORM(inst,
      tmp[0], tmp[1], tmp[2], tmp[3],
      tmp[4], tmp[5], tmp[6], tmp[7],
      tmp[8], tmp[9], tmp[10], tmp[11],
@@ -686,13 +514,13 @@ test_rdr_model_instance(const char* driver_name)
   CHECK(rdr_transform_model_instances(NULL, 0, true, NULL), BAD_ARG);
   CHECK(rdr_transform_model_instances(&inst, 0, true, NULL), BAD_ARG);
   CHECK(rdr_transform_model_instances(NULL, 0, true, &f44), OK);
-  CHECK_TRANSFORM(inst, 
+  CHECK_TRANSFORM(inst,
      tmp[0], tmp[1], tmp[2], tmp[3],
      tmp[4], tmp[5], tmp[6], tmp[7],
      tmp[8], tmp[9], tmp[10], tmp[11],
      tmp[12], tmp[13], tmp[14], tmp[15]);
   CHECK(rdr_transform_model_instances(&inst, 0, true, &f44), OK);
-  CHECK_TRANSFORM(inst, 
+  CHECK_TRANSFORM(inst,
      tmp[0], tmp[1], tmp[2], tmp[3],
      tmp[4], tmp[5], tmp[6], tmp[7],
      tmp[8], tmp[9], tmp[10], tmp[11],
@@ -712,7 +540,7 @@ test_rdr_model_instance(const char* driver_name)
      vf4_set(0.5f, -50.f, 899.f, 0.f),
      vf4_set(4.5f, 0.01f, -989.f, 1.f)}});
   aosf44_store(tmp, &f44);
-  CHECK_TRANSFORM(inst, 
+  CHECK_TRANSFORM(inst,
      tmp[0], tmp[1], tmp[2], tmp[3],
      tmp[4], tmp[5], tmp[6], tmp[7],
      tmp[8], tmp[9], tmp[10], tmp[11],
@@ -733,7 +561,7 @@ test_rdr_model_instance(const char* driver_name)
      vf4_set(4.5f, 0.01f, -989.f, 1.f)}},
      &f44);
   aosf44_store(tmp, &f44);
-  CHECK_TRANSFORM(inst, 
+  CHECK_TRANSFORM(inst,
      tmp[0], tmp[1], tmp[2], tmp[3],
      tmp[4], tmp[5], tmp[6], tmp[7],
      tmp[8], tmp[9], tmp[10], tmp[11],
@@ -742,7 +570,7 @@ test_rdr_model_instance(const char* driver_name)
   CHECK(rdr_create_model_instance(sys, model, &inst1), OK);
   CHECK(rdr_get_model_instance_transform(inst1, tmp), OK);
   aosf44_set
-    (&f44a, 
+    (&f44a,
      vf4_set(tmp[0], tmp[1], tmp[2], tmp[3]),
      vf4_set(tmp[4], tmp[5], tmp[6], tmp[7]),
      vf4_set(tmp[8], tmp[9], tmp[10], tmp[11]),
@@ -760,7 +588,7 @@ test_rdr_model_instance(const char* driver_name)
       vf4_set(5.f, 1.f, 4.f, 1.f)}},
      &f44);
   aosf44_store(tmp, &f44);
-  CHECK_TRANSFORM(inst, 
+  CHECK_TRANSFORM(inst,
      tmp[0], tmp[1], tmp[2], tmp[3],
      tmp[4], tmp[5], tmp[6], tmp[7],
      tmp[8], tmp[9], tmp[10], tmp[11],
@@ -774,7 +602,7 @@ test_rdr_model_instance(const char* driver_name)
       vf4_set(5.f, 1.f, 4.f, 1.f)}},
      &f44a);
   aosf44_store(tmp, &f44);
-  CHECK_TRANSFORM(inst, 
+  CHECK_TRANSFORM(inst,
      tmp[0], tmp[1], tmp[2], tmp[3],
      tmp[4], tmp[5], tmp[6], tmp[7],
      tmp[8], tmp[9], tmp[10], tmp[11],
@@ -791,7 +619,7 @@ test_rdr_model_instance(const char* driver_name)
       vf4_set(0.f, 0.f, 1.f, 0.f),
       vf4_set(5.f, 1.f, 4.f, 1.f)}});
   aosf44_store(tmp, &f44);
-  CHECK_TRANSFORM(inst, 
+  CHECK_TRANSFORM(inst,
      tmp[0], tmp[1], tmp[2], tmp[3],
      tmp[4], tmp[5], tmp[6], tmp[7],
      tmp[8], tmp[9], tmp[10], tmp[11],
@@ -805,7 +633,7 @@ test_rdr_model_instance(const char* driver_name)
       vf4_set(0.f, 0.f, 1.f, 0.f),
       vf4_set(5.f, 1.f, 4.f, 1.f)}});
   aosf44_store(tmp, &f44);
-  CHECK_TRANSFORM(inst, 
+  CHECK_TRANSFORM(inst,
      tmp[0], tmp[1], tmp[2], tmp[3],
      tmp[4], tmp[5], tmp[6], tmp[7],
      tmp[8], tmp[9], tmp[10], tmp[11],
@@ -816,21 +644,21 @@ test_rdr_model_instance(const char* driver_name)
      false, (float[]){0.785f, 0.12f, 0.08f}), OK);
   aosf33_rotation(&f33, 0.785f, 0.12f, 0.08f);
   aosf44_mulf44
-    (&f44, 
+    (&f44,
      (struct aosf44[]) {{f33.c0, f33.c1, f33.c2, vf4_set(0.f, 0.f, 0.f, 1.f)}},
      &f44);
   aosf44_store(tmp, &f44);
-  CHECK_TRANSFORM(inst, 
+  CHECK_TRANSFORM(inst,
      tmp[0], tmp[1], tmp[2], tmp[3],
      tmp[4], tmp[5], tmp[6], tmp[7],
      tmp[8], tmp[9], tmp[10], tmp[11],
      tmp[12], tmp[13], tmp[14], tmp[15]);
   aosf44_mulf44
-    (&f44a, 
+    (&f44a,
      (struct aosf44[]) {{f33.c0, f33.c1, f33.c2, vf4_set(0.f, 0.f, 0.f, 1.f)}},
      &f44a);
   aosf44_store(tmp, &f44a);
-  CHECK_TRANSFORM(inst1, 
+  CHECK_TRANSFORM(inst1,
      tmp[0], tmp[1], tmp[2], tmp[3],
      tmp[4], tmp[5], tmp[6], tmp[7],
      tmp[8], tmp[9], tmp[10], tmp[11],
@@ -844,7 +672,7 @@ test_rdr_model_instance(const char* driver_name)
   f44.c1 = f33.c1;
   f44.c2 = f33.c2;
   aosf44_store(tmp, &f44);
-  CHECK_TRANSFORM(inst, 
+  CHECK_TRANSFORM(inst,
      tmp[0], tmp[1], tmp[2], tmp[3],
      tmp[4], tmp[5], tmp[6], tmp[7],
      tmp[8], tmp[9], tmp[10], tmp[11],
@@ -854,7 +682,7 @@ test_rdr_model_instance(const char* driver_name)
   f44a.c1 = f33.c1;
   f44a.c2 = f33.c2;
   aosf44_store(tmp, &f44a);
-  CHECK_TRANSFORM(inst1, 
+  CHECK_TRANSFORM(inst1,
      tmp[0], tmp[1], tmp[2], tmp[3],
      tmp[4], tmp[5], tmp[6], tmp[7],
      tmp[8], tmp[9], tmp[10], tmp[11],
@@ -864,7 +692,7 @@ test_rdr_model_instance(const char* driver_name)
     ((struct rdr_model_instance*[]){inst, inst1}, 2,
      false, (float[]){0.5f, 0.789f, -2.78f}), OK);
   aosf44_mulf44
-    (&f44, 
+    (&f44,
      (struct aosf44[]) {{
       vf4_set(0.5f, 0.f, 0.f, 0.f),
       vf4_set(0.f, 0.789, 0.f, 0.f),
@@ -872,13 +700,13 @@ test_rdr_model_instance(const char* driver_name)
       vf4_set(0.f, 0.f, 0.f, 1.f)}},
      &f44);
   aosf44_store(tmp, &f44);
-  CHECK_TRANSFORM(inst, 
+  CHECK_TRANSFORM(inst,
      tmp[0], tmp[1], tmp[2], tmp[3],
      tmp[4], tmp[5], tmp[6], tmp[7],
      tmp[8], tmp[9], tmp[10], tmp[11],
      tmp[12], tmp[13], tmp[14], tmp[15]);
   aosf44_mulf44
-    (&f44a, 
+    (&f44a,
      (struct aosf44[]) {{
       vf4_set(0.5f, 0.f, 0.f, 0.f),
       vf4_set(0.f, 0.789, 0.f, 0.f),
@@ -886,7 +714,7 @@ test_rdr_model_instance(const char* driver_name)
       vf4_set(0.f, 0.f, 0.f, 1.f)}},
      &f44a);
   aosf44_store(tmp, &f44a);
-  CHECK_TRANSFORM(inst1, 
+  CHECK_TRANSFORM(inst1,
      tmp[0], tmp[1], tmp[2], tmp[3],
      tmp[4], tmp[5], tmp[6], tmp[7],
      tmp[8], tmp[9], tmp[10], tmp[11],
@@ -895,8 +723,8 @@ test_rdr_model_instance(const char* driver_name)
     ((struct rdr_model_instance*[]){inst, inst1}, 2,
      true, (float[]){0.5f, 0.789f, -2.78f}), OK);
   aosf33_mulf33
-    (&f33, 
-     (struct aosf33[]) {{f44.c0, f44.c1, f44.c2}}, 
+    (&f33,
+     (struct aosf33[]) {{f44.c0, f44.c1, f44.c2}},
      (struct aosf33[]) {{
       vf4_set(0.5f, 0.f, 0.f, 0.f),
       vf4_set(0.f, 0.789f, 0.f, 0.f),
@@ -905,14 +733,14 @@ test_rdr_model_instance(const char* driver_name)
   f44.c1 = f33.c1;
   f44.c2 = f33.c2;
   aosf44_store(tmp, &f44);
-  CHECK_TRANSFORM(inst, 
+  CHECK_TRANSFORM(inst,
      tmp[0], tmp[1], tmp[2], tmp[3],
      tmp[4], tmp[5], tmp[6], tmp[7],
      tmp[8], tmp[9], tmp[10], tmp[11],
      tmp[12], tmp[13], tmp[14], tmp[15]);
   aosf33_mulf33
-    (&f33, 
-     (struct aosf33[]) {{f44a.c0, f44a.c1, f44a.c2}}, 
+    (&f33,
+     (struct aosf33[]) {{f44a.c0, f44a.c1, f44a.c2}},
      (struct aosf33[]) {{
       vf4_set(0.5f, 0.f, 0.f, 0.f),
       vf4_set(0.f, 0.789f, 0.f, 0.f),
@@ -921,21 +749,21 @@ test_rdr_model_instance(const char* driver_name)
   f44a.c1 = f33.c1;
   f44a.c2 = f33.c2;
   aosf44_store(tmp, &f44a);
-  CHECK_TRANSFORM(inst1, 
+  CHECK_TRANSFORM(inst1,
      tmp[0], tmp[1], tmp[2], tmp[3],
      tmp[4], tmp[5], tmp[6], tmp[7],
      tmp[8], tmp[9], tmp[10], tmp[11],
      tmp[12], tmp[13], tmp[14], tmp[15]);
 
   CHECK(rdr_transform_model_instances
-    ((struct rdr_model_instance*[]){inst, inst1}, 2, false, 
+    ((struct rdr_model_instance*[]){inst, inst1}, 2, false,
      (struct aosf44[]){{
       vf4_set(45.f, 4.f, 7.8f, 0.f),
       vf4_set(5.1f, 2.f, -6.f, 0.f),
       vf4_set(0.5f, -50.f, 899.f, 0.f),
       vf4_set(4.5f, 0.01f, -989.f, 1.f)}}), OK);
   aosf44_mulf44
-    (&f44, 
+    (&f44,
      (struct aosf44[]){{
       vf4_set(45.f, 4.f, 7.8f, 0.f),
       vf4_set(5.1f, 2.f, -6.f, 0.f),
@@ -943,13 +771,13 @@ test_rdr_model_instance(const char* driver_name)
       vf4_set(4.5f, 0.01f, -989.f, 1.f)}},
      &f44);
   aosf44_store(tmp, &f44);
-  CHECK_TRANSFORM(inst, 
+  CHECK_TRANSFORM(inst,
      tmp[0], tmp[1], tmp[2], tmp[3],
      tmp[4], tmp[5], tmp[6], tmp[7],
      tmp[8], tmp[9], tmp[10], tmp[11],
      tmp[12], tmp[13], tmp[14], tmp[15]);
   aosf44_mulf44
-    (&f44a, 
+    (&f44a,
      (struct aosf44[]){{
       vf4_set(45.f, 4.f, 7.8f, 0.f),
       vf4_set(5.1f, 2.f, -6.f, 0.f),
@@ -957,13 +785,13 @@ test_rdr_model_instance(const char* driver_name)
       vf4_set(4.5f, 0.01f, -989.f, 1.f)}},
      &f44a);
   aosf44_store(tmp, &f44a);
-  CHECK_TRANSFORM(inst1, 
+  CHECK_TRANSFORM(inst1,
      tmp[0], tmp[1], tmp[2], tmp[3],
      tmp[4], tmp[5], tmp[6], tmp[7],
      tmp[8], tmp[9], tmp[10], tmp[11],
      tmp[12], tmp[13], tmp[14], tmp[15]);
   CHECK(rdr_transform_model_instances
-    ((struct rdr_model_instance*[]){inst, inst1}, 2, true, 
+    ((struct rdr_model_instance*[]){inst, inst1}, 2, true,
      (struct aosf44[]){{
       vf4_set(45.f, 4.f, 7.8f, 0.f),
       vf4_set(5.1f, 2.f, -6.f, 0.f),
@@ -977,7 +805,7 @@ test_rdr_model_instance(const char* driver_name)
       vf4_set(0.5f, -50.f, 899.f, 0.f),
       vf4_set(4.5f, 0.01f, -989.f, 1.f)}});
   aosf44_store(tmp, &f44);
-  CHECK_TRANSFORM(inst, 
+  CHECK_TRANSFORM(inst,
      tmp[0], tmp[1], tmp[2], tmp[3],
      tmp[4], tmp[5], tmp[6], tmp[7],
      tmp[8], tmp[9], tmp[10], tmp[11],
@@ -990,7 +818,7 @@ test_rdr_model_instance(const char* driver_name)
       vf4_set(0.5f, -50.f, 899.f, 0.f),
       vf4_set(4.5f, 0.01f, -989.f, 1.f)}});
   aosf44_store(tmp, &f44a);
-  CHECK_TRANSFORM(inst1, 
+  CHECK_TRANSFORM(inst1,
      tmp[0], tmp[1], tmp[2], tmp[3],
      tmp[4], tmp[5], tmp[6], tmp[7],
      tmp[8], tmp[9], tmp[10], tmp[11],
@@ -1001,14 +829,14 @@ test_rdr_model_instance(const char* driver_name)
      (float[]){42.4f, -0.002f, 5.7f}), OK);
   f44.c3 = vf4_set(42.4f, -0.002f, 5.7f, 1.f);
   aosf44_store(tmp, &f44);
-  CHECK_TRANSFORM(inst, 
+  CHECK_TRANSFORM(inst,
      tmp[0], tmp[1], tmp[2], tmp[3],
      tmp[4], tmp[5], tmp[6], tmp[7],
      tmp[8], tmp[9], tmp[10], tmp[11],
      tmp[12], tmp[13], tmp[14], tmp[15]);
   f44a.c3 = vf4_set(42.4f, -0.002f, 5.7f, 1.f);
   aosf44_store(tmp, &f44a);
-  CHECK_TRANSFORM(inst1, 
+  CHECK_TRANSFORM(inst1,
      tmp[0], tmp[1], tmp[2], tmp[3],
      tmp[4], tmp[5], tmp[6], tmp[7],
      tmp[8], tmp[9], tmp[10], tmp[11],
@@ -1116,59 +944,11 @@ test_rdr_model_instance(const char* driver_name)
   CHECK(rdr_model_instance_ref_put(inst1), OK);
 
   CHECK(rdr_system_ref_put(sys), OK);
-
-  #undef CHECK_TRANSFORM
-  #undef EPS
-}
-
-int
-main(int argc, char** argv)
-{
-  const char* driver_name = NULL;
-  FILE* file = NULL;
-  int err = 0;
-
-  /* Window manager data structures. */
-  struct wm_device* device = NULL;
-  struct wm_window* window = NULL;
-  struct wm_window_desc win_desc = {
-    .width = 800, .height = 600, .fullscreen = 0
-  };
-
-  if(argc != 2) {
-    printf("usage: %s RB_DRIVER\n", argv[0]);
-    goto error;
-  }
-  driver_name = argv[1];
-
-  file = fopen(driver_name, "r");
-  if(!file) {
-    fprintf(stderr, "Invalid driver %s\n", driver_name);
-    goto error;
-  }
-  fclose(file);
-
-  CHECK(wm_create_device(NULL, &device), WM_NO_ERROR);
-  CHECK(wm_create_window(device, &win_desc, &window), WM_NO_ERROR);
-
-  test_rdr_system(driver_name);
-  test_rdr_mesh(driver_name);
-  test_rdr_material(driver_name);
-  test_rdr_model(driver_name);
-  test_rdr_model_instance(driver_name);
-
-exit:
-  if(window)
-    CHECK(wm_window_ref_put(window), WM_NO_ERROR);
-  if(device)
-    CHECK(wm_device_ref_put(device), WM_NO_ERROR);
+  CHECK(wm_window_ref_put(window), WM_NO_ERROR);
+  CHECK(wm_device_ref_put(device), WM_NO_ERROR);
 
   CHECK(MEM_ALLOCATED_SIZE(&mem_default_allocator), 0);
 
-  return err;
-
-error:
-  err = -1;
-  goto exit;
+  return 0;
 }
 
