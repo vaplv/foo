@@ -288,6 +288,18 @@ cmd_rm_model
 }
 
 static void
+cmd_save(struct app* app, size_t argc UNUSED, const struct app_cmdarg** argv)
+{
+  enum { CMD_NAME, OUTPUT_FILE, ARGC };
+
+  assert(app != NULL
+      && argc == ARGC
+      && argv[CMD_NAME]->type == APP_CMDARG_STRING
+      && argv[OUTPUT_FILE]->type == APP_CMDARG_FILE);
+  APP_LOG_WARN(app->logger, "command not implemented\n");
+}
+
+static void
 cmd_spawn(struct app* app, size_t argc UNUSED, const struct app_cmdarg** argv)
 {
   assert(app != NULL
@@ -775,6 +787,13 @@ app_setup_builtin_commands(struct app* app)
         ("m", "model", "<model>", "model to remove", 1, 1, NULL),
       APP_CMDARG_END),
      "remove a model"));
+  CALL(app_add_command
+    (app, "save", cmd_save, NULL,
+     APP_CMDARGV
+     (APP_CMDARG_APPEND_STRING
+        ("o", "output", "<path>", "output file", 0, 1, NULL),
+      APP_CMDARG_END),
+     "save the main world"));
   CALL(app_add_command
     (app, "spawn", cmd_spawn, app_model_name_completion,
      APP_CMDARGV

@@ -37,6 +37,9 @@ release_model_instance(struct ref* ref)
       (instance->app, APP_SIGNAL_DESTROY_MODEL_INSTANCE, instance));
 
   if(instance->model_instance_list) {
+    if(instance->world) {
+      APP(world_remove_model_instances(instance->world, 1, &instance));
+    }
     SL(vector_buffer
        (instance->model_instance_list,
         &len,
