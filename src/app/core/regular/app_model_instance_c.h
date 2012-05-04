@@ -14,11 +14,13 @@ struct sl_vector;
 struct app_model_instance {
   struct app_object obj;
   struct ref ref;
-  struct list_node node; /* Used to linked the instance against its model. */
+  struct list_node model_node; /* Linked the instance against its model.*/
+  struct list_node world_node; /* Linked the instance against its world. */
   struct app* app;
   struct app_model* model;
+  struct app_world* world;
   struct sl_vector* model_instance_list; /* list of rdr_model_instance*. */
-  bool invoke_clbk;
+  bool invoke_clbk; /* Help for error management. For internal use nly. */
 };
 
 extern enum app_error

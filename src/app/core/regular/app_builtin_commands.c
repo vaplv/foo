@@ -265,7 +265,7 @@ cmd_rm_model
   APP(get_model(app, ARGVAL(argv, MODEL_NAME).data.string, &mdl));
   if(mdl == NULL) {
     APP_LOG_ERR
-      (app->logger, 
+      (app->logger,
        "the model `%s' does not exist\n",
        ARGVAL(argv, MODEL_NAME).data.string);
   } else {
@@ -280,11 +280,11 @@ cmd_rm_model
         APP_LOG_ERR
           (app->logger,
            "rm: the model `%s' is still instantiated. Use the --force flag to"
-           "remove the model and its instances",
+           " remove the model and its instances\n",
            ARGVAL(argv, MODEL_NAME).data.string);
       }
     }
-  } 
+  }
 }
 
 static void

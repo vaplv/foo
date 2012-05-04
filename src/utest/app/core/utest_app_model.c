@@ -1,6 +1,7 @@
 #include "app/core/app.h"
 #include "app/core/app_model.h"
 #include "app/core/app_model_instance.h"
+#include "app/core/app_world.h"
 #include "sys/mem_allocator.h"
 #include "utest/app/core/cube_obj.h"
 #include "utest/utest.h"
@@ -35,6 +36,8 @@ main(int argc, char** argv)
   struct app_model_instance* instance = NULL;
   struct app_model_instance* instance1 = NULL;
   struct app_model_instance** instance_list = NULL;
+  struct app_world* world0 = NULL;
+  struct app_world* world1 = NULL;
   const char** lst = NULL;
   const char* cstr = NULL;
   FILE* fp = NULL;
@@ -285,6 +288,14 @@ main(int argc, char** argv)
   CHECK(app_model_instance_ref_get(NULL), BAD_ARG);
   CHECK(app_model_instance_ref_get(instance), OK);
   CHECK(app_model_instance_ref_put(NULL), BAD_ARG);
+  CHECK(app_get_main_world(app, &world0), OK);
+  CHECK(app_world_add_model_instances(world0, 1, &instance), OK);
+
+  CHECK(app_model_instance_world(NULL, NULL), BAD_ARG);
+  CHECK(app_model_instance_world(instance, NULL), BAD_ARG);
+  CHECK(app_model_instance_world(NULL, &world1), BAD_ARG);
+  CHECK(app_model_instance_world(instance, &world1), OK);
+  CHECK(world1, world0);
 
   /* Check that the instance is registered. */
   CHECK(app_get_model_instance_list(app, &len, &instance_list), OK);
@@ -308,6 +319,9 @@ main(int argc, char** argv)
    * a reference onto it. */
   CHECK(app_model_instance_name(instance, &cstr), OK);
   CHECK(strcmp(cstr, "my_inst0"), 0);
+  CHECK(app_model_instance_world(instance, &world1), OK);
+  NCHECK(world0, world1);
+  CHECK(world1, NULL);
   CHECK(app_model_instance_ref_put(instance), OK);
 
   /* Instantiate a new model. */
@@ -353,7 +367,7 @@ main(int argc, char** argv)
    * application. */
   CHECK(app_get_model_instance_list(app, &len, &instance_list), OK);
   CHECK(len, 2);
- 
+
   CHECK(app_model_ref_put(model), OK);
 
   CHECK(app_cleanup(app), OK);

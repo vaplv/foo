@@ -22,6 +22,7 @@
 
 struct app_world {
   struct ref ref;
+  struct list_node instance_list;
   struct app* app;
   struct rdr_world* render_world;
 };
@@ -35,10 +36,19 @@ static void
 release_world(struct ref* ref)
 {
   struct app_world* world = NULL;
+  struct list_node* node = NULL;
+  struct list_node* tmp = NULL;
   assert(ref != NULL);
 
   world = CONTAINER_OF(ref, struct app_world, ref);
-  RDR(world_ref_put(world->render_world));
+  LIST_FOR_EACH_SAFE(node, tmp, &world->instance_list) {
+    struct app_model_instance* instance = 
+      CONTAINER_OF(node, struct app_model_instance, world_node);
+    instance->world = NULL;
+    list_del(&instance->world_node);
+  }
+  if(world->render_world)
+    RDR(world_ref_put(world->render_world));
   MEM_FREE(world->app->allocator, world);
 }
 
@@ -66,6 +76,7 @@ app_create_world(struct app* app, struct app_world** out_world)
   }
   world->app = app;
   ref_init(&world->ref);
+  list_init(&world->instance_list);
 
   rdr_err = rdr_create_world(app->rdr.system, &world->render_world);
   if(rdr_err != RDR_NO_ERROR) {
@@ -79,9 +90,7 @@ exit:
   return err;
 error:
   if(world) {
-    if(world->render_world)
-      RDR(world_ref_put(world->render_world));
-    while(!ref_put(&world->ref, release_world));
+    APP(world_ref_put(world));
     world = NULL;
   }
   goto exit;
@@ -112,7 +121,8 @@ app_world_add_model_instances
    struct app_model_instance* instance_list[])
 {
   struct rdr_model_instance** buffer = NULL;
-  size_t nb_added_instances = 0;
+  size_t nb_added_rdr_instances = 0;
+  size_t nb_added_app_instances = 0;
   size_t len = 0;
   size_t i = 0;
   size_t j = 0;
@@ -124,19 +134,25 @@ app_world_add_model_instances
     goto error;
   }
   for(i = 0; i < nb_model_instances; ++i) {
+    /* Link the instance against the world linked list. */
+    if(instance_list[i]->world != NULL) {
+      app_err = APP_INVALID_ARGUMENT;
+      goto error;
+    }
+    instance_list[i]->world = world;
+    list_add(&world->instance_list, &instance_list[i]->world_node);
+    ++nb_added_app_instances;
+    /* Add the render data of the instance into the render world. */
     SL(vector_buffer
        (instance_list[i]->model_instance_list,
-        &len,
-        NULL,
-        NULL,
-        (void**)&buffer));
+        &len, NULL, NULL, (void**)&buffer));
     for(j = 0; j < len; ++j) {
       rdr_err = rdr_add_model_instance(world->render_world, buffer[j]);
       if(rdr_err != RDR_NO_ERROR) {
         app_err = rdr_to_app_error(rdr_err);
         goto error;
       }
-      ++nb_added_instances;
+      ++nb_added_rdr_instances;
     }
   }
 
@@ -144,19 +160,19 @@ exit:
   return app_err;
 
 error:
-  for(i = 0; i < nb_model_instances && nb_added_instances; ++i) {
+  for(i = 0; i < nb_model_instances && nb_added_rdr_instances; ++i) {
     SL(vector_buffer
        (instance_list[i]->model_instance_list,
-        &len,
-        NULL,
-        NULL,
-        (void**)&buffer));
-    for(j = 0; j < len && nb_added_instances; ++j) {
+        &len, NULL, NULL, (void**)&buffer));
+    for(j = 0; j < len && nb_added_rdr_instances; ++j) {
       RDR(remove_model_instance(world->render_world, buffer[i]));
-      --nb_added_instances;
+      --nb_added_rdr_instances;
     }
   }
-  assert(nb_added_instances == 0);
+  for(i = 0; i < nb_added_app_instances; ++i) {
+    list_del(&instance_list[i]->world_node);
+    instance_list[i]->world = NULL;
+  }
   goto exit;
 }
 
@@ -167,7 +183,8 @@ app_world_remove_model_instances
    struct app_model_instance* instance_list[])
 {
   struct rdr_model_instance** buffer = NULL;
-  size_t nb_removed_instances = 0;
+  size_t nb_removed_rdr_instances = 0;
+  size_t nb_removed_app_instances = 0;
   size_t len = 0;
   size_t i = 0;
   size_t j = 0;
@@ -180,12 +197,17 @@ app_world_remove_model_instances
     goto error;
   }
   for(i = 0; i < nb_model_instances; ++i) {
+    if(instance_list[i]->world != world) {
+      app_err = APP_INVALID_ARGUMENT;
+      goto error;
+    }
+    instance_list[i]->world = NULL;
+    list_del(&instance_list[i]->world_node);
+    ++nb_removed_app_instances;
+
     sl_err = sl_vector_buffer
       (instance_list[i]->model_instance_list,
-       &len,
-       NULL,
-       NULL,
-       (void**)&buffer);
+       &len, NULL, NULL, (void**)&buffer);
     if(sl_err != SL_NO_ERROR) {
       app_err = sl_to_app_error(sl_err);
       goto error;
@@ -196,7 +218,7 @@ app_world_remove_model_instances
         app_err = rdr_to_app_error(rdr_err);
         goto error;
       }
-      ++nb_removed_instances;
+      ++nb_removed_rdr_instances;
     }
   }
 
@@ -204,19 +226,20 @@ exit:
   return app_err;
 
 error:
-  for(i = 0; i < nb_model_instances && nb_removed_instances; ++i) {
+  for(i = 0; i < nb_model_instances && nb_removed_rdr_instances; ++i) {
     SL(vector_buffer
        (instance_list[i]->model_instance_list,
-        &len,
-        NULL,
-        NULL,
-        (void**)&buffer));
-    for(j = 0; j < len && nb_removed_instances; ++j) {
+        &len, NULL, NULL, (void**)&buffer));
+    for(j = 0; j < len && nb_removed_rdr_instances; ++j) {
       RDR(add_model_instance(world->render_world, buffer[i]));
-      --nb_removed_instances;
+      --nb_removed_rdr_instances;
     }
   }
-  assert(nb_removed_instances == 0);
+  for(i = 0; i < nb_removed_app_instances; ++i) {
+    instance_list[i]->world = world;
+    list_add(&world->instance_list, &instance_list[i]->world_node);
+  }
+  assert(nb_removed_rdr_instances == 0);
   goto exit;
 }
 

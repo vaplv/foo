@@ -212,7 +212,7 @@ release_model(struct ref* ref)
  ******************************************************************************/
 EXPORT_SYM enum app_error
 app_create_model
-  (struct app* app, 
+  (struct app* app,
    const char* path,
    const char* name,
    struct app_model** model)
@@ -339,7 +339,7 @@ app_remove_model(struct app_model* model)
   /* Remove all of its associated instance. */
   LIST_FOR_EACH_SAFE(node, tmp, &model->instance_list) {
     struct app_model_instance* instance = CONTAINER_OF
-      (node, struct app_model_instance, node);
+      (node, struct app_model_instance, model_node);
     APP(remove_model_instance(instance));
   }
 
@@ -586,7 +586,7 @@ app_instantiate_model
     goto error;
   is_ref_get = true;
   instance->model = model;
-  list_add(&model->instance_list, &instance->node);
+  list_add(&model->instance_list, &instance->model_node);
 
   APP(invoke_callbacks(app, APP_SIGNAL_CREATE_MODEL_INSTANCE, instance));
   instance->invoke_clbk = true;

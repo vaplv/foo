@@ -80,6 +80,11 @@ app_transform_model_instances
    const struct aosf44* transform);
 
 extern enum app_error
+app_model_instance_world
+  (struct app_model_instance* instance,
+   struct app_world** world); /* Set to NULL if it is not added to a world. */
+
+extern enum app_error
 app_get_model_instance
   (struct app* app,
    const char* name,

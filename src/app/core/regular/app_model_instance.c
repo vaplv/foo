@@ -3,6 +3,7 @@
 #include "app/core/regular/app_model_instance_c.h"
 #include "app/core/app_model.h"
 #include "app/core/app_model_instance.h"
+#include "app/core/app_world.h"
 #include "renderer/rdr.h"
 #include "renderer/rdr_model_instance.h"
 #include "stdlib/sl.h"
@@ -35,7 +36,7 @@ release_model_instance(struct ref* ref)
     APP(invoke_callbacks
       (instance->app, APP_SIGNAL_DESTROY_MODEL_INSTANCE, instance));
 
- if(instance->model_instance_list) {
+  if(instance->model_instance_list) {
     SL(vector_buffer
        (instance->model_instance_list,
         &len,
@@ -49,7 +50,8 @@ release_model_instance(struct ref* ref)
 
   APP(release_object(instance->app, &instance->obj));
 
-  list_del(&instance->node);
+  list_del(&instance->model_node);
+  list_del(&instance->world_node);
   APP(model_ref_put(instance->model));
   MEM_FREE(app->allocator, instance);
   APP(ref_put(app));
@@ -72,8 +74,11 @@ app_remove_model_instance(struct app_model_instance* instance)
   if(is_registered == false)
     return APP_INVALID_ARGUMENT;
 
-  if(ref_put(&instance->ref, release_model_instance) == 0)
+  if(ref_put(&instance->ref, release_model_instance) == 0) {
+    if(instance->world)
+      APP(world_remove_model_instances(instance->world, 1, &instance));
     APP(unregister_object(instance->app, &instance->obj));
+  }
 
   return APP_NO_ERROR;
 }
@@ -270,6 +275,17 @@ app_transform_model_instances
 }
 
 EXPORT_SYM enum app_error
+app_model_instance_world
+  (struct app_model_instance* instance,
+   struct app_world** world)
+{
+  if(!instance || !world)
+    return APP_INVALID_ARGUMENT;
+  *world = instance->world;
+  return APP_NO_ERROR;
+}
+
+EXPORT_SYM enum app_error
 app_get_model_instance
   (struct app* app,
    const char* name,
@@ -340,7 +356,8 @@ app_create_model_instance
     goto error;
   }
   ref_init(&instance->ref);
-  list_init(&instance->node);
+  list_init(&instance->model_node);
+  list_init(&instance->world_node);
   APP(ref_get(app));
   instance->app = app;
 

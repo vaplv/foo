@@ -26,13 +26,13 @@ extern enum app_error
 app_world_add_model_instances
   (struct app_world* world,
    size_t nb_model_instances,
-   struct app_model_instance* model_list[]);
+   struct app_model_instance* instance_list[]);
 
 extern enum app_error
 app_world_remove_model_instances
   (struct app_world* world,
    size_t nb_model_instances,
-   struct app_model_instance* model_instance_list[]);
+   struct app_model_instance* instance_list[]);
 
 #endif /* APP_WORLD_H */
 

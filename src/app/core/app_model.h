@@ -13,7 +13,6 @@ app_create_model
    const char* name, /* May be NULL. */
    struct app_model** model);
 
-
 /* Remove the model and its associated instance from the application. If the
  * model is referenced elsewehere, it is unregistered from the application
  * without freeing it. */
