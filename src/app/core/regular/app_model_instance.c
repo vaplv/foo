@@ -50,6 +50,7 @@ release_model_instance(struct ref* ref)
       RDR(model_instance_ref_put(render_instance_lstbuf[i]));
     SL(free_vector(instance->model_instance_list));
   }
+  assert(instance->world == NULL);
 
   APP(release_object(instance->app, &instance->obj));
 

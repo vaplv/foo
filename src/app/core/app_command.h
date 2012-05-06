@@ -115,7 +115,6 @@ struct app_cmdarg {
  * Command function prototypes.
  *
  ******************************************************************************/
-
 /* Multi syntax is supported by adding several commands with the same name. */
 extern enum app_error
 app_add_command
@@ -125,7 +124,7 @@ app_add_command
    enum app_error (*arg_completion) /* May be NULL.*/
     (struct app*, const char*, size_t, size_t*, const char**[]),
    const struct app_cmdarg_desc argv_desc[],
-   const char* desc); /* May be NULL. */
+   const char* description); /* May be NULL. */
 
 extern enum app_error
 app_del_command

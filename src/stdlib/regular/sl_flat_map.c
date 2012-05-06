@@ -177,6 +177,37 @@ error:
 }
 
 EXPORT_SYM enum sl_error
+sl_flat_map_find_pair
+  (struct sl_flat_map* map, 
+   const void* key, 
+   struct sl_pair* pair)
+{
+  size_t id = 0;
+  size_t len = 0;
+  enum sl_error sl_err = SL_NO_ERROR;
+
+  if(!map || !key || !pair) {
+    sl_err = SL_INVALID_ARGUMENT;
+    goto error;
+  }
+  sl_err = sl_flat_set_find(map->key_set, key, &id);
+  if(sl_err != SL_NO_ERROR)
+    goto error;
+  SL(flat_set_length(map->key_set, &len));
+  if(id == len) {
+    pair->key = NULL;
+    pair->data = NULL;
+  } else {
+    SL(vector_at(map->data_list, id, &(pair->data)));
+    SL(flat_set_at(map->key_set, id, &(pair->key)));
+  }
+exit:
+  return sl_err;
+error:
+  goto exit;
+}
+
+EXPORT_SYM enum sl_error
 sl_clear_flat_map(struct sl_flat_map* map)
 {
   if(!map)

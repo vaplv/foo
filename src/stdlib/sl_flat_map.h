@@ -46,6 +46,12 @@ sl_flat_map_find
    void** data);
 
 extern enum sl_error
+sl_flat_map_find_pair
+  (struct sl_flat_map* map,
+   const void* key,
+   struct sl_pair* pair);
+
+extern enum sl_error
 sl_flat_map_clear
   (struct sl_flat_map* map);
 

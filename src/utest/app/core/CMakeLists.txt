@@ -12,6 +12,9 @@ target_link_libraries(utest_app_command appcore)
 add_executable(utest_app_command_buffer utest_app_command_buffer.c)
 target_link_libraries(utest_app_command_buffer appcore)
 
+add_executable(utest_app_cvar utest_app_cvar.c)
+target_link_libraries(utest_app_cvar appcore)
+
 add_executable(utest_app_model utest_app_model.c)
 target_link_libraries(utest_app_model appcore)
 
@@ -42,6 +45,16 @@ add_test(
   app_command_buffer_null
   ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/utest_app_command_buffer
   ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/librbnull.so)
+
+add_test(
+  app_cvar_null
+  ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/utest_app_cvar
+  ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/librbnull.so)
+
+add_test(
+  app_cvar_ogl3
+  ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/utest_app_cvar
+  ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/librbogl3.so)
 
 add_test(
   app_command_buffer_ogl3

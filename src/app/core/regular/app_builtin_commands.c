@@ -288,7 +288,10 @@ cmd_rm_model
 }
 
 static void
-cmd_save(struct app* app, size_t argc UNUSED, const struct app_cmdarg** argv)
+cmd_save
+  (struct app* app, 
+   size_t argc UNUSED, 
+   const struct app_cmdarg** argv UNUSED)
 {
   enum { CMD_NAME, OUTPUT_FILE, ARGC };
 
@@ -810,7 +813,7 @@ app_setup_builtin_commands(struct app* app)
 
   /* Move commands. */
   CALL(app_add_command
-    (app, "move", cmd_move, app_model_instance_name_completion,
+    (app, "mv", cmd_move, app_model_instance_name_completion,
      APP_CMDARGV
      (APP_CMDARG_APPEND_STRING
         ("i", "instance", "<name>",

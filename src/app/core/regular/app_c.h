@@ -55,8 +55,13 @@ struct app {
     FILE* stream;
     struct sl_hash_table* htbl; /* htbl of commands. */
     /* set of const char*. Used by completion and ls.*/
-    struct sl_flat_set* name_set; 
+    struct sl_flat_set* name_set;
   } cmd;
+
+  struct cvar_system {
+    struct sl_flat_map* map;
+    /* Put the builtin cvar here. */
+  } cvar_system;
 
   struct term {
     struct rdr_term* render_term;

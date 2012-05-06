@@ -217,6 +217,26 @@ main(int argc UNUSED, char** argv UNUSED)
   CHECK(sl_flat_map_find(map, (int[]){4}, &ptr), OK);
   CHECK(ptr, NULL);
 
+  CHECK(sl_flat_map_find_pair(NULL, NULL, NULL), BAD_ARG);
+  CHECK(sl_flat_map_find_pair(map, NULL, NULL), BAD_ARG);
+  CHECK(sl_flat_map_find_pair(NULL, (int[]){0}, NULL), BAD_ARG);
+  CHECK(sl_flat_map_find_pair(map, (int[]){0}, NULL), BAD_ARG);
+  CHECK(sl_flat_map_find_pair(NULL, NULL, &pair), BAD_ARG);
+  CHECK(sl_flat_map_find_pair(map, NULL, &pair), BAD_ARG);
+  CHECK(sl_flat_map_find_pair(NULL, (int[]){0}, &pair), BAD_ARG);
+  CHECK(sl_flat_map_find_pair(map, (int[]){0}, &pair), OK);
+  CHECK(*(int*)pair.key, 0);
+  CHECK(*(char*)pair.data, 'a');
+  CHECK(sl_flat_map_find_pair(map, (int[]){1}, &pair), OK);
+  CHECK(*(int*)pair.key, 1);
+  CHECK(*(char*)pair.data, 'b');
+  CHECK(sl_flat_map_find_pair(map, (int[]){2}, &pair), OK);
+  CHECK(*(int*)pair.key, 2);
+  CHECK(*(char*)pair.data, 'c');
+  CHECK(sl_flat_map_find_pair(map, (int[]){3}, &pair), OK);
+  CHECK(*(int*)pair.key, 3);
+  CHECK(*(char*)pair.data, 'd');
+
   CHECK(sl_clear_flat_map(NULL), BAD_ARG);
   CHECK(sl_clear_flat_map(map), OK);
   CHECK(sl_flat_map_length(map, &len), OK);

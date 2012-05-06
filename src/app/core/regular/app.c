@@ -1,5 +1,6 @@
 #include "app/core/regular/app_c.h"
 #include "app/core/regular/app_command_c.h"
+#include "app/core/regular/app_cvar_c.h"
 #include "app/core/regular/app_error_c.h"
 #include "app/core/regular/app_term.h"
 #include "app/core/regular/app_world_c.h"
@@ -396,6 +397,7 @@ shutdown(struct app* app)
 
   if(app) {
     #define CALL(func) if((app_err = func) != APP_NO_ERROR) goto error
+    CALL(app_shutdown_cvar_system(app));
     CALL(app_shutdown_command_system(app));
     CALL(app_shutdown_term(app));
     CALL(app_shutdown_object_system(app));
@@ -594,6 +596,8 @@ init_sys(struct app* app)
   log_stream.data = app;
   log_stream.func = term_log_func;
   CALL(sl_logger_add_stream(app->logger, &log_stream));
+
+  #undef CALL
 exit:
   return app_err;
 
@@ -614,39 +618,26 @@ init(struct app* app, const char* graphic_driver)
   if(app_err != APP_NO_ERROR)
     goto error;
 
-  app_err = init_window_manager(&app->wm);
-  if(app_err !=  APP_NO_ERROR) {
-    APP_LOG_ERR(app->logger, "error intializing window manager\n");
-    goto error;
-  }
-  app_err = init_renderer(&app->rdr, graphic_driver, app->logger);
-  if(app_err != APP_NO_ERROR) {
-    APP_LOG_ERR(app->logger, "error initializing renderer\n");
-    goto error;
-  }
-  app_err = init_resources(&app->rsrc);
-  if(app_err != APP_NO_ERROR) {
-    APP_LOG_ERR(app->logger, "error initializing resource module\n");
-    goto error;
-  }
-  app_err = init_common(app);
-  if(app_err != APP_NO_ERROR)
-    goto error;
-  app_err = app_init_object_system(app);
-  if(app_err != APP_NO_ERROR) {
-    APP_LOG_ERR(app->logger, "error initializing object system\n");
-    goto error;
-  }
-  app_err = app_init_term(app);
-  if(app_err != APP_NO_ERROR) {
-    APP_LOG_ERR(app->logger, "error initializing terminal\n");
-    goto error;
-  }
-  app_err = app_init_command_system(app);
-  if(app_err != APP_NO_ERROR) {
-    APP_LOG_ERR(app->logger, "error intializing command system\n");
-    goto error;
-  }
+  #define CALL(func, err_msg) \
+    do { \
+      if(APP_NO_ERROR != (app_err = func)) { \
+        if(err_msg[0] != '\0') { \
+          APP_LOG_ERR(app->logger, err_msg); \
+        } \
+        goto error; \
+      } \
+    } while(0)
+  CALL(init_window_manager(&app->wm), "error initializing, window manager\n");
+  CALL
+    (init_renderer(&app->rdr, graphic_driver, app->logger), 
+     "error initializing renderer\n");
+  CALL(init_resources(&app->rsrc), "error initializing resource module\n");
+  CALL(init_common(app), "");
+  CALL(app_init_object_system(app), "error initializing object system\n");
+  CALL(app_init_term(app), "error initializing terminal\n");
+  CALL(app_init_command_system(app), "error intializing command system\n");
+  CALL(app_init_cvar_system(app), "error intializing cvar system\n");
+  #undef CALL
 
 exit:
   return app_err;

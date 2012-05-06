@@ -314,7 +314,6 @@ cat(struct app* app UNUSED, size_t argc, const struct app_cmdarg** argv)
 static int seti_int_list__[MAX_INT_COUNT];
 static int seti_int_count__ = 0;
 
-
 static void
 seti(struct app* app UNUSED, size_t argc, const struct app_cmdarg** argv)
 {
@@ -869,5 +868,6 @@ main(int argc, char **argv)
   CHECK(app_ref_put(app), APP_NO_ERROR);
 
   CHECK(MEM_ALLOCATED_SIZE(&mem_default_allocator), 0);
+  return 0;
 }
 
