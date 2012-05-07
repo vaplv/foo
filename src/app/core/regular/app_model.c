@@ -387,7 +387,7 @@ app_load_model(const char* path, struct app_model* model)
   rsrc_err = rsrc_load_wavefront_obj
     (model->app->rsrc.wavefront_obj, path);
   if(rsrc_err != RSRC_NO_ERROR) {
-    APP_LOG_ERR
+    APP_PRINT_ERR
       (model->app->logger, "error loading geometry resource `%s'\n", path);
     app_err = rsrc_to_app_error(rsrc_err);
     goto error;
@@ -416,7 +416,7 @@ error:
   if(may_have_errors) {
     RSRC(get_error_string(model->app->rsrc.context, &str_err));
     if(str_err) {
-      APP_LOG_ERR(model->app->logger, "%s", str_err);
+      APP_PRINT_ERR(model->app->logger, "%s", str_err);
     }
   }
   goto exit;

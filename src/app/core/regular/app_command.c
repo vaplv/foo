@@ -255,7 +255,7 @@ setup_cmd_arg(struct app* app, struct app_command* cmd, const char* name)
               if(value_list[i] != NULL) {
                 cmd->argv[arg_id]->value_list[val_id].data.string = str;
               } else {
-                APP_LOG_ERR
+                APP_PRINT_ERR
                   (app->logger, "%s: unexpected option value `%s'\n",name, str);
                 app_err = APP_COMMAND_ERROR;
                 goto error;
@@ -647,7 +647,7 @@ app_execute_command(struct app* app, const char* command)
   name = strtok(app->cmd.scratch, " \t");
   SL(hash_table_find(app->cmd.htbl, &name, (void**)&command_list));
   if(!command_list) {
-    APP_LOG_ERR(app->logger, "%s: command not found\n", name);
+    APP_PRINT_ERR(app->logger, "%s: command not found\n", name);
     app_err = APP_COMMAND_ERROR;
     goto error;
   }
@@ -695,7 +695,7 @@ app_execute_command(struct app* app, const char* command)
     nb = fread(app->cmd.scratch, size, 1, app->cmd.stream);
     assert(nb == 1);
     app->cmd.scratch[size] = '\0';
-    APP_LOG_ERR(app->logger, "%s", app->cmd.scratch);
+    APP_PRINT_ERR(app->logger, "%s", app->cmd.scratch);
     app_err = APP_COMMAND_ERROR;
     goto error;
   }
@@ -734,7 +734,7 @@ app_man_command
 
   SL(hash_table_find(app->cmd.htbl, &name, (void**)&cmd_list));
   if(!cmd_list) {
-    APP_LOG_ERR(app->logger, "%s: command not found\n", name);
+    APP_PRINT_ERR(app->logger, "%s: command not found\n", name);
     app_err = APP_COMMAND_ERROR;
     goto error;
   }

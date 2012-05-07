@@ -516,12 +516,14 @@ app_create_model_instance
     app_err = APP_INVALID_ARGUMENT;
     goto error;
   }
-  instance = MEM_CALLOC
-    (app->allocator, 1, sizeof(struct app_model_instance));
+  instance = MEM_ALIGNED_ALLOC
+    (app->allocator, sizeof(struct app_model_instance), 16);
   if(!instance) {
     app_err = APP_MEMORY_ERROR;
     goto error;
   }
+  memset(instance, 0, sizeof(struct app_model_instance));
+
   ref_init(&instance->ref);
   list_init(&instance->model_node);
   list_init(&instance->world_node);

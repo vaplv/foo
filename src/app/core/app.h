@@ -2,6 +2,7 @@
 #define APP_H
 
 #include "app/core/app_error.h"
+#include "sys/sys.h"
 #include <stdbool.h>
 #include <stddef.h>
 
@@ -38,6 +39,13 @@ enum app_signal {
   APP_NB_SIGNALS
 };
 
+enum app_log_type {
+  APP_LOG_ERROR,
+  APP_LOG_INFO,
+  APP_LOG_WARNING,
+  APP_NB_LOG_TYPES
+};
+
 extern enum app_error
 app_init
   (struct app_args* args,
@@ -55,6 +63,13 @@ extern enum app_error
 app_run
   (struct app* app,
    bool* keep_running);
+
+extern enum app_error
+app_log
+  (struct app*,
+   enum app_log_type log_type,
+   const char* fmt,
+   ...) FORMAT_PRINTF(3, 4);
 
 /* Release all the created objects (model, instance, etc.). */
 extern enum app_error

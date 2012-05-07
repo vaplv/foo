@@ -42,6 +42,20 @@ stream_func2(const char* msg, void* data)
   CHECK(strcmp(msg, "logger 0"), 0);
 }
 
+static void
+vlog(struct sl_logger* logger, const char* fmt, ...)
+{
+  va_list list;
+
+  assert(logger && fmt);
+
+  va_start(list, fmt);
+  func_mask = 0;
+  CHECK(sl_logger_vprint(logger, fmt, list), OK);
+  CHECK(func_mask, 7);
+  va_end(list);
+}
+
 int
 main(int argc UNUSED, char** argv UNUSED)
 {
@@ -114,10 +128,13 @@ main(int argc UNUSED, char** argv UNUSED)
   CHECK(sl_logger_print(logger, "logger 0"), OK);
   CHECK(func_mask, 7);
 
+  vlog(logger, "log%s %d", "ger", 0);
+
   CHECK(sl_clear_logger(NULL), BAD_ARG);
   CHECK(sl_clear_logger(logger), OK);
   CHECK(sl_logger_print(logger, "Awesom-o"), OK);
   CHECK(func_mask, 7);
+
 
   CHECK(sl_free_logger(NULL), BAD_ARG);
   CHECK(sl_free_logger(logger), OK);

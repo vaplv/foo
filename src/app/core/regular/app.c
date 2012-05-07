@@ -239,7 +239,7 @@ shutdown_window_manager(struct window_manager* wm, struct sl_logger* logger)
       char dump[BUFSIZ];
       MEM_DUMP(&wm->allocator, dump, BUFSIZ);
       if(logger)
-        APP_LOG_MSG(logger, "Window manager leaks summary:\n%s\n", dump);
+        APP_PRINT_MSG(logger, "Window manager leaks summary:\n%s\n", dump);
     }
     mem_shutdown_proxy_allocator(&wm->allocator);
     memset(&wm->allocator, 0, sizeof(struct mem_allocator));
@@ -289,7 +289,7 @@ shutdown_renderer(struct renderer* rdr, struct sl_logger* logger)
       char dump[BUFSIZ];
       MEM_DUMP(&rdr->allocator, dump, BUFSIZ);
       if(logger)
-        APP_LOG_MSG(logger, "Renderer leaks summary:\n%s\n", dump);
+        APP_PRINT_MSG(logger, "Renderer leaks summary:\n%s\n", dump);
     }
     mem_shutdown_proxy_allocator(&rdr->allocator);
     memset(&rdr->allocator, 0, sizeof(struct mem_allocator));
@@ -335,7 +335,7 @@ shutdown_resources(struct resources* rsrc, struct sl_logger* logger)
       char dump[BUFSIZ];
       MEM_DUMP(&rsrc->allocator, dump, BUFSIZ);
       if(logger)
-        APP_LOG_MSG(logger, "Resource leaks summary:\n%s\n", dump);
+        APP_PRINT_MSG(logger, "Resource leaks summary:\n%s\n", dump);
     }
     mem_shutdown_proxy_allocator(&rsrc->allocator);
     memset(&rsrc->allocator, 0, sizeof(struct mem_allocator));
@@ -480,7 +480,7 @@ init_renderer
     const char* log = NULL;
     RDR(get_material_log(rdr->default_material, &log));
     if(log  != NULL)
-      APP_LOG_ERR(logger, "Default render material error: \n%s", log);
+      APP_PRINT_ERR(logger, "Default render material error: \n%s", log);
     app_err = rdr_to_app_error(rdr_err);
     goto error;
   }
@@ -622,7 +622,7 @@ init(struct app* app, const char* graphic_driver)
     do { \
       if(APP_NO_ERROR != (app_err = func)) { \
         if(err_msg[0] != '\0') { \
-          APP_LOG_ERR(app->logger, err_msg); \
+          APP_PRINT_ERR(app->logger, err_msg); \
         } \
         goto error; \
       } \
@@ -721,6 +721,7 @@ exit:
 
 error:
   if(app) {
+    APP(cleanup(app));
     UNUSED const enum app_error tmp_err = shutdown(app);
     assert(tmp_err == APP_NO_ERROR);
     MEM_FREE(allocator, app);
@@ -776,6 +777,64 @@ error:
 }
 
 EXPORT_SYM enum app_error
+app_log(struct app* app, enum app_log_type type, const char* fmt, ...)
+{
+  va_list vargs_list;
+  enum app_error app_err = APP_NO_ERROR;
+  enum sl_error sl_err = SL_NO_ERROR;
+  char buf[128];
+  int err = 0;
+
+  if(!app || type == APP_NB_LOG_TYPES || !fmt) {
+    app_err = APP_INVALID_ARGUMENT;
+    goto error;
+  }
+  if(strlen(fmt) + 1 > sizeof(buf)/sizeof(char)) {
+    app_err = APP_MEMORY_ERROR;
+    goto error;
+  }
+  va_start(vargs_list, fmt);
+  switch(type) {
+    case APP_LOG_ERROR:
+      err = sprintf(buf, "%s%s", APP_ERR_PREFIX, fmt);
+      if(err < 0) {
+        app_err = APP_INTERNAL_ERROR;
+        goto error;
+      } else {
+        sl_err = sl_logger_vprint(app->logger, buf, vargs_list);
+        if(sl_err != SL_NO_ERROR) {
+          app_err = sl_to_app_error(sl_err); 
+          goto error;
+        }
+      }
+      break;
+    case APP_LOG_INFO:
+      sl_err = sl_logger_vprint(app->logger, fmt, vargs_list);
+      break;
+    case APP_LOG_WARNING:
+      err = sprintf(buf, "%s%s", APP_WARN_PREFIX, fmt);
+      if(err < 0) {
+        app_err = APP_INTERNAL_ERROR;
+        goto error;
+      } else {
+        sl_err = sl_logger_vprint(app->logger, buf, vargs_list);
+        if(sl_err != SL_NO_ERROR) {
+          app_err = sl_to_app_error(sl_err);
+          goto error;
+        }
+      }
+      break;
+    default: assert(0); break;
+  }
+  va_end(vargs_list);
+
+exit:
+  return app_err;
+error:
+  goto exit;
+}
+
+EXPORT_SYM enum app_error
 app_cleanup(struct app* app)
 {
   return app_clear_object_system(app);
@@ -797,7 +856,7 @@ app_terminal_font(struct app* app, const char* path)
   }
   rsrc_err = rsrc_load_font(app->rsrc.font, path);
   if(RSRC_NO_ERROR != rsrc_err) {
-    APP_LOG_ERR(app->logger, "Error loading font `%s'.\n", path);
+    APP_PRINT_ERR(app->logger, "Error loading font `%s'.\n", path);
     app_err = rsrc_to_app_error(rsrc_err);
     goto error;
   }
@@ -818,7 +877,7 @@ app_terminal_font(struct app* app, const char* path)
 
       rsrc_err = rsrc_font_glyph(app->rsrc.font, default_charset[i], &glyph);
       if(RSRC_NO_ERROR != rsrc_err) {
-        APP_LOG_WARN
+        APP_PRINT_WARN
           (app->logger,
            "Character `%c' not found in font `%s'.\n",
            default_charset[i],
@@ -855,7 +914,7 @@ app_terminal_font(struct app* app, const char* path)
       (app->rdr.term_font, line_space, nb_chars, glyph_desc_list);
 
     if(RDR_NO_ERROR != rdr_err) {
-      APP_LOG_ERR
+      APP_PRINT_ERR
         (app->logger,
          "Error setting-up render data of the font `%s'.\n",
          path);

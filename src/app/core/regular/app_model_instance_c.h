@@ -17,7 +17,7 @@ struct app_model_instance {
   struct ref ref;
   struct list_node model_node; /* Linked the instance against its model.*/
   struct list_node world_node; /* Linked the instance against its world. */
-  struct aosf44 transform;
+  ALIGN(16) struct aosf44 transform;
   struct app* app;
   struct app_model* model;
   struct app_world* world;

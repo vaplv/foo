@@ -1,28 +1,18 @@
 #include "app/core/regular/app_builtin_commands.h"
 #include "app/core/regular/app_c.h"
-#include "app/core/regular/app_command_c.h"
-#include "app/core/regular/app_model_c.h"
-#include "app/core/regular/app_object.h"
 #include "app/core/app_command.h"
 #include "app/core/app_cvar.h"
 #include "app/core/app_model.h"
 #include "app/core/app_model_instance.h"
-#include "app/core/app_view.h"
-#include "app/core/app_world.h"
-#include "maths/simd/aosf33.h"
-#include "maths/simd/aosf44.h"
 #include "renderer/rdr_term.h"
 #include "renderer/rdr.h"
 #include "stdlib/sl.h"
 #include "stdlib/sl_flat_map.h"
 #include "stdlib/sl_flat_set.h"
-#include "stdlib/sl_hash_table.h"
 #include "sys/sys.h"
-#include <assert.h>
 #include <float.h>
 #include <limits.h>
-#include <stdbool.h>
-#include <string.h>
+#include <stdlib.h>
 
 #define ARGVAL(argv, i) (argv)[i]->value_list[0]
 
@@ -38,42 +28,6 @@ cmd_exit
    const struct app_cmdarg** argv UNUSED)
 {
   app->post_exit = true;
-}
-
-static void
-cmd_load(struct app* app, size_t argc UNUSED, const struct app_cmdarg** argv)
-{
-  struct app_model* mdl = NULL;
-  enum app_error app_err = APP_NO_ERROR;
-  assert(app != NULL
-      && argc == 3
-      && argv != NULL
-      && argv[0]->type == APP_CMDARG_STRING
-      && argv[1]->type == APP_CMDARG_FILE
-      && argv[2]->type == APP_CMDARG_STRING
-      && argv[0]->count == 1
-      && argv[1]->count == 1
-      && argv[2]->count == 1);
-
-  if(argv[1]->value_list[0].is_defined) {
-    app_err = app_create_model
-      (app,
-       argv[1]->value_list[0].data.string,
-       argv[2]->value_list[0].is_defined
-        ? argv[2]->value_list[0].data.string
-        : NULL,
-       &mdl);
-    if(app_err == APP_NO_ERROR) {
-      APP_LOG_MSG
-        (app->logger,
-         "model loaded `%s'\n",
-         argv[1]->value_list[0].data.string);
-    } else {
-      APP_LOG_ERR(app->logger, "model loading error\n");
-    }
-  } else {
-    assert(false);
-  }
 }
 
 static void
@@ -94,7 +48,7 @@ cmd_help(struct app* app, size_t argc UNUSED, const struct app_cmdarg** argv)
      sizeof(app->cmd.scratch)/sizeof(char),
      app->cmd.scratch);
   if(app_err == APP_NO_ERROR)
-    APP_LOG_MSG(app->logger, "%s", app->cmd.scratch);
+    APP_PRINT_MSG(app->logger, "%s", app->cmd.scratch);
 }
 
 static void
@@ -116,35 +70,35 @@ cmd_ls(struct app* app, size_t argc UNUSED, const struct app_cmdarg** argv)
     SL(flat_set_buffer
       (app->cmd.name_set, &len, NULL, NULL, (void**)&name_list));
     for(i = 0; i < len; ++i) {
-      APP_LOG_MSG(app->logger, "%s\n", name_list[i]);
+      APP_PRINT_MSG(app->logger, "%s\n", name_list[i]);
     }
-    APP_LOG_MSG(app->logger, "[total %zu commands]\n", len);
+    APP_PRINT_MSG(app->logger, "[total %zu commands]\n", len);
     new_line = true;
   }
   if(argv[3]->value_list[0].is_defined) { /* models */
     struct app_model** model_list = NULL;
     APP(get_model_list(app, &len, &model_list));
     if(new_line)
-      APP_LOG_MSG(app->logger, "\n");
+      APP_PRINT_MSG(app->logger, "\n");
     for(i = 0; i < len; ++i) {
       const char* name = NULL;
       APP(model_name(model_list[i], &name));
-      APP_LOG_MSG(app->logger, "%s\n", name);
+      APP_PRINT_MSG(app->logger, "%s\n", name);
     }
-    APP_LOG_MSG(app->logger, "[total %zu models]\n", len);
+    APP_PRINT_MSG(app->logger, "[total %zu models]\n", len);
     new_line = true;
   }
   if(argv[2]->value_list[0].is_defined) { /* model-instances */
     struct app_model_instance** instance_list = NULL;
     APP(get_model_instance_list(app, &len,&instance_list));
     if(new_line)
-      APP_LOG_MSG(app->logger, "\n");
+      APP_PRINT_MSG(app->logger, "\n");
     for(i = 0; i < len; ++i) {
       const char* name = NULL;
       APP(model_instance_name(instance_list[i], &name));
-      APP_LOG_MSG(app->logger, "%s\n", name);
+      APP_PRINT_MSG(app->logger, "%s\n", name);
     }
-    APP_LOG_MSG(app->logger, "[total %zu model instances]\n", len);
+    APP_PRINT_MSG(app->logger, "[total %zu model instances]\n", len);
   }
 }
 
@@ -156,274 +110,6 @@ cmd_clear
 {
   assert(app != NULL);
   RDR(clear_term(app->term.render_term, RDR_TERM_STDOUT));
-}
-
-static void
-cmd_rename_model
-  (struct app* app,
-   size_t argc UNUSED,
-   const struct app_cmdarg** argv)
-{
-  struct app_model* mdl = NULL;
-
-  assert(app != NULL
-      && argc == 3
-      && argv != NULL
-      && argv[0]->type == APP_CMDARG_STRING
-      && argv[1]->type == APP_CMDARG_STRING
-      && argv[2]->type == APP_CMDARG_STRING
-      && argv[0]->count == 1
-      && argv[1]->count == 1
-      && argv[2]->count == 1);
-
-  APP(get_model(app, argv[1]->value_list[0].data.string, &mdl));
-  if(mdl) {
-    APP(set_model_name(mdl, argv[2]->value_list[0].data.string));
-  } else {
-    APP_LOG_ERR
-      (app->logger,
-       "the model `%s' does not exist\n",
-       argv[1]->value_list[0].data.string);
-  }
-}
-
-static void
-cmd_rename_instance
-  (struct app* app,
-   size_t argc UNUSED,
-   const struct app_cmdarg** argv)
-{
-  struct app_model_instance* instance = NULL;
-
-  assert(app != NULL
-      && argc == 3
-      && argv != NULL
-      && argv[0]->type == APP_CMDARG_STRING
-      && argv[1]->type == APP_CMDARG_STRING
-      && argv[2]->type == APP_CMDARG_STRING
-      && argv[0]->count == 1
-      && argv[1]->count == 1
-      && argv[2]->count == 1);
-
-  APP(get_model_instance(app, argv[1]->value_list[0].data.string, &instance));
-  if(instance) {
-    APP(set_model_instance_name(instance, argv[2]->value_list[0].data.string));
-  } else {
-    APP_LOG_ERR
-      (app->logger,
-       "the instance `%s' does not exist\n",
-       argv[1]->value_list[0].data.string);
-  }
-}
-
-static void
-cmd_rm_instance
-  (struct app* app,
-   size_t argc UNUSED,
-   const struct app_cmdarg** argv)
-{
-  struct app_model_instance* instance = NULL;
-  enum { CMD_NAME, INSTANCE_NAME, ARGC };
-
-  assert(app != NULL
-      && argc == ARGC
-      && argv != NULL
-      && argv[CMD_NAME]->type == APP_CMDARG_STRING
-      && argv[INSTANCE_NAME]->type == APP_CMDARG_STRING
-      && argv[CMD_NAME]->count == 1
-      && argv[INSTANCE_NAME]->count == 1);
-
-  APP(get_model_instance
-    (app, argv[INSTANCE_NAME]->value_list[0].data.string, &instance));
-  if(instance == NULL) {
-    APP_LOG_ERR
-      (app->logger,
-       "the instance `%s' does not exist\n",
-       argv[INSTANCE_NAME]->value_list[0].data.string);
-  } else {
-    APP(remove_model_instance(instance));
-  }
-}
-
-static void
-cmd_rm_model
-  (struct app* app,
-   size_t argc UNUSED,
-   const struct app_cmdarg** argv)
-{
-  struct app_model* mdl = NULL;
-  enum { CMD_NAME, FORCE_FLAG, MODEL_NAME, ARGC };
-
-  assert(app != NULL
-      && argc == ARGC
-      && argv != NULL
-      && argv[CMD_NAME]->type == APP_CMDARG_STRING
-      && argv[FORCE_FLAG]->type == APP_CMDARG_LITERAL
-      && argv[MODEL_NAME]->type == APP_CMDARG_STRING
-      && argv[CMD_NAME]->count == 1
-      && argv[FORCE_FLAG]->count == 1
-      && argv[MODEL_NAME]->count == 1);
-
-  APP(get_model(app, ARGVAL(argv, MODEL_NAME).data.string, &mdl));
-  if(mdl == NULL) {
-    APP_LOG_ERR
-      (app->logger,
-       "the model `%s' does not exist\n",
-       ARGVAL(argv, MODEL_NAME).data.string);
-  } else {
-    if(ARGVAL(argv, FORCE_FLAG).is_defined) {
-      APP(remove_model(mdl));
-    } else {
-      bool is_instantiated;
-      APP(is_model_instantiated(mdl, &is_instantiated));
-      if(is_instantiated == false) {
-        APP(remove_model(mdl));
-      } else {
-        APP_LOG_ERR
-          (app->logger,
-           "rm: the model `%s' is still instantiated. Use the --force flag to"
-           " remove the model and its instances\n",
-           ARGVAL(argv, MODEL_NAME).data.string);
-      }
-    }
-  }
-}
-
-static void
-cmd_save(struct app* app, size_t argc UNUSED, const struct app_cmdarg** argv)
-{
-  const struct app_cvar* cvar = NULL;
-  const char* cmd_name = NULL;
-  enum { CMD_NAME, OUTPUT_FILE, FORCE_FLAG, ARGC };
-
-  assert(app != NULL
-      && argc == ARGC
-      && argv[CMD_NAME]->type == APP_CMDARG_STRING
-      && argv[OUTPUT_FILE]->type == APP_CMDARG_FILE
-      && argv[FORCE_FLAG]->type == APP_CMDARG_LITERAL);
-
-  cmd_name = ARGVAL(argv, CMD_NAME).data.string;
-  APP(get_cvar(app, "app_project_path", &cvar));
-
-  if(cvar == NULL) {
-    APP_LOG_ERR
-      (app->logger, "%s: undefined cvar `app_project_path'\n", cmd_name);
-  } else {
-    const char* output_file = NULL;
-    FILE* file = NULL;
-    int err = 0;
-
-    /* Define the output path. */
-    if(ARGVAL(argv, OUTPUT_FILE).is_defined == false) {
-      if(cvar->value.string == NULL) {
-        APP_LOG_ERR
-          (app->logger, "%s: undefined output project path", cmd_name);
-      } else {
-        output_file = cvar->value.string;
-      }
-    } else {
-      output_file = ARGVAL(argv, OUTPUT_FILE).data.string;
-
-      APP(set_cvar
-        (app, "app_project_path", APP_CVAR_STRING_VALUE(output_file)));
-      output_file = cvar->value.string;
-
-      file = fopen(output_file, "r");
-      if(file != NULL && ARGVAL(argv, FORCE_FLAG).is_defined == false) {
-        APP_LOG_ERR
-          (app->logger,
-           "%s: the file `%s' already exist. "
-           "Use the --force flag to overwrite it",
-           cmd_name,
-           output_file);
-        output_file = NULL;
-        err = fclose(file);
-        if(err != 0) {
-          APP_LOG_ERR
-            (app->logger,
-             "%s: unexpected error closing the existing file `%s'\n",
-             cmd_name, output_file);
-        }
-      }
-    }
-    /* Save the project. */
-    if(output_file) {
-      file = fopen(output_file, "w");
-      if(file == NULL) {
-        APP_LOG_ERR
-          (app->logger,
-           "%s: error opening output file `%s'\n",
-           cmd_name, output_file);
-      } else {
-        struct app_model** model_list = NULL;
-        struct app_model_instance** instance_list = NULL;
-        size_t len = 0;
-        size_t i = 0;
-
-        #define FPRINTF(file, str, ...) \
-          do { \
-            err = fprintf(file, str, __VA_ARGS__); \
-            if(err < 0) { \
-              APP_LOG_ERR \
-              (app->logger, \
-               "%s: error writing file `%s'\n", \
-               cmd_name, output_file); \
-              break; \
-            } \
-          } while(0)
-
-        /* Save the model list. */
-        APP(get_model_list(app, &len, &model_list));
-        for(i = 0; i < len; ++i) {
-          const char* path = NULL;
-          const char* name = NULL;
-          APP(model_path(model_list[i], &path));
-          APP(model_name(model_list[i], &name));
-          FPRINTF(file, "load -m %s -n %s\n", path, name);
-        }
-
-        /* Save the instance list. */
-        APP(get_model_instance_list(app, &len, &instance_list));
-        for(i = 0; i < len; ++i) {
-          struct app_model* model = NULL;
-          const char* mdl_name = NULL;
-          const char* inst_name = NULL;
-          const struct aosf44* transform = NULL;
-          ALIGN(16) float tmp[16];
-
-          APP(model_instance_get_model(instance_list[i], &model));
-          APP(model_instance_name(instance_list[i], &inst_name));
-          APP(model_name(model, &mdl_name));
-          FPRINTF(file, "spawn -m %s -n %s\n", mdl_name, inst_name);
-
-          APP(get_raw_model_instance_transform(instance_list[i], &transform));
-          aosf44_store(tmp, transform);
-          FPRINTF
-            (file,
-             "transform -i %s "
-             "%.8f %.8f %.8f %.8f "
-             "%.8f %.8f %.8f %.8f "
-             "%.8f %.8f %.8f %.8f "
-             "%.8f %.8f %.8f %.8f\n",
-             inst_name,
-             tmp[0], tmp[1], tmp[2], tmp[3],
-             tmp[4], tmp[5], tmp[6], tmp[7],
-             tmp[8], tmp[9], tmp[10], tmp[11],
-             tmp[12], tmp[13], tmp[14], tmp[15]);
-        }
-
-        #undef FPRINTF
-
-        err = fclose(file);
-        if(err != 0) {
-          APP_LOG_ERR
-            (app->logger,
-             "%s: error closing output file `%s'\n",
-             cmd_name, output_file);
-        }
-      }
-    }
-  }
 }
 
 static void
@@ -451,14 +137,14 @@ cmd_set
 
   APP(get_cvar(app, cvar_name, &cvar));
   if(cvar == NULL) {
-    APP_LOG_ERR
+    APP_PRINT_ERR
       (app->logger,
        "%s: cvar not found `%s'\n",
        ARGVAL(argv, CMD_NAME).data.string,
        cvar_name);
   } else {
     #define ERR_MSG(msg) \
-      APP_LOG_ERR \
+      APP_PRINT_ERR \
       (app->logger, "%s %s: " msg " `%s'\n", \
        ARGVAL(argv, CMD_NAME).data.string, \
        ARGVAL(argv, CVAR_NAME).data.string, \
@@ -502,473 +188,6 @@ cmd_set
   }
 }
 
-static void
-cmd_spawn(struct app* app, size_t argc UNUSED, const struct app_cmdarg** argv)
-{
-  assert(app != NULL
-      && argc == 3
-      && argv != NULL
-      && argv[0]->type == APP_CMDARG_STRING
-      && argv[1]->type == APP_CMDARG_STRING
-      && argv[2]->type == APP_CMDARG_STRING
-      && argv[0]->count == 1
-      && argv[1]->count == 1
-      && argv[2]->count == 1);
-
-  if(argv[1]->value_list[0].is_defined == true) {
-    struct app_object* obj = NULL;
-    APP(get_object
-      (app, APP_MODEL, argv[1]->value_list[0].data.string, &obj));
-    if(obj == NULL) {
-      APP_LOG_ERR
-        (app->logger,
-         "the model `%s' does not exist\n",
-         argv[1]->value_list[0].data.string);
-    } else {
-      struct app_model* mdl = app_object_to_model(obj);
-      struct app_model_instance* instance = NULL;
-      enum app_error app_err = APP_NO_ERROR;
-
-      app_err = app_instantiate_model
-        (app,
-         mdl,
-         argv[2]->value_list[0].is_defined
-          ? argv[2]->value_list[0].data.string
-          : NULL,
-         &instance);
-      if(app_err != APP_NO_ERROR) {
-        APP_LOG_ERR
-          (app->logger,
-           "error instantiating the model `%s': %s\n",
-           argv[1]->value_list[0].data.string,
-           app_error_string(app_err));
-      } else {
-        app_err = app_world_add_model_instances(app->world, 1, &instance);
-        if(app_err != APP_NO_ERROR) {
-          const char* cstr = NULL;
-          APP(model_instance_name(instance, &cstr));
-          APP_LOG_ERR
-            (app->logger,
-             "error adding the instance `%s' to the world: %s\n",
-             cstr,
-             app_error_string(app_err));
-          APP(model_instance_ref_put(instance));
-        }
-      }
-    }
-  }
-}
-
-/*******************************************************************************
- *
- * Move command functions.
- *
- ******************************************************************************/
-static void
-cmd_translate
-  (struct app* app,
-   size_t argc UNUSED,
-   const struct app_cmdarg** argv)
-{
-  size_t nb_defined_flags = 0;
-  enum {
-    CMD_NAME,
-    EYE_SPACE_FLAG,
-    LOCAL_SPACE_FLAG,
-    WORLD_SPACE_FLAG,
-    INSTANCE_NAME,
-    TRANS_X,
-    TRANS_Y,
-    TRANS_Z,
-    ARGC
-  };
-
-  assert(app != NULL
-      && argc == ARGC
-      && argv != NULL
-      && argv[CMD_NAME]->type == APP_CMDARG_STRING
-      && argv[EYE_SPACE_FLAG]->type == APP_CMDARG_LITERAL
-      && argv[LOCAL_SPACE_FLAG]->type == APP_CMDARG_LITERAL
-      && argv[WORLD_SPACE_FLAG]->type == APP_CMDARG_LITERAL
-      && argv[INSTANCE_NAME]->type == APP_CMDARG_STRING
-      && argv[TRANS_X]->type == APP_CMDARG_FLOAT
-      && argv[TRANS_Y]->type == APP_CMDARG_FLOAT
-      && argv[TRANS_Z]->type == APP_CMDARG_FLOAT
-      && argv[CMD_NAME]->count == 1
-      && argv[EYE_SPACE_FLAG]->count == 1
-      && argv[LOCAL_SPACE_FLAG]->count == 1
-      && argv[WORLD_SPACE_FLAG]->count == 1
-      && argv[INSTANCE_NAME]->count == 1
-      && argv[TRANS_X]->count == 1
-      && argv[TRANS_Y]->count == 1
-      && argv[TRANS_Z]->count == 1);
-
-  nb_defined_flags =
-      (ARGVAL(argv, EYE_SPACE_FLAG).is_defined == true)
-    + (ARGVAL(argv, LOCAL_SPACE_FLAG).is_defined == true)
-    + (ARGVAL(argv, WORLD_SPACE_FLAG).is_defined == true);
-
-  if(nb_defined_flags != 1) {
-    if(nb_defined_flags == 0) {
-      APP_LOG_ERR(app->logger, "missing coordinate system");
-    } else {
-      APP_LOG_ERR(app->logger, "only one coordinate system must be defined");
-    }
-  } else {
-    struct app_model_instance* instance = NULL;
-    const char* instance_name = ARGVAL(argv, INSTANCE_NAME).data.string;
-
-    APP(get_model_instance(app, instance_name, &instance));
-    if(instance == NULL) {
-      APP_LOG_ERR
-        (app->logger, "the instance `%s' does not exist\n", instance_name);
-    } else {
-      const float trans[3] = {
-        [0] = ARGVAL(argv, TRANS_X).is_defined
-            ? ARGVAL(argv, TRANS_X).data.real
-            : 0.f,
-        [1] = ARGVAL(argv, TRANS_Y).is_defined
-            ? ARGVAL(argv, TRANS_Y).data.real
-            : 0.f,
-        [2] = ARGVAL(argv, TRANS_Z).is_defined
-            ? ARGVAL(argv, TRANS_Z).data.real
-            : 0.f
-      };
-
-      if(trans[0] != 0.f || trans[1] != 0.f || trans[2] != 0.f) {
-        if(ARGVAL(argv, LOCAL_SPACE_FLAG).is_defined) { /* object space */
-          APP(translate_model_instances(&instance, 1, true, trans));
-        } else if(ARGVAL(argv, WORLD_SPACE_FLAG).is_defined) { /* world space */
-          APP(translate_model_instances(&instance, 1, false, trans));
-        } else { /* eye space */
-          const struct aosf44* view_transform = NULL;
-          struct aosf33 f33;
-          struct app_view* view = NULL;
-          ALIGN(16) float tmp[4];
-          vf4_t vec;
-          assert(ARGVAL(argv, EYE_SPACE_FLAG).is_defined);
-
-          APP(get_main_view(app, &view));
-          APP(get_raw_view_transform(view, &view_transform));
-          f33.c0 = view_transform->c0;
-          f33.c1 = view_transform->c1;
-          f33.c2 = view_transform->c2;
-
-          vec = aosf33_inverse(&f33, &f33);
-          assert((vf4_store(tmp, vec), tmp[0] != 0.f));
-          vec = vf4_set(trans[0], trans[1], trans[2], 1.f);
-          vec = aosf33_mulf3(&f33, vec);
-          vf4_store(tmp, vec);
-
-          APP(translate_model_instances(&instance, 1, false, tmp));
-        }
-      }
-    }
-  }
-}
-
-static void
-cmd_rotate(struct app* app, size_t argc UNUSED, const struct app_cmdarg** argv)
-{
-  size_t nb_defined_flags = 0;
-  enum {
-    CMD_NAME,
-    EYE_SPACE_FLAG,
-    LOCAL_SPACE_FLAG,
-    WORLD_SPACE_FLAG,
-    INSTANCE_NAME,
-    PITCH_ROTATION,
-    YAW_ROTATION,
-    ROLL_ROTATION,
-    RADIAN_FLAG,
-    ARGC
-  };
-  assert(app != NULL
-      && argc == ARGC
-      && argv != NULL
-      && argv[CMD_NAME]->type == APP_CMDARG_STRING
-      && argv[EYE_SPACE_FLAG]->type == APP_CMDARG_LITERAL
-      && argv[LOCAL_SPACE_FLAG]->type == APP_CMDARG_LITERAL
-      && argv[WORLD_SPACE_FLAG]->type == APP_CMDARG_LITERAL
-      && argv[INSTANCE_NAME]->type == APP_CMDARG_STRING
-      && argv[PITCH_ROTATION]->type == APP_CMDARG_FLOAT
-      && argv[YAW_ROTATION]->type == APP_CMDARG_FLOAT
-      && argv[ROLL_ROTATION]->type == APP_CMDARG_FLOAT
-      && argv[RADIAN_FLAG]->type == APP_CMDARG_LITERAL
-      && argv[CMD_NAME]->count == 1
-      && argv[EYE_SPACE_FLAG]->count == 1
-      && argv[LOCAL_SPACE_FLAG]->count == 1
-      && argv[WORLD_SPACE_FLAG]->count == 1
-      && argv[INSTANCE_NAME]->count == 1
-      && argv[PITCH_ROTATION]->count == 1
-      && argv[YAW_ROTATION]->count == 1
-      && argv[ROLL_ROTATION]->count == 1
-      && argv[RADIAN_FLAG]->count == 1);
-
-  nb_defined_flags =
-      (ARGVAL(argv, EYE_SPACE_FLAG).is_defined == true)
-    + (ARGVAL(argv, LOCAL_SPACE_FLAG).is_defined == true)
-    + (ARGVAL(argv, WORLD_SPACE_FLAG).is_defined == true);
-
-  if(nb_defined_flags != 1) {
-    if(nb_defined_flags == 0) {
-      APP_LOG_ERR(app->logger, "missing coordinate system");
-    } else {
-      APP_LOG_ERR(app->logger, "only one coordinate system must be defined");
-    }
-  } else {
-    struct app_model_instance* instance = NULL;
-    const char* instance_name = ARGVAL(argv, INSTANCE_NAME).data.string;
-
-    APP(get_model_instance(app, instance_name, &instance));
-    if(instance == NULL) {
-      APP_LOG_ERR
-        (app->logger, "the instance `%s' does not exist\n", instance_name);
-    } else {
-      float rot[3] = {
-        [0] = ARGVAL(argv, PITCH_ROTATION).is_defined
-            ? ARGVAL(argv, PITCH_ROTATION).data.real
-            : 0.f,
-        [1] = ARGVAL(argv, YAW_ROTATION).is_defined
-            ? ARGVAL(argv, YAW_ROTATION).data.real
-            : 0.f,
-        [2] = ARGVAL(argv, ROLL_ROTATION).is_defined
-            ? ARGVAL(argv, ROLL_ROTATION).data.real
-            : 0.f
-      };
-
-      if(rot[0] != 0.f || rot[1] != 0.f || rot[2] != 0.f) {
-        if(ARGVAL(argv, RADIAN_FLAG).is_defined == false) {
-          rot[0] = DEG2RAD(rot[0]);
-          rot[1] = DEG2RAD(rot[1]);
-          rot[2] = DEG2RAD(rot[2]);
-        }
-        if(ARGVAL(argv, LOCAL_SPACE_FLAG).is_defined) {
-          APP(rotate_model_instances(&instance, 1, true, rot));
-        } else if(ARGVAL(argv, WORLD_SPACE_FLAG).is_defined) {
-          APP(rotate_model_instances(&instance, 1, false, rot));
-        } else {
-          struct aosf44 inv_view_4x4;
-          struct aosf44 tmp_4x4;
-          struct aosf33 rot_3x3;
-          struct aosf33 tmp_3x3;
-          vf4_t vec;
-          UNUSED ALIGN(16) float tmp[4];
-          const struct aosf44* view_4x4 = NULL;
-          struct app_view* view = NULL;
-          assert(ARGVAL(argv, EYE_SPACE_FLAG).is_defined);
-
-          /* Get the view matrix and its inverse. */
-          APP(get_main_view(app, &view));
-          APP(get_raw_view_transform(view, &view_4x4));
-          vec = aosf44_inverse(&inv_view_4x4, view_4x4);
-          assert((vf4_store(tmp, vec), tmp[0] != 0.f));
-
-          /* Compute the matrix to apply to the model. */
-          aosf33_rotation(&rot_3x3, rot[0], rot[1], rot[2]);
-          aosf33_set(&tmp_3x3, view_4x4->c0, view_4x4->c1, view_4x4->c2);
-          aosf33_mulf33(&tmp_3x3, &rot_3x3, &tmp_3x3);
-          aosf44_set(&tmp_4x4, tmp_3x3.c0, tmp_3x3.c1, tmp_3x3.c2,view_4x4->c3);
-          aosf44_mulf44(&tmp_4x4, &inv_view_4x4, &tmp_4x4);
-
-          APP(transform_model_instances(&instance, 1, true, &tmp_4x4));
-        }
-      }
-    }
-  }
-}
-
-static void
-cmd_scale(struct app* app, size_t argc UNUSED, const struct app_cmdarg** argv)
-{
-  size_t nb_defined_flags = 0;
-  enum {
-    CMD_NAME,
-    EYE_SPACE_FLAG,
-    LOCAL_SPACE_FLAG,
-    WORLD_SPACE_FLAG,
-    INSTANCE_NAME,
-    SCALE_X,
-    SCALE_Y,
-    SCALE_Z,
-    ARGC
-  };
-  assert(app != NULL
-      && argc == ARGC
-      && argv != NULL
-      && argv[CMD_NAME]->type == APP_CMDARG_STRING
-      && argv[EYE_SPACE_FLAG]->type == APP_CMDARG_LITERAL
-      && argv[LOCAL_SPACE_FLAG]->type == APP_CMDARG_LITERAL
-      && argv[WORLD_SPACE_FLAG]->type == APP_CMDARG_LITERAL
-      && argv[INSTANCE_NAME]->type == APP_CMDARG_STRING
-      && argv[SCALE_X]->type == APP_CMDARG_FLOAT
-      && argv[SCALE_Y]->type == APP_CMDARG_FLOAT
-      && argv[SCALE_Z]->type == APP_CMDARG_FLOAT
-      && argv[CMD_NAME]->count == 1
-      && argv[EYE_SPACE_FLAG]->count == 1
-      && argv[LOCAL_SPACE_FLAG]->count == 1
-      && argv[WORLD_SPACE_FLAG]->count == 1
-      && argv[INSTANCE_NAME]->count == 1
-      && argv[SCALE_X]->count == 1
-      && argv[SCALE_Y]->count == 1
-      && argv[SCALE_Z]->count == 1);
-
-  nb_defined_flags =
-      (ARGVAL(argv, EYE_SPACE_FLAG).is_defined == true)
-    + (ARGVAL(argv, LOCAL_SPACE_FLAG).is_defined == true)
-    + (ARGVAL(argv, WORLD_SPACE_FLAG).is_defined == true);
-
-  if(nb_defined_flags != 1) {
-    if(nb_defined_flags == 0) {
-      APP_LOG_ERR(app->logger, "missing coordinate system");
-    } else {
-      APP_LOG_ERR(app->logger, "only one coordinate system must be defined");
-    }
-  } else {
-    struct app_model_instance* instance = NULL;
-    const char* instance_name = ARGVAL(argv, INSTANCE_NAME).data.string;
-
-    APP(get_model_instance(app, instance_name, &instance));
-    if(instance == NULL) {
-      APP_LOG_ERR
-        (app->logger, "the instance `%s' does not exist\n", instance_name);
-    } else {
-      const float scale[3] = {
-        [0] = ARGVAL(argv, SCALE_X).is_defined
-            ? ARGVAL(argv, SCALE_X).data.real
-            : 1.f,
-        [1] = ARGVAL(argv, SCALE_Y).is_defined
-            ? ARGVAL(argv, SCALE_Y).data.real
-            : 1.f,
-        [2] = ARGVAL(argv, SCALE_Z).is_defined
-            ? ARGVAL(argv, SCALE_Z).data.real
-            : 1.f
-      };
-
-      if((scale[0] != 0.f) | (scale[1] != 0.f) | (scale[2] != 0.f)) {
-        if(ARGVAL(argv, LOCAL_SPACE_FLAG).is_defined) {
-          APP(scale_model_instances(&instance, 1, true, scale));
-        } else if(ARGVAL(argv, WORLD_SPACE_FLAG).is_defined) {
-          APP(scale_model_instances(&instance, 1, false, scale));
-        } else {
-          struct aosf44 inv_view_4x4;
-          struct aosf44 tmp_4x4;
-          struct aosf33 scale_3x3;
-          struct aosf33 tmp_3x3;
-          vf4_t vec;
-          UNUSED ALIGN(16) float tmp[4];
-          const struct aosf44* view_4x4 = NULL;
-          struct app_view* view = NULL;
-          assert(ARGVAL(argv, EYE_SPACE_FLAG).is_defined);
-
-          /* Get the view matrix and its inverse. */
-          APP(get_main_view(app, &view));
-          APP(get_raw_view_transform(view, &view_4x4));
-          vec = aosf44_inverse(&inv_view_4x4, view_4x4);
-          assert((vf4_store(tmp, vec), tmp[0] != 0.f));
-
-          /* Compute the matrix to apply to the model. */
-          scale_3x3.c0 = vf4_set(scale[0], 0.f, 0.f, 0.f);
-          scale_3x3.c1 = vf4_set(0.f, scale[1], 0.f, 0.f);
-          scale_3x3.c2 = vf4_set(0.f, 0.f, scale[2], 0.f);
-          aosf33_set(&tmp_3x3, view_4x4->c0, view_4x4->c1, view_4x4->c2);
-          aosf33_mulf33(&tmp_3x3, &scale_3x3, &tmp_3x3);
-          aosf44_set(&tmp_4x4, tmp_3x3.c0, tmp_3x3.c1, tmp_3x3.c2,view_4x4->c3);
-          aosf44_mulf44(&tmp_4x4, &inv_view_4x4, &tmp_4x4);
-
-          APP(transform_model_instances(&instance, 1, true, &tmp_4x4));
-        }
-      }
-    }
-  }
-}
-
-static void
-cmd_move(struct app* app, size_t argc UNUSED, const struct app_cmdarg** argv)
-{
-  struct app_model_instance* instance = NULL;
-  const char* instance_name = NULL;
-  enum { CMD_NAME, INSTANCE_NAME, POS_X, POS_Y, POS_Z, ARGC };
-
-  assert(app != NULL
-      && argc == ARGC
-      && argv != NULL
-      && argv[CMD_NAME]->type == APP_CMDARG_STRING
-      && argv[INSTANCE_NAME]->type == APP_CMDARG_STRING
-      && argv[POS_X]->type == APP_CMDARG_FLOAT
-      && argv[POS_Y]->type == APP_CMDARG_FLOAT
-      && argv[POS_Z]->type == APP_CMDARG_FLOAT
-      && argv[CMD_NAME]->count == 1
-      && argv[INSTANCE_NAME]->count == 1
-      && argv[POS_X]->count == 1
-      && argv[POS_Y]->count == 1
-      && argv[POS_Z]->count == 1);
-
-  instance_name = ARGVAL(argv, INSTANCE_NAME).data.string;
-  APP(get_model_instance(app, instance_name, &instance));
-  if(instance == NULL) {
-    APP_LOG_ERR
-      (app->logger, "the instance `%s' does not exist\n", instance_name);
-  } else {
-    const float pos[3] = {
-      ARGVAL(argv, POS_X).data.real,
-      ARGVAL(argv, POS_Y).data.real,
-      ARGVAL(argv, POS_Z).data.real
-    };
-    APP(move_model_instances(&instance, 1, pos));
-  }
-}
-
-static void
-cmd_transform
-  (struct app* app,
-   size_t argc UNUSED,
-   const struct app_cmdarg** argv)
-{
-  struct app_model_instance* instance = NULL;
-  const char* instance_name = NULL;
-  enum {
-    CMD_NAME, INSTANCE_NAME,
-    C0_X, C0_Y, C0_Z, C0_W,
-    C1_X, C1_Y, C1_Z, C1_W,
-    C2_X, C2_Y, C2_Z, C2_W,
-    C3_X, C3_Y, C3_Z, C3_W,
-    ARGC
-  };
-  assert(app != NULL && argv != NULL);
-
-  instance_name = ARGVAL(argv, INSTANCE_NAME).data.string;
-  APP(get_model_instance(app, instance_name, &instance));
-  if(instance == NULL) {
-    APP_LOG_ERR
-      (app->logger, "the instance `%s' does not exist\n", instance_name);
-  } else {
-    const struct aosf44 f44 = {
-      .c0 = vf4_set
-        (ARGVAL(argv, C0_X).data.real,
-         ARGVAL(argv, C0_Y).data.real,
-         ARGVAL(argv, C0_Z).data.real,
-         ARGVAL(argv, C0_W).data.real),
-      .c1 = vf4_set
-        (ARGVAL(argv, C1_X).data.real,
-         ARGVAL(argv, C1_Y).data.real,
-         ARGVAL(argv, C1_Z).data.real,
-         ARGVAL(argv, C1_W).data.real),
-      .c2 = vf4_set
-        (ARGVAL(argv, C2_X).data.real,
-         ARGVAL(argv, C2_Y).data.real,
-         ARGVAL(argv, C2_Z).data.real,
-         ARGVAL(argv, C2_W).data.real),
-      .c3 = vf4_set
-        (ARGVAL(argv, C3_X).data.real,
-         ARGVAL(argv, C3_Y).data.real,
-         ARGVAL(argv, C3_Z).data.real,
-         ARGVAL(argv, C3_W).data.real)
-    };
-    APP(transform_model_instances(&instance, 1, true, &f44));
-  }
-}
-
 /*******************************************************************************
  *
  * Builtin commands registration.
@@ -982,17 +201,19 @@ app_setup_builtin_commands(struct app* app)
 
   #define CALL(func) if(APP_NO_ERROR != (app_err = func)) goto error
 
-  /* Miscellaneous commands. */
   CALL(app_add_command
     (app, "clear", cmd_clear, NULL, NULL, "clear the terminal screen"));
+
   CALL(app_add_command
     (app, "exit", cmd_exit, NULL, NULL, "cause the application to exit"));
+
   CALL(app_add_command
     (app, "help", cmd_help, app_command_name_completion,
      APP_CMDARGV
      (APP_CMDARG_APPEND_STRING(NULL, NULL, "<command>", NULL, 1, 1, NULL),
       APP_CMDARG_END),
      "give command informations"));
+
   CALL(app_add_command
     (app, "ls", cmd_ls, NULL,
      APP_CMDARGV
@@ -1004,53 +225,7 @@ app_setup_builtin_commands(struct app* app)
       ("m", "models", "list the loaded models", 0, 1),
       APP_CMDARG_END),
      "list application contents"));
-  CALL(app_add_command
-    (app, "load", cmd_load, NULL,
-     APP_CMDARGV
-     (APP_CMDARG_APPEND_FILE("m", "model", "<path>", NULL, 1, 1),
-      APP_CMDARG_APPEND_STRING("n", "name", "<name>", NULL, 0, 1, NULL),
-      APP_CMDARG_END),
-     "load resources"));
-  CALL(app_add_command
-    (app, "rename", cmd_rename_model, app_model_name_completion,
-     APP_CMDARGV
-     (APP_CMDARG_APPEND_STRING("m", "model", "<model>", NULL, 1, 1, NULL),
-      APP_CMDARG_APPEND_STRING(NULL, NULL, "<name>", NULL, 1, 1, NULL),
-      APP_CMDARG_END),
-     "rename model"));
-  CALL(app_add_command
-    (app, "rename", cmd_rename_instance, app_model_instance_name_completion,
-     APP_CMDARGV
-     (APP_CMDARG_APPEND_STRING("i", "instance", "<instance>", NULL, 1, 1, NULL),
-      APP_CMDARG_APPEND_STRING(NULL, NULL, "<name>", NULL, 1, 1, NULL),
-      APP_CMDARG_END),
-     "rename instance"));
-  CALL(app_add_command
-    (app, "rm", cmd_rm_instance, app_model_instance_name_completion,
-     APP_CMDARGV
-     (APP_CMDARG_APPEND_STRING("i", "instance", "<instance>", NULL, 1, 1, NULL),
-      APP_CMDARG_END),
-     "remove a model instance"));
-  CALL(app_add_command
-    (app, "rm", cmd_rm_model, app_model_name_completion,
-     APP_CMDARGV
-     (APP_CMDARG_APPEND_LITERAL
-        ("f", "force", "remove the model even though it is instantiated", 0, 1),
-      APP_CMDARG_APPEND_STRING
-        ("m", "model", "<model>", "model to remove", 1, 1, NULL),
-      APP_CMDARG_END),
-     "remove a model"));
-  CALL(app_add_command
-    (app, "save", cmd_save, NULL,
-     APP_CMDARGV
-     (APP_CMDARG_APPEND_STRING
-        ("o", "output", "<path>", "output file", 0, 1, NULL),
-      APP_CMDARG_APPEND_LITERAL
-        ("f", "force",
-         "force saving the project even though the output file already exists",
-         0, 1),
-      APP_CMDARG_END),
-     "save the main world"));
+
   CALL(app_add_command
     (app, "set", cmd_set, app_cvar_name_completion,
      APP_CMDARGV
@@ -1058,145 +233,6 @@ app_setup_builtin_commands(struct app* app)
       APP_CMDARG_APPEND_STRING(NULL, NULL, "<value>", NULL, 0, 1, NULL),
       APP_CMDARG_END),
      "set a client variable"));
-  CALL(app_add_command
-    (app, "spawn", cmd_spawn, app_model_name_completion,
-     APP_CMDARGV
-     (APP_CMDARG_APPEND_STRING
-        ("m", "model", "<model>",
-         "name of the model from which an instance is spawned",
-         1, 1, NULL),
-      APP_CMDARG_APPEND_STRING
-        ("n", "name", "<name>",
-         "name of the spawned instance",
-         0, 1, NULL),
-      APP_CMDARG_END),
-     "spawn an instance into the world"));
-
-  /* Move commands. */
-  CALL(app_add_command
-    (app, "mv", cmd_move, app_model_instance_name_completion,
-     APP_CMDARGV
-     (APP_CMDARG_APPEND_STRING
-        ("i", "instance", "<name>",
-         "define the instance to move",
-         1, 1, NULL),
-      APP_CMDARG_APPEND_FLOAT
-        ("x", NULL, "<real>", NULL, 1, 1, -FLT_MAX, FLT_MAX),
-      APP_CMDARG_APPEND_FLOAT
-        ("y", NULL, "<real>", NULL, 1, 1, -FLT_MAX, FLT_MAX),
-      APP_CMDARG_APPEND_FLOAT
-        ("z", NULL, "<real>", NULL, 1, 1, -FLT_MAX, FLT_MAX),
-      APP_CMDARG_END),
-     "move a model instance"));
-  CALL(app_add_command
-    (app, "rotate", cmd_rotate, app_model_instance_name_completion,
-     APP_CMDARGV
-     (APP_CMDARG_APPEND_LITERAL
-        ("e", "eye",
-         "perform the rotation with respect to eye coordinates",
-         0, 1),
-      APP_CMDARG_APPEND_LITERAL
-        ("l", "local",
-         "perform the rotation with respect to object coordinates",
-         0, 1),
-      APP_CMDARG_APPEND_LITERAL
-        ("w", "world",
-         "perform the rotation with respect to world coordinates",
-         0, 1),
-      APP_CMDARG_APPEND_STRING
-        ("i", "instance", "<name>",
-         "define the instance to rotate",
-         1, 1, NULL),
-      APP_CMDARG_APPEND_FLOAT
-        ("x", NULL, "<real>", "pitch angle", 0, 1, -FLT_MAX, FLT_MAX),
-      APP_CMDARG_APPEND_FLOAT
-        ("y", NULL, "<real>", "yaw angle", 0, 1, -FLT_MAX, FLT_MAX),
-      APP_CMDARG_APPEND_FLOAT
-        ("z", NULL, "<real>", "roll angle", 0, 1, -FLT_MAX, FLT_MAX),
-      APP_CMDARG_APPEND_LITERAL
-        ("r", "radian", "set the angle unit to radian", 0, 1),
-      APP_CMDARG_END),
-     "rotate a model instance"));
-  CALL(app_add_command
-    (app, "scale", cmd_scale, app_model_instance_name_completion,
-     APP_CMDARGV
-     (APP_CMDARG_APPEND_LITERAL
-        ("e", "eye",
-         "perform the scale with respect to eye coordinates",
-         0, 1),
-      APP_CMDARG_APPEND_LITERAL
-        ("l", "local",
-         "perform the scale with respect to object coordinates",
-         0, 1),
-      APP_CMDARG_APPEND_LITERAL
-        ("w", "world",
-         "perform the scale with respect to world coordinates",
-         0, 1),
-      APP_CMDARG_APPEND_STRING
-        ("i", "instance", "<name>",
-         "define the instance to scale",
-         1, 1, NULL),
-      APP_CMDARG_APPEND_FLOAT
-        ("x", NULL, "<real>", NULL, 0, 1, -FLT_MAX, FLT_MAX),
-      APP_CMDARG_APPEND_FLOAT
-        ("y", NULL, "<real>", NULL, 0, 1, -FLT_MAX, FLT_MAX),
-      APP_CMDARG_APPEND_FLOAT
-        ("z", NULL, "<real>", NULL, 0, 1, -FLT_MAX, FLT_MAX),
-      APP_CMDARG_END),
-     "scale a model instance"));
-  CALL(app_add_command
-    (app, "transform", cmd_transform, app_model_instance_name_completion,
-     APP_CMDARGV
-     (APP_CMDARG_APPEND_STRING
-        ("i", "instance", "<name>",
-         "define the instance to transform",
-         1, 1, NULL),
-      APP_CMDARG_APPEND_FLOAT(NULL,NULL,"<col0.x>",NULL,1,1,-FLT_MAX,FLT_MAX),
-      APP_CMDARG_APPEND_FLOAT(NULL,NULL,"<col0.y>",NULL,1,1,-FLT_MAX,FLT_MAX),
-      APP_CMDARG_APPEND_FLOAT(NULL,NULL,"<col0.z>",NULL,1,1,-FLT_MAX,FLT_MAX),
-      APP_CMDARG_APPEND_FLOAT(NULL,NULL,"<col0.w>",NULL,1,1,-FLT_MAX,FLT_MAX),
-      APP_CMDARG_APPEND_FLOAT(NULL,NULL,"<col1.x>",NULL,1,1,-FLT_MAX,FLT_MAX),
-      APP_CMDARG_APPEND_FLOAT(NULL,NULL,"<col1.y>",NULL,1,1,-FLT_MAX,FLT_MAX),
-      APP_CMDARG_APPEND_FLOAT(NULL,NULL,"<col1.z>",NULL,1,1,-FLT_MAX,FLT_MAX),
-      APP_CMDARG_APPEND_FLOAT(NULL,NULL,"<col1.w>",NULL,1,1,-FLT_MAX,FLT_MAX),
-      APP_CMDARG_APPEND_FLOAT(NULL,NULL,"<col2.x>",NULL,1,1,-FLT_MAX,FLT_MAX),
-      APP_CMDARG_APPEND_FLOAT(NULL,NULL,"<col2.y>",NULL,1,1,-FLT_MAX,FLT_MAX),
-      APP_CMDARG_APPEND_FLOAT(NULL,NULL,"<col2.z>",NULL,1,1,-FLT_MAX,FLT_MAX),
-      APP_CMDARG_APPEND_FLOAT(NULL,NULL,"<col2.w>",NULL,1,1,-FLT_MAX,FLT_MAX),
-      APP_CMDARG_APPEND_FLOAT(NULL,NULL,"<col3.x>",NULL,1,1,-FLT_MAX,FLT_MAX),
-      APP_CMDARG_APPEND_FLOAT(NULL,NULL,"<col3.y>",NULL,1,1,-FLT_MAX,FLT_MAX),
-      APP_CMDARG_APPEND_FLOAT(NULL,NULL,"<col3.z>",NULL,1,1,-FLT_MAX,FLT_MAX),
-      APP_CMDARG_APPEND_FLOAT(NULL,NULL,"<col3.w>",NULL,1,1,-FLT_MAX,FLT_MAX),
-      APP_CMDARG_END),
-     "transform the instance by the input 4x4 matrix"));
-
-  CALL(app_add_command
-    (app, "translate", cmd_translate, app_model_instance_name_completion,
-     APP_CMDARGV
-     (APP_CMDARG_APPEND_LITERAL
-        ("e", "eye",
-         "perform the translation with respect to eye coordinates",
-         0, 1),
-      APP_CMDARG_APPEND_LITERAL
-        ("l", "local",
-         "perform the translation with respect to object coordinates",
-         0, 1),
-      APP_CMDARG_APPEND_LITERAL
-        ("w", "world",
-         "perform the translation with respect to world coordinates",
-         0, 1),
-      APP_CMDARG_APPEND_STRING
-        ("i", "instance", "<name>",
-         "define the instance to translate",
-         1, 1, NULL),
-      APP_CMDARG_APPEND_FLOAT
-        ("x", NULL, "<real>", NULL, 0, 1, -FLT_MAX, FLT_MAX),
-      APP_CMDARG_APPEND_FLOAT
-        ("y", NULL, "<real>", NULL, 0, 1, -FLT_MAX, FLT_MAX),
-      APP_CMDARG_APPEND_FLOAT
-        ("z", NULL, "<real>", NULL, 0, 1, -FLT_MAX, FLT_MAX),
-      APP_CMDARG_END),
-     "translate a model instance"));
 
   #undef CALL
 

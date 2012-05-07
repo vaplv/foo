@@ -12,15 +12,15 @@
 #include "sys/ref_count.h"
 #include <stdbool.h>
 
-#define APP_LOG_MSG(logger, ...) \
+#define APP_PRINT_MSG(logger, ...) \
   SL(logger_print((logger), __VA_ARGS__))
 
 #define APP_ERR_PREFIX "error: "
-#define APP_LOG_ERR(logger, ...) \
+#define APP_PRINT_ERR(logger, ...) \
   SL(logger_print((logger), APP_ERR_PREFIX __VA_ARGS__))
 
 #define APP_WARN_PREFIX "warning: "
-#define APP_LOG_WARN(logger, ...) \
+#define APP_PRINT_WARN(logger, ...) \
   SL(logger_print((logger), APP_WARN_PREFIX __VA_ARGS__))
 
 struct app_model;

@@ -3,6 +3,7 @@
 
 #include "stdlib/sl_error.h"
 #include "sys/sys.h"
+#include <stdarg.h>
 
 struct sl_log_stream {
   void (*func)(const char* msg, void* data);
@@ -40,5 +41,11 @@ sl_logger_print
   (struct sl_logger* logger,
    const char* fmt,
    ...) FORMAT_PRINTF(2, 3);
+
+extern enum sl_error
+sl_logger_vprint
+  (struct sl_logger* logger,
+   const char* fmt,
+   va_list list);
 
 #endif /* SL_LOGGER_H */

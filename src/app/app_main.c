@@ -1,3 +1,4 @@
+#include "app/command/cmd.h"
 #include "app/core/app.h"
 #include "app/game/game.h"
 #include "sys/mem_allocator.h"
@@ -11,8 +12,8 @@
  * otherwise. */
 static int
 parse_args
-  (int argc, 
-   char** argv, 
+  (int argc,
+   char** argv,
    const char** model_path,
    const char** render_driver_path,
    const char** term_font_path)
@@ -56,7 +57,7 @@ exit:
 usage:
   printf
     ("Usage: %s -r RENDER_DRIVER [-f TERM_FONT] [-m MODEL]\n"
-     "  -f  Define the TERM_FONT to use.\n" 
+     "  -f  Define the TERM_FONT to use.\n"
      "  -m  Load MODEL at the launch of the application.\n"
      "  -r  Define the RENDER_DRIVER to use.\n",
      argv[0]);
@@ -102,15 +103,16 @@ main(int argc, char** argv)
   const char* model_path = NULL;
   const char* render_driver_path = NULL;
   enum app_error app_err = APP_NO_ERROR;
+  enum cmd_error cmd_err = CMD_NO_ERROR;
   enum game_error game_err = GAME_NO_ERROR;
   int err = 0;
   bool keep_running = true;
 
   memset(&args, 0, sizeof(struct app_args));
-  
+
   mem_init_proxy_allocator("engine", &engine_allocator, &mem_default_allocator);
   mem_init_proxy_allocator("game", &game_allocator, &mem_default_allocator);
- 
+
   /* Parse the argument list. */
   err = parse_args
     (argc, argv, &model_path, &render_driver_path, &term_font_path);
@@ -133,6 +135,12 @@ main(int argc, char** argv)
     err = -1;
     goto error;
   }
+  cmd_err = cmd_setup_edit_commands(app);
+  if(cmd_err != CMD_NO_ERROR) {
+    fprintf(stderr, "Error in initializing the edit commands.\n");
+    err = -1;
+    goto error;
+  }
   game_err = game_create(app, &game_allocator, &game);
   if(game_err != GAME_NO_ERROR) {
     fprintf(stderr, "Error in creating the game.\n");
@@ -151,7 +159,7 @@ main(int argc, char** argv)
       app_err = app_run(app, &keep_app_running);
       if(app_err != APP_NO_ERROR) {
         fprintf(stderr, "Error running the application.\n");
-        goto error; 
+        goto error;
       }
       keep_running = keep_game_running && keep_app_running;
     }

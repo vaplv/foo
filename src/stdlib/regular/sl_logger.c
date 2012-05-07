@@ -3,7 +3,6 @@
 #include "sys/mem_allocator.h"
 #include "sys/sys.h"
 #include <assert.h>
-#include <stdarg.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -41,13 +40,13 @@ compare_log_stream(const void* a, const void* b)
  ******************************************************************************/
 EXPORT_SYM enum sl_error
 sl_create_logger
-  (struct mem_allocator* specific_allocator, 
+  (struct mem_allocator* specific_allocator,
    struct sl_logger** out_logger)
 {
   struct mem_allocator* allocator = NULL;
   struct sl_logger* logger = NULL;
   enum sl_error sl_err = SL_NO_ERROR;
-  
+
   if(!out_logger) {
     sl_err = SL_INVALID_ARGUMENT;
     goto error;
@@ -178,27 +177,32 @@ error:
 }
 
 EXPORT_SYM enum sl_error
-sl_logger_print
-  (struct sl_logger* logger,
-   const char* fmt, 
-   ...)
+sl_logger_print(struct sl_logger* logger, const char* fmt, ...)
 {
   va_list vargs_list;
+  enum sl_error sl_err = SL_NO_ERROR;
+
+  va_start(vargs_list, fmt);
+  sl_err = sl_logger_vprint(logger, fmt, vargs_list);
+  va_end(vargs_list);
+  return sl_err;
+}
+
+EXPORT_SYM enum sl_error
+sl_logger_vprint(struct sl_logger* logger, const char* fmt, va_list list)
+{
   void* buffer = NULL;
   size_t len = 0;
   size_t stream_id = 0;
   enum sl_error sl_err = SL_NO_ERROR;
   int i = 0;
-  bool is_va_start = false;
 
   if(!logger || !fmt || fmt[0] == '\0') {
     sl_err = SL_INVALID_ARGUMENT;
     goto error;
   }
-  va_start(vargs_list, fmt);
-  is_va_start = true;
- 
-  i = vsnprintf(logger->buffer, logger->buffer_len, fmt, vargs_list);
+
+  i = vsnprintf(logger->buffer, logger->buffer_len, fmt, list);
   assert(i > 0);
   if((size_t)i >= logger->buffer_len) {
     len = i + 1; /* +1 <=> null terminated character. */
@@ -210,7 +214,7 @@ sl_logger_print
     MEM_FREE(logger->allocator, logger->buffer);
     logger->buffer = buffer;
     logger->buffer_len = len;
-    i = vsnprintf(logger->buffer, logger->buffer_len, fmt, vargs_list);
+    i = vsnprintf(logger->buffer, logger->buffer_len, fmt, list);
     assert((size_t)i < logger->buffer_len);
   }
 
@@ -220,14 +224,12 @@ sl_logger_print
     goto error;
 
   for(stream_id = 0; stream_id < len; ++stream_id) {
-    const struct sl_log_stream* stream = 
+    const struct sl_log_stream* stream =
       (const struct sl_log_stream*)buffer + stream_id;
     stream->func(logger->buffer, stream->data);
   }
 
 exit:
-  if(is_va_start)
-    va_end(vargs_list);
   return sl_err;
 error:
   goto exit;

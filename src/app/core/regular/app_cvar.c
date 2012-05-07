@@ -83,13 +83,13 @@ set_cvar_value
           unexpected_value = (cvar->domain.string.value_list[i] == NULL);
         }
         if(unexpected_value) {
-          APP_LOG_ERR
+          APP_PRINT_ERR
             (logger,
              "%s: unexpected value `%s'\n",
              name, val.string ? val.string : "<null>");
           if(cvar->var.value.string == NULL) {
             cvar->var.value.string = cvar->domain.string.value_list[0];
-            APP_LOG_WARN
+            APP_PRINT_WARN
               (logger,
                "%s: set default value `%s'\n",
                name, cvar->var.value.string);
@@ -204,7 +204,7 @@ app_set_cvar(struct app* app, const char* name, union app_cvar_value val)
 
   SL(flat_map_find(app->cvar_system.map, (const void*)&name, (void**)&cvar));
   if(cvar == NULL) {
-    APP_LOG_ERR(app->logger, "%s: cvar not found\n", name);
+    APP_PRINT_ERR(app->logger, "%s: cvar not found\n", name);
     app_err = APP_INVALID_ARGUMENT;
     goto error;
   }

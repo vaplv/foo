@@ -72,7 +72,7 @@ term_char_clbk(wchar_t wch, enum wm_state state, void* data)
 
   app_err = app_command_buffer_write_char(app->term.cmdbuf, ch);
   if(APP_NO_ERROR != app_err) {
-    APP_LOG_ERR
+    APP_PRINT_ERR
       (app->logger,
        "command buffer input error: `%s'\n",
        app_error_string(app_err));

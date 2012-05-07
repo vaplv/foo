@@ -334,7 +334,7 @@ app_init_object_system(struct app* app)
       (sizeof(const char*),
        ALIGNOF(const char*),
        sizeof(struct app_object*),
-       ALIGNOF(struct app_object*),
+       16,
        cmp_str,
        app->allocator,
        &app->object_map[i]);

@@ -46,6 +46,16 @@ main(int argc, char** argv)
   CHECK(app_cleanup(NULL), APP_INVALID_ARGUMENT);
   CHECK(app_cleanup(app), APP_NO_ERROR);
 
+  CHECK(app_log(NULL, APP_NB_LOG_TYPES, NULL), APP_INVALID_ARGUMENT);
+  CHECK(app_log(app, APP_NB_LOG_TYPES, NULL), APP_INVALID_ARGUMENT);
+  CHECK(app_log(NULL, APP_LOG_ERROR, NULL), APP_INVALID_ARGUMENT);
+  CHECK(app_log(app, APP_LOG_ERROR, NULL), APP_INVALID_ARGUMENT);
+  CHECK(app_log(NULL, APP_NB_LOG_TYPES, "msg\n"), APP_INVALID_ARGUMENT);
+  CHECK(app_log(app, APP_NB_LOG_TYPES, "msg\n"), APP_INVALID_ARGUMENT);
+  CHECK(app_log(NULL, APP_LOG_ERROR, "msg\n"), APP_INVALID_ARGUMENT);
+  CHECK(app_log(app, APP_LOG_ERROR, "msg\n"), APP_NO_ERROR);
+  CHECK(app_log(app, APP_LOG_WARNING, "msg %d\n", 2), APP_NO_ERROR);
+
   CHECK(app_ref_get(NULL), APP_INVALID_ARGUMENT);
   CHECK(app_ref_get(app), APP_NO_ERROR);
   CHECK(app_ref_put(NULL), APP_INVALID_ARGUMENT);
