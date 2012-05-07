@@ -1036,6 +1036,61 @@ app_is_term_enabled(struct app* app, bool* is_enabled)
  *
  ******************************************************************************/
 enum app_error
+app_mapped_name_completion
+  (struct sl_flat_map* map, 
+   const char* name,
+   size_t name_len,
+   size_t* completion_list_len,
+   const char** completion_list[])
+{
+  const char** name_list = NULL;
+  size_t len = 0;
+  enum app_error app_err = APP_NO_ERROR;
+
+  if(!map
+  || (name_len && !name)
+  || !completion_list_len
+  || !completion_list) {
+    app_err = APP_INVALID_ARGUMENT;
+    goto error;
+  }
+  SL(flat_map_key_buffer(map, &len, NULL, NULL, (void**)&name_list));
+  if(0 == name_len) {
+    *completion_list_len = len;
+    *completion_list = name_list;
+  } else {
+    #define CHARBUF_SIZE 256
+    char buf[CHARBUF_SIZE];
+    const char* ptr = buf;
+    size_t begin = 0;
+    size_t end = 0;
+
+    /* Copy the name in a mutable buffer. */
+    if(name_len > CHARBUF_SIZE - 1) {
+      app_err = APP_MEMORY_ERROR;
+      goto error;
+    }
+    strncpy(buf, name, name_len);
+    buf[name_len] = '\0';
+    /* Find the completion range. */
+    SL(flat_map_lower_bound(map, &ptr, &begin));
+    buf[name_len] = 127;
+    buf[name_len + 1] = '\0';
+    SL(flat_map_upper_bound(map, &ptr, &end));
+    /* Define the completion list. */
+    *completion_list = name_list + begin;
+    *completion_list_len = (name_list + end) - (*completion_list);
+    if(0 == *completion_list_len)
+      *completion_list = NULL;
+    #undef CHARBUF_SIZE
+  }
+exit:
+  return app_err;
+error:
+  goto exit;
+}
+
+enum app_error
 app_invoke_callbacks(struct app* app, enum app_signal signal, ...)
 {
   va_list arg_list;

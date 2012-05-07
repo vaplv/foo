@@ -4,6 +4,7 @@
 #include "app/core/regular/app_model_c.h"
 #include "app/core/regular/app_object.h"
 #include "app/core/app_command.h"
+#include "app/core/app_cvar.h"
 #include "app/core/app_model.h"
 #include "app/core/app_model_instance.h"
 #include "app/core/app_view.h"
@@ -19,6 +20,7 @@
 #include "sys/sys.h"
 #include <assert.h>
 #include <float.h>
+#include <limits.h>
 #include <stdbool.h>
 #include <string.h>
 
@@ -289,8 +291,8 @@ cmd_rm_model
 
 static void
 cmd_save
-  (struct app* app, 
-   size_t argc UNUSED, 
+  (struct app* app,
+   size_t argc UNUSED,
    const struct app_cmdarg** argv UNUSED)
 {
   enum { CMD_NAME, OUTPUT_FILE, ARGC };
@@ -300,6 +302,82 @@ cmd_save
       && argv[CMD_NAME]->type == APP_CMDARG_STRING
       && argv[OUTPUT_FILE]->type == APP_CMDARG_FILE);
   APP_LOG_WARN(app->logger, "command not implemented\n");
+}
+
+static void
+cmd_set
+  (struct app* app,
+   size_t argc UNUSED,
+   const struct app_cmdarg** argv)
+{
+  const struct app_cvar* cvar = NULL;
+  const char* cvar_name = NULL;
+  const char* cvar_value = NULL;
+  long int i = 0;
+  float f = 0.f;
+  char* ptr = NULL;
+  enum { CMD_NAME, CVAR_NAME, CVAR_VALUE, ARGC };
+
+  assert(app != NULL
+      && argc == ARGC
+      && argv[CMD_NAME]->type == APP_CMDARG_STRING
+      && argv[CVAR_NAME]->type == APP_CMDARG_STRING
+      && argv[CVAR_VALUE]->type == APP_CMDARG_STRING);
+
+  cvar_name = ARGVAL(argv, CVAR_NAME).data.string;
+  cvar_value = ARGVAL(argv, CVAR_VALUE).data.string;
+
+  APP(get_cvar(app, cvar_name, &cvar));
+  if(cvar == NULL) {
+    APP_LOG_ERR
+      (app->logger,
+       "%s: cvar not found `%s'\n",
+       ARGVAL(argv, CMD_NAME).data.string,
+       cvar_name);
+  } else {
+    #define ERR_MSG(msg) \
+      APP_LOG_ERR \
+      (app->logger, "%s %s: " msg " `%s'\n", \
+       ARGVAL(argv, CMD_NAME).data.string, \
+       ARGVAL(argv, CVAR_NAME).data.string, \
+       ARGVAL(argv, CVAR_VALUE).data.string)
+
+    switch(cvar->type) {
+      case APP_CVAR_BOOL:
+        i = strtol(cvar_value, &ptr, 10);
+        if(*ptr != '\0') {
+          ERR_MSG("unexpected non integer value");
+        } else {
+          APP(set_cvar(app, cvar_name, APP_CVAR_BOOL_VALUE(i != 0L)));
+        }
+        break;
+      case APP_CVAR_INT:
+        i = strtol(cvar_value, &ptr, 10);
+        if(*ptr != '\0') {
+          ERR_MSG("unexpected non integer value");
+        } else {
+          if(i > INT_MAX || i < INT_MIN) {
+            ERR_MSG("out of range integer value");
+          } else {
+            APP(set_cvar(app, cvar_name, APP_CVAR_INT_VALUE(i)));
+          }
+        }
+        break;
+      case APP_CVAR_FLOAT:
+        f = strtof(cvar_value, &ptr);
+        if(*ptr != '\0') {
+          ERR_MSG("unexpected non real value");
+        } else {
+          APP(set_cvar(app, cvar_name, APP_CVAR_FLOAT_VALUE(f)));
+        }
+        break;
+      case APP_CVAR_STRING:
+        APP(set_cvar(app, cvar_name, APP_CVAR_STRING_VALUE(cvar_value)));
+        break;
+      default: assert(0); break;
+    }
+    #undef ERR_MSG
+  }
 }
 
 static void
@@ -797,6 +875,13 @@ app_setup_builtin_commands(struct app* app)
         ("o", "output", "<path>", "output file", 0, 1, NULL),
       APP_CMDARG_END),
      "save the main world"));
+  CALL(app_add_command
+    (app, "set", cmd_set, app_cvar_name_completion,
+     APP_CMDARGV
+     (APP_CMDARG_APPEND_STRING(NULL, NULL, "<cvar>",NULL, 1, 1, NULL),
+      APP_CMDARG_APPEND_STRING(NULL, NULL, "<value>", NULL, 0, 1, NULL),
+      APP_CMDARG_END),
+     "set a client variable"));
   CALL(app_add_command
     (app, "spawn", cmd_spawn, app_model_name_completion,
      APP_CMDARGV

@@ -3,6 +3,7 @@
 
 #include "app/core/app_error.h"
 #include <stdbool.h>
+#include <stddef.h>
 
 enum app_cvar_type {
   APP_CVAR_BOOL,
@@ -99,6 +100,14 @@ app_get_cvar
    const char* name,
    const struct app_cvar** cvar); /* Set to NULL if the cvar does not exist. */
 
-#endif /* APP_CVAR_H */
+/* The returned list is valid until the add/del command function is called. */
+extern enum app_error
+app_cvar_name_completion
+  (struct app* app,
+   const char* cvar_name,
+   size_t cvar_name_len,
+   size_t* completion_list_len,
+   const char** completion_list[]);
 
+#endif /* APP_CVAR_H */
 

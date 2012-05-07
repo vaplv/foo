@@ -61,6 +61,7 @@ struct app {
   struct cvar_system {
     struct sl_flat_map* map;
     /* Put the builtin cvar here. */
+    const struct app_cvar* project_path;
   } cvar_system;
 
   struct term {
@@ -92,6 +93,16 @@ struct app {
 
   bool post_exit;
 };
+
+/* Factorize the completion process of data structure stored into a flat map
+ * with respect to their name. */
+extern enum app_error
+app_mapped_name_completion
+  (struct sl_flat_map* map, /* Assume that the map key type is char* */
+   const char* name,
+   size_t name_len,
+   size_t* completion_list_len,
+   const char** completion_list[]);
 
 extern enum app_error
 app_invoke_callbacks

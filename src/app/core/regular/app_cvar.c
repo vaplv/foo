@@ -1,3 +1,4 @@
+#include "app/core/regular/app_builtin_cvars.h"
 #include "app/core/regular/app_c.h"
 #include "app/core/regular/app_cvar_c.h"
 #include "app/core/regular/app_error_c.h"
@@ -236,6 +237,22 @@ app_get_cvar
   return APP_NO_ERROR;
 }
 
+EXPORT_SYM enum app_error
+app_cvar_name_completion
+  (struct app* app,
+   const char* cvar_name,
+   size_t cvar_name_len,
+   size_t* completion_list_len,
+   const char** completion_list[])
+{
+  return app_mapped_name_completion
+    (app->cvar_system.map,
+     cvar_name,
+     cvar_name_len,
+     completion_list_len,
+     completion_list);
+}
+
 /*******************************************************************************
  *
  * Private function.
@@ -263,6 +280,9 @@ app_init_cvar_system(struct app* app)
     app_err = sl_to_app_error(sl_err);
     goto error;
   }
+  app_err = app_setup_builtin_cvars(app);
+  if(app_err != APP_NO_ERROR)
+    goto error;
 exit:
   return app_err;
 error:
