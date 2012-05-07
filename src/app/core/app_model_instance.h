@@ -46,6 +46,11 @@ app_model_instance_name
    const char** cstr);
 
 extern enum app_error
+app_get_raw_model_instance_transform
+  (const struct app_model_instance* instance,
+   const struct aosf44** transform);
+
+extern enum app_error
 app_translate_model_instances
   (struct app_model_instance* instance_list[],
    size_t nb_instances,

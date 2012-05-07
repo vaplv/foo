@@ -3,6 +3,7 @@
 
 #include "app/core/regular/app_object.h"
 #include "app/core/app_error.h"
+#include "maths/simd/aosf44.h"
 #include "sys/list.h"
 #include "sys/ref_count.h"
 #include <stdbool.h>
@@ -16,6 +17,7 @@ struct app_model_instance {
   struct ref ref;
   struct list_node model_node; /* Linked the instance against its model.*/
   struct list_node world_node; /* Linked the instance against its world. */
+  struct aosf44 transform;
   struct app* app;
   struct app_model* model;
   struct app_world* world;

@@ -340,7 +340,6 @@ main(int argc, char **argv)
 {
   char buf[16] = { [0] = '\0' };
   struct app_args args = { NULL, NULL, NULL, NULL };
-  const struct app_cvar* cvar = NULL;
   struct app* app = NULL;
   const char** lst = NULL;
   size_t len = 0;

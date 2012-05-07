@@ -290,18 +290,140 @@ cmd_rm_model
 }
 
 static void
-cmd_save
-  (struct app* app,
-   size_t argc UNUSED,
-   const struct app_cmdarg** argv UNUSED)
+cmd_save(struct app* app, size_t argc UNUSED, const struct app_cmdarg** argv)
 {
-  enum { CMD_NAME, OUTPUT_FILE, ARGC };
+  const struct app_cvar* cvar = NULL;
+  const char* cmd_name = NULL;
+  enum { CMD_NAME, OUTPUT_FILE, FORCE_FLAG, ARGC };
 
   assert(app != NULL
       && argc == ARGC
       && argv[CMD_NAME]->type == APP_CMDARG_STRING
-      && argv[OUTPUT_FILE]->type == APP_CMDARG_FILE);
-  APP_LOG_WARN(app->logger, "command not implemented\n");
+      && argv[OUTPUT_FILE]->type == APP_CMDARG_FILE
+      && argv[FORCE_FLAG]->type == APP_CMDARG_LITERAL);
+
+  cmd_name = ARGVAL(argv, CMD_NAME).data.string;
+  APP(get_cvar(app, "app_project_path", &cvar));
+
+  if(cvar == NULL) {
+    APP_LOG_ERR
+      (app->logger, "%s: undefined cvar `app_project_path'\n", cmd_name);
+  } else {
+    const char* output_file = NULL;
+    FILE* file = NULL;
+    int err = 0;
+
+    /* Define the output path. */
+    if(ARGVAL(argv, OUTPUT_FILE).is_defined == false) {
+      if(cvar->value.string == NULL) {
+        APP_LOG_ERR
+          (app->logger, "%s: undefined output project path", cmd_name);
+      } else {
+        output_file = cvar->value.string;
+      }
+    } else {
+      output_file = ARGVAL(argv, OUTPUT_FILE).data.string;
+
+      APP(set_cvar
+        (app, "app_project_path", APP_CVAR_STRING_VALUE(output_file)));
+      output_file = cvar->value.string;
+
+      file = fopen(output_file, "r");
+      if(file != NULL && ARGVAL(argv, FORCE_FLAG).is_defined == false) {
+        APP_LOG_ERR
+          (app->logger,
+           "%s: the file `%s' already exist. "
+           "Use the --force flag to overwrite it",
+           cmd_name,
+           output_file);
+        output_file = NULL;
+        err = fclose(file);
+        if(err != 0) {
+          APP_LOG_ERR
+            (app->logger,
+             "%s: unexpected error closing the existing file `%s'\n",
+             cmd_name, output_file);
+        }
+      }
+    }
+    /* Save the project. */
+    if(output_file) {
+      file = fopen(output_file, "w");
+      if(file == NULL) {
+        APP_LOG_ERR
+          (app->logger,
+           "%s: error opening output file `%s'\n",
+           cmd_name, output_file);
+      } else {
+        struct app_model** model_list = NULL;
+        struct app_model_instance** instance_list = NULL;
+        size_t len = 0;
+        size_t i = 0;
+
+        #define FPRINTF(file, str, ...) \
+          do { \
+            err = fprintf(file, str, __VA_ARGS__); \
+            if(err < 0) { \
+              APP_LOG_ERR \
+              (app->logger, \
+               "%s: error writing file `%s'\n", \
+               cmd_name, output_file); \
+              break; \
+            } \
+          } while(0)
+
+        /* Save the model list. */
+        APP(get_model_list(app, &len, &model_list));
+        for(i = 0; i < len; ++i) {
+          const char* path = NULL;
+          const char* name = NULL;
+          APP(model_path(model_list[i], &path));
+          APP(model_name(model_list[i], &name));
+          FPRINTF(file, "load -m %s -n %s\n", path, name);
+        }
+
+        /* Save the instance list. */
+        APP(get_model_instance_list(app, &len, &instance_list));
+        for(i = 0; i < len; ++i) {
+          struct app_model* model = NULL;
+          const char* mdl_name = NULL;
+          const char* inst_name = NULL;
+          const struct aosf44* transform = NULL;
+          ALIGN(16) float tmp[16];
+
+          APP(model_instance_get_model(instance_list[i], &model));
+          APP(model_instance_name(instance_list[i], &inst_name));
+          APP(model_name(model, &mdl_name));
+          FPRINTF(file, "spawn -m %s -n %s\n", mdl_name, inst_name);
+
+          APP(get_raw_model_instance_transform(instance_list[i], &transform));
+          aosf44_store(tmp, transform);
+          FPRINTF
+            (file,
+             "transform -i %s "
+             "%.8f %.8f %.8f %.8f "
+             "%.8f %.8f %.8f %.8f "
+             "%.8f %.8f %.8f %.8f "
+             "%.8f %.8f %.8f %.8f\n",
+             inst_name,
+             tmp[0], tmp[1], tmp[2], tmp[3],
+             tmp[4], tmp[5], tmp[6], tmp[7],
+             tmp[8], tmp[9], tmp[10], tmp[11],
+             tmp[12], tmp[13], tmp[14], tmp[15]);
+        }
+
+        #undef FPRINTF
+
+        err = fclose(file);
+        if(err != 0) {
+          APP_LOG_ERR
+            (app->logger,
+             "%s: error closing output file `%s'\n",
+             cmd_name, output_file);
+        }
+      }
+    }
+  }
 }
 
 static void
@@ -797,6 +919,56 @@ cmd_move(struct app* app, size_t argc UNUSED, const struct app_cmdarg** argv)
   }
 }
 
+static void
+cmd_transform
+  (struct app* app,
+   size_t argc UNUSED,
+   const struct app_cmdarg** argv)
+{
+  struct app_model_instance* instance = NULL;
+  const char* instance_name = NULL;
+  enum {
+    CMD_NAME, INSTANCE_NAME,
+    C0_X, C0_Y, C0_Z, C0_W,
+    C1_X, C1_Y, C1_Z, C1_W,
+    C2_X, C2_Y, C2_Z, C2_W,
+    C3_X, C3_Y, C3_Z, C3_W,
+    ARGC
+  };
+  assert(app != NULL && argv != NULL);
+
+  instance_name = ARGVAL(argv, INSTANCE_NAME).data.string;
+  APP(get_model_instance(app, instance_name, &instance));
+  if(instance == NULL) {
+    APP_LOG_ERR
+      (app->logger, "the instance `%s' does not exist\n", instance_name);
+  } else {
+    const struct aosf44 f44 = {
+      .c0 = vf4_set
+        (ARGVAL(argv, C0_X).data.real,
+         ARGVAL(argv, C0_Y).data.real,
+         ARGVAL(argv, C0_Z).data.real,
+         ARGVAL(argv, C0_W).data.real),
+      .c1 = vf4_set
+        (ARGVAL(argv, C1_X).data.real,
+         ARGVAL(argv, C1_Y).data.real,
+         ARGVAL(argv, C1_Z).data.real,
+         ARGVAL(argv, C1_W).data.real),
+      .c2 = vf4_set
+        (ARGVAL(argv, C2_X).data.real,
+         ARGVAL(argv, C2_Y).data.real,
+         ARGVAL(argv, C2_Z).data.real,
+         ARGVAL(argv, C2_W).data.real),
+      .c3 = vf4_set
+        (ARGVAL(argv, C3_X).data.real,
+         ARGVAL(argv, C3_Y).data.real,
+         ARGVAL(argv, C3_Z).data.real,
+         ARGVAL(argv, C3_W).data.real)
+    };
+    APP(transform_model_instances(&instance, 1, true, &f44));
+  }
+}
+
 /*******************************************************************************
  *
  * Builtin commands registration.
@@ -873,6 +1045,10 @@ app_setup_builtin_commands(struct app* app)
      APP_CMDARGV
      (APP_CMDARG_APPEND_STRING
         ("o", "output", "<path>", "output file", 0, 1, NULL),
+      APP_CMDARG_APPEND_LITERAL
+        ("f", "force",
+         "force saving the project even though the output file already exists",
+         0, 1),
       APP_CMDARG_END),
      "save the main world"));
   CALL(app_add_command
@@ -968,6 +1144,32 @@ app_setup_builtin_commands(struct app* app)
         ("z", NULL, "<real>", NULL, 0, 1, -FLT_MAX, FLT_MAX),
       APP_CMDARG_END),
      "scale a model instance"));
+  CALL(app_add_command
+    (app, "transform", cmd_transform, app_model_instance_name_completion,
+     APP_CMDARGV
+     (APP_CMDARG_APPEND_STRING
+        ("i", "instance", "<name>",
+         "define the instance to transform",
+         1, 1, NULL),
+      APP_CMDARG_APPEND_FLOAT(NULL,NULL,"<col0.x>",NULL,1,1,-FLT_MAX,FLT_MAX),
+      APP_CMDARG_APPEND_FLOAT(NULL,NULL,"<col0.y>",NULL,1,1,-FLT_MAX,FLT_MAX),
+      APP_CMDARG_APPEND_FLOAT(NULL,NULL,"<col0.z>",NULL,1,1,-FLT_MAX,FLT_MAX),
+      APP_CMDARG_APPEND_FLOAT(NULL,NULL,"<col0.w>",NULL,1,1,-FLT_MAX,FLT_MAX),
+      APP_CMDARG_APPEND_FLOAT(NULL,NULL,"<col1.x>",NULL,1,1,-FLT_MAX,FLT_MAX),
+      APP_CMDARG_APPEND_FLOAT(NULL,NULL,"<col1.y>",NULL,1,1,-FLT_MAX,FLT_MAX),
+      APP_CMDARG_APPEND_FLOAT(NULL,NULL,"<col1.z>",NULL,1,1,-FLT_MAX,FLT_MAX),
+      APP_CMDARG_APPEND_FLOAT(NULL,NULL,"<col1.w>",NULL,1,1,-FLT_MAX,FLT_MAX),
+      APP_CMDARG_APPEND_FLOAT(NULL,NULL,"<col2.x>",NULL,1,1,-FLT_MAX,FLT_MAX),
+      APP_CMDARG_APPEND_FLOAT(NULL,NULL,"<col2.y>",NULL,1,1,-FLT_MAX,FLT_MAX),
+      APP_CMDARG_APPEND_FLOAT(NULL,NULL,"<col2.z>",NULL,1,1,-FLT_MAX,FLT_MAX),
+      APP_CMDARG_APPEND_FLOAT(NULL,NULL,"<col2.w>",NULL,1,1,-FLT_MAX,FLT_MAX),
+      APP_CMDARG_APPEND_FLOAT(NULL,NULL,"<col3.x>",NULL,1,1,-FLT_MAX,FLT_MAX),
+      APP_CMDARG_APPEND_FLOAT(NULL,NULL,"<col3.y>",NULL,1,1,-FLT_MAX,FLT_MAX),
+      APP_CMDARG_APPEND_FLOAT(NULL,NULL,"<col3.z>",NULL,1,1,-FLT_MAX,FLT_MAX),
+      APP_CMDARG_APPEND_FLOAT(NULL,NULL,"<col3.w>",NULL,1,1,-FLT_MAX,FLT_MAX),
+      APP_CMDARG_END),
+     "transform the instance by the input 4x4 matrix"));
+
   CALL(app_add_command
     (app, "translate", cmd_translate, app_model_instance_name_completion,
      APP_CMDARGV

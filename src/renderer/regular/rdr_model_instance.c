@@ -794,7 +794,7 @@ rdr_scale_model_instances
 
 EXPORT_SYM enum rdr_error
 rdr_move_model_instances
-  (struct rdr_model_instance* instance_list[], 
+  (struct rdr_model_instance* instance_list[],
    size_t nb_instances,
    const float pos[3])
 {
