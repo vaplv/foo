@@ -81,6 +81,8 @@ save_map(struct app* app, const char* cmd_name, const char* output_file)
        tmp[12], tmp[13], tmp[14], tmp[15]); /* column 3 */
   }
   #undef FPRINTF
+  APP(log(app, APP_LOG_INFO,
+    "%s: map saved `%s'\n", cmd_name, output_file));
 exit:
   if(file) {
     fflush(file);

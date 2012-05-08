@@ -237,21 +237,17 @@ app_rotate_model_instances
       instance->transform.c0 = f33.c0;
       instance->transform.c1 = f33.c1;
       instance->transform.c2 = f33.c2;
-      /* transform the render data of the instance. Note that we use the
-       * transform function rather than the rotate one ine order to avoid the
-       * costly recomputation of the rotation matrix. */
+      /* Rotate the render data of the instances. */
       SL(vector_buffer
        (instance_list[i]->model_instance_list,
         &nb_render_instances,
         NULL, NULL,
         (void**)&render_instance_list));
-      RDR(transform_model_instances
+      RDR(rotate_model_instances
         (render_instance_list,
          nb_render_instances,
          local_rotation,
-         (struct aosf44[]){{
-          f33.c0, f33.c1, f33.c2, vf4_set(0.f, 0.f, 0.f, 1.f)
-         }}));
+         rotation));
     }
   } else {
     const struct aosf44 f44 = {
