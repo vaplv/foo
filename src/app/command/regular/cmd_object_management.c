@@ -211,7 +211,6 @@ cmd_setup_object_management_commands(struct app* app)
       } \
     } while(0)
 
-
   CALL(app_add_command
     (app, "rename", rename_model, app_model_name_completion,
      APP_CMDARGV

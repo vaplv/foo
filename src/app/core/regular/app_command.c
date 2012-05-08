@@ -755,7 +755,7 @@ app_man_command
       fprintf(app->cmd.stream, "%s\n", cstr);
     }
     arg_print_glossary(app->cmd.stream, cmd->arg_table, NULL);
-    fpos += ftell(app->cmd.stream);
+    fpos = ftell(app->cmd.stream);
     assert(fpos > 0);
   }
 

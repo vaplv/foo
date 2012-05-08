@@ -143,48 +143,66 @@ cmd_set
        ARGVAL(argv, CMD_NAME).data.string,
        cvar_name);
   } else {
-    #define ERR_MSG(msg) \
-      APP_PRINT_ERR \
-      (app->logger, "%s %s: " msg " `%s'\n", \
-       ARGVAL(argv, CMD_NAME).data.string, \
-       ARGVAL(argv, CVAR_NAME).data.string, \
-       ARGVAL(argv, CVAR_VALUE).data.string)
+    if(ARGVAL(argv, CVAR_VALUE).is_defined == false) {
+      switch(cvar->type) {
+        case APP_CVAR_BOOL:
+          APP_PRINT_MSG(app->logger, "%s %d\n", cvar_name, cvar->value.boolean);
+          break;
+        case APP_CVAR_INT:
+          APP_PRINT_MSG(app->logger, "%s %d\n", cvar_name, cvar->value.integer);
+          break;
+        case APP_CVAR_FLOAT:
+          APP_PRINT_MSG(app->logger, "%s %f\n", cvar_name, cvar->value.real);
+          break;
+        case APP_CVAR_STRING:
+          APP_PRINT_MSG(app->logger, "%s %s\n", cvar_name, cvar->value.string);
+          break;
+        default: assert(0); break;
+      }
+    } else {
+      #define ERR_MSG(msg) \
+        APP_PRINT_ERR \
+        (app->logger, "%s %s: " msg " `%s'\n", \
+         ARGVAL(argv, CMD_NAME).data.string, \
+         ARGVAL(argv, CVAR_NAME).data.string, \
+         ARGVAL(argv, CVAR_VALUE).data.string)
 
-    switch(cvar->type) {
-      case APP_CVAR_BOOL:
-        i = strtol(cvar_value, &ptr, 10);
-        if(*ptr != '\0') {
-          ERR_MSG("unexpected non integer value");
-        } else {
-          APP(set_cvar(app, cvar_name, APP_CVAR_BOOL_VALUE(i != 0L)));
-        }
-        break;
-      case APP_CVAR_INT:
-        i = strtol(cvar_value, &ptr, 10);
-        if(*ptr != '\0') {
-          ERR_MSG("unexpected non integer value");
-        } else {
-          if(i > INT_MAX || i < INT_MIN) {
-            ERR_MSG("out of range integer value");
+      switch(cvar->type) {
+        case APP_CVAR_BOOL:
+          i = strtol(cvar_value, &ptr, 10);
+          if(*ptr != '\0') {
+            ERR_MSG("unexpected non integer value");
           } else {
-            APP(set_cvar(app, cvar_name, APP_CVAR_INT_VALUE(i)));
+            APP(set_cvar(app, cvar_name, APP_CVAR_BOOL_VALUE(i != 0L)));
           }
-        }
-        break;
-      case APP_CVAR_FLOAT:
-        f = strtof(cvar_value, &ptr);
-        if(*ptr != '\0') {
-          ERR_MSG("unexpected non real value");
-        } else {
-          APP(set_cvar(app, cvar_name, APP_CVAR_FLOAT_VALUE(f)));
-        }
-        break;
-      case APP_CVAR_STRING:
-        APP(set_cvar(app, cvar_name, APP_CVAR_STRING_VALUE(cvar_value)));
-        break;
-      default: assert(0); break;
+          break;
+        case APP_CVAR_INT:
+          i = strtol(cvar_value, &ptr, 10);
+          if(*ptr != '\0') {
+            ERR_MSG("unexpected non integer value");
+          } else {
+            if(i > INT_MAX || i < INT_MIN) {
+              ERR_MSG("out of range integer value");
+            } else {
+              APP(set_cvar(app, cvar_name, APP_CVAR_INT_VALUE(i)));
+            }
+          }
+          break;
+        case APP_CVAR_FLOAT:
+          f = strtof(cvar_value, &ptr);
+          if(*ptr != '\0') {
+            ERR_MSG("unexpected non real value");
+          } else {
+            APP(set_cvar(app, cvar_name, APP_CVAR_FLOAT_VALUE(f)));
+          }
+          break;
+        case APP_CVAR_STRING:
+          APP(set_cvar(app, cvar_name, APP_CVAR_STRING_VALUE(cvar_value)));
+          break;
+        default: assert(0); break;
+      }
+      #undef ERR_MSG
     }
-    #undef ERR_MSG
   }
 }
 

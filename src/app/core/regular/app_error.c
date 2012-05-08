@@ -15,6 +15,9 @@ app_error_string(enum app_error err)
     case APP_ALIGNMENT_ERROR:
       out_str = "alignment error";
       break;
+    case APP_COMMAND_ERROR:
+      out_str = "command error";
+      break;
     case APP_INTERNAL_ERROR:
       out_str = "internal error";
       break;
