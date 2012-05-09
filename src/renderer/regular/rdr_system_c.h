@@ -19,7 +19,8 @@ struct rdr_system {
 
   /* Render backend utils. */
   struct render_backend_utils {
-    struct rbu_quad quad;
+    struct rbu_geometry quad;
+    struct rbu_geometry circle;
   } rbu;
 };
 

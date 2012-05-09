@@ -10,6 +10,7 @@
 #include "stdlib/sl_vector.h"
 #include "stdlib/sl_wstring.h"
 #include "sys/list.h"
+#include "sys/math.h"
 #include "sys/mem_allocator.h"
 #include "sys/ref_count.h"
 #include "sys/sys.h"
@@ -160,12 +161,12 @@ static const char* background_vs_source =
   " gl_Position = vec4(pos * vec2(2.f) - vec2(1.f), vec2(0.f, 1.f));\n"
   "}\n";
 
-static const char* background_fs_source = 
+static const char* background_fs_source =
   "#version 330\n"
   "out vec4 color;\n"
   "void main()\n"
   "{\n"
-  " color = vec4(vec3(0.f), 0.3f);\n"
+  " color = vec4(vec3(0.f), 0.5f);\n"
   "}\n";
 
 /*******************************************************************************
@@ -563,7 +564,7 @@ printer_draw_background(struct rdr_system* sys, const struct background* bkg)
   RBI(&sys->rb, blend(sys->ctxt, &blend_desc));
 
   RBI(&sys->rb, bind_program(sys->ctxt, bkg->shading_program));
-  RBU(draw_quad(&sys->rbu.quad));
+  RBU(draw_geometry(&sys->rbu.quad));
 
   blend_desc.enable = 0;
   RBI(&sys->rb, blend(sys->ctxt, &blend_desc));
@@ -607,7 +608,7 @@ printer_draw_cursor
   RBI(&sys->rb, bind_program(sys->ctxt, cursor->shading_program));
   RBI(&sys->rb, uniform_data(cursor->scale_bias_uniform, 1, (void*)scale_bias));
 
-  RBU(draw_quad(&sys->rbu.quad));
+  RBU(draw_geometry(&sys->rbu.quad));
 
   blend_desc.enable = 0;
   RBI(&sys->rb, blend(sys->ctxt, &blend_desc));
@@ -781,7 +782,7 @@ init_printer_background(struct rdr_system* sys, struct background* bkg)
 
   /* Shaders. */
   RBI(&sys->rb, create_shader
-    (sys->ctxt, 
+    (sys->ctxt,
      RB_VERTEX_SHADER,
      background_vs_source,
      strlen(background_vs_source),

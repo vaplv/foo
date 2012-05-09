@@ -7,6 +7,7 @@
 #include "stdlib/sl_hash_table.h"
 #include "stdlib/sl_string.h"
 #include "sys/list.h"
+#include "sys/math.h"
 #include "sys/mem_allocator.h"
 #include "sys/sys.h"
 #include <argtable2.h>

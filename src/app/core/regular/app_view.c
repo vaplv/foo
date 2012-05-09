@@ -1,6 +1,7 @@
 #include "app/core/regular/app_c.h"
 #include "app/core/regular/app_view_c.h"
 #include "app/core/app_view.h"
+#include "sys/math.h"
 #include "sys/mem_allocator.h"
 #include "sys/sys.h"
 #include <stdlib.h>

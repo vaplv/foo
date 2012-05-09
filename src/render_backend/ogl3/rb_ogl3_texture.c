@@ -2,6 +2,7 @@
 #include "render_backend/ogl3/rb_ogl3_buffers.h"
 #include "render_backend/ogl3/rb_ogl3_context.h"
 #include "render_backend/rb.h"
+#include "sys/math.h"
 #include "sys/mem_allocator.h"
 #include "sys/ref_count.h"
 #include "sys/sys.h"

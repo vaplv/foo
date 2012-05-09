@@ -24,9 +24,10 @@ release_system(struct ref* ref)
 
   if(LIKELY(sys->ctxt != NULL))
     RBI(&sys->rb, context_ref_put(sys->ctxt));
-
   if(LIKELY(sys->rbu.quad.rbi != NULL))
-    RBU(quad_ref_put(&sys->rbu.quad));
+    RBU(geometry_ref_put(&sys->rbu.quad));
+  if(LIKELY(sys->rbu.circle.rbi != NULL))
+    RBU(geometry_ref_put(&sys->rbu.circle));
 
   err = rbi_shutdown(&sys->rb);
   assert(err == 0);
@@ -57,7 +58,7 @@ rdr_create_system
 
   allocator = specific_allocator ? specific_allocator : &mem_default_allocator;
 
- sys = MEM_CALLOC(allocator, 1, sizeof(struct rdr_system));
+  sys = MEM_CALLOC(allocator, 1, sizeof(struct rdr_system));
   if(!sys) {
     rdr_err = RDR_MEMORY_ERROR;
     goto error;
@@ -76,6 +77,8 @@ rdr_create_system
   CALL(sys->rb.create_context(sys->allocator, &sys->ctxt));
   CALL(sys->rb.get_config(sys->ctxt, &sys->cfg));
   CALL(rbu_init_quad(&sys->rb, sys->ctxt, 0.f, 0.f, 1.f, 1.f, &sys->rbu.quad));
+  CALL(rbu_init_circle
+    (&sys->rb, sys->ctxt, 128, 0.f, 0.f, 1.f, &sys->rbu.circle));
   #undef CALL
 
 exit:

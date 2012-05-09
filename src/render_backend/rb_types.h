@@ -66,6 +66,7 @@ enum rb_type {
 };
 
 enum rb_primitive_type {
+  RB_LINE_LOOP,
   RB_TRIANGLE_LIST,
   RB_TRIANGLE_STRIP
 };

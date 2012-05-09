@@ -6,6 +6,7 @@
 #include <string.h>
 
 static const GLenum rb_to_ogl3_primitive_type[] = {
+  [RB_LINE_LOOP] = GL_LINE_LOOP,
   [RB_TRIANGLE_LIST] = GL_TRIANGLES,
   [RB_TRIANGLE_STRIP] = GL_TRIANGLE_STRIP
 };
@@ -73,8 +74,8 @@ static const GLenum rb_to_ogl3_face_orientation[] = {
 
 EXPORT_SYM int
 rb_draw_indexed
-  (struct rb_context* ctxt, 
-   enum rb_primitive_type prim_type, 
+  (struct rb_context* ctxt,
+   enum rb_primitive_type prim_type,
    unsigned int count)
 {
   if(!ctxt)
@@ -86,8 +87,8 @@ rb_draw_indexed
 
 EXPORT_SYM int
 rb_draw
-  (struct rb_context* ctxt, 
-   enum rb_primitive_type prim_type, 
+  (struct rb_context* ctxt,
+   enum rb_primitive_type prim_type,
    unsigned int count)
 {
   if(!ctxt)

@@ -8,6 +8,7 @@
 #include "app/core/app_view.h"
 #include "maths/simd/aosf33.h"
 #include "maths/simd/aosf44.h"
+#include "sys/math.h"
 #include <float.h>
 #include <stdbool.h>
 

@@ -6,6 +6,7 @@
 #include "stdlib/sl_flat_map.h"
 #include "stdlib/sl_pair.h"
 #include "stdlib/sl_string.h"
+#include "sys/math.h"
 #include <assert.h>
 #include <string.h>
 

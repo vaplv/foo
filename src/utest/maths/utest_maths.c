@@ -2,11 +2,11 @@
 #include "maths/simd/aosf44.h"
 #include "maths/simd/aosq.h"
 #include "maths/simd/simd.h"
+#include "sys/math.h"
 #include "sys/sys.h"
 #include "utest/utest.h"
 #include <math.h>
 
-#define PI 3.14159265358979323846
 #define EQ_EPS(x, y, eps) (fabsf((x) - (y)) <= (eps))
 #define AOSF33_EQ(m, a, b, c, d, e, f, g, h, i) \
   do { \

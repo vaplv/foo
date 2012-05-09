@@ -1,5 +1,6 @@
 #include "sys/mem_allocator.h"
 #include "sys/sys.h"
+#include "sys/math.h"
 #include <assert.h>
 #include <malloc.h>
 #include <stdlib.h>

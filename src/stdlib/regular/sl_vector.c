@@ -1,5 +1,6 @@
 #include "stdlib/regular/sl_c.h"
 #include "stdlib/sl_vector.h"
+#include "sys/math.h"
 #include "sys/mem_allocator.h"
 #include "sys/sys.h"
 #include <assert.h>

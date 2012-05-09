@@ -9,7 +9,6 @@
 /* Column major float44 data structure. */
 struct aosf44 { vf4_t c0, c1, c2, c3; };
 
-
 /* Set operations. */
 static FINLINE void
 aosf44_store(float dst[16], const struct aosf44* m)

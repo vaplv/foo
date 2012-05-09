@@ -2,6 +2,7 @@
 #include "renderer/rdr_system.h"
 #include "resources/rsrc_context.h"
 #include "resources/rsrc_font.h"
+#include "sys/math.h"
 #include "sys/mem_allocator.h"
 #include "utest/utest.h"
 #include "window_manager/wm_device.h"

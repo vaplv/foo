@@ -7,6 +7,7 @@
 #include "stdlib/sl.h"
 #include "stdlib/sl_string.h"
 #include "sys/list.h"
+#include "sys/math.h"
 #include "sys/ref_count.h"
 #include "sys/sys.h"
 #include "sys/mem_allocator.h"

@@ -25,12 +25,14 @@ struct rb_vertex_array;
  * Render backend utils data structure.
  *
  ******************************************************************************/
-struct rbu_quad {
+struct rbu_geometry {
   struct ref ref;
-  const struct rbi* rbi; /* != NULL if the quad is correctly initialized. */
+  const struct rbi* rbi; /* != NULL if the geometry is correctly initialized. */
   struct rb_context* ctxt;
   struct rb_buffer* vertex_buffer;
   struct rb_vertex_array* vertex_array;
+  size_t nb_vertices;
+  enum rb_primitive_type primitive_type;
 };
 
 /*******************************************************************************
@@ -38,8 +40,7 @@ struct rbu_quad {
  * Render backend utils functions prototypes.
  *
  ******************************************************************************/
-/* Create a non textured 2D quad. The vertex position attrib is bound to
- * location 0. */
+/* Create a non textured 2D quad. The vertex position is bound to location 0. */
 extern int
 rbu_init_quad
   (const struct rbi* rbi,
@@ -48,19 +49,30 @@ rbu_init_quad
    float y,
    float width,
    float height,
-   struct rbu_quad* quad);
+   struct rbu_geometry* quad);
+
+/* Create a 2D circle. The vertex position is bound to location 0. */
+extern int
+rbu_init_circle
+  (const struct rbi* rbi,
+   struct rb_context* ctxt,
+   unsigned int npoints,
+   float x,
+   float y,
+   float radius,
+   struct rbu_geometry* circle);
 
 extern int
-rbu_quad_ref_get
-  (struct rbu_quad* quad);
+rbu_geometry_ref_get
+  (struct rbu_geometry* geom);
 
 extern int
-rbu_quad_ref_put
-  (struct rbu_quad* quad);
+rbu_geometry_ref_put
+  (struct rbu_geometry* geom);
 
 extern int
-rbu_draw_quad
-  (struct rbu_quad* quad);
+rbu_draw_geometry
+  (struct rbu_geometry* geom);
 
 #endif /* RBU_H */
 

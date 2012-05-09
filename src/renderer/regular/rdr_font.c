@@ -10,6 +10,7 @@
 #include "stdlib/sl_flat_set.h"
 #include "sys/mem_allocator.h"
 #include "sys/ref_count.h"
+#include "sys/math.h"
 #include "sys/sys.h"
 #include <assert.h>
 #include <limits.h>
