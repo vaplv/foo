@@ -45,7 +45,7 @@ struct rdr_model {
   /* Data of the model. */
   struct rdr_mesh* mesh;
   struct rdr_material* material;
-  /* List of callbacks to invoke when the model desc has changed. */
+  /* List of model callbacks. */
   struct sl_flat_set* callback_set[RDR_NB_MODEL_SIGNALS];
   /* Array of instance attribs, i.e. attribs not bound to a mesh attrib. */
   struct rb_attrib** instance_attrib_list;
@@ -506,16 +506,16 @@ release_model(struct ref* ref)
     }
   }
   RDR(is_material_callback_attached
-    (mdl->material, 
-     RDR_MATERIAL_SIGNAL_UPDATE_PROGRAM, 
-     material_callback_func, 
-     mdl, 
+    (mdl->material,
+     RDR_MATERIAL_SIGNAL_UPDATE_PROGRAM,
+     material_callback_func,
+     mdl,
      &b));
   if(b) {
     RDR(detach_material_callback
-      (mdl->material, 
-       RDR_MATERIAL_SIGNAL_UPDATE_PROGRAM, 
-       material_callback_func, 
+      (mdl->material,
+       RDR_MATERIAL_SIGNAL_UPDATE_PROGRAM,
+       material_callback_func,
        mdl));
   }
   RDR(is_mesh_callback_attached
@@ -637,9 +637,9 @@ rdr_create_model
     (mesh, RDR_MESH_SIGNAL_UPDATE_DATA, &mesh_callback_func, model));
   CALL(rdr_model_material(model, material));
   CALL(rdr_attach_material_callback
-    (material, 
-     RDR_MATERIAL_SIGNAL_UPDATE_PROGRAM, 
-     &material_callback_func, 
+    (material,
+     RDR_MATERIAL_SIGNAL_UPDATE_PROGRAM,
+     &material_callback_func,
      model));
   #undef CALL
 

@@ -76,6 +76,11 @@ struct printer {
     struct rb_uniform* scale_bias_uniform;
     size_t y;
   } cursor;
+  struct background {
+    struct rb_shader* vertex_shader;
+    struct rb_shader* fragment_shader;
+    struct rb_program* shading_program;
+  } background;
 };
 
 /* Minimal blob data structure. */
@@ -145,6 +150,22 @@ static const char* cursor_fs_source =
   "void main()\n"
   "{\n"
   " color = vec4(1.f);\n"
+  "}\n";
+
+static const char* background_vs_source =
+  "#version 330\n"
+  "layout(location = 0) in vec2 pos;\n"
+  "void main()\n"
+  "{\n"
+  " gl_Position = vec4(pos * vec2(2.f) - vec2(1.f), vec2(0.f, 1.f));\n"
+  "}\n";
+
+static const char* background_fs_source = 
+  "#version 330\n"
+  "out vec4 color;\n"
+  "void main()\n"
+  "{\n"
+  " color = vec4(vec3(0.f), 0.3f);\n"
   "}\n";
 
 /*******************************************************************************
@@ -527,6 +548,29 @@ printer_data
 }
 
 static void
+printer_draw_background(struct rdr_system* sys, const struct background* bkg)
+{
+  struct rb_blend_desc blend_desc;
+  assert(sys && bkg);
+
+  blend_desc.enable = 1;
+  blend_desc.src_blend_RGB = RB_BLEND_SRC_ALPHA;
+  blend_desc.src_blend_Alpha = RB_BLEND_ZERO;
+  blend_desc.dst_blend_RGB = RB_BLEND_ONE_MINUS_SRC_ALPHA;
+  blend_desc.dst_blend_Alpha = RB_BLEND_ZERO;
+  blend_desc.blend_op_RGB = RB_BLEND_OP_ADD;
+  blend_desc.blend_op_Alpha = RB_BLEND_OP_ADD;
+  RBI(&sys->rb, blend(sys->ctxt, &blend_desc));
+
+  RBI(&sys->rb, bind_program(sys->ctxt, bkg->shading_program));
+  RBU(draw_quad(&sys->rbu.quad));
+
+  blend_desc.enable = 0;
+  RBI(&sys->rb, blend(sys->ctxt, &blend_desc));
+  RBI(&sys->rb, bind_program(sys->ctxt, NULL));
+}
+
+static void
 printer_draw_cursor
   (struct rdr_system* sys,
    struct rdr_font* font,
@@ -650,6 +694,7 @@ printer_draw
   viewport_desc.max_depth = 1.f;
   RBI(&sys->rb, viewport(sys->ctxt, &viewport_desc));
 
+  printer_draw_background(sys, &printer->background);
   printer_draw_text(sys, font, &printer->text, width, height);
   printer_draw_cursor
     (sys,
@@ -663,12 +708,22 @@ printer_draw
 }
 
 static void
+shutdown_printer_background(struct rdr_system* sys, struct background* bkg)
+{
+  assert(sys && bkg);
+
+  if(bkg->shading_program)
+    RBI(&sys->rb, program_ref_put(bkg->shading_program));
+  if(bkg->vertex_shader)
+    RBI(&sys->rb, shader_ref_put(bkg->vertex_shader));
+  if(bkg->fragment_shader)
+    RBI(&sys->rb, shader_ref_put(bkg->fragment_shader));
+}
+
+static void
 shutdown_printer_cursor(struct rdr_system* sys, struct cursor* cursor)
 {
-  struct rb_context* ctxt = NULL;
   assert(sys && cursor);
-
-  ctxt = sys->ctxt;
 
   if(cursor->shading_program)
     RBI(&sys->rb, program_ref_put(cursor->shading_program));
@@ -684,10 +739,7 @@ shutdown_printer_cursor(struct rdr_system* sys, struct cursor* cursor)
 static void
 shutdown_printer_text(struct rdr_system* sys, struct text* text)
 {
-  struct rb_context* ctxt = NULL;
   assert(sys && text);
-
-  ctxt = sys->ctxt;
 
   if(text->glyph_vertex_buffer)
     RBI(&sys->rb, buffer_ref_put(text->glyph_vertex_buffer));
@@ -719,6 +771,33 @@ shutdown_printer(struct rdr_system* sys, struct printer* printer)
 {
   shutdown_printer_text(sys, &printer->text);
   shutdown_printer_cursor(sys, &printer->cursor);
+  shutdown_printer_background(sys, &printer->background);
+}
+
+static void
+init_printer_background(struct rdr_system* sys, struct background* bkg)
+{
+  assert(sys && bkg);
+
+  /* Shaders. */
+  RBI(&sys->rb, create_shader
+    (sys->ctxt, 
+     RB_VERTEX_SHADER,
+     background_vs_source,
+     strlen(background_vs_source),
+     &bkg->vertex_shader));
+  RBI(&sys->rb, create_shader
+    (sys->ctxt,
+     RB_FRAGMENT_SHADER,
+     background_fs_source,
+     strlen(background_fs_source),
+     &bkg->fragment_shader));
+
+  /* Shading program. */
+  RBI(&sys->rb, create_program(sys->ctxt, &bkg->shading_program));
+  RBI(&sys->rb, attach_shader(bkg->shading_program,bkg->vertex_shader));
+  RBI(&sys->rb, attach_shader(bkg->shading_program, bkg->fragment_shader));
+  RBI(&sys->rb, link_program(bkg->shading_program));
 }
 
 static void
@@ -821,6 +900,7 @@ init_printer(struct rdr_system* sys, struct printer* printer)
 {
   init_printer_text(sys, &printer->text);
   init_printer_cursor(sys, &printer->cursor);
+  init_printer_background(sys, &printer->background);
   return RDR_NO_ERROR;
 }
 
