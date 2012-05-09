@@ -37,12 +37,30 @@ mv(struct app* app, size_t argc UNUSED, const struct app_cmdarg** argv)
   if(instance == NULL) {
     APP(log(app, APP_LOG_ERROR, "the instance `%s' does not exist\n", name));
   } else {
-    const float pos[3] = {
-      CMD_ARGVAL(argv, POS_X).data.real,
-      CMD_ARGVAL(argv, POS_Y).data.real,
-      CMD_ARGVAL(argv, POS_Z).data.real
-    };
-    APP(move_model_instances(&instance, 1, pos));
+   ALIGN(16) float tmp[4];
+    const struct aosf44* f44 = NULL;
+
+    APP(get_raw_model_instance_transform(instance, &f44));
+    vf4_store(tmp, f44->c3);
+
+    if((!CMD_ARGVAL(argv, POS_X).is_defined)
+     & (!CMD_ARGVAL(argv, POS_Y).is_defined)
+     & (!CMD_ARGVAL(argv, POS_Z).is_defined)) {
+      APP(log(app, APP_LOG_INFO,
+        "%s: %s position: %f %f %f\n",
+        CMD_ARGVAL(argv, CMD_NAME).data.string,
+        CMD_ARGVAL(argv, INSTANCE_NAME).data.string,
+        tmp[0], tmp[1], tmp[2]));
+    } else {
+      if(CMD_ARGVAL(argv, POS_X).is_defined)
+        tmp[0] = CMD_ARGVAL(argv, POS_X).data.real;
+      if(CMD_ARGVAL(argv, POS_Y).is_defined)
+        tmp[1] = CMD_ARGVAL(argv, POS_Y).data.real;
+      if(CMD_ARGVAL(argv, POS_Z).is_defined)
+        tmp[2] = CMD_ARGVAL(argv, POS_Z).data.real;
+
+      APP(move_model_instances(&instance, 1, tmp));
+    }
   }
 }
 
@@ -461,11 +479,11 @@ cmd_setup_move_commands(struct app* app)
      (APP_CMDARG_APPEND_STRING
         ("i", "instance", "<name>", "define the instance to move", 1, 1, NULL),
       APP_CMDARG_APPEND_FLOAT
-        ("x", NULL, "<real>", NULL, 1, 1, -FLT_MAX, FLT_MAX),
+        ("x", NULL, "<real>", NULL, 0, 1, -FLT_MAX, FLT_MAX),
       APP_CMDARG_APPEND_FLOAT
-        ("y", NULL, "<real>", NULL, 1, 1, -FLT_MAX, FLT_MAX),
+        ("y", NULL, "<real>", NULL, 0, 1, -FLT_MAX, FLT_MAX),
       APP_CMDARG_APPEND_FLOAT
-        ("z", NULL, "<real>", NULL, 1, 1, -FLT_MAX, FLT_MAX),
+        ("z", NULL, "<real>", NULL, 0, 1, -FLT_MAX, FLT_MAX),
       APP_CMDARG_END),
      "move a model instance"));
 

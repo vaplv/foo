@@ -22,8 +22,11 @@ release_system(struct ref* ref)
 
   sys = CONTAINER_OF(ref, struct rdr_system, ref);
 
-  if(sys->ctxt)
+  if(LIKELY(sys->ctxt != NULL))
     RBI(&sys->rb, context_ref_put(sys->ctxt));
+
+  if(LIKELY(sys->rbu.quad.rbi != NULL))
+    RBU(quad_ref_put(&sys->rbu.quad));
 
   err = rbi_shutdown(&sys->rb);
   assert(err == 0);
@@ -53,27 +56,27 @@ rdr_create_system
   }
 
   allocator = specific_allocator ? specific_allocator : &mem_default_allocator;
-  sys = MEM_CALLOC(allocator, 1, sizeof(struct rdr_system));
+
+ sys = MEM_CALLOC(allocator, 1, sizeof(struct rdr_system));
   if(!sys) {
     rdr_err = RDR_MEMORY_ERROR;
+    goto error;
   }
   sys->allocator = allocator;
   ref_init(&sys->ref);
-  err = rbi_init(graphic_driver, &sys->rb);
-  if(err != 0) {
-    rdr_err = RDR_DRIVER_ERROR;
-    goto error;
-  }
-  err = sys->rb.create_context(sys->allocator, &sys->ctxt);
-  if(err != 0) {
-    rdr_err = RDR_DRIVER_ERROR;
-    goto error;
-  }
-  err = sys->rb.get_config(sys->ctxt, &sys->cfg);
-  if(err != 0) {
-    rdr_err = RDR_DRIVER_ERROR;
-    goto error;
-  }
+
+  #define CALL(func) \
+    do { \
+      if(0 != (err = func)) { \
+        rdr_err = RDR_DRIVER_ERROR; \
+        goto error; \
+      } \
+    } while(0)
+  CALL(rbi_init(graphic_driver, &sys->rb));
+  CALL(sys->rb.create_context(sys->allocator, &sys->ctxt));
+  CALL(sys->rb.get_config(sys->ctxt, &sys->cfg));
+  CALL(rbu_init_quad(&sys->rb, sys->ctxt, 0.f, 0.f, 1.f, 1.f, &sys->rbu.quad));
+  #undef CALL
 
 exit:
   if(out_sys)
@@ -91,7 +94,7 @@ error:
 EXPORT_SYM enum rdr_error
 rdr_system_ref_get(struct rdr_system* sys)
 {
-  if(!sys)
+  if(UNLIKELY(!sys))
     return RDR_INVALID_ARGUMENT;
   ref_get(&sys->ref);
   return RDR_NO_ERROR;
@@ -100,7 +103,7 @@ rdr_system_ref_get(struct rdr_system* sys)
 EXPORT_SYM enum rdr_error
 rdr_system_ref_put(struct rdr_system* sys)
 {
-  if(!sys)
+  if(UNLIKELY(!sys))
     return RDR_INVALID_ARGUMENT;
   ref_put(&sys->ref, release_system);
   return RDR_NO_ERROR;

@@ -70,8 +70,6 @@ struct printer {
     size_t nb_glyphs; /* Number of glyphs currently drawn by the printer. */
   } text;
   struct cursor {
-    struct rb_buffer* vertex_buffer;
-    struct rb_vertex_array* varray;
     struct rb_shader* vertex_shader;
     struct rb_shader* fragment_shader;
     struct rb_program* shading_program;
@@ -564,14 +562,12 @@ printer_draw_cursor
 
   RBI(&sys->rb, bind_program(sys->ctxt, cursor->shading_program));
   RBI(&sys->rb, uniform_data(cursor->scale_bias_uniform, 1, (void*)scale_bias));
-  RBI(&sys->rb, bind_vertex_array(sys->ctxt, cursor->varray));
 
-  RBI(&sys->rb, draw(sys->ctxt, RB_TRIANGLE_STRIP, 4));
+  RBU(draw_quad(&sys->rbu.quad));
 
   blend_desc.enable = 0;
   RBI(&sys->rb, blend(sys->ctxt, &blend_desc));
   RBI(&sys->rb, bind_program(sys->ctxt, NULL));
-  RBI(&sys->rb, bind_vertex_array(sys->ctxt, NULL));
 }
 
 static void
@@ -674,11 +670,6 @@ shutdown_printer_cursor(struct rdr_system* sys, struct cursor* cursor)
 
   ctxt = sys->ctxt;
 
-  if(cursor->vertex_buffer)
-    RBI(&sys->rb, buffer_ref_put(cursor->vertex_buffer));
-  if(cursor->varray)
-    RBI(&sys->rb, vertex_array_ref_put(cursor->varray));
-
   if(cursor->shading_program)
     RBI(&sys->rb, program_ref_put(cursor->shading_program));
   if(cursor->vertex_shader)
@@ -733,28 +724,7 @@ shutdown_printer(struct rdr_system* sys, struct printer* printer)
 static void
 init_printer_cursor(struct rdr_system* sys, struct cursor* cursor)
 {
-  const float vertices[] = { 0.f, 1.f, 0.f, 0.f, 1.f, 1.f, 1.f, 0.f };
-  struct rb_buffer_desc buffer_desc;
-  struct rb_buffer_attrib attrib;
-  memset(&buffer_desc, 0, sizeof(struct rb_buffer_desc));
-  memset(&attrib, 0, sizeof(struct rb_buffer_attrib));
   assert(sys && cursor);
-
-  /* Vertex buffer. */
-  buffer_desc.size = sizeof(vertices);
-  buffer_desc.target = RB_BIND_VERTEX_BUFFER;
-  buffer_desc.usage = RB_USAGE_IMMUTABLE;
-  RBI(&sys->rb, create_buffer
-    (sys->ctxt, &buffer_desc, vertices, &cursor->vertex_buffer));
-
-  /* Vertex array. */
-  attrib.index = 0;
-  attrib.stride = 2 * sizeof(float);
-  attrib.offset = 0;
-  attrib.type = RB_FLOAT2;
-  RBI(&sys->rb, create_vertex_array(sys->ctxt, &cursor->varray));
-  RBI(&sys->rb, vertex_attrib_array
-    (cursor->varray, cursor->vertex_buffer, 1, &attrib));
 
   /* Shaders. */
   RBI(&sys->rb, create_shader
