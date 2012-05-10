@@ -2,6 +2,44 @@
 #include <inttypes.h>
 #include <string.h>
 
+#define NSEC_PER_USEC 1000L
+#define NSEC_PER_MSEC (1000L * NSEC_PER_USEC)
+#define NSEC_PER_SEC (1000L * NSEC_PER_MSEC)
+#define NSEC_PER_MIN (60L * NSEC_PER_SEC)
+#define NSEC_PER_HOUR (60L * NSEC_PER_MIN)
+#define NSEC_PER_DAY (24L * NSEC_PER_HOUR)
+
+EXPORT_SYM int64_t
+time_val(const struct time* time, enum time_unit unit)
+{
+  int64_t val = TIME_TO_NSEC__(time);
+  switch(unit) {
+    case TIME_NSEC:
+      /* Do nothing. */
+      break;
+    case TIME_USEC:
+      val /= NSEC_PER_USEC;
+      break;
+    case TIME_MSEC:
+      val /= NSEC_PER_MSEC;
+      break;
+    case TIME_SEC:
+      val /= NSEC_PER_SEC;
+      break;
+    case TIME_MIN:
+      val /= NSEC_PER_MIN;
+      break;
+    case TIME_HOUR:
+      val /= NSEC_PER_HOUR;
+      break;
+    case TIME_DAY:
+      val /= NSEC_PER_DAY;
+      break;
+    default: assert(0); break;
+  }
+  return val;
+}
+
 EXPORT_SYM void
 time_dump
   (const struct time* time,
@@ -10,12 +48,6 @@ time_dump
    char* dump,
    size_t max_dump_len)
 {
-  const int64_t nsec_per_usec = 1000;
-  const int64_t nsec_per_msec = 1000 * nsec_per_usec;
-  const int64_t nsec_per_sec = (1000 * nsec_per_msec);
-  const int64_t nsec_per_min = (60 * nsec_per_sec);
-  const int64_t nsec_per_hour = (60 * nsec_per_min);
-  const int64_t nsec_per_day = (24 * nsec_per_hour);
   size_t available_dump_space = max_dump_len ? max_dump_len - 1 : 0;
   int64_t time_nsec = 0;
 
@@ -42,34 +74,34 @@ time_dump
 
   time_nsec = TIME_TO_NSEC__(time);
   if(flag & TIME_DAY) {
-    const int64_t nb_days = time_nsec / nsec_per_day;
+    const int64_t nb_days = time_nsec / NSEC_PER_DAY;
     DUMP(nb_days, "day");
-    time_nsec -= nb_days * nsec_per_day;
+    time_nsec -= nb_days * NSEC_PER_DAY;
   }
   if(flag & TIME_HOUR) {
-    const int64_t nb_hours = time_nsec / nsec_per_hour;
+    const int64_t nb_hours = time_nsec / NSEC_PER_HOUR;
     DUMP(nb_hours, "hour");
-    time_nsec -= nb_hours * nsec_per_hour;
+    time_nsec -= nb_hours * NSEC_PER_HOUR;
   }
   if(flag & TIME_MIN) {
-    const int64_t nb_mins = time_nsec / nsec_per_min;
+    const int64_t nb_mins = time_nsec / NSEC_PER_MIN;
     DUMP(nb_mins, "min");
-    time_nsec -= nb_mins * nsec_per_min;
+    time_nsec -= nb_mins * NSEC_PER_MIN;
   }
   if(flag & TIME_SEC) {
-    const int64_t nb_secs = time_nsec / nsec_per_sec;
+    const int64_t nb_secs = time_nsec / NSEC_PER_SEC;
     DUMP(nb_secs, "sec");
-    time_nsec -= nb_secs * nsec_per_sec;
+    time_nsec -= nb_secs * NSEC_PER_SEC;
   }
   if(flag & TIME_MSEC) {
-    const int64_t nb_msecs = time_nsec / nsec_per_msec;
+    const int64_t nb_msecs = time_nsec / NSEC_PER_MSEC;
     DUMP(nb_msecs, "msec");
-    time_nsec -= nb_msecs * nsec_per_msec;
+    time_nsec -= nb_msecs * NSEC_PER_MSEC;
   }
   if(flag & TIME_USEC) {
-    const int64_t nb_usecs = time_nsec / nsec_per_usec;
+    const int64_t nb_usecs = time_nsec / NSEC_PER_USEC;
     DUMP(nb_usecs, "usec");
-    time_nsec -= nb_usecs * nsec_per_usec;
+    time_nsec -= nb_usecs * NSEC_PER_USEC;
   }
   if(flag & TIME_NSEC)
     DUMP(time_nsec, "nsec");
@@ -83,4 +115,11 @@ time_dump
     dump[last_char] = '\0';
   }
 }
+
+#undef NSEC_PER_USEC
+#undef NSEC_PER_MSEC
+#undef NSEC_PER_SEC
+#undef NSEC_PER_MIN
+#undef NSEC_PER_HOUR
+#undef NSEC_PER_DAY
 

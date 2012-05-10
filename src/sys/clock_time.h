@@ -33,7 +33,7 @@
 #include <assert.h>
 #include <stddef.h>
 
-enum time_flag {
+enum time_unit {
   TIME_NSEC = 0x01,
   TIME_USEC = 0x02,
   TIME_MSEC = 0x04,
@@ -42,8 +42,6 @@ enum time_flag {
   TIME_HOUR = 0x20,
   TIME_DAY = 0x40
 };
-
-struct time;
 
 struct time {
   timeval_t val;
@@ -84,6 +82,11 @@ time_add(struct time* res, const struct time* a, const struct time* b)
   }
 }
 
+extern int64_t
+time_val
+  (const struct time* time,
+   enum time_unit unit);
+
 extern void
 time_dump
   (const struct time* time,
@@ -91,6 +94,8 @@ time_dump
    size_t* real_dump_len, /* May be NULL. */
    char* dump, /* May be NULL. */
    size_t max_dump_len);
+
+
 
 #endif /* TIME. */
 
