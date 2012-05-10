@@ -2,17 +2,17 @@
 #include "resources/rsrc_context.h"
 #include "resources/rsrc_geometry.h"
 #include "resources/rsrc_wavefront_obj.h"
+#include "sys/clock_time.h"
 #include "sys/sys.h"
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/time.h>
 
 int
 main(int argc, char** argv)
 {
-  struct timeval t0, t1;
-  suseconds_t us;
+  char buf[BUFSIZ];
+  struct time t0, t1;
   struct rsrc_context* ctxt = NULL;
   struct rsrc_wavefront_obj* wobj = NULL;
   struct rsrc_geometry* geom = NULL;
@@ -35,8 +35,7 @@ main(int argc, char** argv)
   RSRC(create_wavefront_obj(ctxt, &wobj));
   RSRC(create_geometry(ctxt, &geom));
 
-  err = gettimeofday(&t0, NULL);
-  assert(err == 0);
+  current_time(&t0);
   RSRC(flush_error(ctxt));
   rsrc_err = rsrc_load_wavefront_obj(wobj, argv[1]);
   if(rsrc_err != RSRC_NO_ERROR) {
@@ -46,13 +45,12 @@ main(int argc, char** argv)
       fprintf(stderr, "%s", errstr);
     goto error;
   }
-  err = gettimeofday(&t1, NULL);
-  assert(err == 0);
-  us = (t1.tv_sec * 1000000 + t1.tv_usec) - (t0.tv_sec * 1000000 + t0.tv_usec);
-  printf("Loading wavefront obj: %.3f ms\n", us / 1000.f);
+  current_time(&t1);
+  time_sub(&t0, &t1, &t0);
+  time_dump(&t0, TIME_MIN|TIME_SEC|TIME_MSEC, NULL, buf, BUFSIZ);
+  printf("Loading wavefront obj: %s\n", buf);
 
-  err = gettimeofday(&t0, NULL);
-  assert(err == 0);
+  current_time(&t0);
   RSRC(flush_error(ctxt));
   rsrc_err = rsrc_geometry_from_wavefront_obj(geom, wobj);
   if(rsrc_err != RSRC_NO_ERROR) {
@@ -62,10 +60,10 @@ main(int argc, char** argv)
       fprintf(stderr, "%s", errstr);
     goto error;
   }
-  err = gettimeofday(&t1, NULL);
-  assert(err == 0);
-  us = (t1.tv_sec * 1000000 + t1.tv_usec) - (t0.tv_sec * 1000000 + t0.tv_usec);
-  printf("Creating geometry: %.3f ms\n", us / 1000.f);
+  current_time(&t1);
+  time_sub(&t0, &t1, &t0);
+  time_dump(&t0, TIME_MIN|TIME_SEC|TIME_MSEC, NULL, buf, BUFSIZ);
+  printf("Creating geometry: %s\n", buf);
 
   RSRC(get_primitive_set_count(geom, &nb_prim_set));
   for(prim_set_id = 0; prim_set_id < nb_prim_set; ++prim_set_id) {

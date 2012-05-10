@@ -1,6 +1,7 @@
-#ifdef __GNUC__
-  /* The strtok_r functon is available from the POSIX.1 standard. */
-  #define _POSIX_SOURCE
+#ifdef __unix__
+  /* The strtok_r functon is available from the POSIX.1-2001 standard. */
+  #define _POSIX_C_SOURCE 200112L
+  #include <unistd.h>
 #endif
 
 #include "resources/regular/rsrc_context_c.h"

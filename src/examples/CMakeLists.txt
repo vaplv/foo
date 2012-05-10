@@ -13,4 +13,4 @@ add_executable(eg_rdr_term eg_rdr_term.c)
 target_link_libraries(eg_rdr_term wmglfw renderer rsrc)
 
 add_executable(eg_rsrc_wavefront_obj eg_rsrc_wavefront_obj.c)
-target_link_libraries(eg_rsrc_wavefront_obj rsrc)
+target_link_libraries(eg_rsrc_wavefront_obj rsrc sys)

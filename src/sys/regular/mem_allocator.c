@@ -202,7 +202,7 @@ default_dump
   size_t dump_len = 0;
   int len = 0;
 
-  assert(data);
+  assert(data && (!max_dump_len || dump));
   alloc_counter = data;
 
   len = snprintf
@@ -405,30 +405,33 @@ proxy_dump
   const struct proxy_data* proxy_data = NULL;
   struct mem_node* node = NULL;
   size_t dump_len = 0;
-  size_t avaible_dump_space = max_dump_len - 1; /* -1 <=> null char. */
+  size_t avaible_dump_space = max_dump_len ? max_dump_len - 1 /*NULL char*/ : 0;
 
-  assert(data);
+  assert(data && (!max_dump_len || dump));
   proxy_data = data;
 
   for(node = proxy_data->node_list; node != NULL; node = node->next) {
-    const int len = snprintf
-      (dump,
-       max_dump_len,
-       "%s: %zu bytes allocated at %s:%u%s",
-       proxy_data->name,
-       malloc_usable_size(node),
-       node->filename ? node->filename : "none",
-       node->fileline,
-       node->next ? ".\n" : ".");
-    assert(len >= 0);
-    dump_len += len;
+    if(dump) {
+      const int len = snprintf
+        (dump,
+         avaible_dump_space,
+         "%s: %zu bytes allocated at %s:%u%s",
+         proxy_data->name,
+         malloc_usable_size(node),
+         node->filename ? node->filename : "none",
+         node->fileline,
+         node->next ? ".\n" : ".");
+      assert(len >= 0);
+      dump_len += len;
 
-    if((size_t)len < avaible_dump_space) {
-      dump += len;
-      avaible_dump_space -= len;
-    } else {
-      dump[avaible_dump_space + 1] = '\0';
-      avaible_dump_space = 0;
+      if((size_t)len < avaible_dump_space) {
+        dump += len;
+        avaible_dump_space -= len;
+      } else if(dump) {
+        dump[avaible_dump_space] = '\0';
+        avaible_dump_space = 0;
+        dump = NULL;
+      }
     }
   }
   return dump_len;

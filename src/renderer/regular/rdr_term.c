@@ -1524,7 +1524,6 @@ rdr_term_dump(struct rdr_term* term, size_t* out_len, wchar_t* buffer)
       buffer[len] = L'\0';
 
     list_del(&term->screen.cmdbuf->node);
-
   }
   return RDR_NO_ERROR;
 }

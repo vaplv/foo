@@ -35,7 +35,10 @@ regular_test(struct mem_allocator* allocator)
     ((char*)p)[i] = (char)i;
 
   MEM_DUMP(allocator, dump, BUFSIZ);
-  printf("%s\n", dump);
+  printf("dump:\n%s\n", dump);
+  MEM_DUMP(allocator, dump, 16);
+  printf("truncated dump:\n%s\n", dump);
+  MEM_DUMP(allocator, NULL, 0); /* may not crashed. */
 
   MEM_FREE(allocator, q[1]);
 
