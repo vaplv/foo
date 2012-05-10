@@ -1,7 +1,7 @@
-#ifdef __unix__
+#if !defined(__unix__) \
+ || (!defined(_POSIX_C_SOURCE) || (_POSIX_C_SOURCE < 200112L))
   /* The strtok_r functon is available from the POSIX.1-2001 standard. */
-  #define _POSIX_C_SOURCE 200112L
-  #include <unistd.h>
+  #error "Unsupported platform."
 #endif
 
 #include "resources/regular/rsrc_context_c.h"

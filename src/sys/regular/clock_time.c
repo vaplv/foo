@@ -10,13 +10,14 @@ time_dump
    char* dump,
    size_t max_dump_len)
 {
-  const int64_t usec_per_msec = 1000;
-  const int64_t usec_per_sec = (1000 * usec_per_msec);
-  const int64_t usec_per_min = (60 * usec_per_sec);
-  const int64_t usec_per_hour = (60 * usec_per_min);
-  const int64_t usec_per_day = (24 * usec_per_hour);
+  const int64_t nsec_per_usec = 1000;
+  const int64_t nsec_per_msec = 1000 * nsec_per_usec;
+  const int64_t nsec_per_sec = (1000 * nsec_per_msec);
+  const int64_t nsec_per_min = (60 * nsec_per_sec);
+  const int64_t nsec_per_hour = (60 * nsec_per_min);
+  const int64_t nsec_per_day = (24 * nsec_per_hour);
   size_t available_dump_space = max_dump_len ? max_dump_len - 1 : 0;
-  int64_t time_usec = 0;
+  int64_t time_nsec = 0;
 
   assert(time && (!max_dump_len || dump));
 
@@ -39,34 +40,39 @@ time_dump
       } \
     } while(0)
 
-  time_usec = time->val.tv_usec + time->val.tv_sec * 1000000;
+  time_nsec = TIME_TO_NSEC__(time);
   if(flag & TIME_DAY) {
-    const int64_t ndays = time_usec / usec_per_day;
-    DUMP(ndays, "day");
-    time_usec -= ndays * usec_per_day;
+    const int64_t nb_days = time_nsec / nsec_per_day;
+    DUMP(nb_days, "day");
+    time_nsec -= nb_days * nsec_per_day;
   }
   if(flag & TIME_HOUR) {
-    const int64_t nhours = time_usec / usec_per_hour;
-    DUMP(nhours, "hour");
-    time_usec -= nhours * usec_per_hour;
+    const int64_t nb_hours = time_nsec / nsec_per_hour;
+    DUMP(nb_hours, "hour");
+    time_nsec -= nb_hours * nsec_per_hour;
   }
   if(flag & TIME_MIN) {
-    const int64_t nmins = time_usec / usec_per_min;
-    DUMP(nmins, "min");
-    time_usec -= nmins * usec_per_min;
+    const int64_t nb_mins = time_nsec / nsec_per_min;
+    DUMP(nb_mins, "min");
+    time_nsec -= nb_mins * nsec_per_min;
   }
   if(flag & TIME_SEC) {
-    const int64_t nsecs = time_usec / usec_per_sec;
-    DUMP(nsecs, "sec");
-    time_usec -= nsecs * usec_per_sec;
+    const int64_t nb_secs = time_nsec / nsec_per_sec;
+    DUMP(nb_secs, "sec");
+    time_nsec -= nb_secs * nsec_per_sec;
   }
   if(flag & TIME_MSEC) {
-    const int64_t nmsecs = time_usec / usec_per_msec;
-    DUMP(nmsecs, "msec");
-    time_usec -= nmsecs * usec_per_msec;
+    const int64_t nb_msecs = time_nsec / nsec_per_msec;
+    DUMP(nb_msecs, "msec");
+    time_nsec -= nb_msecs * nsec_per_msec;
   }
-  if(flag & TIME_USEC)
-    DUMP(time_usec, "usec");
+  if(flag & TIME_USEC) {
+    const int64_t nb_usecs = time_nsec / nsec_per_usec;
+    DUMP(nb_usecs, "usec");
+    time_nsec -= nb_usecs * nsec_per_usec;
+  }
+  if(flag & TIME_NSEC)
+    DUMP(time_nsec, "nsec");
 
   #undef DUMP
 
