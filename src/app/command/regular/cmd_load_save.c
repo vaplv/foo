@@ -106,13 +106,12 @@ load_model(struct app* app, size_t argc UNUSED, const struct app_cmdarg** argv)
 {
   struct app_model* mdl = NULL;
   enum app_error app_err = APP_NO_ERROR;
-  enum { CMD_NAME, VERBOSE_FLAG, FILE_NAME, MODEL_NAME, ARGC };
+  enum { CMD_NAME, FILE_NAME, MODEL_NAME, ARGC };
 
   assert(app != NULL
       && argc == ARGC
       && argv != NULL
       && argv[CMD_NAME]->type == APP_CMDARG_STRING
-      && argv[VERBOSE_FLAG]->type == APP_CMDARG_LITERAL
       && argv[FILE_NAME]->type == APP_CMDARG_FILE
       && argv[MODEL_NAME]->type == APP_CMDARG_STRING);
 
@@ -313,8 +312,7 @@ cmd_setup_load_save_commands(struct app* app)
   CALL(app_add_command
     (app, "load", load_model, NULL,
      APP_CMDARGV
-     (APP_CMDARG_APPEND_LITERAL("v", "verbose", NULL, 0, 1),
-      APP_CMDARG_APPEND_FILE("m", "model", "<path>", NULL, 1, 1),
+     (APP_CMDARG_APPEND_FILE("m", "model", "<path>", NULL, 1, 1),
       APP_CMDARG_APPEND_STRING("n", "name", "<name>", NULL, 0, 1, NULL),
       APP_CMDARG_END),
      "load a model"));

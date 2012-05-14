@@ -17,10 +17,22 @@ struct rdr_system {
   struct rb_context* ctxt;
   struct rb_config cfg;
 
+  /* im rendering. */
+  struct im_rendering {
+    struct {
+      struct rb_shader* vertex_shader;
+      struct rb_shader* fragment_shader;
+      struct rb_program* shading_program;
+      struct rb_uniform* transform;
+      struct rb_uniform* color;
+    } draw3d;
+  } im;
+
   /* Render backend utils. */
   struct render_backend_utils {
     struct rbu_geometry quad;
-    struct rbu_geometry circle;
+    struct rbu_geometry solid_parallelepiped;
+    struct rbu_geometry wire_parallelepiped;
   } rbu;
 };
 

@@ -1,6 +1,7 @@
 #ifndef SYS_H
 #define SYS_H
 
+#include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
 

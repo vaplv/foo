@@ -2,6 +2,8 @@
 #define RBU_H
 
 #include "sys/ref_count.h"
+#include <stdbool.h>
+#include <stddef.h>
 
 #ifndef NDEBUG
   #include <assert.h>
@@ -30,6 +32,7 @@ struct rbu_geometry {
   const struct rbi* rbi; /* != NULL if the geometry is correctly initialized. */
   struct rb_context* ctxt;
   struct rb_buffer* vertex_buffer;
+  struct rb_buffer* index_buffer;
   struct rb_vertex_array* vertex_array;
   size_t nb_vertices;
   enum rb_primitive_type primitive_type;
@@ -62,6 +65,15 @@ rbu_init_circle
    float radius,
    struct rbu_geometry* circle);
 
+extern int
+rbu_init_parallelepiped
+  (const struct rbi* rbi,
+   struct rb_context* ctxt,
+   float pos[3],
+   float size[3],
+   bool wireframe,
+   struct rbu_geometry* cube);
+   
 extern int
 rbu_geometry_ref_get
   (struct rbu_geometry* geom);

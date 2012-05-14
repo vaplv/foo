@@ -21,6 +21,8 @@ release_geometry(struct ref* ref)
   if(LIKELY(geom->rbi != NULL)) {
     if(LIKELY(geom->vertex_buffer != NULL))
       RBI(geom->rbi, buffer_ref_put(geom->vertex_buffer));
+    if(geom->index_buffer != NULL)
+      RBI(geom->rbi, buffer_ref_put(geom->index_buffer));
     if(LIKELY(geom->vertex_array != NULL))
       RBI(geom->rbi, vertex_array_ref_put(geom->vertex_array));
 
@@ -64,9 +66,10 @@ rbu_init_quad
     x + w, y, /* Fourth vertex. */
   };
   struct rb_buffer_desc buf_desc;
-  struct rb_buffer_attrib buf_attrib;
+  struct rb_buffer_attrib buf_attr;
   int err = 0;
   memset(&buf_desc, 0, sizeof(buf_desc));
+  memset(&buf_attr, 0, sizeof(buf_attr));
 
   if(UNLIKELY(quad == NULL || rbi == NULL)) {
     err = -1;
@@ -85,13 +88,13 @@ rbu_init_quad
   buf_desc.usage = RB_USAGE_IMMUTABLE;
   CALL(rbi->create_buffer(ctxt, &buf_desc, vertices, &quad->vertex_buffer));
   /* Vertex array. */
-  buf_attrib.index = 0;
-  buf_attrib.stride = 2 * sizeof(float);
-  buf_attrib.offset = 0;
-  buf_attrib.type = RB_FLOAT2;
+  buf_attr.index = 0;
+  buf_attr.stride = 2 * sizeof(float);
+  buf_attr.offset = 0;
+  buf_attr.type = RB_FLOAT2;
   CALL(rbi->create_vertex_array(ctxt, &quad->vertex_array));
   CALL(rbi->vertex_attrib_array
-    (quad->vertex_array, quad->vertex_buffer, 1, &buf_attrib));
+    (quad->vertex_array, quad->vertex_buffer, 1, &buf_attr));
   #undef CALL
 
   quad->primitive_type = RB_TRIANGLE_STRIP;
@@ -99,9 +102,11 @@ rbu_init_quad
 exit:
   return err;
 error:
-  if(quad->rbi)
-    RBU(geometry_ref_put(quad));
-  memset(quad, 0, sizeof(struct rbu_geometry));
+  if(quad) {
+    if(quad->rbi)
+      RBU(geometry_ref_put(quad));
+    memset(quad, 0, sizeof(struct rbu_geometry));
+  }
   goto exit;
 }
 
@@ -116,9 +121,10 @@ rbu_init_circle
    struct rbu_geometry* circle)
 {
   struct rb_buffer_desc buf_desc;
-  struct rb_buffer_attrib buf_attrib;
+  struct rb_buffer_attrib buf_attr;
   int err = 0;
   memset(&buf_desc, 0, sizeof(buf_desc));
+  memset(&buf_attr, 0, sizeof(buf_attr));
 
   if(UNLIKELY(circle == NULL || rbi == NULL)) {
     err = -1;
@@ -158,13 +164,13 @@ rbu_init_circle
     buf_desc.usage = RB_USAGE_IMMUTABLE;
     CALL(rbi->create_buffer(ctxt, &buf_desc, vertices, &circle->vertex_buffer));
     /* Create the vertex array. */
-    buf_attrib.index = 0;
-    buf_attrib.stride = 2 * sizeof(float);
-    buf_attrib.offset = 0;
-    buf_attrib.type = RB_FLOAT2;
+    buf_attr.index = 0;
+    buf_attr.stride = 2 * sizeof(float);
+    buf_attr.offset = 0;
+    buf_attr.type = RB_FLOAT2;
     CALL(rbi->create_vertex_array(ctxt, &circle->vertex_array));
     CALL(rbi->vertex_attrib_array
-      (circle->vertex_array, circle->vertex_buffer, 1, &buf_attrib));
+      (circle->vertex_array, circle->vertex_buffer, 1, &buf_attr));
     #undef CALL
 
     circle->primitive_type = RB_LINE_LOOP;
@@ -173,9 +179,109 @@ rbu_init_circle
 exit:
   return err;
 error:
-  if(circle->rbi)
-    RBU(geometry_ref_put(circle));
-  memset(circle, 0, sizeof(struct rbu_geometry));
+  if(circle) {
+    if(circle->rbi)
+      RBU(geometry_ref_put(circle));
+    memset(circle, 0, sizeof(struct rbu_geometry));
+  }
+  goto exit;
+}
+
+EXPORT_SYM int
+rbu_init_parallelepiped
+  (const struct rbi* rbi,
+   struct rb_context* ctxt,
+   float pos[3],
+   float size[3],
+   bool wireframe,
+   struct rbu_geometry* paral)
+{
+  struct rb_buffer_desc buf_desc;
+  struct rb_buffer_attrib buf_attr;
+  float vertices[24];
+  float minpt[3] = {0.f, 0.f, 0.f};
+  float maxpt[3] = {0.f, 0.f, 0.f};
+  float hsize[3] = {0.f, 0.f, 0.f};
+  int err = 0;
+  memset(vertices, 0, sizeof(vertices));
+  memset(&buf_desc, 0, sizeof(buf_desc));
+  memset(&buf_attr, 0, sizeof(buf_attr));
+
+  if(UNLIKELY(rbi==NULL || pos==NULL || size==NULL || paral==NULL)) {
+    err = -1;
+    goto error;
+  }
+  init_geometry(rbi, ctxt, paral);
+  /* Define vertex positions.
+   *     7+----+6
+   *     /|   /|
+   *   4+----+5|
+   *    |3+--|-+2
+   *    |/   |/
+   *   0+----+1    */
+  hsize[0] = size[0] * 0.5f;
+  hsize[1] = size[1] * 0.5f;
+  hsize[2] = size[2] * 0.5f;
+  minpt[0]=pos[0]-hsize[0]; minpt[1]=pos[1]-hsize[1]; minpt[2]=pos[2]-hsize[2];
+  maxpt[0]=pos[0]+hsize[0]; maxpt[1]=pos[1]+hsize[1]; maxpt[2]=pos[2]+hsize[2];
+  vertices[0] = minpt[0]; vertices[1] = minpt[1]; vertices[2] = maxpt[2];
+  vertices[3] = maxpt[0]; vertices[4] = minpt[1]; vertices[5] = maxpt[2];
+  vertices[6] = maxpt[0]; vertices[7] = minpt[1]; vertices[8] = minpt[2];
+  vertices[9] = minpt[0]; vertices[10]= minpt[1]; vertices[11]= minpt[2];
+  vertices[12]= minpt[0]; vertices[13]= maxpt[1]; vertices[14]= maxpt[2];
+  vertices[15]= maxpt[0]; vertices[16]= maxpt[1]; vertices[17]= maxpt[2];
+  vertices[18]= maxpt[0]; vertices[19]= maxpt[1]; vertices[20]= minpt[2];
+  vertices[21]= minpt[0]; vertices[22]= maxpt[1]; vertices[23]= minpt[2];
+
+  #define CALL(func) if(0 != (err = func)) goto error
+  #define SETUP_INDEX_BUFFER(indices, prim_type) \
+    do { \
+      buf_desc.size = sizeof(indices); \
+      buf_desc.target = RB_BIND_INDEX_BUFFER; \
+      buf_desc.usage = RB_USAGE_IMMUTABLE; \
+      CALL(rbi->create_buffer \
+        (ctxt, &buf_desc, indices, &paral->index_buffer)); \
+      paral->primitive_type = prim_type; \
+      paral->nb_vertices = sizeof(indices) / sizeof(unsigned int); \
+    } while(0)
+
+  /* Create the vertex buffer. */
+  buf_desc.size = sizeof(vertices);
+  buf_desc.target = RB_BIND_VERTEX_BUFFER;
+  buf_desc.usage = RB_USAGE_IMMUTABLE;
+  CALL(rbi->create_buffer(ctxt, &buf_desc, vertices, &paral->vertex_buffer));
+  /* Create the index buffer. */
+  if(wireframe) {
+    const unsigned int indices[16] = {
+      0, 4, 5, 1, 2, 6, 7, 3, 0, 4, 7, 3, 2, 6, 5, 1
+    };
+    SETUP_INDEX_BUFFER(indices, RB_LINE_LOOP);
+  } else {
+    const unsigned int indices[14] = {
+      0, 1, 3, 2, 6, 1, 5, 0, 4, 3, 7, 6, 4, 5
+    };
+    SETUP_INDEX_BUFFER(indices, RB_TRIANGLE_STRIP);
+  }
+  /* Create the vertex array. */
+  buf_attr.index = 0;
+  buf_attr.stride = 3 * sizeof(float);
+  buf_attr.offset = 0;
+  buf_attr.type = RB_FLOAT3;
+  CALL(rbi->create_vertex_array(ctxt, &paral->vertex_array));
+  CALL(rbi->vertex_index_array(paral->vertex_array, paral->index_buffer));
+  CALL(rbi->vertex_attrib_array
+    (paral->vertex_array, paral->vertex_buffer, 1, &buf_attr));
+
+  #undef SETUP_INDEX_BUFFER
+  #undef CALL
+exit:
+  return err;
+error:
+  if(paral) {
+    if(paral->rbi)
+      RBU(geometry_ref_put(paral));
+    memset(paral, 0, sizeof(struct rbu_geometry));
+  }
   goto exit;
 }
 

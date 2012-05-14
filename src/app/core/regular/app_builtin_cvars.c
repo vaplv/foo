@@ -23,10 +23,10 @@ app_setup_builtin_cvars(struct app* app)
     } while(0)
 
   REGISTER_CVAR
-    ("app_project_path", APP_CVAR_STRING_DESC(NULL, NULL), 
+    ("app_project_path", APP_CVAR_STRING_DESC(NULL, NULL),
      &app->cvar_system.project_path);
 
-  #undef CALL
+  #undef REGISTER_CVAR
 
 exit:
   return app_err;

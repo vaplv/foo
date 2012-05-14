@@ -1,4 +1,5 @@
 #include "renderer/regular/rdr_error_c.h"
+#include "renderer/regular/rdr_imdraw.h"
 #include "renderer/regular/rdr_system_c.h"
 #include "renderer/rdr.h"
 #include "renderer/rdr_system.h"
@@ -26,8 +27,12 @@ release_system(struct ref* ref)
     RBI(&sys->rb, context_ref_put(sys->ctxt));
   if(LIKELY(sys->rbu.quad.rbi != NULL))
     RBU(geometry_ref_put(&sys->rbu.quad));
-  if(LIKELY(sys->rbu.circle.rbi != NULL))
-    RBU(geometry_ref_put(&sys->rbu.circle));
+  if(LIKELY(sys->rbu.solid_parallelepiped.rbi != NULL))
+    RBU(geometry_ref_put(&sys->rbu.solid_parallelepiped));
+  if(LIKELY(sys->rbu.wire_parallelepiped.rbi != NULL))
+    RBU(geometry_ref_put(&sys->rbu.wire_parallelepiped));
+
+  RDR(shutdown_im_rendering(sys));
 
   err = rbi_shutdown(&sys->rb);
   assert(err == 0);
@@ -76,10 +81,26 @@ rdr_create_system
   CALL(rbi_init(graphic_driver, &sys->rb));
   CALL(sys->rb.create_context(sys->allocator, &sys->ctxt));
   CALL(sys->rb.get_config(sys->ctxt, &sys->cfg));
+
+  /* Init utils geometries. */
   CALL(rbu_init_quad(&sys->rb, sys->ctxt, 0.f, 0.f, 1.f, 1.f, &sys->rbu.quad));
-  CALL(rbu_init_circle
-    (&sys->rb, sys->ctxt, 128, 0.f, 0.f, 1.f, &sys->rbu.circle));
+  CALL(rbu_init_parallelepiped
+    (&sys->rb, sys->ctxt, 
+     (float[]){0.f, 0.f, 0.f}, 
+     (float[]){1.f, 1.f, 1.f},
+     false,
+     &sys->rbu.solid_parallelepiped));
+  CALL(rbu_init_parallelepiped
+    (&sys->rb, sys->ctxt, 
+     (float[]){0.f, 0.f, 0.f}, 
+     (float[]){1.f, 1.f, 1.f},
+     false,
+     &sys->rbu.wire_parallelepiped));
   #undef CALL
+
+  rdr_err = rdr_init_im_rendering(sys);
+  if(rdr_err != RDR_NO_ERROR)
+    goto error;
 
 exit:
   if(out_sys)

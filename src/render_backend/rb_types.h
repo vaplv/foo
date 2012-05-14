@@ -202,7 +202,7 @@ struct rb_attrib_desc {
 };
 
 struct rb_uniform_desc {
-  const char*name;
+  const char* name;
   enum rb_type type;
 };
 

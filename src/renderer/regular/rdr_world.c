@@ -28,25 +28,6 @@ struct rdr_world {
  * Helper functions
  *
  ******************************************************************************/
-static void
-compute_proj
-  (float fov_x,
-   float ratio,
-   float znear,
-   float zfar,
-   struct aosf44* proj)
-{
-  const float fov_y = fov_x / ratio;
-  const float f = cosf(fov_y*0.5f) / sinf(fov_y*0.5f);
-
-  assert(proj);
-
-  proj->c0 = vf4_set(f / ratio, 0.f, 0.f, 0.f);
-  proj->c1 = vf4_set(0.f, f, 0.f, 0.f);
-  proj->c2 = vf4_set(0.f, 0.f, (zfar + znear) / (znear - zfar), -1.f);
-  proj->c3 = vf4_set(0.f, 0.f, (2.f * zfar * znear) / (znear - zfar), 0.f);
-}
-
 static int
 compare_model_instance(const void* inst0, const void* inst1)
 {
@@ -232,7 +213,7 @@ error:
 
 /*******************************************************************************
  *
- * Private draw function.
+ * Private functions.
  *
  ******************************************************************************/
 enum rdr_error
@@ -241,7 +222,7 @@ rdr_draw_world(struct rdr_world* world, const struct rdr_view* view)
   const struct rb_depth_stencil_desc depth_stencil_desc = {
     .enable_depth_test = 1,
     .enable_stencil_test = 0,
-    .depth_func = RB_COMPARISON_LESS_EQUAL,
+    .depth_func = RB_COMPARISON_LESS_EQUAL
   };
   struct aosf44 view_matrix;
   struct aosf44 proj_matrix;
@@ -271,8 +252,7 @@ rdr_draw_world(struct rdr_world* world, const struct rdr_view* view)
   assert(instance_list != NULL || nb_instances == 0);
   if(instance_list != NULL) {
     aosf44_load(&view_matrix, view->transform);
-    compute_proj
-      (view->fov_x, view->proj_ratio, view->znear, view->zfar, &proj_matrix);
+    RDR(compute_projection_matrix(view, &proj_matrix));
     rdr_err = rdr_draw_instances
       (world->sys, &view_matrix, &proj_matrix, nb_instances, instance_list);
     if(rdr_err != RDR_NO_ERROR)
@@ -283,5 +263,27 @@ exit:
   return rdr_err;
 error:
   goto exit;
+}
+
+enum rdr_error
+rdr_compute_projection_matrix(const struct rdr_view* view, struct aosf44* proj)
+{
+  float fov_y = 0.f;
+  float f = 0.f;
+  float rcp_zrange = 0.f;
+
+  if(UNLIKELY(!view || !proj))
+    return RDR_INVALID_ARGUMENT;
+
+  fov_y = view->fov_x / view->proj_ratio;
+  f = cosf(fov_y*0.5f) / sinf(fov_y*0.5f);
+  rcp_zrange = 1.f / (view->znear - view->zfar);
+
+  proj->c0 = vf4_set(f / view->proj_ratio, 0.f, 0.f, 0.f);
+  proj->c1 = vf4_set(0.f, f, 0.f, 0.f);
+  proj->c2 = vf4_set(0.f, 0.f, (view->zfar + view->znear)*rcp_zrange, -1.f);
+  proj->c3 = vf4_set(0.f, 0.f, (2.f*view->zfar*view->znear)*rcp_zrange, 0.f);
+
+  return RDR_NO_ERROR;
 }
 
