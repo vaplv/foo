@@ -258,7 +258,7 @@ rbu_init_parallelepiped
     SETUP_INDEX_BUFFER(indices, RB_LINE_LOOP);
   } else {
     const unsigned int indices[14] = {
-      0, 1, 3, 2, 6, 1, 5, 0, 4, 3, 7, 6, 4, 5
+      1, 0, 2, 3, 7, 0, 4, 1, 5, 2, 6, 7, 5, 4
     };
     SETUP_INDEX_BUFFER(indices, RB_TRIANGLE_STRIP);
   }
@@ -311,10 +311,15 @@ rbu_geometry_ref_put(struct rbu_geometry* geom)
 EXPORT_SYM int
 rbu_draw_geometry(struct rbu_geometry* geom)
 {
-  if(UNLIKELY(geom == NULL || geom->ctxt == NULL || geom->vertex_array == NULL))
+  if(UNLIKELY(geom == NULL))
     return -1;
   RBI(geom->rbi, bind_vertex_array(geom->ctxt, geom->vertex_array));
-  RBI(geom->rbi, draw(geom->ctxt, geom->primitive_type, geom->nb_vertices));
+  if(geom->index_buffer) {
+    RBI(geom->rbi, draw_indexed
+      (geom->ctxt, geom->primitive_type, geom->nb_vertices));
+  } else {
+    RBI(geom->rbi, draw(geom->ctxt, geom->primitive_type, geom->nb_vertices));
+  }
   RBI(geom->rbi, bind_vertex_array(geom->ctxt, NULL));
   return 0;
 }

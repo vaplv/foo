@@ -30,9 +30,19 @@ rdr_model_mesh
    struct rdr_mesh* mesh);
 
 extern enum rdr_error
+rdr_get_model_mesh
+  (struct rdr_model* mdl,
+   struct rdr_mesh** mesh);
+
+extern enum rdr_error
 rdr_model_material
   (struct rdr_model* mdl,
    struct rdr_material* mtr);
+
+extern enum rdr_error
+rdr_get_model_material
+  (struct rdr_model* mdl,
+   struct rdr_material** mtr);
 
 #endif /* RDR_MODEL_H */
 

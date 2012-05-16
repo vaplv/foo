@@ -724,6 +724,15 @@ error:
 }
 
 EXPORT_SYM enum rdr_error
+rdr_get_model_mesh(struct rdr_model* model, struct rdr_mesh** mesh)
+{
+  if(UNLIKELY(!model || !mesh))
+    return RDR_INVALID_ARGUMENT;
+  *mesh = model->mesh;
+  return RDR_NO_ERROR;
+}
+
+EXPORT_SYM enum rdr_error
 rdr_model_material
   (struct rdr_model* model,
    struct rdr_material* material)
@@ -780,6 +789,15 @@ error:
   if(retained_material)
     RDR(material_ref_put(retained_material));
   goto exit;
+}
+
+EXPORT_SYM enum rdr_error
+rdr_get_model_material(struct rdr_model* model, struct rdr_material** mtr)
+{
+  if(UNLIKELY(!model || !mtr))
+    return RDR_INVALID_ARGUMENT;
+  *mtr = model->material;
+  return RDR_NO_ERROR;
 }
 
 EXPORT_SYM enum rdr_error

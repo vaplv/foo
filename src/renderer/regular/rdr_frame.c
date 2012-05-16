@@ -224,7 +224,7 @@ rdr_frame_imdraw_parallelepiped
   aosf33_rotation(&f33, rotation[0], rotation[1], rotation[2]);
   f33.c0 = vf4_mul(f33.c0, vf4_set1(size[0]));
   f33.c1 = vf4_mul(f33.c1, vf4_set1(size[1]));
-  f33.c2 = vf4_mul(f33.c1, vf4_set1(size[2]));
+  f33.c2 = vf4_mul(f33.c2, vf4_set1(size[2]));
   aosf44_set
     (&transform, f33.c0, f33.c1, f33.c2, vf4_set(pos[0], pos[1], pos[2], 1.f));
   aosf44_mulf44(&viewproj, &proj, &view);
@@ -233,8 +233,16 @@ rdr_frame_imdraw_parallelepiped
   /* Emit the draw command. */
   cmd->type = RDR_IMDRAW_PARALLELEPIPED;
   memcpy(cmd->data.parallelepiped.transform, tmp, sizeof(tmp));
-  memcpy(cmd->data.parallelepiped.solid_color, solid_color, 4 * sizeof(float));
-  memcpy(cmd->data.parallelepiped.wire_color, wire_color, 4 * sizeof(float));
+  if(solid_color) {
+    memcpy(cmd->data.parallelepiped.solid_color, solid_color, 4*sizeof(float));
+  } else {
+    cmd->data.parallelepiped.solid_color[3] = 0.f;
+  }
+  if(wire_color) {
+    memcpy(cmd->data.parallelepiped.wire_color, wire_color, 4 * sizeof(float));
+  } else {
+    cmd->data.parallelepiped.wire_color[3] = 0.f;
+  }
   RDR(emit_imdraw_command(frame->imdraw_cmdbuf, cmd));
 exit:
   return rdr_err;
@@ -245,6 +253,11 @@ error:
 EXPORT_SYM enum rdr_error
 rdr_flush_frame(struct rdr_frame* frame)
 {
+  const struct rb_rasterizer_desc raster_desc = {
+    .fill_mode = RB_FILL_SOLID,
+    .cull_mode = RB_CULL_BACK,
+    .front_facing = RB_ORIENTATION_CCW
+  };
   struct list_node* node = NULL;
   struct list_node* tmp = NULL;
   enum rdr_error rdr_err = RDR_NO_ERROR;
@@ -260,20 +273,27 @@ rdr_flush_frame(struct rdr_frame* frame)
      frame->bkg_color,
      1.f,
      0));
+  RBI(&frame->sys->rb, rasterizer(frame->sys->ctxt, &raster_desc));
+
+  /* Flush world rendering. */
   LIST_FOR_EACH_SAFE(node, tmp, &frame->draw_world_list) {
     struct world_node* world_node = CONTAINER_OF(node, struct world_node, node);
     RDR(draw_world(world_node->world, &world_node->view));
     RDR(world_ref_put(world_node->world));
     list_del(node);
   }
+  frame->world_node_id = 0;
+  /* Flush im geometry rendering. */
+  RDR(flush_imdraw_command_buffer(frame->imdraw_cmdbuf));
+  /* Flush terminal rendering. */
   LIST_FOR_EACH_SAFE(node, tmp, &frame->draw_term_list) {
     struct term_node* term_node = CONTAINER_OF(node, struct term_node, node);
     RDR(draw_term(term_node->term));
     RDR(term_ref_put(term_node->term));
     list_del(node);
   }
-  frame->world_node_id = 0;
   frame->term_node_id = 0;
+  /* Flush render backend. */
   RBI(&frame->sys->rb, flush(frame->sys->ctxt));
 
 exit:

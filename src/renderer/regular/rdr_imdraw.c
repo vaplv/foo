@@ -11,7 +11,7 @@ struct rdr_imdraw_command_buffer {
   size_t max_command_count;
   struct list_node emit_command_list; /* Emitted commands. */
   struct list_node free_command_list; /* Available commands. */
-  struct list_node buffer[]; /* Pool of allocated commands. */
+  struct rdr_imdraw_command buffer[]; /* Pool of allocated commands. */
 };
 
 /******************************************************************************
@@ -57,14 +57,18 @@ invoke_imdraw_parallelepiped
   RBI(&sys->rb, uniform_data
     (sys->im.draw3d.transform, 1, cmd->data.parallelepiped.transform));
 
-  if(cmd->data.parallelepiped.solid_color
-  && cmd->data.parallelepiped.solid_color[3] > 0.f) {
+  if(cmd->data.parallelepiped.solid_color[3] > 0.f) {
     RBI(&sys->rb, uniform_data
       (sys->im.draw3d.color, 1, cmd->data.parallelepiped.solid_color));
 
     if(cmd->data.parallelepiped.solid_color[3] >= 1.f) {
       RBU(draw_geometry(&sys->rbu.solid_parallelepiped));
     } else {
+      struct rb_rasterizer_desc raster = {
+        .fill_mode = RB_FILL_SOLID,
+        .cull_mode = RB_CULL_FRONT,
+        .front_facing = RB_ORIENTATION_CCW
+      };
       struct rb_blend_desc blend = {
         .enable = 1,
         .src_blend_RGB = RB_BLEND_SRC_ALPHA,
@@ -74,13 +78,17 @@ invoke_imdraw_parallelepiped
         .blend_op_RGB = RB_BLEND_ONE,
         .blend_op_Alpha = RB_BLEND_OP_ADD
       };
+      RBI(&sys->rb, rasterizer(sys->ctxt, &raster));
       RBI(&sys->rb, blend(sys->ctxt, &blend));
+      RBU(draw_geometry(&sys->rbu.solid_parallelepiped));
+      raster.cull_mode = RB_CULL_BACK;
+      RBI(&sys->rb, rasterizer(sys->ctxt, &raster));
       RBU(draw_geometry(&sys->rbu.solid_parallelepiped));
       blend.enable = 0;
       RBI(&sys->rb, blend(sys->ctxt, &blend));
     }
   }
-  if(cmd->data.parallelepiped.wire_color) {
+  if(cmd->data.parallelepiped.wire_color[3] > 0.f) {
     RBI(&sys->rb, uniform_data
       (sys->im.draw3d.color, 1, cmd->data.parallelepiped.wire_color));
     RBU(draw_geometry(&sys->rbu.wire_parallelepiped));
@@ -198,7 +206,7 @@ rdr_create_imdraw_command_buffer
   cmdbuf = MEM_CALLOC
     (sys->allocator, 1,
      sizeof(struct rdr_imdraw_command_buffer) +
-     max_command_count * sizeof(struct list_node));
+     max_command_count * sizeof(struct rdr_imdraw_command));
   if(!cmdbuf) {
     rdr_err = RDR_MEMORY_ERROR;
     goto error;
@@ -211,8 +219,8 @@ rdr_create_imdraw_command_buffer
   cmdbuf->max_command_count = max_command_count;
 
   for(i = 0; i < max_command_count; ++i) {
-    list_init(cmdbuf->buffer + i);
-    list_add_tail(&cmdbuf->free_command_list, cmdbuf->buffer + i);
+    list_init(&cmdbuf->buffer[i].node);
+    list_add_tail(&cmdbuf->free_command_list, &cmdbuf->buffer[i].node);
   }
 exit:
   if(out_cmdbuf)
@@ -279,10 +287,10 @@ rdr_emit_imdraw_command
 
   /* Check that the command to emit is effectively get from cmdbuf. */
   if(UNLIKELY(false == IS_MEMORY_OVERLAPPED
-    (&cmd->node,
-     sizeof(struct list_node),
+    (cmd,
+     sizeof(struct rdr_imdraw_command),
      cmdbuf->buffer,
-     sizeof(struct list_node) * cmdbuf->max_command_count))) {
+     sizeof(struct rdr_imdraw_command) * cmdbuf->max_command_count))) {
     return RDR_INVALID_ARGUMENT;
   }
   list_add_tail(&cmdbuf->emit_command_list, &cmd->node);

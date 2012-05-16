@@ -40,5 +40,12 @@ rdr_mesh_indices
    size_t nb_indices,
    const unsigned int* indices);
 
+/* Return the min/max bounds of the axis aligned bounding box of the mesh. */
+extern enum rdr_error
+rdr_get_mesh_aabb
+  (const struct rdr_mesh* mesh,
+   float min_bound[3],
+   float max_bound[3]);
+
 #endif /* RDR_MESH_H */
 

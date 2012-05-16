@@ -59,10 +59,10 @@
     (type*)((uintptr_t)ptr - offsetof(type, member))
 
 #define IS_MEMORY_OVERLAPPED(d0, sz0, d1, sz1) \
-  ((uintptr_t)(d0) >= (uintptr_t)(d1) && \
-   (uintptr_t)(d0) < (uintptr_t)(d1) + (sz1)) || \
-  ((uintptr_t)(d0) + (sz0) >= (uintptr_t)(d1) && \
-   (uintptr_t)(d0) + (sz0) < (uintptr_t)(d1) + (sz1))
+  (((uintptr_t)(d0) >= (uintptr_t)(d1) && \
+   (uintptr_t)(d0) < ((uintptr_t)(d1) + (sz1))) || \
+  (((uintptr_t)(d0) + (sz0)) >= (uintptr_t)(d1) && \
+   ((uintptr_t)(d0) + (sz0)) < ((uintptr_t)(d1) + (sz1))))
 
 #define CONCAT__(a, b) a ## b
 #define CONCAT(a, b) \

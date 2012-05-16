@@ -5,6 +5,7 @@
 #include "renderer/regular/rdr_model_instance_c.h"
 #include "renderer/regular/rdr_system_c.h"
 #include "renderer/rdr.h"
+#include "renderer/rdr_mesh.h"
 #include "renderer/rdr_model.h"
 #include "renderer/rdr_model_instance.h"
 #include "renderer/rdr_system.h"
@@ -14,6 +15,7 @@
 #include "sys/ref_count.h"
 #include "sys/sys.h"
 #include <assert.h>
+#include <float.h>
 #include <math.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -882,6 +884,88 @@ rdr_get_model_instance_rasterizer
     (out_rasterizer_desc,
      &instance->rasterizer_desc,
      sizeof(struct rdr_rasterizer_desc));
+  return RDR_NO_ERROR;
+}
+
+EXPORT_SYM enum rdr_error
+rdr_get_model_instance_model
+  (struct rdr_model_instance* instance,
+   struct rdr_model** mdl)
+{
+  if(UNLIKELY(!instance || !mdl))
+    return RDR_INVALID_ARGUMENT;
+  *mdl = instance->model;
+  return RDR_NO_ERROR;
+}
+
+EXPORT_SYM enum rdr_error
+rdr_get_model_instance_aabb
+  (const struct rdr_model_instance* instance,
+   float min_bound[3],
+   float max_bound[3])
+{
+  ALIGN(16) float tmp[4] = {0.f, 0.f, 0.f, 0.f};
+  vf4_t vpt[8];
+  vf4_t vmin;
+  vf4_t vmax;
+  vf4_t vmin_mask;
+  vf4_t vmax_mask;
+  struct rdr_mesh* mesh = NULL;
+  size_t i = 0;
+
+  if(UNLIKELY(!instance || !min_bound || !max_bound))
+    return RDR_INVALID_ARGUMENT;
+
+  RDR(get_model_mesh(instance->model, &mesh));
+  RDR(get_mesh_aabb(mesh, min_bound, max_bound));
+
+  /* Find degenerated coordinates. */
+  vmin_mask = vf4_mask
+    (min_bound[0]==-FLT_MAX, min_bound[1]==-FLT_MAX, min_bound[2]==-FLT_MAX, 0);
+  vmax_mask = vf4_mask
+    (max_bound[0]==FLT_MAX, max_bound[1]==FLT_MAX, max_bound[2]==FLT_MAX, 0);
+
+  /* Try to avoid computation on denormals by resetting degenerated vertices. */
+  min_bound[0] = min_bound[0] == -FLT_MAX ? 0.f : min_bound[0];
+  min_bound[1] = min_bound[1] == -FLT_MAX ? 0.f : min_bound[1];
+  min_bound[2] = min_bound[2] == -FLT_MAX ? 0.f : min_bound[2];
+  max_bound[0] = max_bound[0] == FLT_MAX ? 0.f : max_bound[0];
+  max_bound[1] = max_bound[1] == FLT_MAX ? 0.f : max_bound[1];
+  max_bound[2] = max_bound[2] == FLT_MAX ? 0.f : max_bound[2];
+
+  /* Build local space AABB vertices. */
+  vpt[0] = vf4_set(min_bound[0], min_bound[1], min_bound[2], 1.f);
+  vpt[1] = vf4_set(max_bound[0], min_bound[1], min_bound[2], 1.f);
+  vpt[2] = vf4_set(max_bound[0], min_bound[1], max_bound[2], 1.f);
+  vpt[3] = vf4_set(min_bound[0], min_bound[1], max_bound[2], 1.f);
+  vpt[4] = vf4_set(min_bound[0], max_bound[1], min_bound[2], 1.f);
+  vpt[5] = vf4_set(max_bound[0], max_bound[1], min_bound[2], 1.f);
+  vpt[6] = vf4_set(max_bound[0], max_bound[1], max_bound[2], 1.f);
+  vpt[7] = vf4_set(min_bound[0], max_bound[1], max_bound[2], 1.f);
+
+  /* Compute the world AABB of the local AABB transformed in world space. */
+  vpt[0] = aosf44_mulf4(&instance->transform, vpt[0]);
+  vmin = vmax = vpt[0];
+  for(i = 1; i < 8; ++i) {
+    vpt[i] = aosf44_mulf4(&instance->transform, vpt[1]);
+    vmin = vf4_min(vmin, vpt[i]);
+    vmax = vf4_max(vmax, vpt[i]);
+  }
+
+  /* Set degenerated coordinates. */
+  vmin = vf4_sel(vmin, vf4_set1(-FLT_MAX), vmin_mask);
+  vmax = vf4_sel(vmax, vf4_set1(FLT_MAX), vmax_mask);
+
+  /* Store world AABB. */
+  vf4_store(tmp, vmin);
+  min_bound[0] = tmp[0];
+  min_bound[1] = tmp[1];
+  min_bound[2] = tmp[2];
+  vf4_store(tmp, vmax);
+  max_bound[0] = tmp[0];
+  max_bound[1] = tmp[1];
+  max_bound[2] = tmp[2];
+
   return RDR_NO_ERROR;
 }
 

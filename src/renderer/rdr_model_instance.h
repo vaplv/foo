@@ -128,6 +128,19 @@ rdr_get_model_instance_rasterizer
    struct rdr_rasterizer_desc* out_raster_desc);
 
 extern enum rdr_error
+rdr_get_model_instance_model
+  (struct rdr_model_instance* instance,
+   struct rdr_model** mdl);
+
+/* Get the bounds of axis aligned bounding box of the instance, i.e. the aabb
+ * of the mesh model transformed by the instance transform. */
+extern enum rdr_error
+rdr_get_model_instance_aabb
+  (const struct rdr_model_instance* instance,
+   float min_bound[3],
+   float max_bound[3]);
+
+extern enum rdr_error
 rdr_attach_model_instance_callback
   (struct rdr_model_instance* instance,
    void (*func)(struct rdr_model_instance*, void*), 

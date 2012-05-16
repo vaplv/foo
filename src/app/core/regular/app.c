@@ -629,7 +629,7 @@ init(struct app* app, const char* graphic_driver)
     } while(0)
   CALL(init_window_manager(&app->wm), "error initializing, window manager\n");
   CALL
-    (init_renderer(&app->rdr, graphic_driver, app->logger), 
+    (init_renderer(&app->rdr, graphic_driver, app->logger),
      "error initializing renderer\n");
   CALL(init_resources(&app->rsrc), "error initializing resource module\n");
   CALL(init_common(app), "");
@@ -748,6 +748,8 @@ app_ref_put(struct app* app)
   return APP_NO_ERROR;
 }
 
+/*#include "app/core/regular/app_view_c.h"*/
+
 EXPORT_SYM enum app_error
 app_run(struct app* app, bool* keep_running)
 {
@@ -763,6 +765,28 @@ app_run(struct app* app, bool* keep_running)
 
   if(app->term.is_enabled)
     RDR(frame_draw_term(app->rdr.frame, app->term.render_term));
+
+ /* {
+    struct rdr_view view = {
+      .proj_ratio = app->view->ratio,
+      .fov_x = app->view->fov_x,
+      .znear = app->view->znear,
+      .zfar = app->view->zfar,
+      .x = 0,
+      .y = 0,
+      .width = 800,
+      .height = 600,
+    };
+    aosf44_store(view.transform, &app->view->transform);
+    RDR(frame_imdraw_parallelepiped
+      (app->rdr.frame,
+       &view, 
+       (float[]){10.f, 10.f, 0.f},
+       (float[]){20.f, 20.f, 20.f},
+       (float[]){0.f, 0.f, 0.f},
+       (float[]){1.f, 0.f, 0.f, 0.5f},
+       (float[]){0.f, 1.f, 0.f, 1.f}));
+  }*/
 
   RDR(flush_frame(app->rdr.frame));
   WM(swap(app->wm.window));
@@ -803,7 +827,7 @@ app_log(struct app* app, enum app_log_type type, const char* fmt, ...)
       } else {
         sl_err = sl_logger_vprint(app->logger, buf, vargs_list);
         if(sl_err != SL_NO_ERROR) {
-          app_err = sl_to_app_error(sl_err); 
+          app_err = sl_to_app_error(sl_err);
           goto error;
         }
       }
@@ -1096,7 +1120,7 @@ app_is_term_enabled(struct app* app, bool* is_enabled)
  ******************************************************************************/
 enum app_error
 app_mapped_name_completion
-  (struct sl_flat_map* map, 
+  (struct sl_flat_map* map,
    const char* name,
    size_t name_len,
    size_t* completion_list_len,

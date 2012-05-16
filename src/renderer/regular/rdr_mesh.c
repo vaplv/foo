@@ -7,9 +7,11 @@
 #include "renderer/rdr_system.h"
 #include "stdlib/sl.h"
 #include "stdlib/sl_flat_set.h"
+#include "sys/math.h"
 #include "sys/ref_count.h"
 #include "sys/sys.h"
 #include <assert.h>
+#include <float.h>
 #include <limits.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -17,11 +19,13 @@
 #include <string.h>
 
 struct rdr_mesh {
-  struct {
+  struct mesh_attrib {
     size_t stride;
     size_t offset;
     enum rb_type type;
   } attrib_list[RDR_NB_ATTRIB_USAGES];
+  float min_bound[3];
+  float max_bound[3];
   struct ref ref;
   struct rdr_system* sys;
   struct rb_buffer* data;
@@ -219,6 +223,104 @@ error:
   goto exit;
 }
 
+static FINLINE void
+set_default_mesh_bounds(struct rdr_mesh* mesh)
+{
+  assert(mesh);
+  mesh->min_bound[0] = mesh->min_bound[1] = mesh->min_bound[2] = FLT_MAX;
+  mesh->max_bound[0] = mesh->max_bound[1] = mesh->max_bound[2] = -FLT_MAX;
+}
+
+static enum rdr_error
+setup_mesh_bounds(struct rdr_mesh* mesh, size_t data_size, const void* data)
+{
+  enum rdr_error rdr_err = RDR_NO_ERROR;
+
+  assert(mesh && (!data_size || data));
+  set_default_mesh_bounds(mesh);
+
+  if(data_size && is_mesh_attrib_registered(mesh, RDR_ATTRIB_POSITION)) {
+    const struct mesh_attrib* pos_attr = mesh->attrib_list + RDR_ATTRIB_POSITION;
+    const void* pos = (const void*)((uintptr_t)data + pos_attr->offset);
+    const size_t nb_pos = data_size / mesh->vertex_size;
+    size_t i = 0;
+    assert(data_size % mesh->vertex_size == 0);
+
+    switch(pos_attr->type) {
+      case RB_FLOAT:
+        mesh->min_bound[1] = mesh->min_bound[2] = 0.f;
+        mesh->max_bound[1] = mesh->max_bound[2] = 0.f;
+        for(i = 0; i < nb_pos; ++i) {
+          const float fpos = *(float*)pos;
+          mesh->min_bound[0] = MIN(mesh->min_bound[0], fpos);
+          mesh->max_bound[0] = MAX(mesh->max_bound[0], fpos);
+          pos = (const void*)((uintptr_t)pos + pos_attr->stride);
+        }
+        break;
+      case RB_FLOAT2:
+        mesh->min_bound[2] = 0.f;
+        mesh->max_bound[2] = 0.f;
+        for(i = 0; i < nb_pos; ++i) {
+          const float* fpos = (float*)pos;
+          mesh->min_bound[0] = MIN(mesh->min_bound[0], fpos[0]);
+          mesh->max_bound[0] = MAX(mesh->max_bound[0], fpos[0]);
+          mesh->min_bound[1] = MIN(mesh->min_bound[1], fpos[1]);
+          mesh->max_bound[1] = MAX(mesh->max_bound[1], fpos[1]);
+          pos = (const void*)((uintptr_t)pos + pos_attr->stride);
+        }
+        break;
+      case RB_FLOAT3:
+        for(i = 0; i < nb_pos; ++i) {
+          const float* fpos = (float*)pos;
+          mesh->min_bound[0] = MIN(mesh->min_bound[0], fpos[0]);
+          mesh->max_bound[0] = MAX(mesh->max_bound[0], fpos[0]);
+          mesh->min_bound[1] = MIN(mesh->min_bound[1], fpos[1]);
+          mesh->max_bound[1] = MAX(mesh->max_bound[1], fpos[1]);
+          mesh->min_bound[2] = MIN(mesh->min_bound[2], fpos[2]);
+          mesh->max_bound[2] = MAX(mesh->max_bound[2], fpos[2]);
+          pos = (const void*)((uintptr_t)pos + pos_attr->stride);
+        }
+        break;
+      case RB_FLOAT4:
+        for(i = 0; i < nb_pos; ++i) {
+          const float* fpos = (float*)pos;
+          if(fpos[3] == 0.f) {
+            mesh->min_bound[0] = -FLT_MAX;
+            mesh->min_bound[1] = -FLT_MAX;
+            mesh->min_bound[2] = -FLT_MAX;
+            mesh->max_bound[0] = FLT_MAX;
+            mesh->max_bound[1] = FLT_MAX;
+            mesh->max_bound[2] = FLT_MAX;
+            break;
+          } else {
+            const float rcp_w = 1.f / fpos[3];
+            float coord = 0.f;
+            coord = fpos[0] * rcp_w;
+            mesh->min_bound[0] = MIN(mesh->min_bound[0], coord);
+            mesh->max_bound[0] = MAX(mesh->max_bound[0], coord);
+            coord = fpos[1] * rcp_w;
+            mesh->min_bound[1] = MIN(mesh->min_bound[1], coord);
+            mesh->max_bound[1] = MAX(mesh->max_bound[1], coord);
+            coord = fpos[2] * rcp_w;
+            mesh->min_bound[2] = MIN(mesh->min_bound[2], coord);
+            mesh->max_bound[2] = MAX(mesh->max_bound[2], coord);
+            pos = (const void*)((uintptr_t)pos + pos_attr->stride);
+          }
+        }
+        break;
+      default:
+        rdr_err = RDR_INVALID_ARGUMENT;
+        goto error;
+        break;
+    }
+  }
+exit:
+  return rdr_err;
+error:
+  set_default_mesh_bounds(mesh);
+  goto exit;
+}
+
 static void
 invoke_callbacks(struct rdr_mesh* mesh, enum rdr_mesh_signal sig)
 {
@@ -290,6 +392,7 @@ rdr_create_mesh(struct rdr_system* sys, struct rdr_mesh** out_mesh)
   mesh->sys = sys;
   RDR(system_ref_get(sys));
   unregister_all_mesh_attribs(mesh);
+  set_default_mesh_bounds(mesh);
 
   for(i = 0; i < RDR_NB_MESH_SIGNALS; ++i) {
     sl_err = sl_create_flat_set
@@ -372,6 +475,10 @@ rdr_mesh_data
     goto error;
   invoke_callbacks(mesh, RDR_MESH_SIGNAL_UPDATE_DATA);
 
+  rdr_err = setup_mesh_bounds(mesh, data_size, data);
+  if(rdr_err != RDR_NO_ERROR)
+    goto error;
+
 exit:
   return rdr_err;
 
@@ -425,6 +532,23 @@ error:
     invoke_callbacks(mesh, RDR_MESH_SIGNAL_UPDATE_INDICES);
   }
   goto exit;
+}
+
+EXPORT_SYM enum rdr_error
+rdr_get_mesh_aabb
+  (const struct rdr_mesh* mesh,
+   float min_bound[3],
+   float max_bound[3])
+{
+  if(UNLIKELY(!mesh || !min_bound || !max_bound))
+    return RDR_INVALID_ARGUMENT;
+  min_bound[0] = mesh->min_bound[0];
+  min_bound[1] = mesh->min_bound[1];
+  min_bound[2] = mesh->min_bound[2];
+  max_bound[0] = mesh->max_bound[0];
+  max_bound[1] = mesh->max_bound[1];
+  max_bound[2] = mesh->max_bound[2];
+  return RDR_NO_ERROR;
 }
 
 /*******************************************************************************

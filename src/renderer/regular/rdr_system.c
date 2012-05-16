@@ -94,7 +94,7 @@ rdr_create_system
     (&sys->rb, sys->ctxt, 
      (float[]){0.f, 0.f, 0.f}, 
      (float[]){1.f, 1.f, 1.f},
-     false,
+     true,
      &sys->rbu.wire_parallelepiped));
   #undef CALL
 
