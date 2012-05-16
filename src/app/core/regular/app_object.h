@@ -18,6 +18,9 @@ struct sl_string;
 struct app_object {
   struct sl_string* name;
   enum app_object_type type;
+  /* Invoked when the object system is cleared, i.e. when the object is
+   * released by the application, and not by the user. */
+  void (*release)(struct app_object*);
 };
 
 /* The initialization automatically register the object against the
@@ -27,6 +30,7 @@ app_init_object
   (struct app* app,
    struct app_object* obj,
    enum app_object_type type,
+   void (*release)(struct app_object*),
    const char* name); /* May be NULL. */
 
 /* If the object is still registered the release function unregister it. */
@@ -67,6 +71,13 @@ app_get_object
    enum app_object_type type,
    const char* name,
    struct app_object** obj); /* Set to NULL if not found. */
+
+extern enum app_error
+app_get_object_list
+  (struct app* app,
+   enum app_object_type,
+   size_t* len, /* May be NULL. */
+   struct app_object** list[]); /* May be NULL. */
 
 extern enum app_error
 app_object_name_completion

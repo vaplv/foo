@@ -78,12 +78,16 @@ invoke_imdraw_parallelepiped
         .blend_op_RGB = RB_BLEND_ONE,
         .blend_op_Alpha = RB_BLEND_OP_ADD
       };
-      RBI(&sys->rb, rasterizer(sys->ctxt, &raster));
       RBI(&sys->rb, blend(sys->ctxt, &blend));
+
+      /* Draw back-facing triangles. */
+      RBI(&sys->rb, rasterizer(sys->ctxt, &raster));
       RBU(draw_geometry(&sys->rbu.solid_parallelepiped));
+      /* Draw front-facing triangles. */
       raster.cull_mode = RB_CULL_BACK;
       RBI(&sys->rb, rasterizer(sys->ctxt, &raster));
       RBU(draw_geometry(&sys->rbu.solid_parallelepiped));
+
       blend.enable = 0;
       RBI(&sys->rb, blend(sys->ctxt, &blend));
     }

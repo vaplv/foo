@@ -301,16 +301,18 @@ app_shutdown_cvar_system(struct app* app)
   if(!app)
     return APP_INVALID_ARGUMENT;
 
-  SL(flat_map_key_buffer
-    (app->cvar_system.map, &len, NULL, NULL, (void**)&name_list));
-  SL(flat_map_data_buffer
-    (app->cvar_system.map, &len, NULL, NULL, (void**)&cvar_list));
-  for(i = 0; i < len; ++i) {
-    MEM_FREE(app->allocator, name_list[i]);
-    if(cvar_list[i].str)
-      SL(free_string(cvar_list[i].str));
+  if(app->cvar_system.map) {
+    SL(flat_map_key_buffer
+       (app->cvar_system.map, &len, NULL, NULL, (void**)&name_list));
+    SL(flat_map_data_buffer
+       (app->cvar_system.map, &len, NULL, NULL, (void**)&cvar_list));
+    for(i = 0; i < len; ++i) {
+      MEM_FREE(app->allocator, name_list[i]);
+      if(cvar_list[i].str)
+        SL(free_string(cvar_list[i].str));
+    }
+    SL(free_flat_map(app->cvar_system.map));
   }
-  SL(free_flat_map(app->cvar_system.map));
   return APP_NO_ERROR;
 }
 

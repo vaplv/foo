@@ -61,6 +61,13 @@ release_model_instance(struct ref* ref)
   APP(ref_put(app));
 }
 
+static void
+release_model_instance_object(struct app_object* obj)
+{
+  assert(obj);
+  APP(model_instance_ref_put(app_object_to_model_instance(obj)));
+}
+
 /*******************************************************************************
  *
  * Implementation of the public model instance functions.
@@ -449,6 +456,58 @@ app_model_instance_world
 }
 
 EXPORT_SYM enum app_error
+app_get_model_instance_list_begin
+  (struct app* app,
+   struct app_model_instance_it* it,
+   bool* is_end_reached)
+{
+  struct app_object** obj_list = NULL;
+  size_t len = 0;
+
+  if(UNLIKELY(!app || !it || !is_end_reached))
+    return APP_INVALID_ARGUMENT;
+
+  APP(get_object_list(app, APP_MODEL_INSTANCE, &len, &obj_list)); 
+  if(len == 0) {
+    *is_end_reached = true;
+  } else {
+    it->instance = app_object_to_model_instance(obj_list[0]);
+    it->id = 0;
+  }
+  return APP_NO_ERROR;
+}
+
+EXPORT_SYM enum app_error
+app_model_instance_it_next
+  (struct app_model_instance_it* it,
+   bool* is_end_reached)
+{
+  struct app_object** obj_list = NULL;
+  size_t len = 0;
+
+  if(UNLIKELY(!it || !is_end_reached || !it->instance))
+    return APP_INVALID_ARGUMENT;
+
+  APP(get_object_list(it->instance->app, APP_MODEL_INSTANCE, &len, &obj_list));
+  ++it->id;
+  if(len <= it->id) {
+    *is_end_reached = true;
+  } else {
+    it->instance = app_object_to_model_instance(obj_list[it->id]);
+  }
+  return APP_NO_ERROR;
+}
+
+EXPORT_SYM enum app_error
+app_get_model_instance_list_length(struct app* app, size_t* len)
+{
+  if(UNLIKELY(!app || !len))
+    return APP_INVALID_ARGUMENT;
+  APP(get_object_list(app, APP_MODEL_INSTANCE, len, NULL));
+  return APP_NO_ERROR;
+}
+
+EXPORT_SYM enum app_error
 app_get_model_instance
   (struct app* app,
    const char* name,
@@ -528,7 +587,11 @@ app_create_model_instance
   instance->app = app;
 
   app_err = app_init_object
-    (app, &instance->obj, APP_MODEL_INSTANCE, name ? name : "unamed");
+    (app, 
+     &instance->obj, 
+     APP_MODEL_INSTANCE, 
+     release_model_instance_object, 
+     name ? name : "unamed");
   if(app_err != APP_NO_ERROR)
     goto error;
 

@@ -132,8 +132,8 @@ rdr_get_model_instance_model
   (struct rdr_model_instance* instance,
    struct rdr_model** mdl);
 
-/* Get the bounds of axis aligned bounding box of the instance, i.e. the aabb
- * of the mesh model transformed by the instance transform. */
+/* Get the bounds of axis aligned bounding box of the instance, i.e. obb of the
+ * instance transformed by its transform matrix. */
 extern enum rdr_error
 rdr_get_model_instance_aabb
   (const struct rdr_model_instance* instance,

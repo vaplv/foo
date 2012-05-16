@@ -19,11 +19,12 @@ static void
 save_map(struct app* app, const char* cmd_name, const char* output_file)
 {
   FILE* file = NULL;
-  struct app_model** model_list = NULL;
-  struct app_model_instance** instance_list = NULL;
-  size_t len = 0;
-  size_t i = 0;
+  struct app_model_it model_it;
+  struct app_model_instance_it instance_it;
+  bool is_end_reached = false;
   assert(app && cmd_name && output_file);
+  memset(&model_it, 0, sizeof(model_it));
+  memset(&instance_it, 0, sizeof(instance_it));
 
   file = fopen(output_file, "w");
   if(file == NULL) {
@@ -42,30 +43,31 @@ save_map(struct app* app, const char* cmd_name, const char* output_file)
     } while(0)
 
   /* Save the model list. */
-  APP(get_model_list(app, &len, &model_list));
-  for(i = 0; i < len; ++i) {
+  APP(get_model_list_begin(app, &model_it, &is_end_reached));
+  while(is_end_reached == false) {
     const char* path = NULL;
     const char* name = NULL;
-    APP(model_path(model_list[i], &path));
-    APP(model_name(model_list[i], &name));
+    APP(model_path(model_it.model, &path));
+    APP(model_name(model_it.model, &name));
     FPRINTF(file, "load -m %s -n %s\n", path, name);
+    APP(model_it_next(&model_it, &is_end_reached));
   }
 
   /* Save the instance list. */
-  APP(get_model_instance_list(app, &len, &instance_list));
-  for(i = 0; i < len; ++i) {
+  APP(get_model_instance_list_begin(app, &instance_it, &is_end_reached));
+  while(is_end_reached == false) {
     struct app_model* model = NULL;
     const char* mdl_name = NULL;
     const char* inst_name = NULL;
     const struct aosf44* transform = NULL;
     ALIGN(16) float tmp[16];
 
-    APP(model_instance_get_model(instance_list[i], &model));
-    APP(model_instance_name(instance_list[i], &inst_name));
+    APP(model_instance_get_model(instance_it.instance, &model));
+    APP(model_instance_name(instance_it.instance, &inst_name));
     APP(model_name(model, &mdl_name));
     FPRINTF(file, "spawn -m %s -n %s\n", mdl_name, inst_name);
 
-    APP(get_raw_model_instance_transform(instance_list[i], &transform));
+    APP(get_raw_model_instance_transform(instance_it.instance, &transform));
     aosf44_store(tmp, transform);
     FPRINTF
       (file,
@@ -79,6 +81,7 @@ save_map(struct app* app, const char* cmd_name, const char* output_file)
        tmp[4], tmp[5], tmp[6], tmp[7], /* column 1 */
        tmp[8], tmp[9], tmp[10], tmp[11], /* column 2 */
        tmp[12], tmp[13], tmp[14], tmp[15]); /* column 3 */
+    APP(model_instance_it_next(&instance_it, &is_end_reached));
   }
   #undef FPRINTF
   APP(log(app, APP_LOG_INFO,

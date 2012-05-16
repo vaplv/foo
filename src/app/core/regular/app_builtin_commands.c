@@ -13,6 +13,7 @@
 #include <float.h>
 #include <limits.h>
 #include <stdlib.h>
+#include <string.h>
 
 #define ARGVAL(argv, i) (argv)[i]->value_list[0]
 
@@ -54,9 +55,8 @@ cmd_help(struct app* app, size_t argc UNUSED, const struct app_cmdarg** argv)
 static void
 cmd_ls(struct app* app, size_t argc UNUSED, const struct app_cmdarg** argv)
 {
-  size_t len = 0;
-  size_t i = 0;
   bool new_line = false;
+  size_t len = 0;
 
   assert(app != NULL
       && argc == 4
@@ -67,6 +67,7 @@ cmd_ls(struct app* app, size_t argc UNUSED, const struct app_cmdarg** argv)
 
   if(argv[1]->value_list[0].is_defined) { /* commands */
     const char** name_list = NULL;
+    size_t i = 0;
     SL(flat_set_buffer
       (app->cmd.name_set, &len, NULL, NULL, (void**)&name_list));
     for(i = 0; i < len; ++i) {
@@ -76,27 +77,41 @@ cmd_ls(struct app* app, size_t argc UNUSED, const struct app_cmdarg** argv)
     new_line = true;
   }
   if(argv[3]->value_list[0].is_defined) { /* models */
-    struct app_model** model_list = NULL;
-    APP(get_model_list(app, &len, &model_list));
+    struct app_model_it model_it;
+    bool is_end_reached = false;
+    memset(&model_it, 0, sizeof(model_it));
+
     if(new_line)
       APP_PRINT_MSG(app->logger, "\n");
-    for(i = 0; i < len; ++i) {
+
+    APP(get_model_list_begin(app, &model_it, &is_end_reached));
+    len = 0;
+    while(is_end_reached == false) {
       const char* name = NULL;
-      APP(model_name(model_list[i], &name));
+      APP(model_name(model_it.model, &name));
       APP_PRINT_MSG(app->logger, "%s\n", name);
+      APP(model_it_next(&model_it, &is_end_reached));
+      ++len;
     }
     APP_PRINT_MSG(app->logger, "[total %zu models]\n", len);
     new_line = true;
   }
   if(argv[2]->value_list[0].is_defined) { /* model-instances */
-    struct app_model_instance** instance_list = NULL;
-    APP(get_model_instance_list(app, &len,&instance_list));
+    struct app_model_instance_it instance_it;
+    bool is_end_reached = false;
+    memset(&instance_it, 0, sizeof(instance_it));
+
     if(new_line)
       APP_PRINT_MSG(app->logger, "\n");
-    for(i = 0; i < len; ++i) {
+
+    APP(get_model_instance_list_begin(app, &instance_it, &is_end_reached));
+    len = 0;
+    while(is_end_reached == false) {
       const char* name = NULL;
-      APP(model_instance_name(instance_list[i], &name));
+      APP(model_instance_name(instance_it.instance, &name));
       APP_PRINT_MSG(app->logger, "%s\n", name);
+      APP(model_instance_it_next(&instance_it, &is_end_reached));
+      ++len;
     }
     APP_PRINT_MSG(app->logger, "[total %zu model instances]\n", len);
   }

@@ -1,10 +1,6 @@
 #include "app/core/regular/app_c.h"
 #include "app/core/regular/app_error_c.h"
-#include "app/core/regular/app_model_c.h"
-#include "app/core/regular/app_model_instance_c.h"
 #include "app/core/regular/app_object.h"
-#include "app/core/app_model.h"
-#include "app/core/app_model_instance.h"
 #include "stdlib/sl.h"
 #include "stdlib/sl_flat_map.h"
 #include "stdlib/sl_pair.h"
@@ -35,7 +31,7 @@ register_object(struct app* app, struct app_object* obj)
   const char* cstr = NULL;
   enum app_error app_err = APP_NO_ERROR;
   enum sl_error sl_err = SL_NO_ERROR;
-  assert(obj && obj->name && app && obj->type != APP_NB_OBJECT_TYPES);
+  assert(obj && obj->name && app);
 
   SL(string_get(obj->name, &cstr));
 
@@ -71,18 +67,7 @@ release_objects(struct app* app, enum app_object_type type)
       SL(flat_map_at(app->object_map[type], --i, &pair));
       assert(SL_IS_PAIR_VALID(&pair));
       obj = *(struct app_object**)pair.data;
-
-      switch((enum app_object_type)type) {
-        case APP_MODEL:
-          APP(model_ref_put(app_object_to_model(obj)));
-          break;
-        case APP_MODEL_INSTANCE:
-          APP(model_instance_ref_put(app_object_to_model_instance(obj)));
-          break;
-        default:
-          assert(false);
-          break;
-      }
+      obj->release(obj);
     }
   }
 }
@@ -97,18 +82,20 @@ app_init_object
   (struct app* app,
    struct app_object* obj,
    enum app_object_type type,
+   void (*release)(struct app_object*),
    const char* name)
 {
   enum app_error app_err = APP_NO_ERROR;
   enum sl_error sl_err = SL_NO_ERROR;
 
-  if(!app || !obj || type == APP_NB_OBJECT_TYPES) {
+  if(UNLIKELY(!app || !obj || type == APP_NB_OBJECT_TYPES || !release)) {
     app_err = APP_INVALID_ARGUMENT;
     goto error;
   }
   memset(obj, 0, sizeof(struct app_object));
 
   obj->type = type;
+  obj->release = release;
   sl_err = sl_create_string(NULL, app->allocator, &obj->name);
   if(sl_err != SL_NO_ERROR) {
     app_err = sl_to_app_error(sl_err);
@@ -117,6 +104,7 @@ app_init_object
   app_err = app_set_object_name(app, obj, name ? name : "unamed");
   if(app_err != APP_NO_ERROR)
     goto error;
+
 
 exit:
   return app_err;
@@ -301,6 +289,20 @@ app_get_object
 }
 
 enum app_error
+app_get_object_list
+  (struct app* app,
+   enum app_object_type type,
+   size_t* len,
+   struct app_object** obj_list[])
+{
+  if(UNLIKELY(!app || type == APP_NB_OBJECT_TYPES))
+    return APP_INVALID_ARGUMENT;
+  SL(flat_map_data_buffer
+    (app->object_map[type], len, NULL, NULL, (void**)obj_list));
+  return APP_NO_ERROR;
+}
+
+enum app_error
 app_object_name_completion
   (struct app* app,
    enum app_object_type type,
@@ -358,13 +360,9 @@ app_shutdown_object_system(struct app* app)
   if(!app)
     return APP_INVALID_ARGUMENT;
 
+  APP(clear_object_system(app));
   for(i = 0; i < APP_NB_OBJECT_TYPES; ++i) {
     if(app->object_map[i]) {
-      #ifndef NDEBUG
-      size_t len = 0;
-      SL(flat_map_length(app->object_map[i], &len));
-      assert(len == 0);
-      #endif
       SL(free_flat_map(app->object_map[i]));
       app->object_map[i] = NULL;
     }
@@ -377,14 +375,17 @@ app_clear_object_system(struct app* app)
 {
   int type_id = 0;
 
-  if(!app) 
+  if(!app)
     return APP_INVALID_ARGUMENT;
-  
+
   release_objects(app, APP_MODEL_INSTANCE);
   release_objects(app, APP_MODEL);
 
-  for(type_id = 0; type_id < APP_NB_OBJECT_TYPES; ++type_id)
-    SL(clear_flat_map(app->object_map[type_id]));
+  for(type_id = 0; type_id < APP_NB_OBJECT_TYPES; ++type_id) {
+    if(app->object_map[type_id]) {
+      SL(clear_flat_map(app->object_map[type_id]));
+    }
+  }
 
   return APP_NO_ERROR;
 }

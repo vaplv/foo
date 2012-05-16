@@ -748,8 +748,6 @@ app_ref_put(struct app* app)
   return APP_NO_ERROR;
 }
 
-/*#include "app/core/regular/app_view_c.h"*/
-
 EXPORT_SYM enum app_error
 app_run(struct app* app, bool* keep_running)
 {
@@ -765,28 +763,6 @@ app_run(struct app* app, bool* keep_running)
 
   if(app->term.is_enabled)
     RDR(frame_draw_term(app->rdr.frame, app->term.render_term));
-
- /* {
-    struct rdr_view view = {
-      .proj_ratio = app->view->ratio,
-      .fov_x = app->view->fov_x,
-      .znear = app->view->znear,
-      .zfar = app->view->zfar,
-      .x = 0,
-      .y = 0,
-      .width = 800,
-      .height = 600,
-    };
-    aosf44_store(view.transform, &app->view->transform);
-    RDR(frame_imdraw_parallelepiped
-      (app->rdr.frame,
-       &view, 
-       (float[]){10.f, 10.f, 0.f},
-       (float[]){20.f, 20.f, 20.f},
-       (float[]){0.f, 0.f, 0.f},
-       (float[]){1.f, 0.f, 0.f, 0.5f},
-       (float[]){0.f, 1.f, 0.f, 1.f}));
-  }*/
 
   RDR(flush_frame(app->rdr.frame));
   WM(swap(app->wm.window));
@@ -983,55 +959,6 @@ app_get_main_world(struct app* app, struct app_world** out_world)
     return APP_INVALID_ARGUMENT;
   *out_world = app->world;
   return APP_NO_ERROR;
-}
-
-EXPORT_SYM enum app_error
-app_get_model_list
-  (struct app* app,
-   size_t* len,
-   struct app_model** model_list[])
-{
-  enum app_error app_err = APP_NO_ERROR;
-
-  if(!app || !len || !model_list) {
-    app_err = APP_INVALID_ARGUMENT;
-    goto error;
-  }
-  SL(flat_map_data_buffer
-    (app->object_map[APP_MODEL],
-     len,
-     NULL,
-     NULL,
-     (void**)model_list));
-exit:
-  return app_err;
-error:
-  goto exit;
-}
-
-EXPORT_SYM enum app_error
-app_get_model_instance_list
-  (struct app* app,
-   size_t* len,
-   struct app_model_instance** model_instance_list[])
-{
-  enum app_error app_err = APP_NO_ERROR;
-
-  if(!app || !len || !model_instance_list) {
-    app_err = APP_INVALID_ARGUMENT;
-    goto error;
-  }
-  SL(flat_map_data_buffer
-    (app->object_map[APP_MODEL_INSTANCE],
-     len,
-     NULL,
-     NULL,
-     (void**)model_instance_list));
-
-exit:
-  return app_err;
-error:
-  goto exit;
 }
 
 EXPORT_SYM enum app_error

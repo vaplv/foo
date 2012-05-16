@@ -32,10 +32,10 @@ main(int argc, char** argv)
   struct app_model* model2 = NULL;
   struct app_model* model3 = NULL;
   struct app_model* model_list[MODEL_COUNT];
-  struct app_model** mdl_lst = NULL;
+  struct app_model_it model_it;
   struct app_model_instance* instance = NULL;
   struct app_model_instance* instance1 = NULL;
-  struct app_model_instance** instance_list = NULL;
+  struct app_model_instance_it instance_it;
   struct app_world* world0 = NULL;
   struct app_world* world1 = NULL;
   const char** lst = NULL;
@@ -298,21 +298,44 @@ main(int argc, char** argv)
   CHECK(world1, world0);
 
   /* Check that the instance is registered. */
-  CHECK(app_get_model_instance_list(app, &len, &instance_list), OK);
-  CHECK(len, 7);
-  for(i = 0; i < len; ++i) {
-    if(instance_list[i] == instance)
+  CHECK(app_get_model_instance_list_begin(NULL, NULL, NULL), BAD_ARG);
+  CHECK(app_get_model_instance_list_begin(app, NULL, NULL), BAD_ARG);
+  CHECK(app_get_model_instance_list_begin(NULL, &instance_it, NULL), BAD_ARG);
+  CHECK(app_get_model_instance_list_begin(app, &instance_it, NULL), BAD_ARG);
+  CHECK(app_get_model_instance_list_begin(NULL, NULL, &b), BAD_ARG);
+  CHECK(app_get_model_instance_list_begin(app, NULL, &b), BAD_ARG);
+  CHECK(app_get_model_instance_list_begin(NULL, &instance_it, &b), BAD_ARG);
+
+  CHECK(app_model_instance_it_next(NULL, NULL), BAD_ARG);
+  CHECK(app_model_instance_it_next(&instance_it, NULL), BAD_ARG);
+  CHECK(app_model_instance_it_next(NULL, &b), BAD_ARG);
+
+  CHECK(app_get_model_instance_list_begin(app, &instance_it, &b), OK);
+  i = 0;
+  while(b == false) {
+    if(instance_it.instance == instance)
       break;
+    CHECK(app_model_instance_it_next(&instance_it, &b), OK);
+    ++i;
   }
+  CHECK(app_get_model_instance_list_length(NULL, NULL), BAD_ARG);
+  CHECK(app_get_model_instance_list_length(app, NULL), BAD_ARG);
+  CHECK(app_get_model_instance_list_length(NULL, &len), BAD_ARG);
+  CHECK(app_get_model_instance_list_length(app, &len), OK);
+  CHECK(len, 7);
   CHECK(i < len, true);
   CHECK(app_remove_model_instance(NULL), BAD_ARG);
   CHECK(app_remove_model_instance(instance), OK);
   /* Check that the instance is *NOT* registered. */
-  CHECK(app_get_model_instance_list(app, &len, &instance_list), OK);
-  for(i = 0; i < len; ++i) {
-    if(instance_list[i] == instance)
+  CHECK(app_get_model_instance_list_begin(app, &instance_it, &b), OK);
+  i = 0;
+  while(b == false) {
+    if(instance_it.instance == instance)
       break;
+    CHECK(app_model_instance_it_next(&instance_it, &b), OK);
+    ++i;
   }
+  CHECK(app_get_model_instance_list_length(app, &len), OK);
   CHECK(len, 6);
   CHECK(i < len, false);
   /* Even though it is not registered the instance is still valid since we get
@@ -341,23 +364,47 @@ main(int argc, char** argv)
   CHECK(app_instantiate_model(app, model2, NULL, NULL), OK);
 
   /* Check that model is registered. */
-  CHECK(app_get_model_list(app, &len, &mdl_lst), OK);
-  for(i = 0; i < len; ++i) {
-    if(mdl_lst[i] == model)
+  CHECK(app_get_model_list_begin(NULL, NULL, NULL), BAD_ARG);
+  CHECK(app_get_model_list_begin(app, NULL, NULL), BAD_ARG);
+  CHECK(app_get_model_list_begin(NULL, &model_it, NULL), BAD_ARG);
+  CHECK(app_get_model_list_begin(app, &model_it, NULL), BAD_ARG);
+  CHECK(app_get_model_list_begin(NULL, NULL, &b), BAD_ARG);
+  CHECK(app_get_model_list_begin(app, NULL, &b), BAD_ARG);
+  CHECK(app_get_model_list_begin(NULL, &model_it, &b), BAD_ARG);
+
+  CHECK(app_model_it_next(NULL, NULL), BAD_ARG);
+  CHECK(app_model_it_next(&model_it, NULL), BAD_ARG);
+  CHECK(app_model_it_next(NULL, &b), BAD_ARG);
+
+  CHECK(app_get_model_list_begin(app, &model_it, &b), OK);
+  i = 0;
+  while(b == false) {
+    if(model_it.model == model)
       break;
+    CHECK(app_model_it_next(&model_it, &b), OK);
+    ++i;
   }
+  CHECK(app_get_model_list_length(NULL, NULL), BAD_ARG);
+  CHECK(app_get_model_list_length(app, NULL), BAD_ARG);
+  CHECK(app_get_model_list_length(NULL, &len), BAD_ARG);
+  CHECK(app_get_model_list_length(app, &len), OK);
   CHECK(i < len, true);
   /* Get a ref onto the model and then remove the model. */
   CHECK(app_model_ref_get(NULL), BAD_ARG);
   CHECK(app_model_ref_get(model), OK);
   CHECK(app_remove_model(NULL), BAD_ARG);
   CHECK(app_remove_model(model), OK);
+
   /* The model must be unregistered. */
-  CHECK(app_get_model_list(app, &len, &mdl_lst), OK);
-  for(i = 0; i < len; ++i) {
-    if(mdl_lst[i] == model)
+  CHECK(app_get_model_list_begin(app, &model_it, &b), OK);
+  i = 0;
+  while(b == false) {
+    if(model_it.model == model)
       break;
+    CHECK(app_model_it_next(&model_it, &b), OK);
+    ++i;
   }
+  CHECK(app_get_model_list_length(app, &len), OK);
   CHECK(i < len, false);
   /* Check that even though the model is removed it is still valid since we
    * previously owned it. */
@@ -365,7 +412,7 @@ main(int argc, char** argv)
   CHECK(strcmp(cstr, "Mdl0"), 0);
   /* Check that all the instances of the model are alse removed from the
    * application. */
-  CHECK(app_get_model_instance_list(app, &len, &instance_list), OK);
+  CHECK(app_get_model_instance_list_length(app, &len), OK);
   CHECK(len, 2);
 
   CHECK(app_model_ref_put(model), OK);

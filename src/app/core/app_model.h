@@ -5,6 +5,11 @@
 
 struct app;
 struct app_model;
+struct app_model_it {
+  struct app_model* model;
+  /* Private data. */
+  size_t id;
+};
 
 extern enum app_error
 app_create_model
@@ -62,6 +67,22 @@ app_get_model
   (struct app* app,
    const char* mdl_name,
    struct app_model** mdl); /* Set to NULL if not found. */
+
+extern enum app_error
+app_get_model_list_begin
+  (struct app* app,
+   struct app_model_it* it,
+   bool* is_end_reached);
+
+extern enum app_error
+app_model_it_next
+  (struct app_model_it* it,
+   bool* is_end_reached);
+
+extern enum app_error
+app_get_model_list_length
+  (struct app* app,
+   size_t* len);
 
 extern enum app_error
 app_model_name_completion

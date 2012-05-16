@@ -96,17 +96,17 @@ app_get_main_world
   (struct app* app,
    struct app_world** world);
 
-extern enum app_error
+/*extern enum app_error
 app_get_model_list
   (struct app* app,
    size_t* length,
-   struct app_model** model_list[]);
+   struct app_model** model_list[]);*/
 
-extern enum app_error
+/*extern enum app_error
 app_get_model_instance_list
   (struct app* app,
    size_t* length,
-   struct app_model_instance** model_instance_list[]);
+   struct app_model_instance** model_instance_list[]);*/
 
 extern enum app_error
 app_attach_callback

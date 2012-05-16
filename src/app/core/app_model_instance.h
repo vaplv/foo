@@ -8,6 +8,11 @@ struct aosf44;
 struct app;
 struct app_model;
 struct app_model_instance;
+struct app_model_instance_it {
+  struct app_model_instance* instance;
+  /* Private data. */
+  size_t id;
+};
 
 extern enum app_error
 app_instantiate_model
@@ -88,6 +93,22 @@ extern enum app_error
 app_model_instance_world
   (struct app_model_instance* instance,
    struct app_world** world); /* Set to NULL if it is not added to a world. */
+
+extern enum app_error
+app_get_model_instance_list_begin
+  (struct app* app,
+   struct app_model_instance_it* it,
+   bool* is_end_reached);
+
+extern enum app_error
+app_model_instance_it_next
+  (struct app_model_instance_it* it,
+   bool* is_end_reached);
+
+extern enum app_error
+app_get_model_instance_list_length
+  (struct app* app,
+   size_t* len);
 
 extern enum app_error
 app_get_model_instance

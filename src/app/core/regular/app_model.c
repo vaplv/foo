@@ -17,16 +17,20 @@
 #include "stdlib/sl_flat_map.h"
 #include "stdlib/sl_string.h"
 #include "stdlib/sl_vector.h"
+#include "sys/math.h"
 #include "sys/mem_allocator.h"
 #include "sys/ref_count.h"
 #include "sys/sys.h"
 #include <assert.h>
+#include <float.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 struct app_model {
+  float min_bound[3]; /* min bound of the union of the rdr mesh aabb. */
+  float max_bound[3]; /* max bound of the union of the rdr_mesh aabb. */
   struct app_object obj;
   struct ref ref;
   struct app* app;
@@ -80,9 +84,19 @@ clear_model_render_data(struct app_model* model)
   return APP_NO_ERROR;
 }
 
+static FINLINE void
+set_default_model_bounds(struct app_model* mdl)
+{
+  assert(mdl);
+  mdl->min_bound[0] = mdl->min_bound[1] = mdl->min_bound[2] = FLT_MAX;
+  mdl->max_bound[0] = mdl->max_bound[1] = mdl->max_bound[2] = -FLT_MAX;
+}
+
 static enum app_error
 setup_model(struct app_model* model)
 {
+  float min_bound[3] = {FLT_MAX, FLT_MAX, FLT_MAX};
+  float max_bound[3] = {-FLT_MAX, -FLT_MAX, -FLT_MAX};
   struct rdr_mesh* mesh = NULL;
   struct rdr_model* rmodel = NULL;
   size_t nb_prim_set = 0;
@@ -97,6 +111,7 @@ setup_model(struct app_model* model)
   if(app_err != APP_NO_ERROR)
     goto error;
 
+  set_default_model_bounds(model);
   RSRC(get_primitive_set_count(model->geometry, &nb_prim_set));
   for(i = 0; i < nb_prim_set; ++i) {
     struct rsrc_primitive_set prim_set;
@@ -135,6 +150,14 @@ setup_model(struct app_model* model)
       app_err = rdr_to_app_error(rdr_err);
       goto error;
     }
+    /* Update the model AABB. */
+    RDR(get_mesh_aabb(mesh, min_bound, max_bound));
+    model->min_bound[0] = MIN(model->min_bound[0], min_bound[0]);
+    model->min_bound[1] = MIN(model->min_bound[1], min_bound[1]);
+    model->min_bound[2] = MIN(model->min_bound[2], min_bound[2]);
+    model->max_bound[0] = MAX(model->max_bound[0], max_bound[0]);
+    model->max_bound[1] = MAX(model->max_bound[1], max_bound[1]);
+    model->max_bound[2] = MAX(model->max_bound[2], max_bound[2]);
     /* Render model setup. */
     rdr_err = rdr_create_model
       (model->app->rdr.system,
@@ -145,7 +168,6 @@ setup_model(struct app_model* model)
       app_err = rdr_to_app_error(rdr_err);
       goto error;
     }
-
     /* Register the mesh and the model. */
     sl_err = sl_vector_push_back(model->mesh_list, &mesh);
     if(sl_err != SL_NO_ERROR) {
@@ -205,6 +227,13 @@ release_model(struct ref* ref)
   APP(ref_put(app));
 }
 
+static void
+release_model_object(struct app_object* obj)
+{
+  assert(obj);
+  APP(model_ref_put(app_object_to_model(obj)));
+}
+
 /*******************************************************************************
  *
  *  Implementation of the app_model functions.
@@ -236,8 +265,10 @@ app_create_model
   list_init(&mdl->instance_list);
   APP(ref_get(app));
   mdl->app = app;
+  set_default_model_bounds(mdl);
 
-  app_err = app_init_object(app, &mdl->obj, APP_MODEL, name);
+  app_err = app_init_object
+    (app, &mdl->obj, APP_MODEL, release_model_object, name);
   if(app_err != APP_NO_ERROR)
     goto error;
 
@@ -494,6 +525,55 @@ exit:
   return app_err;
 error:
   goto exit;
+}
+
+EXPORT_SYM enum app_error
+app_get_model_list_begin
+  (struct app* app,
+   struct app_model_it* it,
+   bool* is_end_reached)
+{
+  struct app_object** obj_list = NULL;
+  size_t len = 0;
+
+  if(UNLIKELY(!app || !it || !is_end_reached))
+    return APP_INVALID_ARGUMENT;
+
+  APP(get_object_list(app, APP_MODEL, &len, &obj_list));
+  if(len == 0) {
+    *is_end_reached = true;
+  } else {
+    it->model = app_object_to_model(obj_list[0]);
+    it->id = 0;
+  }
+  return APP_NO_ERROR;
+}
+
+EXPORT_SYM enum app_error
+app_model_it_next(struct app_model_it* it, bool* is_end_reached)
+{
+  struct app_object** obj_list = NULL;
+  size_t len = 0;
+
+  if(UNLIKELY(!it || !is_end_reached || !it->model))
+    return APP_INVALID_ARGUMENT;
+  APP(get_object_list(it->model->app, APP_MODEL, &len, &obj_list));
+  ++it->id;
+  if(len <=it->id) {
+    *is_end_reached = true;
+  } else {
+    it->model = app_object_to_model(obj_list[it->id]);
+  }
+  return APP_NO_ERROR;
+}
+
+EXPORT_SYM enum app_error
+app_get_model_list_length(struct app* app, size_t* len)
+{
+  if(UNLIKELY(!app || !len))
+    return APP_INVALID_ARGUMENT;
+  APP(get_object_list(app, APP_MODEL, len, NULL));
+  return APP_NO_ERROR;
 }
 
 EXPORT_SYM enum app_error

@@ -17,7 +17,7 @@
 
 #define MAX_TERM_NODE 4
 #define MAX_WORLD_NODE 4
-#define MAX_IMDRAW_COMMANDS 256
+#define MAX_IMDRAW_COMMANDS 512
 
 struct term_node {
   struct list_node node;
@@ -48,6 +48,60 @@ struct rdr_frame {
  * Helper functions.
  *
  ******************************************************************************/
+static enum rdr_error
+imdraw_parallelepiped
+  (struct rdr_frame* frame,
+   const struct rdr_view* rview,
+   const struct aosf44* trans,
+   const float solid_color[4],
+   const float wire_color[4])
+{
+  ALIGN(16) float tmp[16];
+  struct aosf44 transform;
+  struct aosf44 viewproj;
+  struct aosf44 proj;
+  struct aosf44 view;
+  struct rdr_imdraw_command* cmd = NULL;
+  enum rdr_error rdr_err = RDR_NO_ERROR;
+
+  assert(frame && rview && trans);
+
+  RDR(get_imdraw_command(frame->imdraw_cmdbuf, &cmd));
+  if(UNLIKELY(!cmd)) {
+    rdr_err = RDR_MEMORY_ERROR;
+    goto error;
+  }
+
+  /* Compute the transform matrix. */
+  aosf44_load(&view, rview->transform);
+  RDR(compute_projection_matrix(rview, &proj));
+  aosf44_mulf44(&viewproj, &proj, &view);
+  aosf44_mulf44(&transform, &viewproj, trans);
+  aosf44_store(tmp, &transform);
+
+  /* Setup the draw command. */
+  cmd->type = RDR_IMDRAW_PARALLELEPIPED;
+  memcpy(cmd->data.parallelepiped.transform, tmp, sizeof(tmp));
+  if(solid_color) {
+    memcpy(cmd->data.parallelepiped.solid_color, solid_color, 4*sizeof(float));
+  } else {
+    cmd->data.parallelepiped.solid_color[3] = 0.f;
+  }
+  if(wire_color) {
+    memcpy(cmd->data.parallelepiped.wire_color, wire_color, 4 * sizeof(float));
+  } else {
+    cmd->data.parallelepiped.wire_color[3] = 0.f;
+  }
+
+  RDR(emit_imdraw_command(frame->imdraw_cmdbuf, cmd));
+exit:
+  return rdr_err;
+error:
+  assert(cmd == NULL);
+  goto exit;
+
+}
+
 static void
 release_frame(struct ref* ref)
 {
@@ -194,56 +248,71 @@ EXPORT_SYM enum rdr_error
 rdr_frame_imdraw_parallelepiped
   (struct rdr_frame* frame,
    const struct rdr_view* rview,
-   float pos[3],
-   float size[3],
-   float rotation[3],
-   float solid_color[4],
-   float wire_color[4])
+   const float pos[3],
+   const float size[3],
+   const float rotation[3],
+   const float solid_color[4],
+   const float wire_color[4])
 {
-  ALIGN(16) float tmp[16];
-  struct aosf44 viewproj;
-  struct aosf44 proj;
-  struct aosf44 view;
   struct aosf44 transform;
   struct aosf33 f33;
-  struct rdr_imdraw_command* cmd = NULL;
   enum rdr_error rdr_err = RDR_NO_ERROR;
 
   if(UNLIKELY(!frame || !rview || !pos || !size || !rotation)) {
     rdr_err = RDR_INVALID_ARGUMENT;
     goto error;
   }
-  RDR(get_imdraw_command(frame->imdraw_cmdbuf, &cmd));
-  if(UNLIKELY(!cmd)) {
-    rdr_err = RDR_MEMORY_ERROR;
-    goto error;
-  }
+
   /* Compute the transform matrix. */
-  aosf44_load(&view, rview->transform);
-  RDR(compute_projection_matrix(rview, &proj));
   aosf33_rotation(&f33, rotation[0], rotation[1], rotation[2]);
   f33.c0 = vf4_mul(f33.c0, vf4_set1(size[0]));
   f33.c1 = vf4_mul(f33.c1, vf4_set1(size[1]));
   f33.c2 = vf4_mul(f33.c2, vf4_set1(size[2]));
   aosf44_set
     (&transform, f33.c0, f33.c1, f33.c2, vf4_set(pos[0], pos[1], pos[2], 1.f));
-  aosf44_mulf44(&viewproj, &proj, &view);
-  aosf44_mulf44(&transform, &viewproj, &transform);
-  aosf44_store(tmp, &transform);
-  /* Emit the draw command. */
-  cmd->type = RDR_IMDRAW_PARALLELEPIPED;
-  memcpy(cmd->data.parallelepiped.transform, tmp, sizeof(tmp));
-  if(solid_color) {
-    memcpy(cmd->data.parallelepiped.solid_color, solid_color, 4*sizeof(float));
-  } else {
-    cmd->data.parallelepiped.solid_color[3] = 0.f;
+
+  rdr_err = imdraw_parallelepiped
+    (frame, rview, &transform, solid_color, wire_color);
+  if(rdr_err != RDR_NO_ERROR)
+    goto error;
+
+exit:
+  return rdr_err;
+error:
+  goto exit;
+}
+
+EXPORT_SYM enum rdr_error
+rdr_frame_imdraw_transformed_parallelepiped
+  (struct rdr_frame* frame,
+   const struct rdr_view* rview,
+   const float mat[16],
+   const float solid_color[4],
+   const float wire_color[4])
+{
+  struct aosf44 transform;
+  enum rdr_error rdr_err = RDR_NO_ERROR;
+
+  if(UNLIKELY(!frame || !rview || !mat)) {
+    rdr_err = RDR_INVALID_ARGUMENT;
+    goto error;
   }
-  if(wire_color) {
-    memcpy(cmd->data.parallelepiped.wire_color, wire_color, 4 * sizeof(float));
+  if(IS_ALIGNED(mat, 16)) {
+    transform.c0 = vf4_load(mat);
+    transform.c1 = vf4_load(mat + 4);
+    transform.c2 = vf4_load(mat + 8);
+    transform.c3 = vf4_load(mat + 12);
   } else {
-    cmd->data.parallelepiped.wire_color[3] = 0.f;
+    transform.c0 = vf4_set(mat[0], mat[1], mat[2], mat[3]);
+    transform.c1 = vf4_set(mat[4], mat[5], mat[6], mat[7]);
+    transform.c2 = vf4_set(mat[8], mat[9], mat[10], mat[11]);
+    transform.c3 = vf4_set(mat[12], mat[13], mat[14], mat[15]);
   }
-  RDR(emit_imdraw_command(frame->imdraw_cmdbuf, cmd));
+  rdr_err = imdraw_parallelepiped
+    (frame, rview, &transform, solid_color, wire_color);
+  if(rdr_err != RDR_NO_ERROR)
+    goto error;
+
 exit:
   return rdr_err;
 error:
