@@ -18,7 +18,11 @@
  *
  ******************************************************************************/
 static void
-mv(struct app* app, size_t argc UNUSED, const struct app_cmdarg** argv)
+mv
+  (struct app* app,
+   size_t argc UNUSED,
+   const struct app_cmdarg** argv,
+   void* data UNUSED)
 {
   struct app_model_instance* instance = NULL;
   const char* name = NULL;
@@ -69,7 +73,8 @@ static void
 translate
   (struct app* app,
    size_t argc UNUSED,
-   const struct app_cmdarg** argv)
+   const struct app_cmdarg** argv,
+   void* data UNUSED)
 {
   size_t nb_defined_flags = 0;
   enum {
@@ -104,7 +109,7 @@ translate
     if(nb_defined_flags == 0) {
       APP(log(app, APP_LOG_ERROR, "missing coordinate system\n"));
     } else {
-      APP(log(app, APP_LOG_ERROR, 
+      APP(log(app, APP_LOG_ERROR,
         "only one coordinate system must be defined\n"));
     }
   } else {
@@ -160,7 +165,11 @@ translate
 }
 
 static void
-rotate(struct app* app, size_t argc UNUSED, const struct app_cmdarg** argv)
+rotate
+  (struct app* app,
+   size_t argc UNUSED,
+   const struct app_cmdarg** argv,
+   void* data UNUSED)
 {
   size_t nb_defined_flags = 0;
   enum {
@@ -197,7 +206,7 @@ rotate(struct app* app, size_t argc UNUSED, const struct app_cmdarg** argv)
     if(nb_defined_flags == 0) {
       APP(log(app, APP_LOG_ERROR, "missing coordinate system\n"));
     } else {
-      APP(log(app, APP_LOG_ERROR, 
+      APP(log(app, APP_LOG_ERROR,
         "only one coordinate system must be defined\n"));
     }
   } else {
@@ -262,7 +271,11 @@ rotate(struct app* app, size_t argc UNUSED, const struct app_cmdarg** argv)
 }
 
 static void
-scale(struct app* app, size_t argc UNUSED, const struct app_cmdarg** argv)
+scale
+  (struct app* app,
+   size_t argc UNUSED,
+   const struct app_cmdarg** argv,
+   void* data UNUSED)
 {
   size_t nb_defined_flags = 0;
   enum {
@@ -297,7 +310,7 @@ scale(struct app* app, size_t argc UNUSED, const struct app_cmdarg** argv)
     if(nb_defined_flags == 0) {
       APP(log(app, APP_LOG_ERROR, "missing coordinate system\n"));
     } else {
-      APP(log(app, APP_LOG_ERROR, 
+      APP(log(app, APP_LOG_ERROR,
         "only one coordinate system must be defined\n"));
     }
   } else {
@@ -362,7 +375,8 @@ static void
 transform
   (struct app* app,
    size_t argc UNUSED,
-   const struct app_cmdarg** argv)
+   const struct app_cmdarg** argv,
+   void* data UNUSED)
 {
   struct app_model_instance* instance = NULL;
   const char* name = NULL;
@@ -475,7 +489,7 @@ cmd_setup_move_commands(struct app* app)
     } while(0)
 
   CALL(app_add_command
-    (app, "mv", mv, app_model_instance_name_completion,
+    (app, "mv", mv, NULL, app_model_instance_name_completion,
      APP_CMDARGV
      (APP_CMDARG_APPEND_STRING
         ("i", "instance", "<name>", "define the instance to move", 1, 1, NULL),
@@ -489,7 +503,7 @@ cmd_setup_move_commands(struct app* app)
      "move a model instance"));
 
   CALL(app_add_command
-    (app, "rotate", rotate, app_model_instance_name_completion,
+    (app, "rotate", rotate, NULL, app_model_instance_name_completion,
      APP_CMDARGV
      (APP_CMDARG_APPEND_LITERAL
         ("e", "eye",
@@ -517,7 +531,7 @@ cmd_setup_move_commands(struct app* app)
      "rotate a model instance"));
 
   CALL(app_add_command
-    (app, "scale", scale, app_model_instance_name_completion,
+    (app, "scale", scale, NULL, app_model_instance_name_completion,
      APP_CMDARGV
      (APP_CMDARG_APPEND_LITERAL
         ("e", "eye",
@@ -543,7 +557,7 @@ cmd_setup_move_commands(struct app* app)
      "scale a model instance"));
 
   CALL(app_add_command
-    (app, "transform", transform, app_model_instance_name_completion,
+    (app, "transform", transform, NULL, app_model_instance_name_completion,
      APP_CMDARGV
      (APP_CMDARG_APPEND_STRING
         ("i", "instance", "<name>",
@@ -569,7 +583,7 @@ cmd_setup_move_commands(struct app* app)
      "transform the instance by a 4x4 matrix"));
 
   CALL(app_add_command
-    (app, "translate", translate, app_model_instance_name_completion,
+    (app, "translate", translate, NULL, app_model_instance_name_completion,
      APP_CMDARGV
      (APP_CMDARG_APPEND_LITERAL
         ("e", "eye",

@@ -44,7 +44,7 @@ release_world(struct ref* ref)
 
   world = CONTAINER_OF(ref, struct app_world, ref);
   LIST_FOR_EACH_SAFE(node, tmp, &world->instance_list) {
-    struct app_model_instance* instance = 
+    struct app_model_instance* instance =
       CONTAINER_OF(node, struct app_model_instance, world_node);
     instance->world = NULL;
     list_del(&instance->world_node);
@@ -302,7 +302,7 @@ app_draw_world(struct app_world* world, const struct app_view* view)
       size[1] = max_bound[1] - min_bound[1];
       size[2] = max_bound[2] - min_bound[2];
       RDR(frame_imdraw_parallelepiped
-        (world->app->rdr.frame, 
+        (world->app->rdr.frame,
          &render_view,
          pos,
          size,

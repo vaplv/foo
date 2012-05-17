@@ -13,9 +13,14 @@
 #define OK APP_NO_ERROR
 
 static void
-foo(struct app* app UNUSED, size_t argc, const struct app_cmdarg** argv)
+foo
+  (struct app* app UNUSED, 
+   size_t argc, 
+   const struct app_cmdarg** argv,
+   void* data)
 {
   CHECK(argc > 0 && argc < 3, true);
+  CHECK(data, NULL);
   CHECK(argv[0]->type, APP_CMDARG_STRING);
   CHECK(argv[0]->count, 1);
   CHECK(argv[0]->value_list[0].is_defined, true);
@@ -38,9 +43,14 @@ static bool load_verbose_opt__ = false;
 static bool load_name_opt__ = false;
 
 static void
-load(struct app* app UNUSED, size_t argc, const struct app_cmdarg** argv)
+load
+  (struct app* app UNUSED, 
+   size_t argc, 
+   const struct app_cmdarg** argv,
+   void* data)
 {
   CHECK(argc, 4);
+  CHECK(data, NULL);
   /* Command name. */
   CHECK(argv[0]->type, APP_CMDARG_STRING);
   CHECK(argv[0]->count, 1);
@@ -84,9 +94,14 @@ static float setf3_g__ = 0.f;
 static float setf3_b__ = 0.f;
 
 static void
-setf3(struct app* app UNUSED, size_t argc,  const struct app_cmdarg** argv)
+setf3
+  (struct app* app UNUSED, 
+   size_t argc,
+   const struct app_cmdarg** argv,
+   void* data)
 {
   CHECK(argc, 4);
+  CHECK(data, NULL);
   /* Command name. */
   CHECK(argv[0]->type, APP_CMDARG_STRING);
   CHECK(argv[0]->count, 1);
@@ -208,11 +223,16 @@ month_completion
 }
 
 static void
-day(struct app* app UNUSED, size_t argc, const struct app_cmdarg** argv)
+day
+  (struct app* app UNUSED, 
+   size_t argc, 
+   const struct app_cmdarg** argv,
+   void* data)
 {
   size_t i = 0;
 
   CHECK(argc, 2);
+  CHECK(data, NULL);
   /* Command name. */
   CHECK(argv[0]->type, APP_CMDARG_STRING);
   CHECK(argv[0]->count, 1);
@@ -238,13 +258,18 @@ day(struct app* app UNUSED, size_t argc, const struct app_cmdarg** argv)
 }
 
 static void
-date_day(struct app* app, size_t argc, const struct app_cmdarg** argv)
+date_day
+  (struct app* app, 
+   size_t argc, 
+   const struct app_cmdarg** argv,
+   void* data)
 {
   const size_t len = sizeof(days)/sizeof(const char*) - 1; /* -1 <=> NULL. */
   size_t i = 0;
 
   NCHECK(app, NULL);
   CHECK(argc, 2);
+  CHECK(data, NULL);
   CHECK(argv[0]->type, APP_CMDARG_STRING);
   CHECK(argv[0]->count, 1);
   CHECK(argv[0]->value_list[0].is_defined, true);
@@ -262,13 +287,18 @@ date_day(struct app* app, size_t argc, const struct app_cmdarg** argv)
 }
 
 static void
-date_month(struct app* app, size_t argc, const struct app_cmdarg** argv)
+date_month
+  (struct app* app, 
+   size_t argc, 
+   const struct app_cmdarg** argv,
+   void* data)
 {
   const size_t len = sizeof(monthes)/sizeof(const char*) - 1; /* -1 <=> NULL. */
   size_t i = 0;
 
   NCHECK(app, NULL);
   CHECK(argc, 2);
+  CHECK(data, NULL);
   CHECK(argv[0]->type, APP_CMDARG_STRING);
   CHECK(argv[0]->count, 1);
   CHECK(argv[0]->value_list[0].is_defined, true);
@@ -290,11 +320,16 @@ static const char* cat_file_list__[MAX_FILE_COUNT];
 static size_t cat_file_count__ = 0;
 
 static void
-cat(struct app* app UNUSED, size_t argc, const struct app_cmdarg** argv)
+cat
+  (struct app* app UNUSED, 
+   size_t argc, 
+   const struct app_cmdarg** argv,
+   void* data)
 {
   size_t i = 0;
 
   CHECK(argc, 2);
+  CHECK(data, NULL);
   /* Command name. */
   CHECK(argv[0]->type, APP_CMDARG_STRING);
   CHECK(argv[0]->count, 1);
@@ -315,11 +350,16 @@ static int seti_int_list__[MAX_INT_COUNT];
 static int seti_int_count__ = 0;
 
 static void
-seti(struct app* app UNUSED, size_t argc, const struct app_cmdarg** argv)
+seti
+  (struct app* app UNUSED,
+   size_t argc, 
+   const struct app_cmdarg** argv,
+   void* data)
 {
   int i = 0;
 
   CHECK(argc, 2);
+  CHECK(data, NULL);
   /* Command name. */
   CHECK(argv[0]->type, APP_CMDARG_STRING);
   CHECK(argv[0]->count, 1);
@@ -334,6 +374,25 @@ seti(struct app* app UNUSED, size_t argc, const struct app_cmdarg** argv)
   }
   CHECK(i, seti_int_count__);
 }
+
+static void
+print
+  (struct app* app UNUSED,
+   size_t argc, 
+   const struct app_cmdarg** argv,
+   void* data)
+{
+  CHECK(argc, 1);
+  NCHECK(data, NULL);
+  CHECK(strcmp((char*)data, "hello world!"), 0);
+  /* Command name. */
+  CHECK(argv[0]->type, APP_CMDARG_STRING);
+  CHECK(argv[0]->count, 1);
+  CHECK(argv[0]->value_list[0].is_defined, true);
+
+  CHECK(strcmp(argv[0]->value_list[0].data.string, "__print"), 0);
+}
+
 
 int
 main(int argc, char **argv)
@@ -353,18 +412,18 @@ main(int argc, char **argv)
 
   CHECK(app_init(&args, &app), OK);
 
-  CHECK(app_add_command(NULL, NULL, NULL, NULL, NULL, NULL), BAD_ARG);
-  CHECK(app_add_command(app, NULL, NULL, NULL, NULL, NULL), BAD_ARG);
-  CHECK(app_add_command(NULL, NULL, NULL, NULL, NULL, NULL), BAD_ARG);
-  CHECK(app_add_command(app, "__foo", NULL, NULL, NULL, NULL), BAD_ARG);
-  CHECK(app_add_command(NULL, NULL, foo, NULL, NULL, NULL), BAD_ARG);
-  CHECK(app_add_command(app, NULL, foo, NULL, NULL, NULL), BAD_ARG);
-  CHECK(app_add_command(NULL, NULL, foo, NULL, NULL, NULL), BAD_ARG);
+  CHECK(app_add_command(NULL, NULL, NULL, NULL, NULL, NULL, NULL), BAD_ARG);
+  CHECK(app_add_command(app, NULL, NULL, NULL, NULL, NULL, NULL), BAD_ARG);
+  CHECK(app_add_command(NULL, NULL, NULL, NULL, NULL, NULL, NULL), BAD_ARG);
+  CHECK(app_add_command(app, "__foo", NULL, NULL, NULL, NULL, NULL), BAD_ARG);
+  CHECK(app_add_command(NULL, NULL, foo, NULL, NULL, NULL, NULL), BAD_ARG);
+  CHECK(app_add_command(app, NULL, foo, NULL, NULL, NULL, NULL), BAD_ARG);
+  CHECK(app_add_command(NULL, NULL, foo, NULL, NULL, NULL, NULL), BAD_ARG);
 
-  CHECK(app_add_command(app, "__foo", foo, NULL, NULL, NULL), OK);
-  CHECK(app_add_command(app, "__foo", foo, NULL, NULL, NULL), OK);
+  CHECK(app_add_command(app, "__foo", foo, NULL, NULL, NULL, NULL), OK);
+  CHECK(app_add_command(app, "__foo", foo, NULL, NULL, NULL, NULL), OK);
   CHECK(app_add_command
-    (app, "__foo", foo, NULL, APP_CMDARGV(
+    (app, "__foo", foo, NULL, NULL, APP_CMDARGV(
       APP_CMDARG_APPEND_LITERAL("vV", "verbose, verb", NULL, 1, 1),
       APP_CMDARG_END),
      NULL),
@@ -385,7 +444,7 @@ main(int argc, char **argv)
   CHECK(app_execute_command(app, "__foo"), CMD_ERR);
 
   CHECK(app_add_command
-    (app, "__foo", foo, NULL,
+    (app, "__foo", foo, NULL, NULL,
      APP_CMDARGV
       (APP_CMDARG_APPEND_LITERAL("vV", "verb,verbose", NULL, 0, 1),
        APP_CMDARG_END),
@@ -400,7 +459,7 @@ main(int argc, char **argv)
   CHECK(app_del_command(app, "__foo"), OK);
 
   CHECK(app_add_command
-    (app, "__load", load, NULL,
+    (app, "__load", load, NULL, NULL,
      APP_CMDARGV
       (APP_CMDARG_APPEND_LITERAL("vV", "verbose,verb", "verbosity", 0, 1),
        APP_CMDARG_APPEND_FILE("mM", "model,mdl", "<model-path>", NULL, 1, 1),
@@ -497,7 +556,7 @@ main(int argc, char **argv)
 
 
   CHECK(app_add_command
-    (app, "__setf3", setf3, NULL,
+    (app, "__setf3", setf3, NULL, NULL,
      APP_CMDARGV
       (APP_CMDARG_APPEND_FLOAT
         ("r", "red", "<real>", "red value", 0, 1, 0.f, 1.f),
@@ -534,7 +593,7 @@ main(int argc, char **argv)
     (app, "__setf3 -r -1.5 -b 0.5e0 -g 0.78 -g 1"), CMD_ERR);
 
   CHECK(app_add_command
-    (app, "__day", day, day_completion,
+    (app, "__day", day, NULL, day_completion,
      APP_CMDARGV
       (APP_CMDARG_APPEND_STRING(NULL, NULL, "<day>", "day name", 1, 3, days),
        APP_CMDARG_END),
@@ -684,13 +743,13 @@ main(int argc, char **argv)
 
   /* Multi syntax. */
   CHECK(app_add_command
-    (app, "__date", date_day, day_completion,
+    (app, "__date", date_day, NULL, day_completion,
      APP_CMDARGV
      (APP_CMDARG_APPEND_STRING("d", "day", "<day>", NULL, 1, 1, NULL),
       APP_CMDARG_END),
      NULL), OK);
   CHECK(app_add_command
-    (app, "__date", date_month, month_completion,
+    (app, "__date", date_month, NULL, month_completion,
      APP_CMDARGV
      (APP_CMDARG_APPEND_STRING("m", "month", "<month>", NULL, 1, 1, NULL),
       APP_CMDARG_END),
@@ -760,7 +819,7 @@ main(int argc, char **argv)
   CHECK(app_del_command(app, "__date"), OK);
 
   CHECK(app_add_command
-    (app, "__cat", cat, NULL,
+    (app, "__cat", cat, NULL, NULL,
      APP_CMDARGV
       (APP_CMDARG_APPEND_FILE
        (NULL, NULL, "<file> ...", "files", 1, MAX_FILE_COUNT),
@@ -781,7 +840,7 @@ main(int argc, char **argv)
   CHECK(app_execute_command(app, "__cat foo hello world test"), OK);
 
   CHECK(app_add_command
-    (app, "__seti", seti, NULL,
+    (app, "__seti", seti, NULL, NULL,
      APP_CMDARGV
       (APP_CMDARG_APPEND_INT("-i", NULL, NULL, NULL, 1, MAX_INT_COUNT, 5, 7),
        APP_CMDARG_END),
@@ -863,6 +922,10 @@ main(int argc, char **argv)
   CHECK(app_del_command(app, "__seti"), OK);
   CHECK(app_has_command(app, "__seti", &b), OK);
   CHECK(b, false);
+
+  CHECK(app_add_command
+    (app, "__print", print, "hello world!", NULL, NULL, NULL), OK);
+  CHECK(app_execute_command(app, "__print"), OK);
 
   CHECK(app_cleanup(app), APP_NO_ERROR);
   CHECK(app_ref_put(app), APP_NO_ERROR);

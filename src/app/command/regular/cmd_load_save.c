@@ -105,7 +105,11 @@ error:
  *
  ******************************************************************************/
 static void
-load_model(struct app* app, size_t argc UNUSED, const struct app_cmdarg** argv)
+load_model
+  (struct app* app, 
+   size_t argc UNUSED, 
+   const struct app_cmdarg** argv,
+   void* data UNUSED)
 {
   struct app_model* mdl = NULL;
   enum app_error app_err = APP_NO_ERROR;
@@ -134,7 +138,11 @@ load_model(struct app* app, size_t argc UNUSED, const struct app_cmdarg** argv)
 }
 
 static void
-load_map(struct app* app, size_t argc UNUSED, const struct app_cmdarg** argv)
+load_map
+  (struct app* app, 
+   size_t argc UNUSED, 
+   const struct app_cmdarg** argv,
+   void* data UNUSED)
 {
   #define MAXLEN 2048
   char buffer[MAXLEN];
@@ -227,7 +235,8 @@ static void
 save
   (struct app* app,
    size_t argc UNUSED,
-   const struct app_cmdarg** argv)
+   const struct app_cmdarg** argv,
+   void* data UNUSED)
 {
   const struct app_cvar* cvar = NULL;
   const char* cmd_name = NULL;
@@ -313,21 +322,21 @@ cmd_setup_load_save_commands(struct app* app)
     } while(0)
 
   CALL(app_add_command
-    (app, "load", load_model, NULL,
+    (app, "load", load_model, NULL, NULL,
      APP_CMDARGV
      (APP_CMDARG_APPEND_FILE("m", "model", "<path>", NULL, 1, 1),
       APP_CMDARG_APPEND_STRING("n", "name", "<name>", NULL, 0, 1, NULL),
       APP_CMDARG_END),
      "load a model"));
   CALL(app_add_command
-    (app, "load", load_map, NULL,
+    (app, "load", load_map, NULL, NULL,
      APP_CMDARGV
      (APP_CMDARG_APPEND_FILE("M", "map", "<map>", NULL, 1, 1),
       APP_CMDARG_END),
      "load a map"));
 
   CALL(app_add_command
-    (app, "save", save, NULL,
+    (app, "save", save, NULL, NULL,
      APP_CMDARGV
      (APP_CMDARG_APPEND_FILE
         ("o", "output", "<path>", "output file", 0, 1),

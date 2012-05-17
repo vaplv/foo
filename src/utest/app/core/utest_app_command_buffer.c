@@ -55,13 +55,18 @@ option_completion
 }
 
 static void
-foo(struct app* app UNUSED, size_t argc, const struct app_cmdarg** argv)
+foo
+  (struct app* app UNUSED, 
+   size_t argc, 
+   const struct app_cmdarg** argv,
+   void* data)
 {
   size_t i = 0;
   bool b = false;
   assert(app && argv);
 
   CHECK(argc, 2);
+  CHECK(data, NULL);
   CHECK(argv[0]->type, APP_CMDARG_STRING);
   CHECK(argv[0]->count, 1);
   CHECK(argv[0]->value_list[0].is_defined, true);
@@ -366,7 +371,7 @@ main(int argc, char** argv)
 
   CHECK(app_clear_command_buffer(buf), OK);
   CHECK_CMDBUF(buf, len, dump, "");
-  CHECK(app_add_command(app, "foo__", foo, option_completion,
+  CHECK(app_add_command(app, "foo__", foo, NULL, option_completion,
     APP_CMDARGV(
      APP_CMDARG_APPEND_STRING(NULL, NULL, NULL, NULL, 1, 1, options),
      APP_CMDARG_END),

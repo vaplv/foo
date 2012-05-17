@@ -20,7 +20,8 @@
 struct app_command {
   struct list_node node;
   size_t argc;
-  void(*func)(struct app*, size_t, const struct app_cmdarg**);
+  void(*func)(struct app*, size_t, const struct app_cmdarg**, void* data);
+  void* data;
   enum app_error (*completion)
     (struct app*, const char*, size_t, size_t*, const char**[]);
   struct sl_string* description;
@@ -417,8 +418,9 @@ EXPORT_SYM enum app_error
 app_add_command
   (struct app* app,
    const char* name,
-   void (*func)(struct app*, size_t argc, const struct app_cmdarg** argv),
-   enum app_error (*completion_func) /* May be NULL.*/
+   void (*func)(struct app*, size_t, const struct app_cmdarg**, void*),
+   void* data,
+   enum app_error (*completion_func)
     (struct app*, const char*, size_t, size_t*, const char**[]),
    const struct app_cmdarg_desc argv_desc[],
    const char* description)
@@ -444,6 +446,7 @@ app_add_command
   }
   list_init(&cmd->node);
   cmd->func = func;
+  cmd->data = data;
 
   if(argv_desc != NULL) {
     for(argc = 0; !IS_END_REACHED(argv_desc[argc]); ++argc) {
@@ -705,8 +708,12 @@ app_execute_command(struct app* app, const char* command)
   app_err = setup_cmd_arg(app, valid_cmd, name);
   if(app_err != APP_NO_ERROR)
     goto error;
+
   valid_cmd->func
-    (app, valid_cmd->argc, (const struct app_cmdarg**)valid_cmd->argv);
+    (app,
+     valid_cmd->argc, 
+     (const struct app_cmdarg**)valid_cmd->argv, 
+     valid_cmd->data);
 
   #undef MAX_ARG_COUNT
 exit:

@@ -18,7 +18,8 @@ static void
 rename_model
   (struct app* app,
    size_t argc UNUSED,
-   const struct app_cmdarg** argv)
+   const struct app_cmdarg** argv,
+   void* data UNUSED)
 {
   struct app_model* mdl = NULL;
   enum { CMD_NAME, OLD_MODEL_NAME, NEW_MODEL_NAME, ARGC };
@@ -44,7 +45,8 @@ static void
 rename_instance
   (struct app* app,
    size_t argc UNUSED,
-   const struct app_cmdarg** argv)
+   const struct app_cmdarg** argv,
+   void* data UNUSED)
 {
   struct app_model_instance* instance = NULL;
   enum { CMD_NAME, OLD_NAME, NEW_NAME, ARGC };
@@ -72,7 +74,8 @@ static void
 rm_instance
   (struct app* app,
    size_t argc UNUSED,
-   const struct app_cmdarg** argv)
+   const struct app_cmdarg** argv,
+   void* data UNUSED)
 {
   struct app_model_instance* instance = NULL;
   enum { CMD_NAME, INSTANCE_NAME, ARGC };
@@ -98,7 +101,8 @@ static void
 rm_model
   (struct app* app,
    size_t argc UNUSED,
-   const struct app_cmdarg** argv)
+   const struct app_cmdarg** argv,
+   void* data UNUSED)
 {
   struct app_model* mdl = NULL;
   enum { CMD_NAME, FORCE_FLAG, MODEL_NAME, ARGC };
@@ -137,7 +141,8 @@ static void
 spawn_instance
   (struct app* app,
    size_t argc UNUSED,
-   const struct app_cmdarg** argv)
+   const struct app_cmdarg** argv,
+   void* data UNUSED)
 {
   enum { CMD_NAME, MODEL_NAME, INSTANCE_NAME, ARGC };
   assert(app != NULL
@@ -212,14 +217,14 @@ cmd_setup_object_management_commands(struct app* app)
     } while(0)
 
   CALL(app_add_command
-    (app, "rename", rename_model, app_model_name_completion,
+    (app, "rename", rename_model, NULL, app_model_name_completion,
      APP_CMDARGV
      (APP_CMDARG_APPEND_STRING("m", "model", "<model>", NULL, 1, 1, NULL),
       APP_CMDARG_APPEND_STRING(NULL, NULL, "<name>", NULL, 1, 1, NULL),
       APP_CMDARG_END),
      "rename model"));
   CALL(app_add_command
-    (app, "rename", rename_instance, app_model_instance_name_completion,
+    (app, "rename", rename_instance, NULL, app_model_instance_name_completion,
      APP_CMDARGV
      (APP_CMDARG_APPEND_STRING("i", "instance", "<instance>", NULL, 1, 1, NULL),
       APP_CMDARG_APPEND_STRING(NULL, NULL, "<name>", NULL, 1, 1, NULL),
@@ -227,13 +232,13 @@ cmd_setup_object_management_commands(struct app* app)
      "rename instance"));
 
   CALL(app_add_command
-    (app, "rm", rm_instance, app_model_instance_name_completion,
+    (app, "rm", rm_instance, NULL, app_model_instance_name_completion,
      APP_CMDARGV
      (APP_CMDARG_APPEND_STRING("i", "instance", "<instance>", NULL, 1, 1, NULL),
       APP_CMDARG_END),
      "remove a model instance"));
   CALL(app_add_command
-    (app, "rm", rm_model, app_model_name_completion,
+    (app, "rm", rm_model, NULL, app_model_name_completion,
      APP_CMDARGV
      (APP_CMDARG_APPEND_LITERAL
         ("f", "force", "remove the model even though it is instantiated", 0, 1),
@@ -243,7 +248,7 @@ cmd_setup_object_management_commands(struct app* app)
      "remove a model"));
 
   CALL(app_add_command
-    (app, "spawn", spawn_instance, app_model_name_completion,
+    (app, "spawn", spawn_instance, NULL, app_model_name_completion,
      APP_CMDARGV
      (APP_CMDARG_APPEND_STRING
         ("m", "model", "<model>",

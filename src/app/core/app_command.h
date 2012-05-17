@@ -120,7 +120,8 @@ extern enum app_error
 app_add_command
   (struct app* app,
    const char* name,
-   void (*func)(struct app*, size_t argc, const struct app_cmdarg** argv),
+   void (*func)(struct app*, size_t argc, const struct app_cmdarg**, void*),
+   void *data,
    enum app_error (*arg_completion) /* May be NULL.*/
     (struct app*, const char*, size_t, size_t*, const char**[]),
    const struct app_cmdarg_desc argv_desc[],

@@ -26,13 +26,18 @@ static void
 cmd_exit
   (struct app* app,
    size_t argc UNUSED,
-   const struct app_cmdarg** argv UNUSED)
+   const struct app_cmdarg** argv UNUSED,
+   void* data UNUSED)
 {
   app->post_exit = true;
 }
 
 static void
-cmd_help(struct app* app, size_t argc UNUSED, const struct app_cmdarg** argv)
+cmd_help
+  (struct app* app, 
+   size_t argc UNUSED, 
+   const struct app_cmdarg** argv,
+   void* data UNUSED)
 {
   enum app_error app_err = APP_NO_ERROR;
   assert(app != NULL
@@ -53,7 +58,11 @@ cmd_help(struct app* app, size_t argc UNUSED, const struct app_cmdarg** argv)
 }
 
 static void
-cmd_ls(struct app* app, size_t argc UNUSED, const struct app_cmdarg** argv)
+cmd_ls
+  (struct app* app, 
+   size_t argc UNUSED, 
+   const struct app_cmdarg** argv,
+   void* data UNUSED)
 {
   bool new_line = false;
   size_t len = 0;
@@ -121,7 +130,8 @@ static void
 cmd_clear
   (struct app* app,
    size_t argc UNUSED,
-   const struct app_cmdarg** argv UNUSED)
+   const struct app_cmdarg** argv UNUSED,
+   void* data UNUSED)
 {
   assert(app != NULL);
   RDR(clear_term(app->term.render_term, RDR_TERM_STDOUT));
@@ -131,7 +141,8 @@ static void
 cmd_set
   (struct app* app,
    size_t argc UNUSED,
-   const struct app_cmdarg** argv)
+   const struct app_cmdarg** argv,
+   void* data UNUSED)
 {
   const struct app_cvar* cvar = NULL;
   const char* cvar_name = NULL;
@@ -235,20 +246,20 @@ app_setup_builtin_commands(struct app* app)
   #define CALL(func) if(APP_NO_ERROR != (app_err = func)) goto error
 
   CALL(app_add_command
-    (app, "clear", cmd_clear, NULL, NULL, "clear the terminal screen"));
+    (app, "clear", cmd_clear, NULL, NULL, NULL, "clear the terminal screen"));
 
   CALL(app_add_command
-    (app, "exit", cmd_exit, NULL, NULL, "cause the application to exit"));
+    (app, "exit", cmd_exit, NULL, NULL, NULL, "cause the application to exit"));
 
   CALL(app_add_command
-    (app, "help", cmd_help, app_command_name_completion,
+    (app, "help", cmd_help, NULL, app_command_name_completion,
      APP_CMDARGV
      (APP_CMDARG_APPEND_STRING(NULL, NULL, "<command>", NULL, 1, 1, NULL),
       APP_CMDARG_END),
      "give command informations"));
 
   CALL(app_add_command
-    (app, "ls", cmd_ls, NULL,
+    (app, "ls", cmd_ls, NULL, NULL,
      APP_CMDARGV
      (APP_CMDARG_APPEND_LITERAL
       ("c", "commands", "list the registered commands", 0, 1),
@@ -260,7 +271,7 @@ app_setup_builtin_commands(struct app* app)
      "list application contents"));
 
   CALL(app_add_command
-    (app, "set", cmd_set, app_cvar_name_completion,
+    (app, "set", cmd_set, NULL, app_cvar_name_completion,
      APP_CMDARGV
      (APP_CMDARG_APPEND_STRING(NULL, NULL, "<cvar>",NULL, 1, 1, NULL),
       APP_CMDARG_APPEND_STRING(NULL, NULL, "<value>", NULL, 0, 1, NULL),
