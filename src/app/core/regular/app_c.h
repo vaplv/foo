@@ -62,6 +62,7 @@ struct app {
     struct sl_flat_map* map; /* Associative container name -> cvar. */
     /* Put the builtin cvar here. */
     const struct app_cvar* project_path;
+    const struct app_cvar* show_aabb;
   } cvar_system;
 
   struct term {

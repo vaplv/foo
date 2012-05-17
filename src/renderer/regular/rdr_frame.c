@@ -322,6 +322,13 @@ error:
 EXPORT_SYM enum rdr_error
 rdr_flush_frame(struct rdr_frame* frame)
 {
+  const struct rb_depth_stencil_desc depth_stencil_desc = {
+    .enable_depth_write = 1,
+    .enable_stencil_test = 0,
+    .front_face_op.write_mask = ~0,
+    .back_face_op.write_mask = ~0,
+    .depth_func = RB_COMPARISON_LESS_EQUAL
+  };
   const struct rb_rasterizer_desc raster_desc = {
     .fill_mode = RB_FILL_SOLID,
     .cull_mode = RB_CULL_BACK,
@@ -336,13 +343,14 @@ rdr_flush_frame(struct rdr_frame* frame)
     goto error;
   }
 
+  RBI(&frame->sys->rb, rasterizer(frame->sys->ctxt, &raster_desc));
+  RBI(&frame->sys->rb, depth_stencil(frame->sys->ctxt, &depth_stencil_desc));
   RBI(&frame->sys->rb, clear
     (frame->sys->ctxt,
      RB_CLEAR_COLOR_BIT | RB_CLEAR_DEPTH_BIT | RB_CLEAR_STENCIL_BIT,
      frame->bkg_color,
      1.f,
      0));
-  RBI(&frame->sys->rb, rasterizer(frame->sys->ctxt, &raster_desc));
 
   /* Flush world rendering. */
   LIST_FOR_EACH_SAFE(node, tmp, &frame->draw_world_list) {

@@ -25,6 +25,9 @@ app_setup_builtin_cvars(struct app* app)
   REGISTER_CVAR
     ("app_project_path", APP_CVAR_STRING_DESC(NULL, NULL),
      &app->cvar_system.project_path);
+  REGISTER_CVAR
+    ("app_show_aabb", APP_CVAR_BOOL_DESC(false),
+     &app->cvar_system.show_aabb);
 
   #undef REGISTER_CVAR
 

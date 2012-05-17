@@ -925,7 +925,7 @@ rdr_get_model_instance_aabb
   vmax_mask = vf4_mask
     (max_bound[0]==FLT_MAX, max_bound[1]==FLT_MAX, max_bound[2]==FLT_MAX, 0);
 
-  /* Try to avoid computation on denormals by resetting degenerated vertices. */
+  /* Reset degenerated vertices <=> limit denormal computations. */
   min_bound[0] = min_bound[0] == -FLT_MAX ? 0.f : min_bound[0];
   min_bound[1] = min_bound[1] == -FLT_MAX ? 0.f : min_bound[1];
   min_bound[2] = min_bound[2] == -FLT_MAX ? 0.f : min_bound[2];
@@ -947,7 +947,7 @@ rdr_get_model_instance_aabb
   vpt[0] = aosf44_mulf4(&instance->transform, vpt[0]);
   vmin = vmax = vpt[0];
   for(i = 1; i < 8; ++i) {
-    vpt[i] = aosf44_mulf4(&instance->transform, vpt[1]);
+    vpt[i] = aosf44_mulf4(&instance->transform, vpt[i]);
     vmin = vf4_min(vmin, vpt[i]);
     vmax = vf4_max(vmax, vpt[i]);
   }

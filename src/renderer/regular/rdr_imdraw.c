@@ -69,15 +69,22 @@ invoke_imdraw_parallelepiped
         .cull_mode = RB_CULL_FRONT,
         .front_facing = RB_ORIENTATION_CCW
       };
+      struct rb_depth_stencil_desc depth_stencil = {
+        .enable_depth_test = 1,
+        .enable_depth_write = 0,
+        .enable_stencil_test = 0,
+        .depth_func = RB_COMPARISON_LESS_EQUAL
+      };
       struct rb_blend_desc blend = {
         .enable = 1,
         .src_blend_RGB = RB_BLEND_SRC_ALPHA,
         .src_blend_Alpha = RB_BLEND_ZERO,
         .dst_blend_RGB = RB_BLEND_ONE_MINUS_SRC_ALPHA,
-        .dst_blend_Alpha = RB_BLEND_ONE_MINUS_SRC_ALPHA,
-        .blend_op_RGB = RB_BLEND_ONE,
+        .dst_blend_Alpha = RB_BLEND_ONE,
+        .blend_op_RGB = RB_BLEND_OP_ADD,
         .blend_op_Alpha = RB_BLEND_OP_ADD
-      };
+     };
+      RBI(&sys->rb, depth_stencil(sys->ctxt, &depth_stencil));
       RBI(&sys->rb, blend(sys->ctxt, &blend));
 
       /* Draw back-facing triangles. */
@@ -90,6 +97,8 @@ invoke_imdraw_parallelepiped
 
       blend.enable = 0;
       RBI(&sys->rb, blend(sys->ctxt, &blend));
+      depth_stencil.enable_depth_write = 1;
+      RBI(&sys->rb, depth_stencil(sys->ctxt, &depth_stencil));
     }
   }
   if(cmd->data.parallelepiped.wire_color[3] > 0.f) {

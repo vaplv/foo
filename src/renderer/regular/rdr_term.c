@@ -166,7 +166,7 @@ static const char* background_fs_source =
   "out vec4 color;\n"
   "void main()\n"
   "{\n"
-  " color = vec4(vec3(0.f), 0.5f);\n"
+  " color = vec4(vec3(0.f), 0.25f);\n"
   "}\n";
 
 /*******************************************************************************
@@ -556,7 +556,7 @@ printer_draw_background(struct rdr_system* sys, const struct background* bkg)
 
   blend_desc.enable = 1;
   blend_desc.src_blend_RGB = RB_BLEND_SRC_ALPHA;
-  blend_desc.src_blend_Alpha = RB_BLEND_ZERO;
+  blend_desc.src_blend_Alpha = RB_BLEND_ONE;
   blend_desc.dst_blend_RGB = RB_BLEND_ONE_MINUS_SRC_ALPHA;
   blend_desc.dst_blend_Alpha = RB_BLEND_ZERO;
   blend_desc.blend_op_RGB = RB_BLEND_OP_ADD;

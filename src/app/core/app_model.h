@@ -63,6 +63,12 @@ app_is_model_instantiated
    bool* is_instantiated);
 
 extern enum app_error
+app_get_model_aabb
+  (const struct app_model* mdl,
+   float min_bound[3],
+   float max_bound[3]);
+
+extern enum app_error
 app_get_model
   (struct app* app,
    const char* mdl_name,

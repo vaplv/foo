@@ -95,6 +95,12 @@ app_model_instance_world
    struct app_world** world); /* Set to NULL if it is not added to a world. */
 
 extern enum app_error
+app_get_model_instance_aabb
+  (const struct app_model_instance* instance,
+   float min_bound[3],
+   float max_bound[3]);
+
+extern enum app_error
 app_get_model_instance_list_begin
   (struct app* app,
    struct app_model_instance_it* it,

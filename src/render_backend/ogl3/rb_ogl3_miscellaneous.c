@@ -179,7 +179,7 @@ rb_depth_stencil
   if(!ctxt || !desc)
     return -1;
 
-  OGL(DepthMask(desc->enable_depth_write ? GL_FALSE : GL_TRUE));
+  OGL(DepthMask(desc->enable_depth_write ? GL_TRUE : GL_FALSE));
   if(desc->enable_depth_test == 0) {
     OGL(Disable(GL_DEPTH_TEST));
   } else {

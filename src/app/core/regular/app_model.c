@@ -503,6 +503,23 @@ app_is_model_instantiated(const struct app_model* model, bool* b)
 }
 
 EXPORT_SYM enum app_error
+app_get_model_aabb
+  (const struct app_model* mdl,
+   float min_bound[3],
+   float max_bound[3])
+{
+  if(UNLIKELY(!mdl || !min_bound || !max_bound))
+    return APP_INVALID_ARGUMENT;
+  min_bound[0] = mdl->min_bound[0];
+  min_bound[1] = mdl->min_bound[1];
+  min_bound[2] = mdl->min_bound[2];
+  max_bound[0] = mdl->max_bound[0];
+  max_bound[1] = mdl->max_bound[1];
+  max_bound[2] = mdl->max_bound[2];
+  return APP_NO_ERROR;
+}
+
+EXPORT_SYM enum app_error
 app_get_model(struct app* app, const char* mdl_name, struct app_model** mdl)
 {
   struct app_object* obj = NULL;
@@ -540,9 +557,8 @@ app_get_model_list_begin
     return APP_INVALID_ARGUMENT;
 
   APP(get_object_list(app, APP_MODEL, &len, &obj_list));
-  if(len == 0) {
-    *is_end_reached = true;
-  } else {
+  *is_end_reached = (len == 0);
+  if(*is_end_reached == false) {
     it->model = app_object_to_model(obj_list[0]);
     it->id = 0;
   }
@@ -557,13 +573,13 @@ app_model_it_next(struct app_model_it* it, bool* is_end_reached)
 
   if(UNLIKELY(!it || !is_end_reached || !it->model))
     return APP_INVALID_ARGUMENT;
+
   APP(get_object_list(it->model->app, APP_MODEL, &len, &obj_list));
   ++it->id;
-  if(len <=it->id) {
-    *is_end_reached = true;
-  } else {
+  *is_end_reached = len <= it->id;
+  if(*is_end_reached == false)
     it->model = app_object_to_model(obj_list[it->id]);
-  }
+
   return APP_NO_ERROR;
 }
 

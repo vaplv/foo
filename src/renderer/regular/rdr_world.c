@@ -221,7 +221,10 @@ rdr_draw_world(struct rdr_world* world, const struct rdr_view* view)
 {
   const struct rb_depth_stencil_desc depth_stencil_desc = {
     .enable_depth_test = 1,
+    .enable_depth_write = 1,
     .enable_stencil_test = 0,
+    .front_face_op.write_mask = 0,
+    .back_face_op.write_mask = 0,
     .depth_func = RB_COMPARISON_LESS_EQUAL
   };
   struct aosf44 view_matrix;
