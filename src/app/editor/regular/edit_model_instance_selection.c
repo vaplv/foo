@@ -1,4 +1,5 @@
 #include "app/core/app.h"
+#include "app/core/app_imdraw.h"
 #include "app/core/app_model_instance.h"
 #include "app/editor/regular/edit_context_c.h"
 #include "app/editor/regular/edit_error_c.h"
@@ -231,3 +232,51 @@ edit_clear_model_instance_selection(struct edit_context* ctxt)
   SL(hash_table_clear(ctxt->selected_model_instance_htbl));
   return EDIT_NO_ERROR;
 }
+
+enum edit_error
+edit_draw_model_instance_selection(struct edit_context* ctxt)
+{
+  struct sl_hash_table_it it;
+  enum edit_error edit_err = EDIT_NO_ERROR;
+  bool is_end_reached = false;
+  memset(&it, 0, sizeof(it));
+
+  if(UNLIKELY(!ctxt)) {
+    edit_err = EDIT_INVALID_ARGUMENT;
+    goto error;
+  }
+  SL(hash_table_begin
+    (ctxt->selected_model_instance_htbl, &it, &is_end_reached));
+  while(is_end_reached == false) {
+    float min_bound[3] = {0.f, 0.f, 0.f};
+    float max_bound[3] = {0.f, 0.f, 0.f};
+    float size[3] = {0.f, 0.f, 0.f};
+    float pos[3] = {0.f, 0.f, 0.f};
+    const struct app_model_instance* instance =
+      *(struct app_model_instance**)it.pair.data;
+
+    APP(get_model_instance_aabb(instance, min_bound, max_bound));
+    pos[0] = (min_bound[0] + max_bound[0]) * 0.5f;
+    pos[1] = (min_bound[1] + max_bound[1]) * 0.5f;
+    pos[2] = (min_bound[2] + max_bound[2]) * 0.5f;
+    size[0] = max_bound[0] - min_bound[0];
+    size[1] = max_bound[1] - min_bound[1];
+    size[2] = max_bound[2] - min_bound[2];
+    APP(imdraw_parallelepiped
+      (ctxt->app,
+       pos,
+       size,
+       (float[]){0.f, 0.f, 0.f},
+       (float[]){0.5f, 0.5f, 0.5f, 0.15f},
+       (float[]){0.75f, 0.75f, 0.75f, 1.f}));
+
+    SL(hash_table_it_next(&it, &is_end_reached));
+  }
+
+exit:
+
+  return edit_err;
+error:
+  goto exit;
+}
+

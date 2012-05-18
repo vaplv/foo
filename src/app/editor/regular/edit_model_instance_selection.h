@@ -34,5 +34,9 @@ extern enum edit_error
 edit_clear_model_instance_selection
   (struct edit_context* ctxt);
 
+extern enum edit_error
+edit_draw_model_instance_selection
+  (struct edit_context* ctxt);
+
 #endif /* EDIT_MODEL_INSTANCE_SELECTION_H. */
 

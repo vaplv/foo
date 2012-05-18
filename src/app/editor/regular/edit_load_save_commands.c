@@ -149,7 +149,6 @@ load_map
   char buffer[MAXLEN];
   char filename[256];
   char cmdname[64];
-  const struct app_cvar* cvar = NULL;
   FILE* file = NULL;
   char* ptr = NULL;
   enum app_error app_err = APP_NO_ERROR;
@@ -184,17 +183,11 @@ load_map
     goto error;
   }
 
-  APP(get_cvar(app, "app_project_path", &cvar));
-  if(cvar == NULL) {
-    APP(log(app, APP_LOG_ERROR,
-      "%s: undefined cvar `app_project_path'\n", cmdname));
-    goto error;
-  }
   app_err = app_set_cvar
-    (app, "app_project_path", APP_CVAR_STRING_VALUE(filename));
+    (app, "edit_project_path", APP_CVAR_STRING_VALUE(filename));
   if(app_err != APP_NO_ERROR) {
     APP(log(app, APP_LOG_ERROR,
-      "%s: error setting the `app_project_path' value: %s",
+      "%s: error setting the `edit_project_path' value: %s",
       filename, app_error_string(app_err)));
     goto error;
   }
@@ -237,65 +230,59 @@ save
   (struct app* app,
    size_t argc UNUSED,
    const struct app_cmdarg** argv,
-   void* data UNUSED)
+   void* data)
 {
-  const struct app_cvar* cvar = NULL;
+  struct edit_context* ctxt = data;
   const char* cmd_name = NULL;
+  const char* output_file = NULL;
+  FILE* file = NULL;
+  int err = 0;
   enum { CMD_NAME, OUTPUT_FILE, FORCE_FLAG, ARGC };
 
   assert(app != NULL
+      && data != NULL
       && argc == ARGC
       && argv[CMD_NAME]->type == APP_CMDARG_STRING
       && argv[OUTPUT_FILE]->type == APP_CMDARG_FILE
       && argv[FORCE_FLAG]->type == APP_CMDARG_LITERAL);
 
   cmd_name = EDIT_CMD_ARGVAL(argv, CMD_NAME).data.string;
-  APP(get_cvar(app, "app_project_path", &cvar));
 
-  if(cvar == NULL) {
-    APP(log(app, APP_LOG_ERROR,
-      "%s: undefined cvar `app_project_path'\n", cmd_name));
-  } else {
-    const char* output_file = NULL;
-    FILE* file = NULL;
-    int err = 0;
-
-    /* Define the output path. */
-    if(EDIT_CMD_ARGVAL(argv, OUTPUT_FILE).is_defined == false) {
-      if(cvar->value.string == NULL) {
-        APP(log(app, APP_LOG_ERROR,
-          "%s: undefined output project path\n", cmd_name));
-      } else {
-        output_file = cvar->value.string;
-      }
+  /* Define the output path. */
+  if(EDIT_CMD_ARGVAL(argv, OUTPUT_FILE).is_defined == false) {
+    if(ctxt->cvars.project_path->value.string == NULL) {
+      APP(log(app, APP_LOG_ERROR,
+        "%s: undefined output project path\n", cmd_name));
     } else {
-      output_file = EDIT_CMD_ARGVAL(argv, OUTPUT_FILE).data.string;
+      output_file = ctxt->cvars.project_path->value.string;
+    }
+  } else {
+    output_file = EDIT_CMD_ARGVAL(argv, OUTPUT_FILE).data.string;
 
-      APP(set_cvar
-        (app, "app_project_path", APP_CVAR_STRING_VALUE(output_file)));
-      output_file = cvar->value.string;
+    APP(set_cvar
+      (app, "edit_project_path", APP_CVAR_STRING_VALUE(output_file)));
+    output_file = ctxt->cvars.project_path->value.string;
 
-      file = fopen(output_file, "r");
-      if(file!=NULL && EDIT_CMD_ARGVAL(argv, FORCE_FLAG).is_defined == false) {
+    file = fopen(output_file, "r");
+    if(file!=NULL && EDIT_CMD_ARGVAL(argv, FORCE_FLAG).is_defined == false) {
+      APP(log(app, APP_LOG_ERROR,
+        "%s: the file `%s' already exist. "
+        "Use the --force flag to overwrite it\n",
+        cmd_name,
+        output_file));
+      output_file = NULL;
+      err = fclose(file);
+      if(err != 0) {
         APP(log(app, APP_LOG_ERROR,
-          "%s: the file `%s' already exist. "
-          "Use the --force flag to overwrite it\n",
-           cmd_name,
-           output_file));
-        output_file = NULL;
-        err = fclose(file);
-        if(err != 0) {
-          APP(log(app, APP_LOG_ERROR,
-            "%s: unexpected error closing the existing file `%s'\n",
-            cmd_name, output_file));
-        }
+          "%s: unexpected error closing the existing file `%s'\n",
+          cmd_name, output_file));
       }
     }
+  }
 
-    /* Save the map. */
-    if(output_file) {
-      save_map(app, cmd_name, output_file);
-    }
+  /* Save the map. */
+  if(output_file) {
+    save_map(app, cmd_name, output_file);
   }
 }
 
@@ -358,7 +345,7 @@ edit_setup_load_save_commands(struct edit_context* ctxt)
      "load a map"));
 
   CALL(app_add_command
-    (ctxt->app, "save", save, NULL, NULL,
+    (ctxt->app, "save", save, ctxt, NULL,
      APP_CMDARGV
      (APP_CMDARG_APPEND_FILE
         ("o", "output", "<path>", "output file", 0, 1),

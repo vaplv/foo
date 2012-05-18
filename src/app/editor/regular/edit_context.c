@@ -1,5 +1,6 @@
 #include "app/core/app.h"
 #include "app/editor/regular/edit_context_c.h"
+#include "app/editor/regular/edit_cvars.h"
 #include "app/editor/regular/edit_load_save_commands.h"
 #include "app/editor/regular/edit_model_instance_selection.h"
 #include "app/editor/regular/edit_move_commands.h"
@@ -24,6 +25,7 @@ release_context(struct ref* ref)
   ctxt = CONTAINER_OF(ref, struct edit_context, ref);
 
   EDIT(shutdown_model_instance_selection(ctxt));
+  EDIT(release_cvars(ctxt));
   EDIT(release_move_commands(ctxt));
   EDIT(release_object_management_commands(ctxt));
   EDIT(release_load_save_commands(ctxt));
@@ -45,7 +47,7 @@ edit_create_context
    struct edit_context** out_ctxt)
 {
   struct edit_context* ctxt = NULL;
-  struct mem_allocator* edit_allocator = 
+  struct mem_allocator* edit_allocator =
     allocator ? allocator : &mem_default_allocator;
   enum edit_error edit_err = EDIT_NO_ERROR;
 
@@ -65,7 +67,7 @@ edit_create_context
 
   #define CALL(func) if(EDIT_NO_ERROR != (edit_err = func)) goto error;
   CALL(edit_init_model_instance_selection(ctxt));
-
+  CALL(edit_setup_cvars(ctxt));
   CALL(edit_setup_move_commands(ctxt));
   CALL(edit_setup_object_management_commands(ctxt));
   CALL(edit_setup_load_save_commands(ctxt));
@@ -106,6 +108,7 @@ edit_run(struct edit_context* ctxt)
 {
   if(UNLIKELY(!ctxt))
     return EDIT_INVALID_ARGUMENT;
+  EDIT(draw_model_instance_selection(ctxt));
   return EDIT_NO_ERROR;
 }
 

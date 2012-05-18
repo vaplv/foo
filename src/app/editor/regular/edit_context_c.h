@@ -8,6 +8,7 @@
 #define EDIT_CMD_ARGVAL_N(argv, i, n) (argv)[(i)]->value_list[(n)]
 
 struct app;
+struct app_cvar;
 struct mem_allocator;
 struct sl_hash_table;
 
@@ -16,6 +17,10 @@ struct edit_context {
   struct app* app;
   struct mem_allocator* allocator;
   struct sl_hash_table* selected_model_instance_htbl;
+  struct cvars {
+    const struct app_cvar* project_path;
+    const struct app_cvar* show_selection;
+  } cvars;
 };
 
 #endif /* EDIT_CONTEXT_C_H */

@@ -284,34 +284,6 @@ app_draw_world(struct app_world* world, const struct app_view* view)
     goto error;
   }
 
-  if(world->app->cvar_system.show_aabb->value.boolean) {
-    struct list_node* node = NULL;
-    LIST_FOR_EACH(node, &world->instance_list) {
-      float min_bound[3] = {0.f, 0.f, 0.f};
-      float max_bound[3] = {0.f, 0.f, 0.f};
-      float size[3] = {0.f, 0.f, 0.f};
-      float pos[3] = {0.f, 0.f, 0.f};
-      struct app_model_instance* instance = CONTAINER_OF
-        (node, struct app_model_instance, world_node);
-
-      APP(get_model_instance_aabb(instance, min_bound, max_bound));
-      pos[0] = (min_bound[0] + max_bound[0]) * 0.5f;
-      pos[1] = (min_bound[1] + max_bound[1]) * 0.5f;
-      pos[2] = (min_bound[2] + max_bound[2]) * 0.5f;
-      size[0] = max_bound[0] - min_bound[0];
-      size[1] = max_bound[1] - min_bound[1];
-      size[2] = max_bound[2] - min_bound[2];
-      RDR(frame_imdraw_parallelepiped
-        (world->app->rdr.frame,
-         &render_view,
-         pos,
-         size,
-         (float[]){0.f, 0.f, 0.f},
-         (float[]){0.5f, 0.5f, 0.5f, 0.15f},
-         (float[]){0.75f, 0.75f, 0.75f, 1.f}));
-    }
-  }
-
 exit:
   return app_err;
 error:
