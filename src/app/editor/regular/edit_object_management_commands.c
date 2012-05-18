@@ -1,5 +1,6 @@
 #include "app/editor/regular/edit_context_c.h"
 #include "app/editor/regular/edit_error_c.h"
+#include "app/editor/regular/edit_model_instance_selection.h"
 #include "app/editor/regular/edit_object_management_commands.h"
 #include "app/editor/edit_context.h"
 #include "app/editor/edit_error.h"
@@ -139,6 +140,50 @@ rm_model
 }
 
 static void
+select_instance_list
+  (struct app* app,
+   size_t argc UNUSED,
+   const struct app_cmdarg** argv,
+   void* data)
+{
+  struct edit_context* ctxt = data;
+  size_t i = 0;
+  enum { CMD_NAME, INSTANCE_NAME_LIST, ADD_FLAG, ARGC };
+
+  assert(app != NULL
+      && argc == ARGC
+      && argv != NULL
+      && data != NULL
+      && argv[CMD_NAME]->type == APP_CMDARG_STRING
+      && argv[INSTANCE_NAME_LIST]->type == APP_CMDARG_STRING
+      && argv[ADD_FLAG]->type == APP_CMDARG_LITERAL);
+
+  if(EDIT_CMD_ARGVAL(argv, ADD_FLAG).is_defined == false) {
+    EDIT(clear_model_instance_selection(ctxt));
+  }
+
+  for(i = 0;
+      i < argv[INSTANCE_NAME_LIST]->count 
+      && EDIT_CMD_ARGVAL_N(argv, INSTANCE_NAME_LIST, i).is_defined;
+      ++i) {
+    const char* instance_name = EDIT_CMD_ARGVAL_N
+      (argv, INSTANCE_NAME_LIST, i).data.string;
+    bool is_already_selected = false;
+
+    EDIT(is_model_instance_selected(ctxt, instance_name, &is_already_selected));
+
+    if(is_already_selected == false) {
+      enum edit_error edit_err = edit_select_model_instance(ctxt, instance_name);
+      if(edit_err != EDIT_NO_ERROR) {
+        APP(log(app, APP_LOG_ERROR,
+          "error selecting the instance `%s'\n",
+          instance_name));
+      }
+    }
+  }
+}
+
+static void
 spawn_instance
   (struct app* app,
    size_t argc UNUSED,
@@ -153,7 +198,7 @@ spawn_instance
       && argv[MODEL_NAME]->type == APP_CMDARG_STRING
       && argv[INSTANCE_NAME]->type == APP_CMDARG_STRING);
 
-  if(argv[1]->value_list[0].is_defined == true) {
+  if(EDIT_CMD_ARGVAL(argv, MODEL_NAME).is_defined == true) {
     struct app_model* mdl = NULL;
     APP(get_model
       (app, EDIT_CMD_ARGVAL(argv, MODEL_NAME).data.string, &mdl));
@@ -270,6 +315,20 @@ edit_setup_object_management_commands(struct edit_context* ctxt)
         ("m", "model", "<model>", "model to remove", 1, 1, NULL),
       APP_CMDARG_END),
      "remove a model"));
+
+  #define CMD_SELECT_MAX_INSTANCE_COUNT 16
+  CALL(app_add_command
+    (ctxt->app, "select", select_instance_list, ctxt, 
+     app_model_instance_name_completion,
+     APP_CMDARGV
+     (APP_CMDARG_APPEND_STRING
+        ("i", "instance", "<instance>", "instance to select", 
+         0, CMD_SELECT_MAX_INSTANCE_COUNT, NULL),
+      APP_CMDARG_APPEND_LITERAL
+        ("a", "add", "add the selected instances to current selection", 0, 1),
+      APP_CMDARG_END),
+     "select up to "STR(CMD_SELECT_MAX_INSTANCE_COUNT)" instances"));
+  #undef CMD_SELECT_MAX_INSTANCE_COUNT
 
   CALL(app_add_command
     (ctxt->app, "spawn", spawn_instance, NULL, app_model_name_completion,

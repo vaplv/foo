@@ -1,6 +1,7 @@
 #include "app/core/app.h"
 #include "app/editor/regular/edit_context_c.h"
 #include "app/editor/regular/edit_load_save_commands.h"
+#include "app/editor/regular/edit_model_instance_selection.h"
 #include "app/editor/regular/edit_move_commands.h"
 #include "app/editor/regular/edit_object_management_commands.h"
 #include "app/editor/edit_context.h"
@@ -22,6 +23,7 @@ release_context(struct ref* ref)
 
   ctxt = CONTAINER_OF(ref, struct edit_context, ref);
 
+  EDIT(shutdown_model_instance_selection(ctxt));
   EDIT(release_move_commands(ctxt));
   EDIT(release_object_management_commands(ctxt));
   EDIT(release_load_save_commands(ctxt));
@@ -62,6 +64,8 @@ edit_create_context
   ctxt->app = app;
 
   #define CALL(func) if(EDIT_NO_ERROR != (edit_err = func)) goto error;
+  CALL(edit_init_model_instance_selection(ctxt));
+
   CALL(edit_setup_move_commands(ctxt));
   CALL(edit_setup_object_management_commands(ctxt));
   CALL(edit_setup_load_save_commands(ctxt));
