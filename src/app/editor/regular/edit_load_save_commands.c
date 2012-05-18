@@ -1,7 +1,8 @@
-#include "app/command/regular/cmd_c.h"
-#include "app/command/regular/cmd_error_c.h"
-#include "app/command/regular/cmd_load_save.h"
-#include "app/command/cmd.h"
+#include "app/editor/regular/edit_context_c.h"
+#include "app/editor/regular/edit_error_c.h"
+#include "app/editor/regular/edit_load_save_commands.h"
+#include "app/editor/edit_context.h"
+#include "app/editor/edit_error.h"
 #include "app/core/app.h"
 #include "app/core/app_command.h"
 #include "app/core/app_cvar.h"
@@ -106,8 +107,8 @@ error:
  ******************************************************************************/
 static void
 load_model
-  (struct app* app, 
-   size_t argc UNUSED, 
+  (struct app* app,
+   size_t argc UNUSED,
    const struct app_cmdarg** argv,
    void* data UNUSED)
 {
@@ -124,23 +125,23 @@ load_model
 
   app_err = app_create_model
     (app,
-     CMD_ARGVAL(argv, FILE_NAME).data.string,
-     CMD_ARGVAL(argv, MODEL_NAME).is_defined == true
-      ? CMD_ARGVAL(argv, MODEL_NAME).data.string
+     EDIT_CMD_ARGVAL(argv, FILE_NAME).data.string,
+     EDIT_CMD_ARGVAL(argv, MODEL_NAME).is_defined == true
+      ? EDIT_CMD_ARGVAL(argv, MODEL_NAME).data.string
       : NULL,
      &mdl);
   if(app_err != APP_NO_ERROR) {
     APP(log(app, APP_LOG_ERROR, "model loading error\n"));
   } else {
     APP(log(app, APP_LOG_INFO,
-      "model loaded `%s'\n", CMD_ARGVAL(argv, FILE_NAME).data.string));
+      "model loaded `%s'\n", EDIT_CMD_ARGVAL(argv, FILE_NAME).data.string));
   }
 }
 
 static void
 load_map
-  (struct app* app, 
-   size_t argc UNUSED, 
+  (struct app* app,
+   size_t argc UNUSED,
    const struct app_cmdarg** argv,
    void* data UNUSED)
 {
@@ -163,17 +164,17 @@ load_map
 
   /* We have to copy the arg since they mey be invalidate by the execution of
    * new commands. */
-  if(strlen(CMD_ARGVAL(argv, FILE_NAME).data.string) + 1
+  if(strlen(EDIT_CMD_ARGVAL(argv, FILE_NAME).data.string) + 1
    > sizeof(filename)/sizeof(char)) {
     strcpy(filename, "<none>");
   } else {
-    strcpy(filename, CMD_ARGVAL(argv, FILE_NAME).data.string);
+    strcpy(filename, EDIT_CMD_ARGVAL(argv, FILE_NAME).data.string);
   }
-  if(strlen(CMD_ARGVAL(argv, CMD_NAME).data.string) + 1
+  if(strlen(EDIT_CMD_ARGVAL(argv, CMD_NAME).data.string) + 1
    > sizeof(cmdname)/sizeof(char)) {
     strcpy(cmdname, "<none>");
   } else {
-    strcpy(cmdname, CMD_ARGVAL(argv, CMD_NAME).data.string);
+    strcpy(cmdname, EDIT_CMD_ARGVAL(argv, CMD_NAME).data.string);
   }
 
   file = fopen(filename, "r");
@@ -221,8 +222,8 @@ exit:
     if(fclose(file) != 0) {
       APP(log(app, APP_LOG_ERROR,
         "%s: error closing map file `%s'\n",
-        CMD_ARGVAL(argv, CMD_NAME).data.string,
-        CMD_ARGVAL(argv, FILE_NAME).data.string));
+        EDIT_CMD_ARGVAL(argv, CMD_NAME).data.string,
+        EDIT_CMD_ARGVAL(argv, FILE_NAME).data.string));
     }
   }
   return;
@@ -248,7 +249,7 @@ save
       && argv[OUTPUT_FILE]->type == APP_CMDARG_FILE
       && argv[FORCE_FLAG]->type == APP_CMDARG_LITERAL);
 
-  cmd_name = CMD_ARGVAL(argv, CMD_NAME).data.string;
+  cmd_name = EDIT_CMD_ARGVAL(argv, CMD_NAME).data.string;
   APP(get_cvar(app, "app_project_path", &cvar));
 
   if(cvar == NULL) {
@@ -260,7 +261,7 @@ save
     int err = 0;
 
     /* Define the output path. */
-    if(CMD_ARGVAL(argv, OUTPUT_FILE).is_defined == false) {
+    if(EDIT_CMD_ARGVAL(argv, OUTPUT_FILE).is_defined == false) {
       if(cvar->value.string == NULL) {
         APP(log(app, APP_LOG_ERROR,
           "%s: undefined output project path\n", cmd_name));
@@ -268,14 +269,14 @@ save
         output_file = cvar->value.string;
       }
     } else {
-      output_file = CMD_ARGVAL(argv, OUTPUT_FILE).data.string;
+      output_file = EDIT_CMD_ARGVAL(argv, OUTPUT_FILE).data.string;
 
       APP(set_cvar
         (app, "app_project_path", APP_CVAR_STRING_VALUE(output_file)));
       output_file = cvar->value.string;
 
       file = fopen(output_file, "r");
-      if(file != NULL && CMD_ARGVAL(argv, FORCE_FLAG).is_defined == false) {
+      if(file!=NULL && EDIT_CMD_ARGVAL(argv, FORCE_FLAG).is_defined == false) {
         APP(log(app, APP_LOG_ERROR,
           "%s: the file `%s' already exist. "
           "Use the --force flag to overwrite it\n",
@@ -303,12 +304,33 @@ save
  * Load save command registration functions.
  *
  ******************************************************************************/
-enum cmd_error
-cmd_setup_load_save_commands(struct app* app)
+enum edit_error
+edit_release_load_save_commands(struct edit_context* ctxt)
 {
-  enum cmd_error cmd_err = CMD_NO_ERROR;
-  if(!app) {
-    cmd_err= CMD_INVALID_ARGUMENT;
+  if(!ctxt)
+    return EDIT_INVALID_ARGUMENT;
+
+  #define RELEASE_CMD(cmd) \
+    do { \
+      bool b = false; \
+      APP(has_command(ctxt->app, cmd, &b)); \
+      if(b == true) \
+        APP(del_command(ctxt->app, cmd)); \
+    } while(0);
+
+  RELEASE_CMD("load");
+  RELEASE_CMD("save");
+
+  #undef RELEASE_CMD
+  return EDIT_NO_ERROR;
+}
+
+enum edit_error
+edit_setup_load_save_commands(struct edit_context* ctxt)
+{
+  enum edit_error edit_err = EDIT_NO_ERROR;
+  if(UNLIKELY(!ctxt)) {
+    edit_err= EDIT_INVALID_ARGUMENT;
     goto error;
   }
 
@@ -316,27 +338,27 @@ cmd_setup_load_save_commands(struct app* app)
     do { \
       const enum app_error app_err = func; \
       if(APP_NO_ERROR != app_err) { \
-        cmd_err = app_to_cmd_error(app_err); \
+        edit_err = app_to_edit_error(app_err); \
         goto error; \
       } \
     } while(0)
 
   CALL(app_add_command
-    (app, "load", load_model, NULL, NULL,
+    (ctxt->app, "load", load_model, NULL, NULL,
      APP_CMDARGV
      (APP_CMDARG_APPEND_FILE("m", "model", "<path>", NULL, 1, 1),
       APP_CMDARG_APPEND_STRING("n", "name", "<name>", NULL, 0, 1, NULL),
       APP_CMDARG_END),
      "load a model"));
   CALL(app_add_command
-    (app, "load", load_map, NULL, NULL,
+    (ctxt->app, "load", load_map, NULL, NULL,
      APP_CMDARGV
      (APP_CMDARG_APPEND_FILE("M", "map", "<map>", NULL, 1, 1),
       APP_CMDARG_END),
      "load a map"));
 
   CALL(app_add_command
-    (app, "save", save, NULL, NULL,
+    (ctxt->app, "save", save, NULL, NULL,
      APP_CMDARGV
      (APP_CMDARG_APPEND_FILE
         ("o", "output", "<path>", "output file", 0, 1),
@@ -350,32 +372,11 @@ cmd_setup_load_save_commands(struct app* app)
   #undef CALL
 
 exit:
-  return cmd_err;
+  return edit_err;
 error:
-  if(app)
-    CMD(release_load_save_commands(app));
+  if(ctxt)
+    EDIT(release_load_save_commands(ctxt));
   goto exit;
-}
-
-enum cmd_error
-cmd_release_load_save_commands(struct app* app)
-{
-  if(!app)
-    return CMD_INVALID_ARGUMENT;
-
-  #define RELEASE_CMD(cmd) \
-    do { \
-      bool b = false; \
-      APP(has_command(app, cmd, &b)); \
-      if(b == true) \
-        APP(del_command(app, cmd)); \
-    } while(0);
-
-  RELEASE_CMD("load");
-  RELEASE_CMD("save");
-
-  #undef RELEASE_CMD
-  return CMD_NO_ERROR;
 }
 
 

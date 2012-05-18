@@ -1,4 +1,4 @@
-#include "app/command/cmd.h"
+#include "app/editor/edit_context.h"
 #include "app/core/app.h"
 #include "app/game/game.h"
 #include "sys/mem_allocator.h"
@@ -95,21 +95,24 @@ main(int argc, char** argv)
 {
   char buffer[BUFSIZ];
   struct app_args args;
+  struct mem_allocator edit_allocator;
   struct mem_allocator engine_allocator;
   struct mem_allocator game_allocator;
   struct app* app = NULL;
   struct game* game = NULL;
+  struct edit_context* edit = NULL;
   const char* term_font_path = NULL;
   const char* model_path = NULL;
   const char* render_driver_path = NULL;
   enum app_error app_err = APP_NO_ERROR;
-  enum cmd_error cmd_err = CMD_NO_ERROR;
+  enum edit_error edit_err = EDIT_NO_ERROR;
   enum game_error game_err = GAME_NO_ERROR;
   int err = 0;
   bool keep_running = true;
 
   memset(&args, 0, sizeof(struct app_args));
 
+  mem_init_proxy_allocator("edit", &edit_allocator, &mem_default_allocator);
   mem_init_proxy_allocator("engine", &engine_allocator, &mem_default_allocator);
   mem_init_proxy_allocator("game", &game_allocator, &mem_default_allocator);
 
@@ -135,9 +138,9 @@ main(int argc, char** argv)
     err = -1;
     goto error;
   }
-  cmd_err = cmd_setup_edit_commands(app);
-  if(cmd_err != CMD_NO_ERROR) {
-    fprintf(stderr, "Error in initializing the edit commands.\n");
+  edit_err = edit_create_context(app, &edit_allocator, &edit);
+  if(edit_err != EDIT_NO_ERROR) {
+    fprintf(stderr, "Error in creating the edit context.\n");
     err = -1;
     goto error;
   }
@@ -153,12 +156,20 @@ main(int argc, char** argv)
       bool keep_game_running = false;
       bool keep_app_running = false;
       game_err = game_run(game, &keep_game_running);
-      if(game_err != GAME_NO_ERROR)
+      if(game_err != GAME_NO_ERROR) {
+        fprintf(stderr, "Error running the game.\n");
         goto error;
+      }
+
+      edit_err = edit_run(edit);
+      if(edit_err != EDIT_NO_ERROR) {
+        fprintf(stderr, "Error running the editor.\n");
+        goto error;
+      }
 
       app_err = app_run(app, &keep_app_running);
       if(app_err != APP_NO_ERROR) {
-        fprintf(stderr, "Error running the application.\n");
+        fprintf(stderr, "Error running the engine.\n");
         goto error;
       }
       keep_running = keep_game_running && keep_app_running;
@@ -166,13 +177,20 @@ main(int argc, char** argv)
   }
 
 exit:
- if(game) {
+  if(game) {
     GAME(free(game));
     if(MEM_ALLOCATED_SIZE(&game_allocator)) {
       MEM_DUMP(&game_allocator, buffer, sizeof(buffer));
       printf("Game leaks summary:\n%s\n", buffer);
     }
   }
+  if(edit) {
+   EDIT(context_ref_put(edit));
+   if(MEM_ALLOCATED_SIZE(&edit_allocator)) {
+     MEM_DUMP(&edit_allocator, buffer, sizeof(buffer));
+     printf("Editor leaks summary:\n%s\n", buffer);
+   }
+ }
   if(app) {
     APP(cleanup(app));
     APP(ref_put(app));
@@ -181,6 +199,7 @@ exit:
       printf("Engine leaks summary:\n%s\n", buffer);
     }
   }
+  mem_shutdown_proxy_allocator(&edit_allocator);
   mem_shutdown_proxy_allocator(&engine_allocator);
   mem_shutdown_proxy_allocator(&game_allocator);
   return err;

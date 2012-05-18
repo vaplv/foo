@@ -1,7 +1,8 @@
-#include "app/command/regular/cmd_c.h"
-#include "app/command/regular/cmd_error_c.h"
-#include "app/command/regular/cmd_move.h"
-#include "app/command/cmd.h"
+#include "app/editor/regular/edit_context_c.h"
+#include "app/editor/regular/edit_error_c.h"
+#include "app/editor/regular/edit_move_commands.h"
+#include "app/editor/edit_context.h"
+#include "app/editor/edit_error.h"
 #include "app/core/app.h"
 #include "app/core/app_model_instance.h"
 #include "app/core/app_command.h"
@@ -37,7 +38,7 @@ mv
       && argv[POS_Y]->type == APP_CMDARG_FLOAT
       && argv[POS_Z]->type == APP_CMDARG_FLOAT);
 
-  name = CMD_ARGVAL(argv, INSTANCE_NAME).data.string;
+  name = EDIT_CMD_ARGVAL(argv, INSTANCE_NAME).data.string;
   APP(get_model_instance(app, name, &instance));
   if(instance == NULL) {
     APP(log(app, APP_LOG_ERROR, "the instance `%s' does not exist\n", name));
@@ -48,21 +49,21 @@ mv
     APP(get_raw_model_instance_transform(instance, &f44));
     vf4_store(tmp, f44->c3);
 
-    if((!CMD_ARGVAL(argv, POS_X).is_defined)
-     & (!CMD_ARGVAL(argv, POS_Y).is_defined)
-     & (!CMD_ARGVAL(argv, POS_Z).is_defined)) {
+    if((!EDIT_CMD_ARGVAL(argv, POS_X).is_defined)
+     & (!EDIT_CMD_ARGVAL(argv, POS_Y).is_defined)
+     & (!EDIT_CMD_ARGVAL(argv, POS_Z).is_defined)) {
       APP(log(app, APP_LOG_INFO,
         "%s: %s position: %f %f %f\n",
-        CMD_ARGVAL(argv, CMD_NAME).data.string,
-        CMD_ARGVAL(argv, INSTANCE_NAME).data.string,
+        EDIT_CMD_ARGVAL(argv, CMD_NAME).data.string,
+        EDIT_CMD_ARGVAL(argv, INSTANCE_NAME).data.string,
         tmp[0], tmp[1], tmp[2]));
     } else {
-      if(CMD_ARGVAL(argv, POS_X).is_defined)
-        tmp[0] = CMD_ARGVAL(argv, POS_X).data.real;
-      if(CMD_ARGVAL(argv, POS_Y).is_defined)
-        tmp[1] = CMD_ARGVAL(argv, POS_Y).data.real;
-      if(CMD_ARGVAL(argv, POS_Z).is_defined)
-        tmp[2] = CMD_ARGVAL(argv, POS_Z).data.real;
+      if(EDIT_CMD_ARGVAL(argv, POS_X).is_defined)
+        tmp[0] = EDIT_CMD_ARGVAL(argv, POS_X).data.real;
+      if(EDIT_CMD_ARGVAL(argv, POS_Y).is_defined)
+        tmp[1] = EDIT_CMD_ARGVAL(argv, POS_Y).data.real;
+      if(EDIT_CMD_ARGVAL(argv, POS_Z).is_defined)
+        tmp[2] = EDIT_CMD_ARGVAL(argv, POS_Z).data.real;
 
       APP(move_model_instances(&instance, 1, tmp));
     }
@@ -101,9 +102,9 @@ translate
       && argv[TRANS_Z]->type == APP_CMDARG_FLOAT);
 
   nb_defined_flags =
-      (CMD_ARGVAL(argv, EYE_SPACE_FLAG).is_defined == true)
-    + (CMD_ARGVAL(argv, LOCAL_SPACE_FLAG).is_defined == true)
-    + (CMD_ARGVAL(argv, WORLD_SPACE_FLAG).is_defined == true);
+      (EDIT_CMD_ARGVAL(argv, EYE_SPACE_FLAG).is_defined == true)
+    + (EDIT_CMD_ARGVAL(argv, LOCAL_SPACE_FLAG).is_defined == true)
+    + (EDIT_CMD_ARGVAL(argv, WORLD_SPACE_FLAG).is_defined == true);
 
   if(nb_defined_flags != 1) {
     if(nb_defined_flags == 0) {
@@ -114,28 +115,28 @@ translate
     }
   } else {
     struct app_model_instance* instance = NULL;
-    const char* name = CMD_ARGVAL(argv, INSTANCE_NAME).data.string;
+    const char* name = EDIT_CMD_ARGVAL(argv, INSTANCE_NAME).data.string;
 
     APP(get_model_instance(app, name, &instance));
     if(instance == NULL) {
       APP(log(app, APP_LOG_ERROR, "the instance `%s' does not exist\n", name));
     } else {
       const float trans[3] = {
-        [0] = CMD_ARGVAL(argv, TRANS_X).is_defined
-            ? CMD_ARGVAL(argv, TRANS_X).data.real
+        [0] = EDIT_CMD_ARGVAL(argv, TRANS_X).is_defined
+            ? EDIT_CMD_ARGVAL(argv, TRANS_X).data.real
             : 0.f,
-        [1] = CMD_ARGVAL(argv, TRANS_Y).is_defined
-            ? CMD_ARGVAL(argv, TRANS_Y).data.real
+        [1] = EDIT_CMD_ARGVAL(argv, TRANS_Y).is_defined
+            ? EDIT_CMD_ARGVAL(argv, TRANS_Y).data.real
             : 0.f,
-        [2] = CMD_ARGVAL(argv, TRANS_Z).is_defined
-            ? CMD_ARGVAL(argv, TRANS_Z).data.real
+        [2] = EDIT_CMD_ARGVAL(argv, TRANS_Z).is_defined
+            ? EDIT_CMD_ARGVAL(argv, TRANS_Z).data.real
             : 0.f
       };
 
       if(trans[0] != 0.f || trans[1] != 0.f || trans[2] != 0.f) {
-        if(CMD_ARGVAL(argv, LOCAL_SPACE_FLAG).is_defined) { /* object space */
+        if(EDIT_CMD_ARGVAL(argv, LOCAL_SPACE_FLAG).is_defined) { /* object space */
           APP(translate_model_instances(&instance, 1, true, trans));
-        } else if(CMD_ARGVAL(argv, WORLD_SPACE_FLAG).is_defined) { /* world space */
+        } else if(EDIT_CMD_ARGVAL(argv, WORLD_SPACE_FLAG).is_defined) { /* world space */
           APP(translate_model_instances(&instance, 1, false, trans));
         } else { /* eye space */
           const struct aosf44* view_transform = NULL;
@@ -143,7 +144,7 @@ translate
           struct app_view* view = NULL;
           ALIGN(16) float tmp[4];
           vf4_t vec;
-          assert(CMD_ARGVAL(argv, EYE_SPACE_FLAG).is_defined);
+          assert(EDIT_CMD_ARGVAL(argv, EYE_SPACE_FLAG).is_defined);
 
           APP(get_main_view(app, &view));
           APP(get_raw_view_transform(view, &view_transform));
@@ -198,9 +199,9 @@ rotate
       && argv[RADIAN_FLAG]->type == APP_CMDARG_LITERAL);
 
   nb_defined_flags =
-      (CMD_ARGVAL(argv, EYE_SPACE_FLAG).is_defined == true)
-    + (CMD_ARGVAL(argv, LOCAL_SPACE_FLAG).is_defined == true)
-    + (CMD_ARGVAL(argv, WORLD_SPACE_FLAG).is_defined == true);
+      (EDIT_CMD_ARGVAL(argv, EYE_SPACE_FLAG).is_defined == true)
+    + (EDIT_CMD_ARGVAL(argv, LOCAL_SPACE_FLAG).is_defined == true)
+    + (EDIT_CMD_ARGVAL(argv, WORLD_SPACE_FLAG).is_defined == true);
 
   if(nb_defined_flags != 1) {
     if(nb_defined_flags == 0) {
@@ -211,33 +212,33 @@ rotate
     }
   } else {
     struct app_model_instance* instance = NULL;
-    const char* name = CMD_ARGVAL(argv, INSTANCE_NAME).data.string;
+    const char* name = EDIT_CMD_ARGVAL(argv, INSTANCE_NAME).data.string;
 
     APP(get_model_instance(app, name, &instance));
     if(instance == NULL) {
       APP(log(app, APP_LOG_ERROR, "the instance `%s' does not exist\n", name));
     } else {
       float rot[3] = {
-        [0] = CMD_ARGVAL(argv, PITCH_ROTATION).is_defined
-            ? CMD_ARGVAL(argv, PITCH_ROTATION).data.real
+        [0] = EDIT_CMD_ARGVAL(argv, PITCH_ROTATION).is_defined
+            ? EDIT_CMD_ARGVAL(argv, PITCH_ROTATION).data.real
             : 0.f,
-        [1] = CMD_ARGVAL(argv, YAW_ROTATION).is_defined
-            ? CMD_ARGVAL(argv, YAW_ROTATION).data.real
+        [1] = EDIT_CMD_ARGVAL(argv, YAW_ROTATION).is_defined
+            ? EDIT_CMD_ARGVAL(argv, YAW_ROTATION).data.real
             : 0.f,
-        [2] = CMD_ARGVAL(argv, ROLL_ROTATION).is_defined
-            ? CMD_ARGVAL(argv, ROLL_ROTATION).data.real
+        [2] = EDIT_CMD_ARGVAL(argv, ROLL_ROTATION).is_defined
+            ? EDIT_CMD_ARGVAL(argv, ROLL_ROTATION).data.real
             : 0.f
       };
 
       if(rot[0] != 0.f || rot[1] != 0.f || rot[2] != 0.f) {
-        if(CMD_ARGVAL(argv, RADIAN_FLAG).is_defined == false) {
+        if(EDIT_CMD_ARGVAL(argv, RADIAN_FLAG).is_defined == false) {
           rot[0] = DEG2RAD(rot[0]);
           rot[1] = DEG2RAD(rot[1]);
           rot[2] = DEG2RAD(rot[2]);
         }
-        if(CMD_ARGVAL(argv, LOCAL_SPACE_FLAG).is_defined) {
+        if(EDIT_CMD_ARGVAL(argv, LOCAL_SPACE_FLAG).is_defined) {
           APP(rotate_model_instances(&instance, 1, true, rot));
-        } else if(CMD_ARGVAL(argv, WORLD_SPACE_FLAG).is_defined) {
+        } else if(EDIT_CMD_ARGVAL(argv, WORLD_SPACE_FLAG).is_defined) {
           APP(rotate_model_instances(&instance, 1, false, rot));
         } else {
           struct aosf44 inv_view_4x4;
@@ -248,7 +249,7 @@ rotate
           UNUSED ALIGN(16) float tmp[4];
           const struct aosf44* view_4x4 = NULL;
           struct app_view* view = NULL;
-          assert(CMD_ARGVAL(argv, EYE_SPACE_FLAG).is_defined);
+          assert(EDIT_CMD_ARGVAL(argv, EYE_SPACE_FLAG).is_defined);
 
           /* Get the view matrix and its inverse. */
           APP(get_main_view(app, &view));
@@ -302,9 +303,9 @@ scale
       && argv[SCALE_Z]->type == APP_CMDARG_FLOAT);
 
   nb_defined_flags =
-      (CMD_ARGVAL(argv, EYE_SPACE_FLAG).is_defined == true)
-    + (CMD_ARGVAL(argv, LOCAL_SPACE_FLAG).is_defined == true)
-    + (CMD_ARGVAL(argv, WORLD_SPACE_FLAG).is_defined == true);
+      (EDIT_CMD_ARGVAL(argv, EYE_SPACE_FLAG).is_defined == true)
+    + (EDIT_CMD_ARGVAL(argv, LOCAL_SPACE_FLAG).is_defined == true)
+    + (EDIT_CMD_ARGVAL(argv, WORLD_SPACE_FLAG).is_defined == true);
 
   if(nb_defined_flags != 1) {
     if(nb_defined_flags == 0) {
@@ -315,28 +316,28 @@ scale
     }
   } else {
     struct app_model_instance* instance = NULL;
-    const char* name = CMD_ARGVAL(argv, INSTANCE_NAME).data.string;
+    const char* name = EDIT_CMD_ARGVAL(argv, INSTANCE_NAME).data.string;
 
     APP(get_model_instance(app, name, &instance));
     if(instance == NULL) {
       APP(log(app, APP_LOG_ERROR, "the instance `%s' does not exist\n", name));
     } else {
       const float scale[3] = {
-        [0] = CMD_ARGVAL(argv, SCALE_X).is_defined
-            ? CMD_ARGVAL(argv, SCALE_X).data.real
+        [0] = EDIT_CMD_ARGVAL(argv, SCALE_X).is_defined
+            ? EDIT_CMD_ARGVAL(argv, SCALE_X).data.real
             : 1.f,
-        [1] = CMD_ARGVAL(argv, SCALE_Y).is_defined
-            ? CMD_ARGVAL(argv, SCALE_Y).data.real
+        [1] = EDIT_CMD_ARGVAL(argv, SCALE_Y).is_defined
+            ? EDIT_CMD_ARGVAL(argv, SCALE_Y).data.real
             : 1.f,
-        [2] = CMD_ARGVAL(argv, SCALE_Z).is_defined
-            ? CMD_ARGVAL(argv, SCALE_Z).data.real
+        [2] = EDIT_CMD_ARGVAL(argv, SCALE_Z).is_defined
+            ? EDIT_CMD_ARGVAL(argv, SCALE_Z).data.real
             : 1.f
       };
 
       if((scale[0] != 0.f) | (scale[1] != 0.f) | (scale[2] != 0.f)) {
-        if(CMD_ARGVAL(argv, LOCAL_SPACE_FLAG).is_defined) {
+        if(EDIT_CMD_ARGVAL(argv, LOCAL_SPACE_FLAG).is_defined) {
           APP(scale_model_instances(&instance, 1, true, scale));
-        } else if(CMD_ARGVAL(argv, WORLD_SPACE_FLAG).is_defined) {
+        } else if(EDIT_CMD_ARGVAL(argv, WORLD_SPACE_FLAG).is_defined) {
           APP(scale_model_instances(&instance, 1, false, scale));
         } else {
           struct aosf44 inv_view_4x4;
@@ -347,7 +348,7 @@ scale
           UNUSED ALIGN(16) float tmp[4];
           const struct aosf44* view_4x4 = NULL;
           struct app_view* view = NULL;
-          assert(CMD_ARGVAL(argv, EYE_SPACE_FLAG).is_defined);
+          assert(EDIT_CMD_ARGVAL(argv, EYE_SPACE_FLAG).is_defined);
 
           /* Get the view matrix and its inverse. */
           APP(get_main_view(app, &view));
@@ -410,32 +411,32 @@ transform
       && argv[C3_Z]->type == APP_CMDARG_FLOAT
       && argv[C3_W]->type == APP_CMDARG_FLOAT);
 
-  name = CMD_ARGVAL(argv, INSTANCE_NAME).data.string;
+  name = EDIT_CMD_ARGVAL(argv, INSTANCE_NAME).data.string;
   APP(get_model_instance(app, name, &instance));
   if(instance == NULL) {
     APP(log(app, APP_LOG_ERROR, "the instance `%s' does not exist\n", name));
   } else {
     const struct aosf44 f44 = {
       .c0 = vf4_set
-        (CMD_ARGVAL(argv, C0_X).data.real,
-         CMD_ARGVAL(argv, C0_Y).data.real,
-         CMD_ARGVAL(argv, C0_Z).data.real,
-         CMD_ARGVAL(argv, C0_W).data.real),
+        (EDIT_CMD_ARGVAL(argv, C0_X).data.real,
+         EDIT_CMD_ARGVAL(argv, C0_Y).data.real,
+         EDIT_CMD_ARGVAL(argv, C0_Z).data.real,
+         EDIT_CMD_ARGVAL(argv, C0_W).data.real),
       .c1 = vf4_set
-        (CMD_ARGVAL(argv, C1_X).data.real,
-         CMD_ARGVAL(argv, C1_Y).data.real,
-         CMD_ARGVAL(argv, C1_Z).data.real,
-         CMD_ARGVAL(argv, C1_W).data.real),
+        (EDIT_CMD_ARGVAL(argv, C1_X).data.real,
+         EDIT_CMD_ARGVAL(argv, C1_Y).data.real,
+         EDIT_CMD_ARGVAL(argv, C1_Z).data.real,
+         EDIT_CMD_ARGVAL(argv, C1_W).data.real),
       .c2 = vf4_set
-        (CMD_ARGVAL(argv, C2_X).data.real,
-         CMD_ARGVAL(argv, C2_Y).data.real,
-         CMD_ARGVAL(argv, C2_Z).data.real,
-         CMD_ARGVAL(argv, C2_W).data.real),
+        (EDIT_CMD_ARGVAL(argv, C2_X).data.real,
+         EDIT_CMD_ARGVAL(argv, C2_Y).data.real,
+         EDIT_CMD_ARGVAL(argv, C2_Z).data.real,
+         EDIT_CMD_ARGVAL(argv, C2_W).data.real),
       .c3 = vf4_set
-        (CMD_ARGVAL(argv, C3_X).data.real,
-         CMD_ARGVAL(argv, C3_Y).data.real,
-         CMD_ARGVAL(argv, C3_Z).data.real,
-         CMD_ARGVAL(argv, C3_W).data.real)
+        (EDIT_CMD_ARGVAL(argv, C3_X).data.real,
+         EDIT_CMD_ARGVAL(argv, C3_Y).data.real,
+         EDIT_CMD_ARGVAL(argv, C3_Z).data.real,
+         EDIT_CMD_ARGVAL(argv, C3_W).data.real)
     };
     APP(transform_model_instances(&instance, 1, false, &f44));
   }
@@ -446,18 +447,18 @@ transform
  * Move command registration functions.
  *
  ******************************************************************************/
-enum cmd_error
-cmd_release_move_commands(struct app* app)
+enum edit_error
+edit_release_move_commands(struct edit_context* ctxt)
 {
-  if(!app)
-    return CMD_INVALID_ARGUMENT;
+  if(UNLIKELY(!ctxt))
+    return EDIT_INVALID_ARGUMENT;
 
   #define RELEASE_CMD(cmd) \
     do { \
       bool b = false; \
-      APP(has_command(app, cmd, &b)); \
+      APP(has_command(ctxt->app, cmd, &b)); \
       if(b == true) \
-        APP(del_command(app, cmd)); \
+        APP(del_command(ctxt->app, cmd)); \
     } while(0);
 
   RELEASE_CMD("mv");
@@ -467,15 +468,15 @@ cmd_release_move_commands(struct app* app)
   RELEASE_CMD("translate");
 
   #undef RELEASE_CMD
-  return CMD_NO_ERROR;
+  return EDIT_NO_ERROR;
 }
 
-enum cmd_error
-cmd_setup_move_commands(struct app* app)
+enum edit_error
+edit_setup_move_commands(struct edit_context* ctxt)
 {
-  enum cmd_error cmd_err = CMD_NO_ERROR;
-  if(!app) {
-    cmd_err = CMD_INVALID_ARGUMENT;
+  enum edit_error edit_err = EDIT_NO_ERROR;
+  if(UNLIKELY(!ctxt)) {
+    edit_err = EDIT_INVALID_ARGUMENT;
     goto error;
   }
 
@@ -483,13 +484,13 @@ cmd_setup_move_commands(struct app* app)
     do { \
       const enum app_error app_err = func; \
       if(APP_NO_ERROR != app_err) { \
-        cmd_err = app_to_cmd_error(app_err); \
+        edit_err = app_to_edit_error(app_err); \
         goto error; \
       } \
     } while(0)
 
   CALL(app_add_command
-    (app, "mv", mv, NULL, app_model_instance_name_completion,
+    (ctxt->app, "mv", mv, NULL, app_model_instance_name_completion,
      APP_CMDARGV
      (APP_CMDARG_APPEND_STRING
         ("i", "instance", "<name>", "define the instance to move", 1, 1, NULL),
@@ -503,7 +504,7 @@ cmd_setup_move_commands(struct app* app)
      "move a model instance"));
 
   CALL(app_add_command
-    (app, "rotate", rotate, NULL, app_model_instance_name_completion,
+    (ctxt->app, "rotate", rotate, NULL, app_model_instance_name_completion,
      APP_CMDARGV
      (APP_CMDARG_APPEND_LITERAL
         ("e", "eye",
@@ -531,7 +532,7 @@ cmd_setup_move_commands(struct app* app)
      "rotate a model instance"));
 
   CALL(app_add_command
-    (app, "scale", scale, NULL, app_model_instance_name_completion,
+    (ctxt->app, "scale", scale, NULL, app_model_instance_name_completion,
      APP_CMDARGV
      (APP_CMDARG_APPEND_LITERAL
         ("e", "eye",
@@ -557,7 +558,7 @@ cmd_setup_move_commands(struct app* app)
      "scale a model instance"));
 
   CALL(app_add_command
-    (app, "transform", transform, NULL, app_model_instance_name_completion,
+    (ctxt->app, "transform", transform, NULL, app_model_instance_name_completion,
      APP_CMDARGV
      (APP_CMDARG_APPEND_STRING
         ("i", "instance", "<name>",
@@ -583,7 +584,7 @@ cmd_setup_move_commands(struct app* app)
      "transform the instance by a 4x4 matrix"));
 
   CALL(app_add_command
-    (app, "translate", translate, NULL, app_model_instance_name_completion,
+    (ctxt->app, "translate", translate, NULL, app_model_instance_name_completion,
      APP_CMDARGV
      (APP_CMDARG_APPEND_LITERAL
         ("e", "eye",
@@ -612,10 +613,10 @@ cmd_setup_move_commands(struct app* app)
 
   #undef CALL
 exit:
-  return cmd_err;
+  return edit_err;
 error:
-  if(app)
-    CMD(release_move_commands(app));
+  if(ctxt)
+    EDIT(release_move_commands(ctxt));
   goto exit;
 }
 
