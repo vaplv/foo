@@ -36,10 +36,10 @@ edit_setup_cvars(struct edit_context* ctxt)
 
   REGISTER_CVAR
     ("edit_project_path", APP_CVAR_STRING_DESC(NULL, NULL),
-     &ctxt->cvars.project_path);
+     &(ctxt->cvars.project_path));
   REGISTER_CVAR
-    ("edit_show_selection", APP_CVAR_BOOL_DESC(false),
-     &ctxt->cvars.show_selection);
+    ("edit_show_selection", APP_CVAR_BOOL_DESC(true),
+     &(ctxt->cvars.show_selection));
 
   #undef REGISTER_CVAR
 

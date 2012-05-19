@@ -35,6 +35,17 @@ edit_clear_model_instance_selection
   (struct edit_context* ctxt);
 
 extern enum edit_error
+edit_get_model_instance_selection_pivot
+  (struct edit_context* ctxt,
+   float pivot[3]); 
+
+extern enum edit_error
+edit_translate_model_instance_selection
+  (struct edit_context* ctxt,
+   bool local_translation,
+   const float translation[3]);
+
+extern enum edit_error
 edit_draw_model_instance_selection
   (struct edit_context* ctxt);
 

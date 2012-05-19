@@ -172,7 +172,9 @@ select_instance_list
 
     EDIT(is_model_instance_selected(ctxt, instance_name, &is_already_selected));
 
-    if(is_already_selected == false) {
+    if(is_already_selected == true) {
+      EDIT(unselect_model_instance(ctxt, instance_name));
+    } else {
       enum edit_error edit_err = edit_select_model_instance(ctxt, instance_name);
       if(edit_err != EDIT_NO_ERROR) {
         APP(log(app, APP_LOG_ERROR,
@@ -322,10 +324,12 @@ edit_setup_object_management_commands(struct edit_context* ctxt)
      app_model_instance_name_completion,
      APP_CMDARGV
      (APP_CMDARG_APPEND_STRING
-        ("i", "instance", "<instance>", "instance to select", 
+        ("i", "instance", "<str>", "instance to select", 
          0, CMD_SELECT_MAX_INSTANCE_COUNT, NULL),
       APP_CMDARG_APPEND_LITERAL
-        ("a", "add", "add the selected instances to current selection", 0, 1),
+        ("a", "append", 
+         "remove/add the selected instances to current selection whether they "
+         "are already selected or not", 0, 1),
       APP_CMDARG_END),
      "select up to "STR(CMD_SELECT_MAX_INSTANCE_COUNT)" instances"));
   #undef CMD_SELECT_MAX_INSTANCE_COUNT

@@ -26,7 +26,7 @@ app_imdraw_parallelepiped
   memset(&render_view, 0, sizeof(render_view));
   memset(&win_desc, 0, sizeof(win_desc));
 
-  if(UNLIKELY(app || !pos || !size || !rotation)) {
+  if(UNLIKELY(!app || !pos || !size || !rotation)) {
     app_err = APP_INVALID_ARGUMENT;
     goto error;
   }

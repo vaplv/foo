@@ -1,6 +1,7 @@
 #include "app/editor/regular/edit_context_c.h"
 #include "app/editor/regular/edit_error_c.h"
 #include "app/editor/regular/edit_move_commands.h"
+#include "app/editor/regular/edit_model_instance_selection.h"
 #include "app/editor/edit_context.h"
 #include "app/editor/edit_error.h"
 #include "app/core/app.h"
@@ -68,6 +69,40 @@ mv
       APP(move_model_instances(&instance, 1, tmp));
     }
   }
+}
+
+static void
+mv_selection
+  (struct app* app UNUSED,
+   size_t argc UNUSED,
+   const struct app_cmdarg** argv,
+   void* data)
+{
+  struct edit_context* ctxt = data;
+  float pivot[3] = { 0.f, 0.f, 0.f };
+  float translation[3] = { 0.f, 0.f, 0.f };
+  enum { CMD_NAME, SELECTION_FLAG, POS_X, POS_Y, POS_Z, ARGC };
+
+  assert(app != NULL
+      && data != NULL
+      && argc == ARGC
+      && argv != NULL
+      && argv[CMD_NAME]->type == APP_CMDARG_STRING
+      && argv[SELECTION_FLAG]->type == APP_CMDARG_LITERAL
+      && argv[POS_X]->type == APP_CMDARG_FLOAT
+      && argv[POS_Y]->type == APP_CMDARG_FLOAT
+      && argv[POS_Z]->type == APP_CMDARG_FLOAT);
+
+  EDIT(get_model_instance_selection_pivot(ctxt, pivot));
+
+  if(EDIT_CMD_ARGVAL(argv, POS_X).is_defined)
+    translation[0] = EDIT_CMD_ARGVAL(argv, POS_X).data.real - pivot[0];
+  if(EDIT_CMD_ARGVAL(argv, POS_Y).is_defined)
+    translation[1] = EDIT_CMD_ARGVAL(argv, POS_Y).data.real - pivot[1];
+  if(EDIT_CMD_ARGVAL(argv, POS_Z).is_defined)
+    translation[2] = EDIT_CMD_ARGVAL(argv, POS_Z).data.real - pivot[2];
+
+  EDIT(translate_model_instance_selection(ctxt, false, translation));
 }
 
 static void
@@ -502,6 +537,18 @@ edit_setup_move_commands(struct edit_context* ctxt)
         ("z", NULL, "<real>", NULL, 0, 1, -FLT_MAX, FLT_MAX),
       APP_CMDARG_END),
      "move a model instance"));
+  CALL(app_add_command
+    (ctxt->app, "mv", mv_selection, ctxt, NULL,
+     APP_CMDARGV
+     (APP_CMDARG_APPEND_LITERAL("s", "selection", NULL, 1, 1),
+      APP_CMDARG_APPEND_FLOAT
+        ("x", NULL, "<real>", NULL, 0, 1, -FLT_MAX, FLT_MAX),
+      APP_CMDARG_APPEND_FLOAT
+        ("y", NULL, "<real>", NULL, 0, 1, -FLT_MAX, FLT_MAX),
+      APP_CMDARG_APPEND_FLOAT
+        ("z", NULL, "<real>", NULL, 0, 1, -FLT_MAX, FLT_MAX),
+      APP_CMDARG_END),
+     "move the selected instances"));
 
   CALL(app_add_command
     (ctxt->app, "rotate", rotate, NULL, app_model_instance_name_completion,

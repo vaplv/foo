@@ -117,7 +117,7 @@ app_add_cvar
    const char* cvar_name,
    const struct app_cvar_desc* desc)
 {
-  struct cvar cvar;
+  struct cvar* cvar = NULL;
   char* name = NULL;
   size_t len = 0;
   enum app_error app_err = APP_NO_ERROR;
@@ -136,20 +136,25 @@ app_add_cvar
     goto error;
   }
   name = memcpy(name, cvar_name, len);
+  cvar = MEM_CALLOC(app->allocator, 1, sizeof(struct cvar));
+  if(!cvar) {
+    app_err = APP_MEMORY_ERROR;
+    goto error;
+  }
 
   if(desc->type == APP_CVAR_STRING
   && (  desc->domain.string.value_list == NULL
      || desc->domain.string.value_list[0] == NULL)) {
-    sl_err = sl_create_string(NULL, app->allocator, &cvar.str);
+    sl_err = sl_create_string(NULL, app->allocator, &cvar->str);
     if(sl_err != SL_NO_ERROR) {
       app_err = sl_to_app_error(sl_err);
       goto error;
     }
   } else {
-    cvar.domain = desc->domain;
+    cvar->domain = desc->domain;
   }
-  cvar.var.type = desc->type;
-  app_err = set_cvar_value(app->logger, cvar_name, &cvar, desc->init_value);
+  cvar->var.type = desc->type;
+  app_err = set_cvar_value(app->logger, cvar_name, cvar, desc->init_value);
   if(app_err != APP_NO_ERROR)
     goto error;
 
@@ -166,8 +171,11 @@ error:
     SL(flat_map_erase(app->cvar_system.map, (const void*)&cvar_name, NULL));
   if(name)
     MEM_FREE(app->allocator, name);
-  if(cvar.str)
-    SL(free_string(cvar.str));
+  if(cvar) {
+    if(cvar->str)
+      SL(free_string(cvar->str));
+    MEM_FREE(app->allocator, cvar);
+  }
   goto exit;
 }
 
@@ -183,13 +191,14 @@ app_del_cvar(struct app* app, const char* name)
   if(SL_IS_PAIR_VALID(&pair) == false) {
     return APP_INVALID_ARGUMENT;
   } else {
-    struct sl_string* str = ((struct cvar*)pair.data)->str;
+    struct cvar* cvar = *(struct cvar**)pair.data;
     char* cvar_name = *(char**)pair.key;
 
     SL(flat_map_erase(app->cvar_system.map, (const void*)&name, NULL));
     MEM_FREE(app->allocator, cvar_name);
-    if(str)
-      SL(free_string(str));
+    if(cvar->str)
+      SL(free_string(cvar->str));
+    MEM_FREE(app->allocator, cvar);
   }
   return APP_NO_ERROR;
 }
@@ -197,7 +206,7 @@ app_del_cvar(struct app* app, const char* name)
 EXPORT_SYM enum app_error
 app_set_cvar(struct app* app, const char* name, union app_cvar_value val)
 {
-  struct cvar* cvar = NULL;
+  struct cvar** cvar = NULL;
   enum app_error app_err = APP_NO_ERROR;
 
   if(!app || !name)
@@ -209,7 +218,7 @@ app_set_cvar(struct app* app, const char* name, union app_cvar_value val)
     app_err = APP_INVALID_ARGUMENT;
     goto error;
   }
-  app_err = set_cvar_value(app->logger, name, cvar, val);
+  app_err = set_cvar_value(app->logger, name, *cvar, val);
   if(app_err != APP_NO_ERROR)
     goto error;
 exit:
@@ -224,7 +233,7 @@ app_get_cvar
    const char* name,
    const struct app_cvar** out_cvar)
 {
-  struct cvar* cvar = NULL;
+  struct cvar** cvar = NULL;
 
   if(!app || !name || !out_cvar)
     return APP_INVALID_ARGUMENT;
@@ -233,7 +242,7 @@ app_get_cvar
   if(cvar == NULL) {
     *out_cvar = NULL;
   } else {
-    *out_cvar = &cvar->var;
+    *out_cvar = &(*cvar)->var;
   }
   return APP_NO_ERROR;
 }
@@ -272,8 +281,8 @@ app_init_cvar_system(struct app* app)
   sl_err = sl_create_flat_map
     (sizeof(const char*),
      ALIGNOF(const char*),
-     sizeof(struct cvar),
-     ALIGNOF(struct cvar),
+     sizeof(struct cvar*),
+     ALIGNOF(struct cvar*),
      cmp_str,
      app->allocator,
      &app->cvar_system.map);
@@ -294,7 +303,7 @@ enum app_error
 app_shutdown_cvar_system(struct app* app)
 {
   char** name_list = NULL;
-  struct cvar* cvar_list = NULL;
+  struct cvar** cvar_list = NULL;
   size_t len = 0;
   size_t i = 0;
 
@@ -308,8 +317,9 @@ app_shutdown_cvar_system(struct app* app)
        (app->cvar_system.map, &len, NULL, NULL, (void**)&cvar_list));
     for(i = 0; i < len; ++i) {
       MEM_FREE(app->allocator, name_list[i]);
-      if(cvar_list[i].str)
-        SL(free_string(cvar_list[i].str));
+      if(cvar_list[i]->str)
+        SL(free_string(cvar_list[i]->str));
+      MEM_FREE(app->allocator, cvar_list[i]);
     }
     SL(free_flat_map(app->cvar_system.map));
   }

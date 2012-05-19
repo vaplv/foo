@@ -1,4 +1,5 @@
 #include "app/core/app.h"
+#include "app/core/app_cvar.h"
 #include "app/editor/regular/edit_context_c.h"
 #include "app/editor/regular/edit_cvars.h"
 #include "app/editor/regular/edit_load_save_commands.h"
@@ -108,7 +109,8 @@ edit_run(struct edit_context* ctxt)
 {
   if(UNLIKELY(!ctxt))
     return EDIT_INVALID_ARGUMENT;
-  EDIT(draw_model_instance_selection(ctxt));
+  if(ctxt->cvars.show_selection->value.boolean)
+    EDIT(draw_model_instance_selection(ctxt));
   return EDIT_NO_ERROR;
 }
 

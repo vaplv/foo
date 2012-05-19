@@ -128,6 +128,7 @@ enum edit_error
 edit_select_model_instance(struct edit_context* ctxt, const char* instance_name)
 {
   struct app_model_instance* instance = NULL;
+  void* ptr = NULL;
   char* name = NULL;
   enum edit_error edit_err = EDIT_NO_ERROR;
   enum sl_error sl_err = SL_NO_ERROR;
@@ -144,19 +145,24 @@ edit_select_model_instance(struct edit_context* ctxt, const char* instance_name)
     edit_err = EDIT_INVALID_ARGUMENT;
     goto error;
   }
+  SL(hash_table_find(ctxt->selected_model_instance_htbl, &instance_name, &ptr));
+  if(ptr != NULL) {
+    APP(log(ctxt->app, APP_LOG_INFO,
+      "the instance `%s' is already selected\n", instance_name));
+  } else {
+    name = MEM_CALLOC(ctxt->allocator, strlen(instance_name) + 1, sizeof(char));
+    if(!name) {
+      edit_err = EDIT_MEMORY_ERROR;
+      goto error;
+    }
+    name = strcpy(name, instance_name);
 
-  name = MEM_CALLOC(ctxt->allocator, strlen(instance_name) + 1, sizeof(char));
-  if(!name) {
-    edit_err = EDIT_MEMORY_ERROR;
-    goto error;
-  }
-  name = strcpy(name, instance_name);
-
-  sl_err = sl_hash_table_insert
-    (ctxt->selected_model_instance_htbl, &name, &instance);
-  if(sl_err != SL_NO_ERROR) {
-    edit_err = sl_to_edit_error(sl_err);
-    goto error;
+    sl_err = sl_hash_table_insert
+      (ctxt->selected_model_instance_htbl, &name, &instance);
+    if(sl_err != SL_NO_ERROR) {
+      edit_err = sl_to_edit_error(sl_err);
+      goto error;
+    }
   }
 
 exit:
@@ -230,6 +236,68 @@ edit_clear_model_instance_selection(struct edit_context* ctxt)
     SL(hash_table_it_next(&it, &b));
   }
   SL(hash_table_clear(ctxt->selected_model_instance_htbl));
+  return EDIT_NO_ERROR;
+}
+
+enum edit_error
+edit_get_model_instance_selection_pivot
+  (struct edit_context* ctxt, 
+   float pivot[3])
+{
+  struct sl_hash_table_it it;
+  size_t nb_instances = 0;
+  float rcp_nb_instances = 0.f;
+  bool is_end_reached = false;
+  memset(&it, 0, sizeof(it));
+
+  if(UNLIKELY(!ctxt || !pivot))
+    return EDIT_INVALID_ARGUMENT;
+
+  nb_instances = 0;
+  pivot[0] = pivot[1] = pivot[2] = 0.f;
+  SL(hash_table_begin
+    (ctxt->selected_model_instance_htbl, &it, &is_end_reached));
+  while(is_end_reached == false) {
+    float min_bound[3] = {0.f, 0.f, 0.f};
+    float max_bound[3] = {0.f, 0.f, 0.f};
+    const struct app_model_instance* instance =
+      *(struct app_model_instance**)it.pair.data;
+
+    APP(get_model_instance_aabb(instance, min_bound, max_bound));
+    pivot[0] += (min_bound[0] + max_bound[0]) * 0.5f;
+    pivot[1] += (min_bound[1] + max_bound[1]) * 0.5f;
+    pivot[2] += (min_bound[2] + max_bound[2]) * 0.5f;
+    ++nb_instances;
+
+    SL(hash_table_it_next(&it, &is_end_reached));
+  }
+  rcp_nb_instances = 1.f / (float)nb_instances;
+  pivot[0] *= rcp_nb_instances;
+  pivot[1] *= rcp_nb_instances;
+  pivot[2] *= rcp_nb_instances;
+  return EDIT_NO_ERROR;
+}
+
+enum edit_error
+edit_translate_model_instance_selection
+  (struct edit_context* ctxt,
+   bool local_translation,
+   const float translation[3])
+{
+  struct sl_hash_table_it it;
+  bool is_end_reached = false;
+
+  if(UNLIKELY(!ctxt || !translation))
+    return EDIT_INVALID_ARGUMENT;
+
+  SL(hash_table_begin
+    (ctxt->selected_model_instance_htbl, &it, &is_end_reached));
+  while(is_end_reached == false) {
+    struct app_model_instance* instance =
+      *(struct app_model_instance**)it.pair.data;
+    APP(translate_model_instances(&instance, 1, local_translation, translation));
+    SL(hash_table_it_next(&it, &is_end_reached));
+  }
   return EDIT_NO_ERROR;
 }
 
