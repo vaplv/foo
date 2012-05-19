@@ -9,14 +9,14 @@
 
 struct app;
 struct app_cvar;
+struct edit_model_instance_selection;
 struct mem_allocator;
-struct sl_hash_table;
 
 struct edit_context {
   struct ref ref;
   struct app* app;
   struct mem_allocator* allocator;
-  struct sl_hash_table* selected_model_instance_htbl;
+  struct edit_model_instance_selection* instance_selection;
   struct cvars {
     const struct app_cvar* project_path;
     const struct app_cvar* show_selection;

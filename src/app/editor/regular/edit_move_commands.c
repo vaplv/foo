@@ -1,9 +1,9 @@
 #include "app/editor/regular/edit_context_c.h"
 #include "app/editor/regular/edit_error_c.h"
 #include "app/editor/regular/edit_move_commands.h"
-#include "app/editor/regular/edit_model_instance_selection.h"
 #include "app/editor/edit_context.h"
 #include "app/editor/edit_error.h"
+#include "app/editor/edit_model_instance_selection.h"
 #include "app/core/app.h"
 #include "app/core/app_model_instance.h"
 #include "app/core/app_command.h"
@@ -93,7 +93,7 @@ mv_selection
       && argv[POS_Y]->type == APP_CMDARG_FLOAT
       && argv[POS_Z]->type == APP_CMDARG_FLOAT);
 
-  EDIT(get_model_instance_selection_pivot(ctxt, pivot));
+  EDIT(get_model_instance_selection_pivot(ctxt->instance_selection, pivot));
 
   if(EDIT_CMD_ARGVAL(argv, POS_X).is_defined)
     translation[0] = EDIT_CMD_ARGVAL(argv, POS_X).data.real - pivot[0];
@@ -102,7 +102,8 @@ mv_selection
   if(EDIT_CMD_ARGVAL(argv, POS_Z).is_defined)
     translation[2] = EDIT_CMD_ARGVAL(argv, POS_Z).data.real - pivot[2];
 
-  EDIT(translate_model_instance_selection(ctxt, false, translation));
+  EDIT(translate_model_instance_selection
+    (ctxt->instance_selection, false, translation));
 }
 
 static void

@@ -1,9 +1,9 @@
 #include "app/editor/regular/edit_context_c.h"
 #include "app/editor/regular/edit_error_c.h"
-#include "app/editor/regular/edit_model_instance_selection.h"
 #include "app/editor/regular/edit_object_management_commands.h"
 #include "app/editor/edit_context.h"
 #include "app/editor/edit_error.h"
+#include "app/editor/edit_model_instance_selection.h"
 #include "app/core/app.h"
 #include "app/core/app_command.h"
 #include "app/core/app_error.h"
@@ -159,27 +159,34 @@ select_instance_list
       && argv[ADD_FLAG]->type == APP_CMDARG_LITERAL);
 
   if(EDIT_CMD_ARGVAL(argv, ADD_FLAG).is_defined == false) {
-    EDIT(clear_model_instance_selection(ctxt));
+    EDIT(clear_model_instance_selection(ctxt->instance_selection));
   }
 
   for(i = 0;
-      i < argv[INSTANCE_NAME_LIST]->count 
+      i < argv[INSTANCE_NAME_LIST]->count
       && EDIT_CMD_ARGVAL_N(argv, INSTANCE_NAME_LIST, i).is_defined;
       ++i) {
+    struct app_model_instance* instance = NULL;
     const char* instance_name = EDIT_CMD_ARGVAL_N
       (argv, INSTANCE_NAME_LIST, i).data.string;
     bool is_already_selected = false;
 
-    EDIT(is_model_instance_selected(ctxt, instance_name, &is_already_selected));
-
-    if(is_already_selected == true) {
-      EDIT(unselect_model_instance(ctxt, instance_name));
+    APP(get_model_instance(app, instance_name, &instance));
+    if(instance == NULL) {
+      APP(log(app, APP_LOG_ERROR,
+        "the instance `%s' does not exist\n", instance_name));
     } else {
-      enum edit_error edit_err = edit_select_model_instance(ctxt, instance_name);
-      if(edit_err != EDIT_NO_ERROR) {
-        APP(log(app, APP_LOG_ERROR,
-          "error selecting the instance `%s'\n",
-          instance_name));
+      EDIT(is_model_instance_selected
+        (ctxt->instance_selection, instance, &is_already_selected));
+      if(is_already_selected == true) {
+        EDIT(unselect_model_instance(ctxt->instance_selection, instance));
+      } else {
+        enum edit_error edit_err = edit_select_model_instance
+          (ctxt->instance_selection, instance);
+        if(edit_err != EDIT_NO_ERROR) {
+          APP(log(app, APP_LOG_ERROR,
+            "error selecting the instance `%s'\n", instance_name));
+        }
       }
     }
   }
@@ -320,14 +327,14 @@ edit_setup_object_management_commands(struct edit_context* ctxt)
 
   #define CMD_SELECT_MAX_INSTANCE_COUNT 16
   CALL(app_add_command
-    (ctxt->app, "select", select_instance_list, ctxt, 
+    (ctxt->app, "select", select_instance_list, ctxt,
      app_model_instance_name_completion,
      APP_CMDARGV
      (APP_CMDARG_APPEND_STRING
-        ("i", "instance", "<str>", "instance to select", 
+        ("i", "instance", "<str>", "instance to select",
          0, CMD_SELECT_MAX_INSTANCE_COUNT, NULL),
       APP_CMDARG_APPEND_LITERAL
-        ("a", "append", 
+        ("a", "append",
          "remove/add the selected instances to current selection whether they "
          "are already selected or not", 0, 1),
       APP_CMDARG_END),

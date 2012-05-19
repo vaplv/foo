@@ -3,10 +3,11 @@
 #include "app/editor/regular/edit_context_c.h"
 #include "app/editor/regular/edit_cvars.h"
 #include "app/editor/regular/edit_load_save_commands.h"
-#include "app/editor/regular/edit_model_instance_selection.h"
+#include "app/editor/regular/edit_model_instance_selection_c.h"
 #include "app/editor/regular/edit_move_commands.h"
 #include "app/editor/regular/edit_object_management_commands.h"
 #include "app/editor/edit_context.h"
+#include "app/editor/edit_model_instance_selection.h"
 #include "sys/mem_allocator.h"
 #include "sys/sys.h"
 #include <assert.h>
@@ -25,7 +26,9 @@ release_context(struct ref* ref)
 
   ctxt = CONTAINER_OF(ref, struct edit_context, ref);
 
-  EDIT(shutdown_model_instance_selection(ctxt));
+  if(ctxt->instance_selection)
+    EDIT(regular_model_instance_selection_ref_put(ctxt->instance_selection));
+
   EDIT(release_cvars(ctxt));
   EDIT(release_move_commands(ctxt));
   EDIT(release_object_management_commands(ctxt));
@@ -67,11 +70,12 @@ edit_create_context
   ctxt->app = app;
 
   #define CALL(func) if(EDIT_NO_ERROR != (edit_err = func)) goto error;
-  CALL(edit_init_model_instance_selection(ctxt));
   CALL(edit_setup_cvars(ctxt));
   CALL(edit_setup_move_commands(ctxt));
   CALL(edit_setup_object_management_commands(ctxt));
   CALL(edit_setup_load_save_commands(ctxt));
+  CALL(edit_regular_create_model_instance_selection
+    (ctxt, &ctxt->instance_selection));
   #undef CALL
 
 exit:
@@ -110,7 +114,7 @@ edit_run(struct edit_context* ctxt)
   if(UNLIKELY(!ctxt))
     return EDIT_INVALID_ARGUMENT;
   if(ctxt->cvars.show_selection->value.boolean)
-    EDIT(draw_model_instance_selection(ctxt));
+    EDIT(draw_model_instance_selection(ctxt->instance_selection));
   return EDIT_NO_ERROR;
 }
 
