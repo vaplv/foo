@@ -11,6 +11,11 @@
 struct app_model_instance;
 struct sl_vector;
 
+enum app_model_instance_it_type {
+  APP_REGISTERED_MODEL_INSTANCE_IT,
+  APP_SPAWNED_MODEL_INSTANCE_IT
+};
+
 /* Data of app_model_instance. */
 struct app_model_instance {
   struct app_object obj;

@@ -69,13 +69,13 @@ edit_create_context
   APP(ref_get(app));
   ctxt->app = app;
 
-  #define CALL(func) if(EDIT_NO_ERROR != (edit_err = func)) goto error;
+  #define CALL(func) if(EDIT_NO_ERROR != (edit_err = func)) goto error
+  CALL(edit_regular_create_model_instance_selection
+    (ctxt, &ctxt->instance_selection));
   CALL(edit_setup_cvars(ctxt));
   CALL(edit_setup_move_commands(ctxt));
   CALL(edit_setup_object_management_commands(ctxt));
   CALL(edit_setup_load_save_commands(ctxt));
-  CALL(edit_regular_create_model_instance_selection
-    (ctxt, &ctxt->instance_selection));
   #undef CALL
 
 exit:

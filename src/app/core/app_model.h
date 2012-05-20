@@ -5,6 +5,13 @@
 
 struct app;
 struct app_model;
+struct app_model_instance;
+struct app_model_spawned_instance_it {
+  struct app_model_instance* instance;
+  struct app_model* model;
+  /* Private data. */
+  struct list_node* next;
+};
 struct app_model_it {
   struct app_model* model;
   /* Private data. */
@@ -67,6 +74,18 @@ app_get_model_aabb
   (const struct app_model* mdl,
    float min_bound[3],
    float max_bound[3]);
+
+/* Retrieve the iterator onto the list of instances spawned from mdl. */
+extern enum app_error
+app_get_model_spawned_instance_list_begin
+  (struct app_model* mdl,
+   struct app_model_spawned_instance_it* it,
+   bool* is_end_reached);
+
+extern enum app_error
+app_model_spawned_instance_it_next
+  (struct app_model_spawned_instance_it* it,
+   bool* is_end_reached);
 
 extern enum app_error
 app_get_model

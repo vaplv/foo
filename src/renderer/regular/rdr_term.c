@@ -166,7 +166,7 @@ static const char* background_fs_source =
   "out vec4 color;\n"
   "void main()\n"
   "{\n"
-  " color = vec4(vec3(0.f), 0.25f);\n"
+  " color = vec4(vec3(0.f), 0.5f);\n"
   "}\n";
 
 /*******************************************************************************

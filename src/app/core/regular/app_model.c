@@ -520,6 +520,40 @@ app_get_model_aabb
 }
 
 EXPORT_SYM enum app_error
+app_get_model_spawned_instance_list_begin
+  (struct app_model* mdl,
+   struct app_model_spawned_instance_it* it,
+   bool* is_end_reached)
+{
+  if(UNLIKELY(!mdl || !it || !is_end_reached))
+    return APP_INVALID_ARGUMENT;
+  *is_end_reached = is_list_empty(&mdl->instance_list);
+  if(*is_end_reached == false) {
+    struct list_node* head = list_head(&mdl->instance_list);
+    it->instance = CONTAINER_OF(head, struct app_model_instance, model_node);
+    it->model = mdl;
+    it->next = head->next;
+  }
+  return APP_NO_ERROR;
+}
+
+EXPORT_SYM enum app_error
+app_model_spawned_instance_it_next
+  (struct app_model_spawned_instance_it* it,
+   bool* is_end_reached)
+{
+  if(UNLIKELY(!it || !is_end_reached))
+    return APP_INVALID_ARGUMENT;
+  *is_end_reached = it->next == &it->model->instance_list;
+  if(*is_end_reached == false) {
+    struct list_node* next = it->next;
+    it->instance = CONTAINER_OF(next, struct app_model_instance, model_node);
+    it->next = it->next->next;
+  }
+  return APP_NO_ERROR;
+}
+
+EXPORT_SYM enum app_error
 app_get_model(struct app* app, const char* mdl_name, struct app_model** mdl)
 {
   struct app_object* obj = NULL;

@@ -38,6 +38,10 @@ edit_is_model_instance_selected
    bool* is_selected);
 
 extern enum edit_error
+edit_remove_selected_model_instances
+  (struct edit_model_instance_selection* selection);
+
+extern enum edit_error
 edit_clear_model_instance_selection
   (struct edit_model_instance_selection* selection);
 

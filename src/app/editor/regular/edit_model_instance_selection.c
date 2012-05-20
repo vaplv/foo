@@ -27,18 +27,18 @@ struct edit_model_instance_selection {
  *
  ******************************************************************************/
 static size_t
-hash_str(const void* key)
+hash_ptr(const void* ptr)
 {
-  const char* str = *(const char**)key;
-  return sl_hash(str, strlen(str));
+  const void* p = *(const void**)ptr;
+  return sl_hash(p, sizeof(const void*));
 }
 
 static bool
-eq_str(const void* key0, const void* key1)
+eq_ptr(const void* key0, const void* key1)
 {
-  const char* str0 = *(const char**)key0;
-  const char* str1 = *(const char**)key1;
-  return strcmp(str0, str1) == 0;
+  const void* ptr0 = *(const void**)key0;
+  const void* ptr1 = *(const void**)key1;
+  return ptr0 == ptr1;
 }
 
 static void
@@ -137,7 +137,6 @@ edit_select_model_instance
    struct app_model_instance* instance)
 {
   void* ptr = NULL;
-  const char* instance_name = NULL;
   enum edit_error edit_err = EDIT_NO_ERROR;
   enum sl_error sl_err = SL_NO_ERROR;
 
@@ -145,14 +144,15 @@ edit_select_model_instance
     edit_err = EDIT_INVALID_ARGUMENT;
     goto error;
   }
-  APP(model_instance_name(instance, &instance_name));
-  SL(hash_table_find(selection->instance_htbl, &instance_name, &ptr));
+  SL(hash_table_find(selection->instance_htbl, &instance, &ptr));
   if(ptr != NULL) {
+    const char* instance_name = NULL;
+    APP(model_instance_name(instance, &instance_name));
     APP(log(selection->ctxt->app, APP_LOG_INFO,
       "the instance `%s' is already selected\n", instance_name));
   } else {
     sl_err = sl_hash_table_insert
-      (selection->instance_htbl, &instance_name, &instance);
+      (selection->instance_htbl, &instance, &instance);
     if(sl_err != SL_NO_ERROR) {
       edit_err = sl_to_edit_error(sl_err);
       goto error;
@@ -169,7 +169,6 @@ edit_unselect_model_instance
   (struct edit_model_instance_selection* selection,
    struct app_model_instance* instance)
 {
-  const char* name = NULL;
   enum edit_error edit_err = EDIT_NO_ERROR;
   struct app_model_instance** selected_instance = NULL;
   size_t i = 0;
@@ -178,16 +177,18 @@ edit_unselect_model_instance
     edit_err = EDIT_INVALID_ARGUMENT;
     goto error;
   }
-  APP(model_instance_name(instance, &name));
   SL(hash_table_find
-    (selection->instance_htbl, &name, (void**)&selected_instance));
+    (selection->instance_htbl, &instance, (void**)&selected_instance));
   if(!selected_instance) {
+    const char* name = NULL;
+    APP(model_instance_name(instance, &name));
     APP(log(selection->ctxt->app, APP_LOG_ERROR,
       "the instance `%s' is not selected\n", name));
     edit_err = EDIT_INVALID_ARGUMENT;
     goto error;
   }
-  SL(hash_table_erase(selection->instance_htbl, &name, &i));
+  assert(instance == *selected_instance);
+  SL(hash_table_erase(selection->instance_htbl, &instance, &i));
   assert(i == 1);
 exit:
   return edit_err;
@@ -201,15 +202,41 @@ edit_is_model_instance_selected
    struct app_model_instance* instance,
    bool* is_selected)
 {
-  const char* name = NULL;
   void* ptr = NULL;
 
   if(UNLIKELY(!selection || !instance || !is_selected))
     return EDIT_INVALID_ARGUMENT;
-  APP(model_instance_name(instance, &name));
-  SL(hash_table_find(selection->instance_htbl, &name, &ptr));
+  SL(hash_table_find(selection->instance_htbl, &instance, &ptr));
   *is_selected = (ptr != NULL);
   return EDIT_NO_ERROR;
+}
+
+EXPORT_SYM enum edit_error
+edit_remove_selected_model_instances
+  (struct edit_model_instance_selection* selection)
+{
+  enum edit_error edit_err = EDIT_NO_ERROR;
+  struct sl_hash_table_it it;
+  bool is_end_reached = false;
+  memset(&it, 0, sizeof(it));
+
+  if(UNLIKELY(!selection)) {
+    edit_err = EDIT_INVALID_ARGUMENT;
+    goto error;
+  }
+
+  SL(hash_table_begin(selection->instance_htbl, &it, &is_end_reached));
+  while(is_end_reached == false) {
+    struct app_model_instance* instance =
+      *(struct app_model_instance**)it.pair.data;
+    EDIT(unselect_model_instance(selection, instance));
+    APP(remove_model_instance(instance));
+    SL(hash_table_it_next(&it, &is_end_reached));
+  }
+exit:
+  return edit_err;
+error:
+  goto exit;
 }
 
 EXPORT_SYM enum edit_error
@@ -356,12 +383,12 @@ edit_regular_create_model_instance_selection
   selection->ctxt = ctxt;
 
   sl_err = sl_create_hash_table
-    (sizeof(const char*),
-     ALIGNOF(const char*),
+    (sizeof(struct app_model_instance*),
+     ALIGNOF(struct app_model_instance*),
      sizeof(struct app_model_instance*),
      ALIGNOF(struct app_model_instance*),
-     hash_str,
-     eq_str,
+     hash_ptr,
+     eq_ptr,
      selection->ctxt->allocator,
      &selection->instance_htbl);
   if(sl_err != SL_NO_ERROR) {
@@ -377,7 +404,6 @@ edit_regular_create_model_instance_selection
     edit_err = app_to_edit_error(app_err);
     goto error;
   }
-  /* TODO Create a htbl of instance*->instance* rather than char*->instance* */
 
 exit:
   if(out_selection)
@@ -389,7 +415,6 @@ error:
     selection = NULL;
   }
   goto exit;
-
 }
 
 enum edit_error

@@ -196,7 +196,7 @@ app_set_object_name(struct app* app, struct app_object* obj, const char* name)
   if(!empty_name)
     SL(string_get(obj->name, &cstr));
 
-  if(empty_name || strncmp(cstr, name, strlen(name)) != 0) {
+  if(empty_name || strcmp(cstr, name) != 0) {
     bool erase = false;
     bool b = false;
     size_t len = 0;

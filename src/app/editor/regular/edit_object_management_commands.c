@@ -10,6 +10,7 @@
 #include "app/core/app_model.h"
 #include "app/core/app_model_instance.h"
 #include "app/core/app_world.h"
+#include <string.h>
 
 /*******************************************************************************
  *
@@ -140,15 +141,35 @@ rm_model
 }
 
 static void
+rm_selection
+  (struct app* app,
+   size_t argc UNUSED,
+   const struct app_cmdarg** argv,
+   void* data)
+{
+  struct edit_model_instance_selection* selection = data;
+  enum { CMD_NAME, SELECTION_FLAG, ARGC };
+
+  assert(app != NULL
+      && data != NULL
+      && argc == ARGC
+      && argv != NULL
+      && argv[CMD_NAME]->type == APP_CMDARG_STRING
+      && argv[SELECTION_FLAG]->type == APP_CMDARG_LITERAL);
+
+  EDIT(remove_selected_model_instances(selection));
+}
+
+static void
 select_instance_list
   (struct app* app,
    size_t argc UNUSED,
    const struct app_cmdarg** argv,
    void* data)
 {
-  struct edit_context* ctxt = data;
+  struct edit_model_instance_selection* selection = data;
   size_t i = 0;
-  enum { CMD_NAME, INSTANCE_NAME_LIST, ADD_FLAG, ARGC };
+  enum { CMD_NAME, INSTANCE_NAME_LIST, APPEND_FLAG, ARGC };
 
   assert(app != NULL
       && argc == ARGC
@@ -156,10 +177,10 @@ select_instance_list
       && data != NULL
       && argv[CMD_NAME]->type == APP_CMDARG_STRING
       && argv[INSTANCE_NAME_LIST]->type == APP_CMDARG_STRING
-      && argv[ADD_FLAG]->type == APP_CMDARG_LITERAL);
+      && argv[APPEND_FLAG]->type == APP_CMDARG_LITERAL);
 
-  if(EDIT_CMD_ARGVAL(argv, ADD_FLAG).is_defined == false) {
-    EDIT(clear_model_instance_selection(ctxt->instance_selection));
+  if(EDIT_CMD_ARGVAL(argv, APPEND_FLAG).is_defined == false) {
+    EDIT(clear_model_instance_selection(selection));
   }
 
   for(i = 0;
@@ -177,16 +198,76 @@ select_instance_list
         "the instance `%s' does not exist\n", instance_name));
     } else {
       EDIT(is_model_instance_selected
-        (ctxt->instance_selection, instance, &is_already_selected));
+        (selection, instance, &is_already_selected));
       if(is_already_selected == true) {
-        EDIT(unselect_model_instance(ctxt->instance_selection, instance));
+        EDIT(unselect_model_instance(selection, instance));
       } else {
-        enum edit_error edit_err = edit_select_model_instance
-          (ctxt->instance_selection, instance);
+        enum edit_error edit_err = EDIT_NO_ERROR;
+        edit_err = edit_select_model_instance(selection, instance);
         if(edit_err != EDIT_NO_ERROR) {
           APP(log(app, APP_LOG_ERROR,
             "error selecting the instance `%s'\n", instance_name));
         }
+      }
+    }
+  }
+}
+static void
+select_instance_list_from_model
+  (struct app* app,
+   size_t argc UNUSED,
+   const struct app_cmdarg** argv,
+   void* data)
+{
+  struct edit_model_instance_selection* selection = data;
+  size_t i = 0;
+  enum { CMD_NAME, MODEL_NAME_LIST, APPEND_FLAG, ARGC };
+
+  assert(app != NULL
+      && argc == ARGC
+      && argv != NULL
+      && data != NULL
+      && argv[CMD_NAME]->type == APP_CMDARG_STRING
+      && argv[MODEL_NAME_LIST]->type == APP_CMDARG_STRING
+      && argv[APPEND_FLAG]->type == APP_CMDARG_LITERAL);
+
+  if(EDIT_CMD_ARGVAL(argv, APPEND_FLAG).is_defined == false) {
+    EDIT(clear_model_instance_selection(selection));
+  }
+  for(i = 0;
+      i < argv[MODEL_NAME_LIST]->count
+      && EDIT_CMD_ARGVAL_N(argv, MODEL_NAME_LIST, i).is_defined;
+      ++i) {
+    struct app_model* model = NULL;
+    const char* name = EDIT_CMD_ARGVAL_N(argv, MODEL_NAME_LIST, i).data.string;
+
+    APP(get_model(app, name, &model));
+    if(model == NULL) {
+      APP(log(app, APP_LOG_ERROR, "the model `%s' does not exist\n", name));
+    } else {
+      struct app_model_spawned_instance_it it;
+      bool is_end_reached = false;
+      memset(&it, 0, sizeof(it));
+
+      APP(get_model_spawned_instance_list_begin(model, &it, &is_end_reached));
+      while(is_end_reached == false) {
+        bool is_already_selected = false;
+
+        EDIT(is_model_instance_selected
+          (selection, it.instance, &is_already_selected));
+        if(is_already_selected == true) {
+          EDIT(unselect_model_instance(selection, it.instance));
+        } else {
+          enum edit_error edit_err = EDIT_NO_ERROR;
+          edit_err = edit_select_model_instance(selection, it.instance);
+          if(edit_err != EDIT_NO_ERROR) {
+            const char* instance_name = NULL;
+            APP(model_instance_name(it.instance, &instance_name));
+            APP(log(app, APP_LOG_ERROR,
+              "error selecting the instance `%s'\n", instance_name));
+          }
+        }
+        APP(model_spawned_instance_it_next(&it, &is_end_reached));
       }
     }
   }
@@ -324,22 +405,44 @@ edit_setup_object_management_commands(struct edit_context* ctxt)
         ("m", "model", "<model>", "model to remove", 1, 1, NULL),
       APP_CMDARG_END),
      "remove a model"));
-
-  #define CMD_SELECT_MAX_INSTANCE_COUNT 16
   CALL(app_add_command
-    (ctxt->app, "select", select_instance_list, ctxt,
+    (ctxt->app, "rm", rm_selection, ctxt->instance_selection, NULL,
+     APP_CMDARGV
+     (APP_CMDARG_APPEND_LITERAL("s", "selection", NULL, 1, 1),
+      APP_CMDARG_END),
+     "remove the selected instances"));
+
+  #define CMD_MAX_SELECT_COUNT 16
+  CALL(app_add_command
+    (ctxt->app, "select", select_instance_list, ctxt->instance_selection,
      app_model_instance_name_completion,
      APP_CMDARGV
      (APP_CMDARG_APPEND_STRING
         ("i", "instance", "<str>", "instance to select",
-         0, CMD_SELECT_MAX_INSTANCE_COUNT, NULL),
+         0, CMD_MAX_SELECT_COUNT, NULL),
       APP_CMDARG_APPEND_LITERAL
         ("a", "append",
          "remove/add the selected instances to current selection whether they "
          "are already selected or not", 0, 1),
       APP_CMDARG_END),
-     "select up to "STR(CMD_SELECT_MAX_INSTANCE_COUNT)" instances"));
-  #undef CMD_SELECT_MAX_INSTANCE_COUNT
+     "select up to "STR(CMD_MAX_SELECT_COUNT)" instances"));
+  CALL(app_add_command
+    (ctxt->app, 
+     "select", 
+     select_instance_list_from_model, 
+     ctxt->instance_selection, 
+     app_model_name_completion,
+     APP_CMDARGV
+     (APP_CMDARG_APPEND_STRING
+        ("m", "model", "<model>", "model to select", 
+         0, CMD_MAX_SELECT_COUNT, NULL),
+      APP_CMDARG_APPEND_LITERAL
+        ("a", "append",
+         "remove/add the instances of <model> to current selection whether "
+         "they are already selected or not", 0, 1),
+      APP_CMDARG_END),
+     "select the instances of up to "STR(CMD_MAX_SELECT_COUNT)" models"));
+  #undef CMD_MAX_SELECT_COUNT
 
   CALL(app_add_command
     (ctxt->app, "spawn", spawn_instance, NULL, app_model_name_completion,

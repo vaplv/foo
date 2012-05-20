@@ -555,7 +555,7 @@ app_model_instance_it_next
   size_t len = 0;
 
   if(UNLIKELY(!it || !is_end_reached || !it->instance))
-    return APP_INVALID_ARGUMENT;
+     return APP_INVALID_ARGUMENT;
 
   APP(get_object_list(it->instance->app, APP_MODEL_INSTANCE, &len, &obj_list));
   ++it->id;
