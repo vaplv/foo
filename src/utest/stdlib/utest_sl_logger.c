@@ -15,7 +15,7 @@ struct data {
 
 static int func_mask = 0;
 
-static void 
+static void
 stream_func0(const char* msg, void* data)
 {
   int* i = data;
@@ -24,7 +24,7 @@ stream_func0(const char* msg, void* data)
   CHECK(strcmp(msg, "logger 0"), 0);
 }
 
-static void 
+static void
 stream_func1(const char* msg, void* data)
 {
   struct data* d = data;

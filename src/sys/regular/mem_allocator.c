@@ -418,7 +418,7 @@ proxy_dump
          "%s: %zu bytes allocated at %s:%u%s",
          proxy_data->name,
          malloc_usable_size(node),
-         node->filename ? node->filename : "none",
+         node->filename ? node->filename : "none", 
          node->fileline,
          node->next ? ".\n" : ".");
       assert(len >= 0);

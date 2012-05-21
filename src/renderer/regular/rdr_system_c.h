@@ -7,10 +7,13 @@
 #include "sys/ref_count.h"
 
 struct rb_context;
+struct sl_logger;
 
 struct rdr_system {
   struct mem_allocator* allocator;
+  struct mem_allocator render_backend_allocator;
   struct ref ref;
+  struct sl_logger* logger;
 
   /* Render backend data. */
   struct rbi rb; 

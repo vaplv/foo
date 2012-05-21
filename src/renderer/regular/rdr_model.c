@@ -524,6 +524,7 @@ release_model(struct ref* ref)
     RDR(detach_mesh_callback
       (mdl->mesh, RDR_MESH_SIGNAL_UPDATE_DATA, mesh_callback_func, mdl));
   }
+
   if(mdl->vertex_array)
     RBI(&mdl->sys->rb, vertex_array_ref_put(mdl->vertex_array));
   if(mdl->mesh)

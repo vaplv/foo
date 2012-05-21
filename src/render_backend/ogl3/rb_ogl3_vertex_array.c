@@ -49,7 +49,7 @@ release_vertex_array(struct ref* ref)
   if(ctxt->state_cache.vertex_array_binding == varray->name)
     RB(bind_vertex_array(ctxt, NULL));
 
-  OGL(DeleteBuffers(1, &varray->name));
+  OGL(DeleteVertexArrays(1, &varray->name));
   MEM_FREE(ctxt->allocator, varray);
   RB(context_ref_put(ctxt));
 }

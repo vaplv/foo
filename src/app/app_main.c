@@ -82,8 +82,7 @@ app_exit(void)
      mem_info.total_size,
      mem_info.used_size);
 
-  if(MEM_ALLOCATED_SIZE(&mem_default_allocator) != 0)
-  {
+  if(MEM_ALLOCATED_SIZE(&mem_default_allocator) != 0) {
     char dump[BUFSIZ];
     MEM_DUMP(&mem_default_allocator, dump, BUFSIZ);
     fprintf(stderr, "Leaks summary:\n%s\n", dump);

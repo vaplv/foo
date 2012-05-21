@@ -184,7 +184,9 @@ blob_reserve(struct blob* blob, size_t size)
     if(blob->buffer) {
       blob->buffer = MEM_REALLOC(blob->allocator, blob->buffer, size);
     } else {
-      blob->buffer = MEM_ALLOC(blob->allocator, size);
+      blob->buffer = MEM_ALIGNED_ALLOC
+        (blob->allocator, size, BIGGEST_ALIGNMENT);
+      memset(blob->buffer, 0, size);
     }
     if(!blob->buffer) {
       rdr_err = RDR_MEMORY_ERROR;

@@ -193,29 +193,11 @@ sl_logger_vprint(struct sl_logger* logger, const char* fmt, va_list list)
 {
   void* buffer = NULL;
   size_t len = 0;
-  size_t stream_id = 0;
   enum sl_error sl_err = SL_NO_ERROR;
-  int i = 0;
 
   if(!logger || !fmt || fmt[0] == '\0') {
     sl_err = SL_INVALID_ARGUMENT;
     goto error;
-  }
-
-  i = vsnprintf(logger->buffer, logger->buffer_len, fmt, list);
-  assert(i > 0);
-  if((size_t)i >= logger->buffer_len) {
-    len = i + 1; /* +1 <=> null terminated character. */
-    buffer = MEM_ALLOC(logger->allocator, len * sizeof(char));
-    if(!buffer) {
-      sl_err = SL_MEMORY_ERROR;
-      goto error;
-    }
-    MEM_FREE(logger->allocator, logger->buffer);
-    logger->buffer = buffer;
-    logger->buffer_len = len;
-    i = vsnprintf(logger->buffer, logger->buffer_len, fmt, list);
-    assert((size_t)i < logger->buffer_len);
   }
 
   sl_err = sl_flat_set_buffer
@@ -223,12 +205,32 @@ sl_logger_vprint(struct sl_logger* logger, const char* fmt, va_list list)
   if(sl_err != SL_NO_ERROR)
     goto error;
 
-  for(stream_id = 0; stream_id < len; ++stream_id) {
-    const struct sl_log_stream* stream =
-      (const struct sl_log_stream*)buffer + stream_id;
-    stream->func(logger->buffer, stream->data);
-  }
+  if(len > 0) {
+    size_t stream_id = 0;
+    int i = 0;
 
+    i = vsnprintf(logger->buffer, logger->buffer_len, fmt, list);
+    assert(i > 0);
+    if((size_t)i >= logger->buffer_len) {
+      len = i + 1; /* +1 <=> null terminated character. */
+      buffer = MEM_ALLOC(logger->allocator, len * sizeof(char));
+      if(!buffer) {
+        sl_err = SL_MEMORY_ERROR;
+        goto error;
+      }
+      MEM_FREE(logger->allocator, logger->buffer);
+      logger->buffer = buffer;
+      logger->buffer_len = len;
+      i = vsnprintf(logger->buffer, logger->buffer_len, fmt, list);
+      assert((size_t)i < logger->buffer_len);
+    }
+
+    for(stream_id = 0; stream_id < len; ++stream_id) {
+      const struct sl_log_stream* stream =
+        (const struct sl_log_stream*)buffer + stream_id;
+      stream->func(logger->buffer, stream->data);
+    }
+  }
 exit:
   return sl_err;
 error:

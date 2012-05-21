@@ -60,6 +60,13 @@ clear_model_render_data(struct app_model* model)
 
   assert(model);
 
+  if(model->model_list) {
+    SL(vector_buffer
+       (model->model_list, &len, NULL, NULL, (void**)&mdl_lstbuf));
+    for(i = 0; i < len; ++i)
+      RDR(model_ref_put(mdl_lstbuf[i]));
+    SL(clear_vector(model->model_list));
+  }
   if(model->mesh_list) {
     SL(vector_buffer
        (model->mesh_list, &len, NULL, NULL, (void**)&mesh_lstbuf));
@@ -73,13 +80,6 @@ clear_model_render_data(struct app_model* model)
     for(i = 0; i < len; ++i)
       RDR(material_ref_put(mtr_lstbuf[i]));
     SL(clear_vector(model->material_list));
-  }
-  if(model->model_list) {
-    SL(vector_buffer
-       (model->model_list, &len, NULL, NULL, (void**)&mdl_lstbuf));
-    for(i = 0; i < len; ++i)
-      RDR(model_ref_put(mdl_lstbuf[i]));
-    SL(clear_vector(model->model_list));
   }
   return APP_NO_ERROR;
 }

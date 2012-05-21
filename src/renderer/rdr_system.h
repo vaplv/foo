@@ -20,5 +20,17 @@ extern enum rdr_error
 rdr_system_ref_put
   (struct rdr_system* sys);
 
+extern enum rdr_error
+rdr_system_attach_log_stream
+  (struct rdr_system* sys,
+   void (*stream_func)(const char*, void* stream_data),
+   void* stream_data);
+
+extern enum rdr_error
+rdr_system_detach_log_stream
+  (struct rdr_system* sys,
+   void (*stream_func)(const char*, void* stream_data),
+   void* stream_data);
+
 #endif /* RDR_SYSTEM_H */
 

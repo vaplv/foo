@@ -142,9 +142,9 @@ rm_model
 
 static void
 rm_selection
-  (struct app* app,
+  (struct app* app UNUSED,
    size_t argc UNUSED,
-   const struct app_cmdarg** argv,
+   const struct app_cmdarg** argv UNUSED,
    void* data)
 {
   struct edit_model_instance_selection* selection = data;
@@ -427,14 +427,14 @@ edit_setup_object_management_commands(struct edit_context* ctxt)
       APP_CMDARG_END),
      "select up to "STR(CMD_MAX_SELECT_COUNT)" instances"));
   CALL(app_add_command
-    (ctxt->app, 
-     "select", 
-     select_instance_list_from_model, 
-     ctxt->instance_selection, 
+    (ctxt->app,
+     "select",
+     select_instance_list_from_model,
+     ctxt->instance_selection,
      app_model_name_completion,
      APP_CMDARGV
      (APP_CMDARG_APPEND_STRING
-        ("m", "model", "<model>", "model to select", 
+        ("m", "model", "<model>", "model to select",
          0, CMD_MAX_SELECT_COUNT, NULL),
       APP_CMDARG_APPEND_LITERAL
         ("a", "append",
