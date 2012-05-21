@@ -233,7 +233,10 @@ edit_remove_selected_model_instances
       *(struct app_model_instance**)it.pair.data;
     EDIT(unselect_model_instance(selection, instance));
     APP(remove_model_instance(instance));
-    SL(hash_table_it_next(&it, &is_end_reached));
+
+    /* Always retrieve the beginning of the hash table since it is updated by
+     * the unselect_model_instance function. */
+    SL(hash_table_begin(selection->instance_htbl, &it, &is_end_reached));
   }
 exit:
   return edit_err;
