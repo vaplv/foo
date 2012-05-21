@@ -6,6 +6,8 @@
 #include "app/editor/regular/edit_model_instance_selection_c.h"
 #include "app/editor/edit_context.h"
 #include "app/editor/edit_model_instance_selection.h"
+#include "maths/simd/aosf33.h"
+#include "maths/simd/aosf44.h"
 #include "stdlib/sl.h"
 #include "stdlib/sl_hash_table.h"
 #include "stdlib/sl_pair.h"
@@ -290,7 +292,6 @@ edit_get_model_instance_selection_pivot
 EXPORT_SYM enum edit_error
 edit_translate_model_instance_selection
   (struct edit_model_instance_selection* selection,
-   bool local_translation,
    const float translation[3])
 {
   struct sl_hash_table_it it;
@@ -298,13 +299,158 @@ edit_translate_model_instance_selection
 
   if(UNLIKELY(!selection || !translation))
     return EDIT_INVALID_ARGUMENT;
+  if((!translation[0]) & (!translation[1]) & (!translation[2]))
+    return EDIT_NO_ERROR;
 
   SL(hash_table_begin(selection->instance_htbl, &it, &is_end_reached));
   while(is_end_reached == false) {
     struct app_model_instance* instance =
       *(struct app_model_instance**)it.pair.data;
-    APP(translate_model_instances(&instance, 1, local_translation, translation));
+    APP(translate_model_instances(&instance, 1, false, translation));
     SL(hash_table_it_next(&it, &is_end_reached));
+  }
+  return EDIT_NO_ERROR;
+}
+
+EXPORT_SYM enum edit_error
+edit_rotate_model_instance_selection
+  (struct edit_model_instance_selection* selection,
+   bool local_rotation,
+   const float rotation[3])
+{
+  struct sl_hash_table_it it;
+  bool is_end_reached = false;
+
+  if(UNLIKELY(!selection || !rotation))
+    return EDIT_INVALID_ARGUMENT;
+  if((!rotation[0]) & (!rotation[1]) & (!rotation[2]))
+    return EDIT_NO_ERROR;
+
+  if(local_rotation == false) {
+    SL(hash_table_begin(selection->instance_htbl, &it, &is_end_reached));
+    while(is_end_reached == false) {
+      struct app_model_instance* instance =
+        *(struct app_model_instance**)it.pair.data;
+      APP(rotate_model_instances(&instance, 1, false, rotation));
+      SL(hash_table_it_next(&it, &is_end_reached));
+    }
+  } else {
+    struct aosf44 transform;
+    struct aosf33 rot_3x3;
+    vf4_t translation;
+    float pivot[3] = {0.f, 0.f, 0.f};
+
+    EDIT(get_model_instance_selection_pivot(selection, pivot));
+
+    translation = vf4_minus(vf4_set(pivot[0], pivot[1], pivot[2], 0.f));
+    aosf33_rotation(&rot_3x3, rotation[0], rotation[1], rotation[2]);
+    transform.c0 = rot_3x3.c0;
+    transform.c1 = rot_3x3.c1;
+    transform.c2 = rot_3x3.c2;
+    transform.c3 = vf4_xyzd(aosf33_mulf3(&rot_3x3, translation), vf4_set1(1.f));
+    transform.c3 = vf4_sub(transform.c3, translation);
+
+    SL(hash_table_begin(selection->instance_htbl, &it, &is_end_reached));
+    while(is_end_reached == false) {
+      struct app_model_instance* instance =
+        *(struct app_model_instance**)it.pair.data;
+      APP(transform_model_instances(&instance, 1, false, &transform));
+      SL(hash_table_it_next(&it, &is_end_reached));
+    }
+
+  }
+  return EDIT_NO_ERROR;
+}
+
+EXPORT_SYM enum edit_error
+edit_scale_model_instance_selection
+  (struct edit_model_instance_selection* selection,
+   bool local_scale,
+   const float scale[3])
+{
+  struct sl_hash_table_it it;
+  bool is_end_reached = false;
+
+  if(UNLIKELY(!selection || !scale))
+    return EDIT_INVALID_ARGUMENT;
+  if((scale[0] == 1.f) & (scale[1] == 1.f) & (scale[2] == 1.f))
+    return EDIT_NO_ERROR;
+
+  if(local_scale == false) {
+    SL(hash_table_begin(selection->instance_htbl, &it, &is_end_reached));
+    while(is_end_reached == false) {
+      struct app_model_instance* instance =
+        *(struct app_model_instance**)it.pair.data;
+      APP(scale_model_instances(&instance, 1, false, scale));
+      SL(hash_table_it_next(&it, &is_end_reached));
+    }
+  } else {
+    struct aosf44 transform;
+    struct aosf33 f33;
+    vf4_t translation;
+    float pivot[3] = {0.f, 0.f, 0.f};
+
+    EDIT(get_model_instance_selection_pivot(selection, pivot));
+
+    translation = vf4_minus(vf4_set(pivot[0], pivot[1], pivot[2], 0.f));
+    transform.c0 = f33.c0 = vf4_set(scale[0], 0.f, 0.f, 0.f);
+    transform.c1 = f33.c1 = vf4_set(0.f, scale[1], 0.f, 0.f);
+    transform.c2 = f33.c2 = vf4_set(0.f, 0.f, scale[2], 0.f);
+    transform.c3 = vf4_xyzd(aosf33_mulf3(&f33, translation), vf4_set1(1.f));
+    transform.c3 = vf4_sub(transform.c3, translation);
+
+    SL(hash_table_begin(selection->instance_htbl, &it, &is_end_reached));
+    while(is_end_reached == false) {
+      struct app_model_instance* instance =
+        *(struct app_model_instance**)it.pair.data;
+      APP(transform_model_instances(&instance, 1, false, &transform));
+      SL(hash_table_it_next(&it, &is_end_reached));
+    }
+  }
+  return EDIT_NO_ERROR;
+}
+
+EXPORT_SYM enum edit_error
+edit_transform_model_instance_selection
+  (struct edit_model_instance_selection* selection,
+   bool local_transformation,
+   const struct aosf44* transform)
+{
+  struct sl_hash_table_it it;
+  bool is_end_reached = false;
+
+  if(UNLIKELY(!selection || !transform))
+    return EDIT_INVALID_ARGUMENT;
+
+  if(local_transformation == false) {
+    SL(hash_table_begin(selection->instance_htbl, &it, &is_end_reached));
+    while(is_end_reached == false) {
+      struct app_model_instance* instance =
+        *(struct app_model_instance**)it.pair.data;
+      APP(transform_model_instances(&instance, 1, false, transform));
+      SL(hash_table_it_next(&it, &is_end_reached));
+    }
+  } else {
+    struct aosf44 tmp_4x4;
+    vf4_t translation;
+    float pivot[3] = {0.f, 0.f, 0.f};
+
+    EDIT(get_model_instance_selection_pivot(selection, pivot));
+
+    translation = vf4_minus(vf4_set(pivot[0], pivot[1], pivot[2], -1.f));
+    tmp_4x4.c0 = transform->c0;
+    tmp_4x4.c1 = transform->c1;
+    tmp_4x4.c2 = transform->c2;
+    tmp_4x4.c3 = aosf44_mulf4(transform, translation);
+    tmp_4x4.c3 = vf4_sub(tmp_4x4.c3, translation);
+
+    SL(hash_table_begin(selection->instance_htbl, &it, &is_end_reached));
+    while(is_end_reached == false) {
+      struct app_model_instance* instance =
+        *(struct app_model_instance**)it.pair.data;
+      APP(transform_model_instances(&instance, 1, false, transform));
+      SL(hash_table_it_next(&it, &is_end_reached));
+    }
   }
   return EDIT_NO_ERROR;
 }

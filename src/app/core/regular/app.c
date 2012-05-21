@@ -252,11 +252,11 @@ error:
 }
 
 static enum app_error
-shutdown_renderer(struct renderer* rdr, struct sl_logger* logger)
+shutdown_renderer(struct app* app)
 {
   enum app_error app_err = APP_NO_ERROR;
   enum rdr_error rdr_err = RDR_NO_ERROR;
-  assert(rdr != NULL);
+  assert(app != NULL);
 
   #define CALL(func) \
     do { \
@@ -266,33 +266,33 @@ shutdown_renderer(struct renderer* rdr, struct sl_logger* logger)
       } \
     } while(0)
 
-  if(rdr->default_material) {
-    CALL(rdr_material_ref_put(rdr->default_material));
-    rdr->default_material = NULL;
+  if(app->rdr.default_material) {
+    CALL(rdr_material_ref_put(app->rdr.default_material));
+    app->rdr.default_material = NULL;
   }
-  if(rdr->term_font) {
-    CALL(rdr_font_ref_put(rdr->term_font));
-    rdr->term_font = NULL;
+  if(app->rdr.term_font) {
+    CALL(rdr_font_ref_put(app->rdr.term_font));
+    app->rdr.term_font = NULL;
   }
-  if(rdr->frame) {
-    CALL(rdr_frame_ref_put(rdr->frame));
-    rdr->frame = NULL;
+  if(app->rdr.frame) {
+    CALL(rdr_frame_ref_put(app->rdr.frame));
+    app->rdr.frame = NULL;
   }
-  if(rdr->system) {
-    CALL(rdr_system_ref_put(rdr->system));
-    rdr->system = NULL;
+  if(app->rdr.system) {
+    CALL(rdr_system_ref_put(app->rdr.system));
+    app->rdr.system = NULL;
   }
   #undef CALL
 
-  if(MEM_IS_ALLOCATOR_VALID(&rdr->allocator)) {
-    if(MEM_ALLOCATED_SIZE(&rdr->allocator)) {
+  if(MEM_IS_ALLOCATOR_VALID(&app->rdr.allocator)) {
+    if(MEM_ALLOCATED_SIZE(&app->rdr.allocator)) {
       char dump[BUFSIZ];
-      MEM_DUMP(&rdr->allocator, dump, BUFSIZ);
-      if(logger)
-        APP_PRINT_MSG(logger, "Renderer leaks summary:\n%s\n", dump);
+      MEM_DUMP(&app->rdr.allocator, dump, BUFSIZ);
+      if(app->logger)
+        APP_PRINT_MSG(app->logger, "Renderer leaks summary:\n%s\n", dump);
     }
-    mem_shutdown_proxy_allocator(&rdr->allocator);
-    memset(&rdr->allocator, 0, sizeof(struct mem_allocator));
+    mem_shutdown_proxy_allocator(&app->rdr.allocator);
+    memset(&app->rdr.allocator, 0, sizeof(struct mem_allocator));
   }
 
 exit:
@@ -403,7 +403,7 @@ shutdown(struct app* app)
     CALL(app_shutdown_object_system(app));
     CALL(shutdown_common(app));
     CALL(shutdown_resources(&app->rsrc, app->logger));
-    CALL(shutdown_renderer(&app->rdr, app->logger));
+    CALL(shutdown_renderer(app));
     CALL(shutdown_window_manager(&app->wm, app->logger));
     CALL(shutdown_sys(app));
     #undef CALL
@@ -449,18 +449,15 @@ error:
 }
 
 static enum app_error
-init_renderer
-  (struct renderer* rdr,
-   const char* driver,
-   struct sl_logger* logger)
+init_renderer(struct app* app, const char* driver)
 {
   enum app_error app_err = APP_NO_ERROR;
   enum app_error tmp_err = APP_NO_ERROR;
   enum rdr_error rdr_err = RDR_NO_ERROR;
-  assert(rdr != NULL && logger != NULL);
+  assert(app != NULL);
 
   mem_init_proxy_allocator
-    ("renderer", &rdr->allocator, &mem_default_allocator);
+    ("renderer", &app->rdr.allocator, &mem_default_allocator);
   #define CALL(func) \
     do { \
       if((rdr_err = func) != RDR_NO_ERROR) { \
@@ -468,19 +465,23 @@ init_renderer
         goto error; \
       } \
     } while(0)
-  CALL(rdr_create_system(driver, &rdr->allocator, &rdr->system));
-  CALL(rdr_create_frame(rdr->system, &rdr->frame));
-  CALL(rdr_background_color(rdr->frame, (float[]){0.1f, 0.1f, 0.1f}));
-  CALL(rdr_create_material(rdr->system, &rdr->default_material));
-  CALL(rdr_create_font(rdr->system, &rdr->term_font));
+  CALL(rdr_create_system(driver, &app->rdr.allocator, &app->rdr.system));
+  CALL(rdr_system_attach_log_stream(app->rdr.system, &term_log_func, app));
+  CALL(rdr_system_attach_log_stream
+    (app->rdr.system, &std_log_func, (void*)(0xDEADBEEF)));
+
+  CALL(rdr_create_frame(app->rdr.system, &app->rdr.frame));
+  CALL(rdr_background_color(app->rdr.frame, (float[]){0.1f, 0.1f, 0.1f}));
+  CALL(rdr_create_material(app->rdr.system, &app->rdr.default_material));
+  CALL(rdr_create_font(app->rdr.system, &app->rdr.term_font));
 
   rdr_err = rdr_material_program
-    (rdr->default_material, default_shader_sources);
+    (app->rdr.default_material, default_shader_sources);
   if(rdr_err != RDR_NO_ERROR) {
     const char* log = NULL;
-    RDR(get_material_log(rdr->default_material, &log));
+    RDR(get_material_log(app->rdr.default_material, &log));
     if(log  != NULL)
-      APP_PRINT_ERR(logger, "Default render material error: \n%s", log);
+      APP_PRINT_ERR(app->logger, "Default render material error: \n%s", log);
     app_err = rdr_to_app_error(rdr_err);
     goto error;
   }
@@ -489,7 +490,7 @@ init_renderer
 exit:
   return app_err;
 error:
-  tmp_err = shutdown_renderer(rdr, NULL);
+  tmp_err = shutdown_renderer(app);
   assert(tmp_err == APP_NO_ERROR);
   goto exit;
 }
@@ -628,9 +629,7 @@ init(struct app* app, const char* graphic_driver)
       } \
     } while(0)
   CALL(init_window_manager(&app->wm), "error initializing, window manager\n");
-  CALL
-    (init_renderer(&app->rdr, graphic_driver, app->logger),
-     "error initializing renderer\n");
+  CALL(init_renderer(app, graphic_driver), "error initializing renderer\n");
   CALL(init_resources(&app->rsrc), "error initializing resource module\n");
   CALL(init_common(app), "");
   CALL(app_init_object_system(app), "error initializing object system\n");

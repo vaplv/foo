@@ -759,7 +759,7 @@ rdr_scale_model_instances
 
   if((nb_instances && !instance_list) || !scale)
     return RDR_INVALID_ARGUMENT;
-  if((!scale[0]) & (!scale[1]) & (!scale[2]))
+  if((scale[0] == 1.f) & (scale[1] == 1.f) & (scale[2] == 1.f))
     return RDR_NO_ERROR;
 
   f33.c0 = vf4_set(scale[0], 0.f, 0.f, 0.f);

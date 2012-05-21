@@ -11,7 +11,7 @@
 
 STATIC_ASSERT(sizeof(void*) >= 4, Unexpected_pointer_size);
 
-static void 
+static void
 stream_func0(const char* msg, void* data)
 {
   int* i = data;
@@ -19,7 +19,7 @@ stream_func0(const char* msg, void* data)
   printf("logger0: %s", msg);
 }
 
-static void 
+static void
 stream_func1(const char* msg, void* data)
 {
   int* i = data;
@@ -98,3 +98,4 @@ main(int argc, char** argv)
 
   return 0;
 }
+

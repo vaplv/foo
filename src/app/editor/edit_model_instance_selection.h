@@ -4,6 +4,7 @@
 #include "app/editor/edit_error.h"
 #include <stdbool.h>
 
+struct aosf44;
 struct app_model_instance;
 struct edit_context;
 struct edit_model_instance_selection;
@@ -53,8 +54,25 @@ edit_get_model_instance_selection_pivot
 extern enum edit_error
 edit_translate_model_instance_selection
   (struct edit_model_instance_selection* selection,
-   bool local_translation,
    const float translation[3]);
+
+extern enum edit_error
+edit_rotate_model_instance_selection
+  (struct edit_model_instance_selection* selection,
+   bool local_rotation, /* true <=> rotate around the selection pivot. */
+   const float rotation[3]);
+
+extern enum edit_error
+edit_scale_model_instance_selection
+  (struct edit_model_instance_selection* selection,
+   bool local_scale, /* true <=< scale with respect to selection pivot. */
+   const float scale[3]);
+
+extern enum edit_error
+edit_transform_model_instance_selection
+  (struct edit_model_instance_selection* selection,
+   bool local_transform,
+   const struct aosf44* transform); 
 
 extern enum edit_error
 edit_draw_model_instance_selection
