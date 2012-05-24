@@ -9,6 +9,7 @@
 #include "utest/utest.h"
 #include "window_manager/wm_device.h"
 #include "window_manager/wm_window.h"
+#include <float.h>
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
@@ -16,6 +17,9 @@
 #define BAD_ARG RDR_INVALID_ARGUMENT
 #define OK RDR_NO_ERROR
 #define SZ sizeof
+#define CHECK_EPS(a, b) \
+  CHECK(fabsf((a) - (b)) < 1.e-6f, true)
+
 #define EPS 1.e-8f
 #define CHECK_TRANSFORM(inst, a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p) \
   do { \
@@ -138,6 +142,165 @@ instance_cbk_func
   }
 }
 
+static void
+test_bounding(struct rdr_system* sys)
+{
+  const float data[] = {
+    0.f, 0.f, 0.f,
+    1.f, 0.f, 0.f,
+    1.f, 1.f, 0.f,
+    0.f, 1.f, 0.f,
+    0.f, 0.f, 1.f,
+    1.f, 0.f, 1.f,
+    1.f, 1.f, 1.f,
+    0.f, 1.f, 1.f
+  };
+  const struct rdr_mesh_attrib attr[] = {
+    { .usage = RDR_ATTRIB_POSITION, .type = RDR_FLOAT3 },
+  };
+  struct aosf33 f33;
+  struct aosf44 f44;
+  vf4_t vec0;
+  vf4_t vec1;
+  vf4_t vec2;
+  vf4_t vec3;
+  struct rdr_material* mtr = NULL;
+  struct rdr_mesh* mesh = NULL;
+  struct rdr_model* mdl = NULL;
+  struct rdr_model_instance* inst = NULL;
+  const char* sources[RDR_NB_SHADER_USAGES] = {
+    [RDR_GEOMETRY_SHADER] = NULL,
+    [RDR_FRAGMENT_SHADER] = NULL,
+    [RDR_VERTEX_SHADER] =
+      "#version 330\n"
+      "void main()\n"
+      "{\n"
+      " gl_Position = vec4(0.f);\n"
+      "}\n"
+  };
+  float pos[3];
+  float extx[3];
+  float exty[3];
+  float extz[3];
+  float min_bound[3];
+  float max_bound[3];
+  ALIGN(16) float array[4];
+  size_t i = 0;
+
+  NCHECK(sys, NULL);
+  CHECK(rdr_create_mesh(sys, &mesh), OK);
+  CHECK(rdr_mesh_data(mesh, 1, attr, SZ(data), data), OK);
+  CHECK(rdr_create_material(sys, &mtr), OK);
+  CHECK(rdr_material_program(mtr, sources), OK);
+  CHECK(rdr_create_model(sys, mesh, mtr, &mdl), OK);
+  CHECK(rdr_create_model_instance(sys, mdl, &inst), OK);
+
+  CHECK(rdr_get_model_instance_aabb(NULL, NULL, NULL), BAD_ARG);
+  CHECK(rdr_get_model_instance_aabb(inst, NULL, NULL), BAD_ARG);
+  CHECK(rdr_get_model_instance_aabb(NULL, min_bound, NULL), BAD_ARG);
+  CHECK(rdr_get_model_instance_aabb(inst, min_bound, NULL), BAD_ARG);
+  CHECK(rdr_get_model_instance_aabb(NULL, NULL, max_bound), BAD_ARG);
+  CHECK(rdr_get_model_instance_aabb(inst, NULL, max_bound), BAD_ARG);
+  CHECK(rdr_get_model_instance_aabb(NULL, min_bound, max_bound), BAD_ARG);
+  CHECK(rdr_get_model_instance_aabb(inst, min_bound, max_bound), OK);
+  CHECK(min_bound[0], 0.f);
+  CHECK(min_bound[1], 0.f);
+  CHECK(min_bound[2], 0.f);
+  CHECK(max_bound[0], 1.f);
+  CHECK(max_bound[1], 1.f);
+  CHECK(max_bound[2], 1.f);
+
+  CHECK(rdr_get_model_instance_obb(NULL, NULL, NULL, NULL, NULL), BAD_ARG);
+  CHECK(rdr_get_model_instance_obb(inst, NULL, NULL, NULL, NULL), BAD_ARG);
+  CHECK(rdr_get_model_instance_obb(NULL, pos, NULL, NULL, NULL), BAD_ARG);
+  CHECK(rdr_get_model_instance_obb(inst, pos, NULL, NULL, NULL), BAD_ARG);
+  CHECK(rdr_get_model_instance_obb(NULL, NULL, extx, NULL, NULL), BAD_ARG);
+  CHECK(rdr_get_model_instance_obb(inst, NULL, extx, NULL, NULL), BAD_ARG);
+  CHECK(rdr_get_model_instance_obb(NULL, pos, extx, NULL, NULL), BAD_ARG);
+  CHECK(rdr_get_model_instance_obb(inst, pos, extx, NULL, NULL), BAD_ARG);
+  CHECK(rdr_get_model_instance_obb(NULL, NULL, NULL, exty, NULL), BAD_ARG);
+  CHECK(rdr_get_model_instance_obb(inst, NULL, NULL, exty, NULL), BAD_ARG);
+  CHECK(rdr_get_model_instance_obb(NULL, pos, NULL, exty, NULL), BAD_ARG);
+  CHECK(rdr_get_model_instance_obb(inst, pos, NULL, exty, NULL), BAD_ARG);
+  CHECK(rdr_get_model_instance_obb(NULL, NULL, extx, exty, NULL), BAD_ARG);
+  CHECK(rdr_get_model_instance_obb(inst, NULL, extx, exty, NULL), BAD_ARG);
+  CHECK(rdr_get_model_instance_obb(NULL, pos, extx, exty, NULL), BAD_ARG);
+  CHECK(rdr_get_model_instance_obb(inst, pos, extx, exty, NULL), BAD_ARG);
+  CHECK(rdr_get_model_instance_obb(NULL, NULL, NULL, NULL, extz), BAD_ARG);
+  CHECK(rdr_get_model_instance_obb(inst, NULL, NULL, NULL, extz), BAD_ARG);
+  CHECK(rdr_get_model_instance_obb(NULL, pos, NULL, NULL, extz), BAD_ARG);
+  CHECK(rdr_get_model_instance_obb(inst, pos, NULL, NULL, extz), BAD_ARG);
+  CHECK(rdr_get_model_instance_obb(NULL, NULL, extx, NULL, extz), BAD_ARG);
+  CHECK(rdr_get_model_instance_obb(inst, NULL, extx, NULL, extz), BAD_ARG);
+  CHECK(rdr_get_model_instance_obb(NULL, pos, extx, NULL, extz), BAD_ARG);
+  CHECK(rdr_get_model_instance_obb(inst, pos, extx, NULL, extz), BAD_ARG);
+  CHECK(rdr_get_model_instance_obb(NULL, NULL, NULL, exty, extz), BAD_ARG);
+  CHECK(rdr_get_model_instance_obb(inst, NULL, NULL, exty, extz), BAD_ARG);
+  CHECK(rdr_get_model_instance_obb(NULL, pos, NULL, exty, extz), BAD_ARG);
+  CHECK(rdr_get_model_instance_obb(inst, pos, NULL, exty, extz), BAD_ARG);
+  CHECK(rdr_get_model_instance_obb(NULL, NULL, extx, exty, extz), BAD_ARG);
+  CHECK(rdr_get_model_instance_obb(inst, NULL, extx, exty, extz), BAD_ARG);
+  CHECK(rdr_get_model_instance_obb(NULL, pos, extx, exty, extz), BAD_ARG);
+  CHECK(rdr_get_model_instance_obb(inst, pos, extx, exty, extz), OK);
+  CHECK(pos[0], 0.5f);
+  CHECK(pos[1], 0.5f);
+  CHECK(pos[2], 0.5f);
+  CHECK(extx[0], 0.5f); CHECK(extx[1], 0.f); CHECK(extx[2], 0.f);
+  CHECK(exty[0], 0.f); CHECK(exty[1], 0.5f); CHECK(exty[2], 0.f);
+  CHECK(extz[0], 0.f); CHECK(extz[1], 0.f); CHECK(extz[2], 0.5f);
+
+  aosf33_rotation(&f33, 0.785f, 0.11f, 0.87f);
+  aosf44_set(&f44, f33.c0, f33.c1, f33.c2, vf4_set(15.878f, -5.68f, 0.25f, 1.f));
+
+  CHECK(rdr_transform_model_instances(&inst, 1, true, &f44), OK);
+  CHECK(rdr_get_model_instance_aabb(inst, min_bound, max_bound), OK);
+
+  vec0 = vf4_set1(FLT_MAX);
+  vec1 = vf4_set1(-FLT_MAX);
+  for(i = 0; i < 8; ++i)  {
+    const vf4_t tmp = aosf44_mulf4
+      (&f44, vf4_set(data[i*3], data[i*3+1], data[i*3+2], 1.f));
+    vf4_store(array, tmp);
+    vec0 = vf4_min(vec0, tmp);
+    vec1 = vf4_max(vec1, tmp);
+  }
+  vf4_store(array, vec0);
+  CHECK_EPS(array[0], min_bound[0]);
+  CHECK_EPS(array[1], min_bound[1]);
+  CHECK_EPS(array[2], min_bound[2]);
+  vf4_store(array, vec1);
+  CHECK_EPS(array[0], max_bound[0]);
+  CHECK_EPS(array[1], max_bound[1]);
+  CHECK_EPS(array[2], max_bound[2]);
+
+  vec0 = aosf44_mulf4(&f44, vf4_set(pos[0], pos[1], pos[2], 1.f));
+  vec1 = aosf44_mulf4(&f44, vf4_set(extx[0], extx[1], extx[2], 0.f));
+  vec2 = aosf44_mulf4(&f44, vf4_set(exty[0], exty[1], exty[2], 0.f));
+  vec3 = aosf44_mulf4(&f44, vf4_set(extz[0], extz[1], extz[2], 0.f));
+  CHECK(rdr_get_model_instance_obb(inst, pos, extx, exty, extz), OK);
+  vf4_store(array, vec0);
+  CHECK_EPS(array[0], pos[0]);
+  CHECK_EPS(array[1], pos[1]);
+  CHECK_EPS(array[2], pos[2]);
+  vf4_store(array, vec1);
+  CHECK_EPS(array[0], extx[0]);
+  CHECK_EPS(array[1], extx[1]);
+  CHECK_EPS(array[2], extx[2]);
+  vf4_store(array, vec2);
+  CHECK_EPS(array[0], exty[0]);
+  CHECK_EPS(array[1], exty[1]);
+  CHECK_EPS(array[2], exty[2]);
+  vf4_store(array, vec3);
+  CHECK_EPS(array[0], extz[0]);
+  CHECK_EPS(array[1], extz[1]);
+  CHECK_EPS(array[2], extz[2]);
+
+  CHECK(rdr_model_ref_put(mdl), OK);
+  CHECK(rdr_model_instance_ref_put(inst), OK);
+  CHECK(rdr_material_ref_put(mtr), OK);
+  CHECK(rdr_mesh_ref_put(mesh), OK);
+}
+
 int
 main(int argc, char** argv)
 {
@@ -200,6 +363,7 @@ main(int argc, char** argv)
   struct aosf44 f44;
   struct aosf44 f44a;
   struct aosf33 f33;
+  struct aosf33 f33a;
   ALIGN(16) float tmp[16];
   enum rdr_material_density density;
   struct rdr_rasterizer_desc rast;
@@ -277,7 +441,7 @@ main(int argc, char** argv)
     CHECK(strcmp(instance_cbk_data.uniform_list[0].name, "tmp"), 0);
     CHECK(instance_cbk_data.uniform_list[0].type, RDR_FLOAT);
     CHECK(instance_cbk_data.nb_attribs, 0);
-    }
+  }
 
   sources[RDR_VERTEX_SHADER] = vs_source1;
   CHECK(rdr_material_program(mtr, sources), OK);
@@ -305,6 +469,7 @@ main(int argc, char** argv)
      0.f, 1.f, 0.f, 0.f,
      0.f, 0.f, 1.f, 0.f,
      0.f, 0.f, 0.f, 1.f);
+
 
   CHECK(rdr_translate_model_instances(NULL, 1, false, NULL), BAD_ARG);
   CHECK(rdr_translate_model_instances(&inst, 1, false, NULL), BAD_ARG);
@@ -601,8 +766,8 @@ main(int argc, char** argv)
       vf4_set(0.f, 0.f, 1.f, 0.f),
       vf4_set(5.f, 1.f, 4.f, 1.f)}},
      &f44a);
-  aosf44_store(tmp, &f44);
-  CHECK_TRANSFORM(inst,
+  aosf44_store(tmp, &f44a);
+  CHECK_TRANSFORM(inst1,
      tmp[0], tmp[1], tmp[2], tmp[3],
      tmp[4], tmp[5], tmp[6], tmp[7],
      tmp[8], tmp[9], tmp[10], tmp[11],
@@ -632,8 +797,8 @@ main(int argc, char** argv)
       vf4_set(0.f, 1.f, 0.f, 0.f),
       vf4_set(0.f, 0.f, 1.f, 0.f),
       vf4_set(5.f, 1.f, 4.f, 1.f)}});
-  aosf44_store(tmp, &f44);
-  CHECK_TRANSFORM(inst,
+  aosf44_store(tmp, &f44a);
+  CHECK_TRANSFORM(inst1,
      tmp[0], tmp[1], tmp[2], tmp[3],
      tmp[4], tmp[5], tmp[6], tmp[7],
      tmp[8], tmp[9], tmp[10], tmp[11],
@@ -667,20 +832,20 @@ main(int argc, char** argv)
     ((struct rdr_model_instance*[]){inst, inst1}, 2,
      true, (float[]){0.785f, 0.12f, 0.08f}), OK);
   aosf33_rotation(&f33, 0.785f, 0.12f, 0.08f);
-  aosf33_mulf33(&f33, (struct aosf33[]) {{f44.c0, f44.c1, f44.c2}}, &f33);
-  f44.c0 = f33.c0;
-  f44.c1 = f33.c1;
-  f44.c2 = f33.c2;
+  aosf33_mulf33(&f33a, (struct aosf33[]) {{f44.c0, f44.c1, f44.c2}}, &f33);
+  f44.c0 = f33a.c0;
+  f44.c1 = f33a.c1;
+  f44.c2 = f33a.c2;
   aosf44_store(tmp, &f44);
   CHECK_TRANSFORM(inst,
      tmp[0], tmp[1], tmp[2], tmp[3],
      tmp[4], tmp[5], tmp[6], tmp[7],
      tmp[8], tmp[9], tmp[10], tmp[11],
      tmp[12], tmp[13], tmp[14], tmp[15]);
-  aosf33_mulf33(&f33, (struct aosf33[]) {{f44a.c0, f44a.c1, f44a.c2}}, &f33);
-  f44a.c0 = f33.c0;
-  f44a.c1 = f33.c1;
-  f44a.c2 = f33.c2;
+  aosf33_mulf33(&f33a, (struct aosf33[]) {{f44a.c0, f44a.c1, f44a.c2}}, &f33);
+  f44a.c0 = f33a.c0;
+  f44a.c1 = f33a.c1;
+  f44a.c2 = f33a.c2;
   aosf44_store(tmp, &f44a);
   CHECK_TRANSFORM(inst1,
      tmp[0], tmp[1], tmp[2], tmp[3],
@@ -942,6 +1107,8 @@ main(int argc, char** argv)
   CHECK(rdr_model_instance_ref_put(inst), OK);
   CHECK(rdr_model_instance_ref_put(inst), OK);
   CHECK(rdr_model_instance_ref_put(inst1), OK);
+
+  test_bounding(sys);
 
   CHECK(rdr_system_ref_put(sys), OK);
   CHECK(wm_window_ref_put(window), WM_NO_ERROR);

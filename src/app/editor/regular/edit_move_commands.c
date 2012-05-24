@@ -43,7 +43,7 @@ mv
   if(EDIT_CMD_ARGVAL(argv, INSTANCE_NAME).is_defined
   && EDIT_CMD_ARGVAL(argv, SELECTION_FLAG).is_defined) {
     APP(log(app, APP_LOG_ERROR,
-      "expect moving an instance or the selection but not both"));
+      "expect moving an instance or the selection but not both\n"));
     goto error;
   }
 
@@ -158,7 +158,7 @@ translate
   if(EDIT_CMD_ARGVAL(argv, INSTANCE_NAME).is_defined
   && EDIT_CMD_ARGVAL(argv, SELECTION_FLAG).is_defined) {
     APP(log(app, APP_LOG_ERROR,
-      "expect translating an instance or the selection but not both"));
+      "expect translating an instance or the selection but not both\n"));
     goto error;
   }
 
@@ -282,7 +282,7 @@ rotate
   if(EDIT_CMD_ARGVAL(argv, INSTANCE_NAME).is_defined
   && EDIT_CMD_ARGVAL(argv, SELECTION_FLAG).is_defined) {
     APP(log(app, APP_LOG_ERROR,
-      "expect rotating an instance or the selection but not both"));
+      "expect rotating an instance or the selection but not both\n"));
     goto error;
   }
 
@@ -417,7 +417,7 @@ scale
   if(EDIT_CMD_ARGVAL(argv, INSTANCE_NAME).is_defined
   && EDIT_CMD_ARGVAL(argv, SELECTION_FLAG).is_defined) {
     APP(log(app, APP_LOG_ERROR,
-      "expect scaling an instance or the selection but not both"));
+      "expect scaling an instance or the selection but not both\n"));
     goto error;
   }
 
@@ -615,7 +615,8 @@ edit_setup_move_commands(struct edit_context* ctxt)
      APP_CMDARGV
      (APP_CMDARG_APPEND_STRING
         ("i", "instance", "<name>", "define the instance to move", 0, 1, NULL),
-      APP_CMDARG_APPEND_LITERAL("s", "selection", NULL, 0, 1),
+      APP_CMDARG_APPEND_LITERAL
+        ("s", "selection", "move the current selection", 0, 1),
       APP_CMDARG_APPEND_FLOAT
         ("x", NULL, "<real>", NULL, 0, 1, -FLT_MAX, FLT_MAX),
       APP_CMDARG_APPEND_FLOAT
@@ -623,7 +624,7 @@ edit_setup_move_commands(struct edit_context* ctxt)
       APP_CMDARG_APPEND_FLOAT
         ("z", NULL, "<real>", NULL, 0, 1, -FLT_MAX, FLT_MAX),
       APP_CMDARG_END),
-     "move a model instance"));
+     "move a given instance or the current selection"));
 
   CALL(app_add_command
     (ctxt->app, "rotate", rotate, ctxt, app_model_instance_name_completion,
@@ -641,9 +642,10 @@ edit_setup_move_commands(struct edit_context* ctxt)
          "perform the rotation with respect to world coordinates",
          0, 1),
       APP_CMDARG_APPEND_STRING
-        ("i", "instance", "<name>", "define the instance to rotate", 0, 1, NULL),
-      APP_CMDARG_APPEND_LITERAL("s", "selection", NULL, 0, 1),
-      APP_CMDARG_APPEND_FLOAT
+        ("i", "instance", "<name>","define the instance to rotate", 0, 1, NULL),
+      APP_CMDARG_APPEND_LITERAL
+        ("s", "selection", "rotate the current selection", 0, 1),
+    APP_CMDARG_APPEND_FLOAT
         ("x", NULL, "<real>", "pitch angle", 0, 1, -FLT_MAX, FLT_MAX),
       APP_CMDARG_APPEND_FLOAT
         ("y", NULL, "<real>", "yaw angle", 0, 1, -FLT_MAX, FLT_MAX),
@@ -652,7 +654,7 @@ edit_setup_move_commands(struct edit_context* ctxt)
       APP_CMDARG_APPEND_LITERAL
         ("r", "radian", "set the angle unit to radian", 0, 1),
       APP_CMDARG_END),
-     "rotate a model instance"));
+     "rotate a given instance or the current selection"));
 
   CALL(app_add_command
     (ctxt->app, "scale", scale, ctxt, app_model_instance_name_completion,
@@ -671,7 +673,8 @@ edit_setup_move_commands(struct edit_context* ctxt)
          0, 1),
       APP_CMDARG_APPEND_STRING
         ("i", "instance", "<name>", "define the instance to scale", 0, 1, NULL),
-      APP_CMDARG_APPEND_LITERAL("s", "selection", NULL, 0, 1),
+      APP_CMDARG_APPEND_LITERAL
+        ("s", "selection", "scale the current selection", 0, 1),
       APP_CMDARG_APPEND_FLOAT
         ("x", NULL, "<real>", NULL, 0, 1, -FLT_MAX, FLT_MAX),
       APP_CMDARG_APPEND_FLOAT
@@ -679,7 +682,7 @@ edit_setup_move_commands(struct edit_context* ctxt)
       APP_CMDARG_APPEND_FLOAT
         ("z", NULL, "<real>", NULL, 0, 1, -FLT_MAX, FLT_MAX),
       APP_CMDARG_END),
-     "scale a model instance"));
+     "scale a given instance or the current selection"));
 
   CALL(app_add_command
     (ctxt->app, "transform", transform, NULL,
@@ -728,7 +731,8 @@ edit_setup_move_commands(struct edit_context* ctxt)
         ("i", "instance", "<name>",
          "define the instance to translate",
          0, 1, NULL),
-      APP_CMDARG_APPEND_LITERAL("s", "selection", NULL, 0, 1),
+      APP_CMDARG_APPEND_LITERAL
+        ("s", "selection", "translate the current selection", 0, 1),
       APP_CMDARG_APPEND_FLOAT
         ("x", NULL, "<real>", NULL, 0, 1, -FLT_MAX, FLT_MAX),
       APP_CMDARG_APPEND_FLOAT
@@ -736,7 +740,7 @@ edit_setup_move_commands(struct edit_context* ctxt)
       APP_CMDARG_APPEND_FLOAT
         ("z", NULL, "<real>", NULL, 0, 1, -FLT_MAX, FLT_MAX),
       APP_CMDARG_END),
-     "translate a model instance"));
+     "translate a given instance or the current selection"));
 
   #undef CALL
 exit:

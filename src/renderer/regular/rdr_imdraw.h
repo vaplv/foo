@@ -6,6 +6,7 @@
 #include "sys/ref_count.h"
 
 enum rdr_imdraw_type {
+  RDR_IMDRAW_CIRCLE,
   RDR_IMDRAW_PARALLELEPIPED,
   RDR_NB_IMDRAW_TYPES
 };
@@ -14,6 +15,10 @@ struct rdr_imdraw_command {
   struct list_node node;
   enum rdr_imdraw_type type;
   union {
+    struct {
+      float transform[16];
+      float color[3];
+    } circle;
     struct {
       float transform[16];
       float solid_color[4];
@@ -33,7 +38,7 @@ struct rdr_system;
 extern enum rdr_error
 rdr_init_im_rendering
   (struct rdr_system* sys);
- 
+
 extern enum rdr_error
 rdr_shutdown_im_rendering
   (struct rdr_system* sys);

@@ -140,6 +140,15 @@ rdr_get_model_instance_aabb
    float min_bound[3],
    float max_bound[3]);
 
+/* Get the position and the extends of the object space bounding box. */
+extern enum rdr_error
+rdr_get_model_instance_obb 
+  (const struct rdr_model_instance* instance,
+   float position[3],
+   float extend_x[3],
+   float extend_y[3],
+   float extend_z[3]);
+
 extern enum rdr_error
 rdr_attach_model_instance_callback
   (struct rdr_model_instance* instance,

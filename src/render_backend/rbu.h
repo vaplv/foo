@@ -60,8 +60,7 @@ rbu_init_circle
   (const struct rbi* rbi,
    struct rb_context* ctxt,
    unsigned int npoints,
-   float x,
-   float y,
+   float pos[2],
    float radius,
    struct rbu_geometry* circle);
 

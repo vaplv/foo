@@ -29,6 +29,8 @@ release_system(struct ref* ref)
     RBI(&sys->rb, context_ref_put(sys->ctxt));
   if(LIKELY(sys->rbu.quad.rbi != NULL))
     RBU(geometry_ref_put(&sys->rbu.quad));
+  if(LIKELY(sys->rbu.circle.rbi != NULL))
+    RBU(geometry_ref_put(&sys->rbu.circle));
   if(LIKELY(sys->rbu.solid_parallelepiped.rbi != NULL))
     RBU(geometry_ref_put(&sys->rbu.solid_parallelepiped));
   if(LIKELY(sys->rbu.wire_parallelepiped.rbi != NULL))
@@ -132,6 +134,13 @@ rdr_create_system
      (float[]){1.f, 1.f, 1.f},
      false,
      &sys->rbu.solid_parallelepiped));
+  CALL(rbu_init_circle
+    (&sys->rb, sys->ctxt,
+     64,
+     (float[]){0.f, 0.f},
+     1.f,
+     &sys->rbu.circle));
+
   CALL(rbu_init_parallelepiped
     (&sys->rb, sys->ctxt,
      (float[]){0.f, 0.f, 0.f},

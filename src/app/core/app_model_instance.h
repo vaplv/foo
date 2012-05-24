@@ -95,10 +95,18 @@ app_model_instance_world
    struct app_world** world); /* Set to NULL if it is not added to a world. */
 
 extern enum app_error
-app_get_model_instance_aabb
+app_get_model_instance_aabb /* AABB <=> Axis Aligned Bounding Box. */
   (const struct app_model_instance* instance,
    float min_bound[3],
    float max_bound[3]);
+
+extern enum app_error
+app_get_model_instance_obb /* OBB <=> Object Bounding Box. */
+  (const struct app_model_instance* instance,
+   float pos[3],
+   float extend_x[3],
+   float extend_y[3],
+   float extend_z[3]);
 
 extern enum app_error
 app_get_model_instance_list_begin

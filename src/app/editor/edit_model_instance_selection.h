@@ -65,7 +65,7 @@ edit_rotate_model_instance_selection
 extern enum edit_error
 edit_scale_model_instance_selection
   (struct edit_model_instance_selection* selection,
-   bool local_scale, /* true <=< scale with respect to selection pivot. */
+   bool local_scale, /* true <=> scale with respect to selection pivot. */
    const float scale[3]);
 
 extern enum edit_error

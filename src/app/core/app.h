@@ -118,6 +118,7 @@ app_is_callback_attached
    void* data,
    bool* is_attached);
 
+/* When enabled, the terminal intercepts user input. */
 extern enum app_error
 app_enable_term
   (struct app* app,

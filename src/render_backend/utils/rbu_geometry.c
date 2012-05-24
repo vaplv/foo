@@ -115,8 +115,7 @@ rbu_init_circle
   (const struct rbi* rbi,
    struct rb_context* ctxt,
    unsigned int npoints,
-   float x,
-   float y,
+   float pos[2],
    float radius,
    struct rbu_geometry* circle)
 {
@@ -147,9 +146,9 @@ rbu_init_circle
     coord_id = 0;
     for(point_id = 0; point_id < npoints; ++point_id) {
       const float angle = (float)point_id * rcp_npoints * 2 * PI;
-      vertices[coord_id] = x + cosf(angle) * radius;
+      vertices[coord_id] = pos[0] + cosf(angle) * radius;
       ++coord_id;
-      vertices[coord_id] = y + sinf(angle) * radius;
+      vertices[coord_id] = pos[1] + sinf(angle) * radius;
       ++coord_id;
     }
 

@@ -6,7 +6,7 @@
 struct edit_context;
 struct edit_model_instance_selection;
 
-/* Ensure that the created selectio does not take the ownership of the edit
+/* Ensure that the created selection does not take the ownership of the edit
  * context. Usefull for the builtin selection. */
 extern enum edit_error
 edit_regular_create_model_instance_selection

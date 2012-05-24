@@ -34,6 +34,7 @@ struct rdr_system {
   /* Render backend utils. */
   struct render_backend_utils {
     struct rbu_geometry quad;
+    struct rbu_geometry circle;
     struct rbu_geometry solid_parallelepiped;
     struct rbu_geometry wire_parallelepiped;
   } rbu;

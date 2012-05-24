@@ -323,6 +323,9 @@ rdr_flush_imdraw_command_buffer(struct rdr_imdraw_command_buffer* cmdbuf)
     struct rdr_imdraw_command* cmd = CONTAINER_OF
       (node, struct rdr_imdraw_command, node);
     switch(cmd->type) {
+      case RDR_IMDRAW_CIRCLE:
+        /* TODO */
+        break;
       case RDR_IMDRAW_PARALLELEPIPED:
         invoke_imdraw_parallelepiped(cmdbuf->sys, cmd);
         break;

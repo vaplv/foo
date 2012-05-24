@@ -431,6 +431,60 @@ model_callback_func(struct rdr_model* model, void* data)
   invoke_callbacks(instance);
 }
 
+
+/* return true if the box is infinite. */
+static bool
+get_model_instance_obb
+  (const struct rdr_model_instance* instance,
+   vf4_t* restrict position,
+   vf4_t* restrict extend_x,
+   vf4_t* restrict extend_y,
+   vf4_t* restrict extend_z)
+{
+  struct rdr_mesh* mesh = NULL;
+  float min_bound[3] = { 0.f, 0.f, 0.f };
+  float max_bound[3] = { 0.f, 0.f, 0.f };
+  bool is_infinite = false;
+  assert(instance && position && extend_x && extend_y && extend_z);
+
+  RDR(get_model_mesh(instance->model, &mesh));
+  RDR(get_mesh_aabb(mesh, min_bound, max_bound));
+
+  is_infinite =
+      (min_bound[0] == -FLT_MAX)
+    | (min_bound[1] == -FLT_MAX)
+    | (min_bound[2] == -FLT_MAX)
+    | (max_bound[0] == FLT_MAX)
+    | (max_bound[1] == FLT_MAX)
+    | (max_bound[2] == FLT_MAX);
+
+  if(is_infinite) {
+    *position = vf4_zero();
+    *extend_x = *extend_y = *extend_z = vf4_set1(FLT_MAX);
+  } else {
+    const struct aosf33 f33 = {
+      .c0 = instance->transform.c0, 
+      .c1 = instance->transform.c1, 
+      .c2 = instance->transform.c2
+    };
+    const vf4_t vmin = vf4_set(min_bound[0], min_bound[1], min_bound[2], 1.f);
+    const vf4_t vmax = vf4_set(max_bound[0], max_bound[1], max_bound[2], 1.f);
+    const vf4_t vhmin = vf4_mul(vmin, vf4_set(0.5f, 0.5f, 0.5f, 1.f));
+    const vf4_t vhmax = vf4_mul(vmax, vf4_set(0.5f, 0.5f, 0.5f, 1.f));
+    const vf4_t vpos = vf4_add(vhmax, vhmin);
+    const vf4_t vext = vf4_sub(vmax, vpos);
+    const vf4_t vextx = vf4_and(vext, vf4_mask(true, false, false, true));
+    const vf4_t vexty = vf4_and(vext, vf4_mask(false, true, false, true));
+    const vf4_t vextz = vf4_and(vext, vf4_mask(false, false, true, true));
+
+    *position = vf4_add(aosf33_mulf3(&f33, vpos), instance->transform.c3);
+    *extend_x = aosf33_mulf3(&f33, vextx);
+    *extend_y = aosf33_mulf3(&f33, vexty);
+    *extend_z = aosf33_mulf3(&f33, vextz);
+  }
+  return is_infinite;
+}
+
 static void
 release_model_instance(struct ref* ref)
 {
@@ -722,15 +776,16 @@ rdr_rotate_model_instances
   if(local_rotation) {
     for(i = 0; i < nb_instances; ++i) {
       struct rdr_model_instance* instance = instance_list[i];
+      struct aosf33 res;
       const struct aosf33 tmp = {
         .c0 = instance->transform.c0,
         .c1 = instance->transform.c1,
         .c2 = instance->transform.c2
       };
-      aosf33_mulf33(&f33, &tmp, &f33);
-      instance->transform.c0 = f33.c0;
-      instance->transform.c1 = f33.c1;
-      instance->transform.c2 = f33.c2;
+      aosf33_mulf33(&res, &tmp, &f33);
+      instance->transform.c0 = res.c0;
+      instance->transform.c1 = res.c1;
+      instance->transform.c2 = res.c2;
     }
   } else {
     const struct aosf44 f44 = {
@@ -904,68 +959,85 @@ rdr_get_model_instance_aabb
    float min_bound[3],
    float max_bound[3])
 {
-  ALIGN(16) float tmp[4] = {0.f, 0.f, 0.f, 0.f};
-  vf4_t vpt[8];
-  vf4_t vmin;
-  vf4_t vmax;
-  vf4_t vmin_mask;
-  vf4_t vmax_mask;
-  struct rdr_mesh* mesh = NULL;
-  size_t i = 0;
+  vf4_t vpos, vx, vy, vz;
+  bool infinite_box = false;
 
   if(UNLIKELY(!instance || !min_bound || !max_bound))
     return RDR_INVALID_ARGUMENT;
 
-  RDR(get_model_mesh(instance->model, &mesh));
-  RDR(get_mesh_aabb(mesh, min_bound, max_bound));
+  infinite_box = get_model_instance_obb(instance, &vpos, &vx, &vy, &vz);
+  if(infinite_box) {
+    min_bound[0] = min_bound[1] = min_bound[2] = -FLT_MAX;
+    max_bound[0] = max_bound[1] = max_bound[2] = FLT_MAX;
+  } else {
+    vf4_t vmin, vmax;
+    ALIGN(16) float tmp[4];
 
-  /* Find degenerated coordinates. */
-  vmin_mask = vf4_mask
-    (min_bound[0]==-FLT_MAX, min_bound[1]==-FLT_MAX, min_bound[2]==-FLT_MAX, 0);
-  vmax_mask = vf4_mask
-    (max_bound[0]==FLT_MAX, max_bound[1]==FLT_MAX, max_bound[2]==FLT_MAX, 0);
+    vmin = vmax = vf4_add(vf4_add(vf4_add(vpos, vx), vy), vz);
 
-  /* Reset degenerated vertices <=> limit denormal computations. */
-  min_bound[0] = min_bound[0] == -FLT_MAX ? 0.f : min_bound[0];
-  min_bound[1] = min_bound[1] == -FLT_MAX ? 0.f : min_bound[1];
-  min_bound[2] = min_bound[2] == -FLT_MAX ? 0.f : min_bound[2];
-  max_bound[0] = max_bound[0] == FLT_MAX ? 0.f : max_bound[0];
-  max_bound[1] = max_bound[1] == FLT_MAX ? 0.f : max_bound[1];
-  max_bound[2] = max_bound[2] == FLT_MAX ? 0.f : max_bound[2];
+    #define NEG sub
+    #define POS add
+    #define UPDATE_BOUND(x, y, z) \
+      do { \
+        const vf4_t vtmp = \
+          CONCAT(vf4_, z)(CONCAT(vf4_, y)(CONCAT(vf4_, x)(vpos, vx), vy), vz); \
+        vmin = vf4_min(vmin, vtmp); \
+        vmax = vf4_max(vmax, vtmp); \
+      } while(0)
+    UPDATE_BOUND(NEG, POS, POS);
+    UPDATE_BOUND(POS, NEG, POS);
+    UPDATE_BOUND(NEG, NEG, POS);
+    UPDATE_BOUND(POS, POS, NEG);
+    UPDATE_BOUND(NEG, POS, NEG);
+    UPDATE_BOUND(POS, NEG, NEG);
+    UPDATE_BOUND(NEG, NEG, NEG);
+    #undef NEG
+    #undef POS
+    #undef UPDATE_BOUND
 
-  /* Build local space AABB vertices. */
-  vpt[0] = vf4_set(min_bound[0], min_bound[1], min_bound[2], 1.f);
-  vpt[1] = vf4_set(max_bound[0], min_bound[1], min_bound[2], 1.f);
-  vpt[2] = vf4_set(max_bound[0], min_bound[1], max_bound[2], 1.f);
-  vpt[3] = vf4_set(min_bound[0], min_bound[1], max_bound[2], 1.f);
-  vpt[4] = vf4_set(min_bound[0], max_bound[1], min_bound[2], 1.f);
-  vpt[5] = vf4_set(max_bound[0], max_bound[1], min_bound[2], 1.f);
-  vpt[6] = vf4_set(max_bound[0], max_bound[1], max_bound[2], 1.f);
-  vpt[7] = vf4_set(min_bound[0], max_bound[1], max_bound[2], 1.f);
-
-  /* Compute the world AABB of the local AABB transformed in world space. */
-  vpt[0] = aosf44_mulf4(&instance->transform, vpt[0]);
-  vmin = vmax = vpt[0];
-  for(i = 1; i < 8; ++i) {
-    vpt[i] = aosf44_mulf4(&instance->transform, vpt[i]);
-    vmin = vf4_min(vmin, vpt[i]);
-    vmax = vf4_max(vmax, vpt[i]);
+    vf4_store(tmp, vmin);
+    min_bound[0] = tmp[0];
+    min_bound[1] = tmp[1];
+    min_bound[2] = tmp[2];
+    vf4_store(tmp, vmax);
+    max_bound[0] = tmp[0];
+    max_bound[1] = tmp[1];
+    max_bound[2] = tmp[2];
   }
+  return RDR_NO_ERROR;
+}
 
-  /* Set degenerated coordinates. */
-  vmin = vf4_sel(vmin, vf4_set1(-FLT_MAX), vmin_mask);
-  vmax = vf4_sel(vmax, vf4_set1(FLT_MAX), vmax_mask);
+EXPORT_SYM enum rdr_error
+rdr_get_model_instance_obb
+  (const struct rdr_model_instance* instance,
+   float position[3],
+   float extend_x[3],
+   float extend_y[3],
+   float extend_z[3])
+{
+  vf4_t vpos, vx, vy, vz;
+  ALIGN(16) float tmp[4];
 
-  /* Store world AABB. */
-  vf4_store(tmp, vmin);
-  min_bound[0] = tmp[0];
-  min_bound[1] = tmp[1];
-  min_bound[2] = tmp[2];
-  vf4_store(tmp, vmax);
-  max_bound[0] = tmp[0];
-  max_bound[1] = tmp[1];
-  max_bound[2] = tmp[2];
+  if(UNLIKELY(!instance || !position || !extend_x || !extend_y || !extend_z))
+    return RDR_INVALID_ARGUMENT;
 
+  get_model_instance_obb(instance, &vpos, &vx, &vy, &vz);
+  vf4_store(tmp, vpos);
+  position[0] = tmp[0];
+  position[1] = tmp[1];
+  position[2] = tmp[2];
+  vf4_store(tmp, vx);
+  extend_x[0] = tmp[0];
+  extend_x[1] = tmp[1];
+  extend_x[2] = tmp[2];
+  vf4_store(tmp, vy);
+  extend_y[0] = tmp[0];
+  extend_y[1] = tmp[1];
+  extend_y[2] = tmp[2];
+  vf4_store(tmp, vz);
+  extend_z[0] = tmp[0];
+  extend_z[1] = tmp[1];
+  extend_z[2] = tmp[2];
   return RDR_NO_ERROR;
 }
 
