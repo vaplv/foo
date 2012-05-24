@@ -50,7 +50,6 @@ invoke_imdraw_parallelepiped
   (struct rdr_system* sys,
    struct rdr_imdraw_command* cmd)
 {
-
   assert(sys && cmd && cmd->type == RDR_IMDRAW_PARALLELEPIPED);
 
   RBI(&sys->rb, bind_program(sys->ctxt, sys->im.draw3d.shading_program));
@@ -107,6 +106,22 @@ invoke_imdraw_parallelepiped
     RBU(draw_geometry(&sys->rbu.wire_parallelepiped));
   }
 
+  RBI(&sys->rb, bind_program(sys->ctxt, NULL));
+}
+
+static void
+invoke_imdraw_circle
+  (struct rdr_system* sys,
+   struct rdr_imdraw_command* cmd)
+{
+  assert(sys && cmd && cmd->type == RDR_IMDRAW_CIRCLE);
+
+  RBI(&sys->rb, bind_program(sys->ctxt, sys->im.draw3d.shading_program));
+  RBI(&sys->rb, uniform_data
+    (sys->im.draw3d.transform, 1, cmd->data.circle.transform));
+  RBI(&sys->rb, uniform_data
+    (sys->im.draw3d.color, 1, cmd->data.circle.color));
+  RBU(draw_geometry(&sys->rbu.circle));
   RBI(&sys->rb, bind_program(sys->ctxt, NULL));
 }
 
@@ -324,7 +339,7 @@ rdr_flush_imdraw_command_buffer(struct rdr_imdraw_command_buffer* cmdbuf)
       (node, struct rdr_imdraw_command, node);
     switch(cmd->type) {
       case RDR_IMDRAW_CIRCLE:
-        /* TODO */
+        invoke_imdraw_circle(cmdbuf->sys, cmd);
         break;
       case RDR_IMDRAW_PARALLELEPIPED:
         invoke_imdraw_parallelepiped(cmdbuf->sys, cmd);

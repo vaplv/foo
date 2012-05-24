@@ -11,6 +11,7 @@
 #include "stdlib/sl.h"
 #include "stdlib/sl_hash_table.h"
 #include "stdlib/sl_pair.h"
+#include "sys/math.h"
 #include "sys/mem_allocator.h"
 #include "sys/ref_count.h"
 #include "sys/sys.h"
@@ -463,6 +464,9 @@ edit_draw_model_instance_selection
   (struct edit_model_instance_selection* selection)
 {
   struct sl_hash_table_it it;
+  float pivot[3] = { 0.f, 0.f, 0.f };
+  float rcp_nb_selected_instances = 0.f;
+  size_t nb_selected_instances = 0;
   enum edit_error edit_err = EDIT_NO_ERROR;
   bool is_end_reached = false;
   memset(&it, 0, sizeof(it));
@@ -471,6 +475,9 @@ edit_draw_model_instance_selection
     edit_err = EDIT_INVALID_ARGUMENT;
     goto error;
   }
+  /* Draw the abb of theselected instances. */
+  pivot[0] = pivot[1] = pivot[2] = 0.f;
+  nb_selected_instances = 0;
   SL(hash_table_begin(selection->instance_htbl, &it, &is_end_reached));
   while(is_end_reached == false) {
     float min_bound[3] = {0.f, 0.f, 0.f};
@@ -481,9 +488,9 @@ edit_draw_model_instance_selection
       *(struct app_model_instance**)it.pair.data;
 
     APP(get_model_instance_aabb(instance, min_bound, max_bound));
-    pos[0] = (min_bound[0] + max_bound[0]) * 0.5f;
-    pos[1] = (min_bound[1] + max_bound[1]) * 0.5f;
-    pos[2] = (min_bound[2] + max_bound[2]) * 0.5f;
+    pivot[0] += pos[0] = (min_bound[0] + max_bound[0]) * 0.5f;
+    pivot[1] += pos[1] = (min_bound[1] + max_bound[1]) * 0.5f;
+    pivot[2] += pos[2] = (min_bound[2] + max_bound[2]) * 0.5f;
     size[0] = max_bound[0] - min_bound[0];
     size[1] = max_bound[1] - min_bound[1];
     size[2] = max_bound[2] - min_bound[2];
@@ -491,12 +498,29 @@ edit_draw_model_instance_selection
       (selection->ctxt->app,
        pos,
        size,
-       (float[]){0.f, 0.f, 0.f},
-       (float[]){0.5f, 0.5f, 0.5f, 0.15f},
-       (float[]){0.75f, 0.75f, 0.75f, 1.f}));
-
+       (float[]){0.f, 0.f, 0.f}, /* Rotation */ 
+       (float[]){0.5f, 0.5f, 0.5f, 0.15f}, /* Solid color */
+       (float[]){0.75f, 0.75f, 0.75f, 1.f})); /* Wire color */
     SL(hash_table_it_next(&it, &is_end_reached));
+    ++nb_selected_instances;
   }
+  /* Draw the pivot. */
+  rcp_nb_selected_instances = 1.f / (float) nb_selected_instances;
+  pivot[0] *= rcp_nb_selected_instances;
+  pivot[1] *= rcp_nb_selected_instances;
+  pivot[2] *= rcp_nb_selected_instances;
+  #define DRAW_CIRCLE(pitch, yaw, roll) \
+    APP(imdraw_ellipse \
+      (selection->ctxt->app, \
+       pivot, \
+       (float[]){1.f, 1.f},/* Size */ \
+       (float[]){(pitch), (yaw), (roll)}, /* Rotation */ \
+       (float[]){1.f, 1.f, 0.f})) /* Color */
+  DRAW_CIRCLE(0.f, 0.f, 0.f);
+  DRAW_CIRCLE(PI * 0.5f, 0.f, 0.f);
+  DRAW_CIRCLE(0.f, PI * 0.5f, 0.f);
+  #undef DRAW_CIRCLE
+
 exit:
   return edit_err;
 error:

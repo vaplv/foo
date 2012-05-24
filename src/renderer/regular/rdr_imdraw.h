@@ -17,7 +17,7 @@ struct rdr_imdraw_command {
   union {
     struct {
       float transform[16];
-      float color[3];
+      float color[4];
     } circle;
     struct {
       float transform[16];

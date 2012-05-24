@@ -137,7 +137,7 @@ rbu_init_circle
   init_geometry(rbi, ctxt, circle);
   {
     const float rcp_npoints = 1.f / (float)npoints;
-    float vertices[npoints * 2];
+    float vertices[npoints * 3];
     unsigned int point_id = 0;
     size_t coord_id = 0;
     memset(vertices, 0, sizeof(vertices));
@@ -149,6 +149,8 @@ rbu_init_circle
       vertices[coord_id] = pos[0] + cosf(angle) * radius;
       ++coord_id;
       vertices[coord_id] = pos[1] + sinf(angle) * radius;
+      ++coord_id;
+      vertices[coord_id] = 0.f;
       ++coord_id;
     }
 
@@ -164,9 +166,9 @@ rbu_init_circle
     CALL(rbi->create_buffer(ctxt, &buf_desc, vertices, &circle->vertex_buffer));
     /* Create the vertex array. */
     buf_attr.index = 0;
-    buf_attr.stride = 2 * sizeof(float);
+    buf_attr.stride = 3 * sizeof(float);
     buf_attr.offset = 0;
-    buf_attr.type = RB_FLOAT2;
+    buf_attr.type = RB_FLOAT3;
     CALL(rbi->create_vertex_array(ctxt, &circle->vertex_array));
     CALL(rbi->vertex_attrib_array
       (circle->vertex_array, circle->vertex_buffer, 1, &buf_attr));

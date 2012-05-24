@@ -15,5 +15,13 @@ app_imdraw_parallelepiped
    const float solid_color[4], /* May be NULL <=> No solid parallelepiped. */
    const float wire_color[4]); /* May be NULL <=> No wire parallelepiped. */
 
+extern enum app_error
+app_imdraw_ellipse
+  (struct app* app,
+   const float pos[3],
+   const float size[2],
+   const float rotation[3],
+   const float color[4]);
+
 #endif /* APP_IMDRAW_H */
 

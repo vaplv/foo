@@ -10,6 +10,37 @@
 #include <assert.h>
 #include <string.h>
 
+/*******************************************************************************
+ *
+ * Helper functions.
+ *
+ ******************************************************************************/
+static FINLINE void
+setup_render_view(struct app* app, struct rdr_view* render_view)
+{
+  struct wm_window_desc win_desc;
+  memset(&win_desc, 0, sizeof(win_desc));
+  assert(app && render_view);
+
+  assert(sizeof(app->view->transform) == sizeof(render_view->transform));
+  WM(get_window_desc(app->wm.window, &win_desc));
+
+  aosf44_store(render_view->transform, &app->view->transform);
+  render_view->proj_ratio = app->view->ratio;
+  render_view->fov_x = app->view->fov_x;
+  render_view->znear = app->view->znear;
+  render_view->zfar = app->view->zfar;
+  render_view->x = 0;
+  render_view->y = 0;
+  render_view->width = win_desc.width;
+  render_view->height = win_desc.height;
+}
+
+/*******************************************************************************
+ *
+ * Im draw functions.
+ *
+ ******************************************************************************/
 EXPORT_SYM enum app_error
 app_imdraw_parallelepiped
   (struct app* app,
@@ -20,29 +51,15 @@ app_imdraw_parallelepiped
    const float wire_color[4])
 {
   struct rdr_view render_view;
-  struct wm_window_desc win_desc;
   enum app_error app_err = APP_NO_ERROR;
   enum rdr_error rdr_err = RDR_NO_ERROR;
   memset(&render_view, 0, sizeof(render_view));
-  memset(&win_desc, 0, sizeof(win_desc));
 
   if(UNLIKELY(!app || !pos || !size || !rotation)) {
     app_err = APP_INVALID_ARGUMENT;
     goto error;
   }
-  assert(sizeof(app->view->transform) == sizeof(render_view.transform));
-  WM(get_window_desc(app->wm.window, &win_desc));
-
-  aosf44_store(render_view.transform, &app->view->transform);
-  render_view.proj_ratio = app->view->ratio;
-  render_view.fov_x = app->view->fov_x;
-  render_view.znear = app->view->znear;
-  render_view.zfar = app->view->zfar;
-  render_view.x = 0;
-  render_view.y = 0;
-  render_view.width = win_desc.width;
-  render_view.height = win_desc.height;
-
+  setup_render_view(app, &render_view);
   rdr_err = rdr_frame_imdraw_parallelepiped
     (app->rdr.frame,
      &render_view,
@@ -55,7 +72,41 @@ app_imdraw_parallelepiped
     app_err = rdr_to_app_error(rdr_err);
     goto error;
   }
+exit:
+  return app_err;
+error:
+  goto exit;
+}
 
+EXPORT_SYM enum app_error
+app_imdraw_ellipse
+  (struct app* app,
+   const float pos[3],
+   const float size[2],
+   const float rotation[3],
+   const float color[4])
+{
+  struct rdr_view render_view;
+  enum app_error app_err = APP_NO_ERROR;
+  enum rdr_error rdr_err = RDR_NO_ERROR;
+  memset(&render_view, 0, sizeof(render_view));
+
+  if(UNLIKELY(!app || !pos || !size || !rotation)) {
+    app_err = APP_INVALID_ARGUMENT;
+    goto error;
+  }
+  setup_render_view(app, &render_view);
+  rdr_err = rdr_frame_imdraw_ellipse
+    (app->rdr.frame,
+     &render_view,
+     pos,
+     size,
+     rotation,
+     color);
+  if(rdr_err != RDR_NO_ERROR) {
+    app_err = rdr_to_app_error(rdr_err);
+    goto error;
+  }
 exit:
   return app_err;
 error:

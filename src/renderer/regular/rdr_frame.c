@@ -48,6 +48,23 @@ struct rdr_frame {
  * Helper functions.
  *
  ******************************************************************************/
+static FINLINE void
+compute_transform
+  (struct aosf44* transform,
+   const float pos[3],
+   const float size[3],
+   const float rotation[3])
+{
+  struct aosf33 f33;
+    
+  aosf33_rotation(&f33, rotation[0], rotation[1], rotation[2]);
+  f33.c0 = vf4_mul(f33.c0, vf4_set1(size[0]));
+  f33.c1 = vf4_mul(f33.c1, vf4_set1(size[1]));
+  f33.c2 = vf4_mul(f33.c2, vf4_set1(size[2]));
+  aosf44_set
+    (transform, f33.c0, f33.c1, f33.c2, vf4_set(pos[0], pos[1], pos[2], 1.f));
+}
+
 static enum rdr_error
 imdraw_parallelepiped
   (struct rdr_frame* frame,
@@ -92,7 +109,6 @@ imdraw_parallelepiped
   } else {
     cmd->data.parallelepiped.wire_color[3] = 0.f;
   }
-
   RDR(emit_imdraw_command(frame->imdraw_cmdbuf, cmd));
 exit:
   return rdr_err;
@@ -100,6 +116,48 @@ error:
   assert(cmd == NULL);
   goto exit;
 
+}
+
+static enum rdr_error
+imdraw_circle
+  (struct rdr_frame* frame,
+   const struct rdr_view* rview,
+   const struct aosf44* trans,
+   const float wire_color[4])
+{
+  ALIGN(16) float tmp[16];
+  struct aosf44 transform;
+  struct aosf44 viewproj;
+  struct aosf44 proj;
+  struct aosf44 view;
+  struct rdr_imdraw_command* cmd = NULL;
+  enum rdr_error rdr_err = RDR_NO_ERROR;
+
+  assert(frame && rview && trans && wire_color);
+
+  RDR(get_imdraw_command(frame->imdraw_cmdbuf, &cmd));
+  if(UNLIKELY(!cmd)) {
+    rdr_err = RDR_MEMORY_ERROR;
+    goto error;
+  }
+
+  /* Compute the transform matrix. */
+  aosf44_load(&view, rview->transform);
+  RDR(compute_projection_matrix(rview, &proj));
+  aosf44_mulf44(&viewproj, &proj, &view);
+  aosf44_mulf44(&transform, &viewproj, trans);
+  aosf44_store(tmp, &transform);
+  /* Setup the draw command. */
+  cmd->type = RDR_IMDRAW_CIRCLE;
+  memcpy(cmd->data.circle.transform, tmp, sizeof(tmp));
+  memcpy(cmd->data.circle.color, wire_color, 4 * sizeof(float));
+
+  RDR(emit_imdraw_command(frame->imdraw_cmdbuf, cmd));
+exit:
+  return rdr_err;
+error:
+  assert(cmd == NULL);
+  goto exit;
 }
 
 static void
@@ -255,22 +313,13 @@ rdr_frame_imdraw_parallelepiped
    const float wire_color[4])
 {
   struct aosf44 transform;
-  struct aosf33 f33;
   enum rdr_error rdr_err = RDR_NO_ERROR;
 
   if(UNLIKELY(!frame || !rview || !pos || !size || !rotation)) {
     rdr_err = RDR_INVALID_ARGUMENT;
     goto error;
   }
-
-  /* Compute the transform matrix. */
-  aosf33_rotation(&f33, rotation[0], rotation[1], rotation[2]);
-  f33.c0 = vf4_mul(f33.c0, vf4_set1(size[0]));
-  f33.c1 = vf4_mul(f33.c1, vf4_set1(size[1]));
-  f33.c2 = vf4_mul(f33.c2, vf4_set1(size[2]));
-  aosf44_set
-    (&transform, f33.c0, f33.c1, f33.c2, vf4_set(pos[0], pos[1], pos[2], 1.f));
-
+  compute_transform(&transform, pos, size, rotation);
   rdr_err = imdraw_parallelepiped
     (frame, rview, &transform, solid_color, wire_color);
   if(rdr_err != RDR_NO_ERROR)
@@ -317,6 +366,25 @@ exit:
   return rdr_err;
 error:
   goto exit;
+}
+
+EXPORT_SYM enum rdr_error
+rdr_frame_imdraw_ellipse
+  (struct rdr_frame* frame,
+   const struct rdr_view* rview,
+   const float pos[3],
+   const float size[2],
+   const float rotation[3],
+   const float color[4])
+{
+  struct aosf44 transform;
+  enum rdr_error rdr_err = RDR_NO_ERROR;
+
+  if(UNLIKELY(!frame || !rview || !pos || !size || !rotation || !color))
+    return RDR_INVALID_ARGUMENT;
+  compute_transform(&transform, pos, (float[]){size[0],size[1],1.f}, rotation);
+  rdr_err = imdraw_circle(frame, rview, &transform, color);
+  return rdr_err;
 }
 
 EXPORT_SYM enum rdr_error
