@@ -1,6 +1,7 @@
-#include "renderer/regular/rdr_imdraw.h"
+#include "renderer/regular/rdr_imdraw_c.h"
 #include "renderer/regular/rdr_system_c.h"
 #include "renderer/rdr.h"
+#include "renderer/rdr_imdraw.h"
 #include "renderer/rdr_system.h"
 #include "sys/mem_allocator.h"
 #include <string.h>
@@ -10,6 +11,7 @@ struct rdr_imdraw_command_buffer {
   struct rdr_system* sys;
   size_t max_command_count;
   struct list_node emit_command_list; /* Emitted commands. */
+  struct list_node emit_uppermost_command_list; /* Emitted front commands. */
   struct list_node free_command_list; /* Available commands. */
   struct rdr_imdraw_command buffer[]; /* Pool of allocated commands. */
 };
@@ -123,6 +125,47 @@ invoke_imdraw_circle
     (sys->im.draw3d.color, 1, cmd->data.circle.color));
   RBU(draw_geometry(&sys->rbu.circle));
   RBI(&sys->rb, bind_program(sys->ctxt, NULL));
+}
+
+static void
+flush_command_list
+  (struct rdr_imdraw_command_buffer* cmdbuf,
+   struct list_node* cmdlist)
+{
+  struct rb_viewport_desc viewport_desc;
+  struct list_node* node = NULL;
+  struct list_node* tmp = NULL;
+  memset(&viewport_desc, 0, sizeof(viewport_desc));
+  assert(cmdbuf && cmdlist);
+
+  viewport_desc.min_depth = 0.f;
+  viewport_desc.max_depth = 1.f;
+
+  LIST_FOR_EACH_SAFE(node, tmp, cmdlist) {
+    struct rdr_imdraw_command* cmd = CONTAINER_OF
+      (node, struct rdr_imdraw_command, node);
+
+    if(((int)cmd->viewport[0] != viewport_desc.x)
+     | ((int)cmd->viewport[1] != viewport_desc.y)
+     | ((int)cmd->viewport[2] != viewport_desc.width)
+     | ((int)cmd->viewport[3] != viewport_desc.height)) {
+      viewport_desc.x = cmd->viewport[0];
+      viewport_desc.y = cmd->viewport[1];
+      viewport_desc.width = cmd->viewport[2];
+      viewport_desc.height = cmd->viewport[3];
+      RBI(&cmdbuf->sys->rb, viewport(cmdbuf->sys->ctxt, &viewport_desc));
+    }
+    switch(cmd->type) {
+      case RDR_IMDRAW_CIRCLE:
+        invoke_imdraw_circle(cmdbuf->sys, cmd);
+        break;
+      case RDR_IMDRAW_PARALLELEPIPED:
+        invoke_imdraw_parallelepiped(cmdbuf->sys, cmd);
+        break;
+      default: assert(0); break;
+    }
+    list_move_tail(node, &cmdbuf->free_command_list);
+  }
 }
 
 static void
@@ -241,6 +284,7 @@ rdr_create_imdraw_command_buffer
   }
   ref_init(&cmdbuf->ref);
   list_init(&cmdbuf->emit_command_list);
+  list_init(&cmdbuf->emit_uppermost_command_list);
   list_init(&cmdbuf->free_command_list);
   RDR(system_ref_get(sys));
   cmdbuf->sys = sys;
@@ -298,6 +342,7 @@ rdr_get_imdraw_command
     list_del(node);
     *cmd = CONTAINER_OF(node, struct rdr_imdraw_command, node);
     (*cmd)->type = RDR_NB_IMDRAW_TYPES;
+    (*cmd)->flag = RDR_IMDRAW_FLAG_NONE;
   }
 exit:
   return rdr_err;
@@ -321,32 +366,41 @@ rdr_emit_imdraw_command
      sizeof(struct rdr_imdraw_command) * cmdbuf->max_command_count))) {
     return RDR_INVALID_ARGUMENT;
   }
-  list_add_tail(&cmdbuf->emit_command_list, &cmd->node);
+  if((cmd->flag & RDR_IMDRAW_FLAG_UPPERMOST_LAYER) != 0) {
+    list_add_tail(&cmdbuf->emit_uppermost_command_list, &cmd->node);
+  } else {
+    list_add_tail(&cmdbuf->emit_command_list, &cmd->node);
+  }
   return RDR_NO_ERROR;
 }
 
 enum rdr_error
 rdr_flush_imdraw_command_buffer(struct rdr_imdraw_command_buffer* cmdbuf)
 {
-  struct list_node* node = NULL;
-  struct list_node* tmp = NULL;
+  struct rb_viewport_desc viewport_desc;
+  memset(&viewport_desc, 0, sizeof(viewport_desc));
 
   if(UNLIKELY(cmdbuf == NULL))
     return RDR_INVALID_ARGUMENT;
 
-  LIST_FOR_EACH_SAFE(node, tmp, &cmdbuf->emit_command_list) {
-    struct rdr_imdraw_command* cmd = CONTAINER_OF
-      (node, struct rdr_imdraw_command, node);
-    switch(cmd->type) {
-      case RDR_IMDRAW_CIRCLE:
-        invoke_imdraw_circle(cmdbuf->sys, cmd);
-        break;
-      case RDR_IMDRAW_PARALLELEPIPED:
-        invoke_imdraw_parallelepiped(cmdbuf->sys, cmd);
-        break;
-      default: assert(0); break;
-    }
-    list_move_tail(node, &cmdbuf->free_command_list);
+  viewport_desc.min_depth = 0.f;
+  viewport_desc.max_depth = 1.f;
+
+  flush_command_list(cmdbuf, &cmdbuf->emit_command_list);
+  if(!is_list_empty(&cmdbuf->emit_uppermost_command_list)) {
+    const struct rb_depth_stencil_desc depth_stencil_desc = {
+      .enable_depth_test = 1,
+      .enable_depth_write = 1,
+      .enable_stencil_test = 0,
+      .front_face_op.write_mask = 0,
+      .back_face_op.write_mask = 0,
+      .depth_func = RB_COMPARISON_LESS_EQUAL
+    };
+    RBI(&cmdbuf->sys->rb, depth_stencil
+      (cmdbuf->sys->ctxt, &depth_stencil_desc));
+    RBI(&cmdbuf->sys->rb, clear
+      (cmdbuf->sys->ctxt, RB_CLEAR_DEPTH_BIT, NULL, 1.f, 0x00));
+    flush_command_list(cmdbuf, &cmdbuf->emit_uppermost_command_list);
   }
   return RDR_NO_ERROR;
 }

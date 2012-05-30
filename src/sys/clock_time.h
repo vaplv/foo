@@ -34,13 +34,13 @@
 #include <stddef.h>
 
 enum time_unit {
-  TIME_NSEC = 0x01,
-  TIME_USEC = 0x02,
-  TIME_MSEC = 0x04,
-  TIME_SEC = 0x08,
-  TIME_MIN = 0x10,
-  TIME_HOUR = 0x20,
-  TIME_DAY = 0x40
+  TIME_NSEC = BIT(0),
+  TIME_USEC = BIT(1),
+  TIME_MSEC = BIT(2),
+  TIME_SEC = BIT(3),
+  TIME_MIN = BIT(4),
+  TIME_HOUR = BIT(5),
+  TIME_DAY = BIT(6) 
 };
 
 struct time {

@@ -6,9 +6,16 @@
 struct app;
 struct app_view;
 
+enum app_imdraw_flag {
+  APP_IMDRAW_FLAG_UPPERMOST_LAYER = BIT(0),
+  APP_IMDRAW_FLAG_FIXED_SCREEN_SIZE = BIT(1),
+  APP_IMDRAW_FLAG_NONE = 0
+};
+
 extern enum app_error
 app_imdraw_parallelepiped
   (struct app* app,
+   int flag,
    const float pos[3],
    const float size[3],
    const float rotation[3],
@@ -18,6 +25,7 @@ app_imdraw_parallelepiped
 extern enum app_error
 app_imdraw_ellipse
   (struct app* app,
+   int flag,
    const float pos[3],
    const float size[2],
    const float rotation[3],

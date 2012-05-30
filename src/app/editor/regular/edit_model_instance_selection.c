@@ -496,6 +496,7 @@ edit_draw_model_instance_selection
     size[2] = max_bound[2] - min_bound[2];
     APP(imdraw_parallelepiped
       (selection->ctxt->app,
+       APP_IMDRAW_FLAG_NONE,
        pos,
        size,
        (float[]){0.f, 0.f, 0.f}, /* Rotation */ 
@@ -512,6 +513,7 @@ edit_draw_model_instance_selection
   #define DRAW_CIRCLE(pitch, yaw, roll) \
     APP(imdraw_ellipse \
       (selection->ctxt->app, \
+       APP_IMDRAW_FLAG_UPPERMOST_LAYER | APP_IMDRAW_FLAG_FIXED_SCREEN_SIZE, \
        pivot, \
        (float[]){1.f, 1.f},/* Size */ \
        (float[]){(pitch), (yaw), (roll)}, /* Rotation */ \

@@ -4,6 +4,7 @@
 #include "app/core/app_imdraw.h"
 #include "renderer/rdr_world.h"
 #include "renderer/rdr_frame.h"
+#include "renderer/rdr_imdraw.h"
 #include "sys/sys.h"
 #include "window_manager/wm.h"
 #include "window_manager/wm_window.h"
@@ -15,6 +16,19 @@
  * Helper functions.
  *
  ******************************************************************************/
+static int
+app_to_rdr_imdraw_flag(int app_flag)
+{
+  int flag = RDR_IMDRAW_FLAG_NONE;
+
+  #define SETUP_FLAG(f) \
+    flag |= (-((app_flag & CONCAT(APP_, f)) != 0)) & CONCAT(RDR_, f)
+  SETUP_FLAG(IMDRAW_FLAG_UPPERMOST_LAYER);
+  SETUP_FLAG(IMDRAW_FLAG_FIXED_SCREEN_SIZE);
+  #undef SETUP_FLAG
+  return flag;
+}
+
 static FINLINE void
 setup_render_view(struct app* app, struct rdr_view* render_view)
 {
@@ -44,6 +58,7 @@ setup_render_view(struct app* app, struct rdr_view* render_view)
 EXPORT_SYM enum app_error
 app_imdraw_parallelepiped
   (struct app* app,
+   int flag,
    const float pos[3],
    const float size[3],
    const float rotation[3],
@@ -63,6 +78,7 @@ app_imdraw_parallelepiped
   rdr_err = rdr_frame_imdraw_parallelepiped
     (app->rdr.frame,
      &render_view,
+     app_to_rdr_imdraw_flag(flag),
      pos,
      size,
      rotation,
@@ -81,6 +97,7 @@ error:
 EXPORT_SYM enum app_error
 app_imdraw_ellipse
   (struct app* app,
+   int flag,
    const float pos[3],
    const float size[2],
    const float rotation[3],
@@ -99,6 +116,7 @@ app_imdraw_ellipse
   rdr_err = rdr_frame_imdraw_ellipse
     (app->rdr.frame,
      &render_view,
+     app_to_rdr_imdraw_flag(flag),
      pos,
      size,
      rotation,

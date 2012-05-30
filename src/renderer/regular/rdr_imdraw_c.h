@@ -1,5 +1,5 @@
-#ifndef RDR_IMDRAW_H
-#define RDR_IMDRAW_H
+#ifndef RDR_IMDRAW_C_H
+#define RDR_IMDRAW_C_H
 
 #include "renderer/rdr_error.h"
 #include "sys/list.h"
@@ -14,15 +14,17 @@ enum rdr_imdraw_type {
 struct rdr_imdraw_command {
   struct list_node node;
   enum rdr_imdraw_type type;
+  unsigned int viewport[4]; /* { x, y, width, height } */
+  int flag;
   union {
     struct {
-      float transform[16];
-      float color[4];
+      float transform[16]; /* column major */
+      float color[4]; /* RGBA */
     } circle;
     struct {
-      float transform[16];
-      float solid_color[4];
-      float wire_color[4];
+      float transform[16]; /* column major */
+      float solid_color[4]; /* RGBA */
+      float wire_color[4]; /* RGBA */
     } parallelepiped;
   } data;
 };
@@ -76,5 +78,5 @@ extern enum rdr_error
 rdr_flush_imdraw_command_buffer
   (struct rdr_imdraw_command_buffer* cmdbuf);
 
-#endif /* RDR_IMDRAW_H */
+#endif /* RDR_IMDRAW_C_H */
 

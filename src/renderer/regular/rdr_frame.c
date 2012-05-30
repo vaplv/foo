@@ -1,5 +1,5 @@
 #include "maths/simd/aosf44.h"
-#include "renderer/regular/rdr_imdraw.h"
+#include "renderer/regular/rdr_imdraw_c.h"
 #include "renderer/regular/rdr_system_c.h"
 #include "renderer/regular/rdr_term_c.h"
 #include "renderer/regular/rdr_world_c.h"
@@ -35,7 +35,15 @@ struct rdr_frame {
   struct world_node world_node_list[MAX_WORLD_NODE];
   struct ref ref;
   struct rdr_system* sys;
-  struct rdr_imdraw_command_buffer* imdraw_cmdbuf;
+  struct imdraw {
+    struct rdr_imdraw_command_buffer* cmdbuf;
+    struct transform_cache {
+      struct rdr_view view;
+      struct aosf44 proj_matrix;
+      struct aosf44 view_matrix;
+      struct aosf44 viewproj_matrix;
+    } transform_cache;
+  } imdraw;
   size_t term_node_id;
   size_t world_node_id;
   struct list_node draw_term_list;
@@ -56,7 +64,8 @@ compute_transform
    const float rotation[3])
 {
   struct aosf33 f33;
-    
+  assert(transform && pos && size && rotation);
+
   aosf33_rotation(&f33, rotation[0], rotation[1], rotation[2]);
   f33.c0 = vf4_mul(f33.c0, vf4_set1(size[0]));
   f33.c1 = vf4_mul(f33.c1, vf4_set1(size[1]));
@@ -65,39 +74,91 @@ compute_transform
     (transform, f33.c0, f33.c1, f33.c2, vf4_set(pos[0], pos[1], pos[2], 1.f));
 }
 
+static void
+setup_transform_cache
+  (struct transform_cache* cache,
+   const struct rdr_view* view)
+{
+  bool update_view = false;
+  bool update_proj = false;
+  assert(cache && view);
+
+  update_view = 0 != memcmp
+    (view->transform, cache->view.transform, sizeof(cache->view.transform));
+  update_proj =
+    (view->proj_ratio != cache->view.proj_ratio)
+  | (view->fov_x != cache->view.fov_x)
+  | (view->znear != cache->view.znear)
+  | (view->zfar != cache->view.zfar);
+
+  if(update_view | update_proj) {
+    if(update_view)
+      aosf44_load(&cache->view_matrix, view->transform);
+    if(update_proj)
+      RDR(compute_projection_matrix(view, &cache->proj_matrix));
+    aosf44_mulf44
+      (&cache->viewproj_matrix, &cache->proj_matrix, &cache->view_matrix);
+  }
+}
+
+static FINLINE void
+compute_imdraw_transform
+  (struct rdr_frame* frame,
+   const struct rdr_view* view,
+   const struct aosf44* model_matrix,
+   float transform_matrix[16])
+{
+  struct aosf44 transform;
+  assert
+    (  frame 
+    && model_matrix
+    && transform_matrix 
+    && IS_ALIGNED(transform_matrix, 16));
+
+  setup_transform_cache(&frame->imdraw.transform_cache, view);
+  aosf44_mulf44
+    (&transform, 
+     &frame->imdraw.transform_cache.viewproj_matrix, 
+     model_matrix);
+  aosf44_store(transform_matrix, &transform);
+}
+
+static FINLINE void
+setup_imdraw_command_viewport
+  (struct rdr_imdraw_command* cmd,
+   const struct rdr_view* view)
+{
+  cmd->viewport[0] = view->x;
+  cmd->viewport[1] = view->y;
+  cmd->viewport[2] = view->width;
+  cmd->viewport[3] = view->height;
+}
+
 static enum rdr_error
 imdraw_parallelepiped
   (struct rdr_frame* frame,
    const struct rdr_view* rview,
+   int flag,
    const struct aosf44* trans,
    const float solid_color[4],
    const float wire_color[4])
 {
   ALIGN(16) float tmp[16];
-  struct aosf44 transform;
-  struct aosf44 viewproj;
-  struct aosf44 proj;
-  struct aosf44 view;
   struct rdr_imdraw_command* cmd = NULL;
   enum rdr_error rdr_err = RDR_NO_ERROR;
 
   assert(frame && rview && trans);
 
-  RDR(get_imdraw_command(frame->imdraw_cmdbuf, &cmd));
+  RDR(get_imdraw_command(frame->imdraw.cmdbuf, &cmd));
   if(UNLIKELY(!cmd)) {
     rdr_err = RDR_MEMORY_ERROR;
     goto error;
   }
+  compute_imdraw_transform(frame, rview, trans, tmp);
 
-  /* Compute the transform matrix. */
-  aosf44_load(&view, rview->transform);
-  RDR(compute_projection_matrix(rview, &proj));
-  aosf44_mulf44(&viewproj, &proj, &view);
-  aosf44_mulf44(&transform, &viewproj, trans);
-  aosf44_store(tmp, &transform);
-
-  /* Setup the draw command. */
   cmd->type = RDR_IMDRAW_PARALLELEPIPED;
+  cmd->flag = flag;
+  setup_imdraw_command_viewport(cmd, rview);
   memcpy(cmd->data.parallelepiped.transform, tmp, sizeof(tmp));
   if(solid_color) {
     memcpy(cmd->data.parallelepiped.solid_color, solid_color, 4*sizeof(float));
@@ -109,7 +170,7 @@ imdraw_parallelepiped
   } else {
     cmd->data.parallelepiped.wire_color[3] = 0.f;
   }
-  RDR(emit_imdraw_command(frame->imdraw_cmdbuf, cmd));
+  RDR(emit_imdraw_command(frame->imdraw.cmdbuf, cmd));
 exit:
   return rdr_err;
 error:
@@ -122,37 +183,31 @@ static enum rdr_error
 imdraw_circle
   (struct rdr_frame* frame,
    const struct rdr_view* rview,
+   int flag,
    const struct aosf44* trans,
    const float wire_color[4])
 {
   ALIGN(16) float tmp[16];
-  struct aosf44 transform;
-  struct aosf44 viewproj;
-  struct aosf44 proj;
-  struct aosf44 view;
   struct rdr_imdraw_command* cmd = NULL;
   enum rdr_error rdr_err = RDR_NO_ERROR;
 
   assert(frame && rview && trans && wire_color);
 
-  RDR(get_imdraw_command(frame->imdraw_cmdbuf, &cmd));
+  RDR(get_imdraw_command(frame->imdraw.cmdbuf, &cmd));
   if(UNLIKELY(!cmd)) {
     rdr_err = RDR_MEMORY_ERROR;
     goto error;
   }
 
-  /* Compute the transform matrix. */
-  aosf44_load(&view, rview->transform);
-  RDR(compute_projection_matrix(rview, &proj));
-  aosf44_mulf44(&viewproj, &proj, &view);
-  aosf44_mulf44(&transform, &viewproj, trans);
-  aosf44_store(tmp, &transform);
-  /* Setup the draw command. */
+  compute_imdraw_transform(frame, rview, trans, tmp);
+
   cmd->type = RDR_IMDRAW_CIRCLE;
+  cmd->flag = flag;
+  setup_imdraw_command_viewport(cmd, rview);
   memcpy(cmd->data.circle.transform, tmp, sizeof(tmp));
   memcpy(cmd->data.circle.color, wire_color, 4 * sizeof(float));
 
-  RDR(emit_imdraw_command(frame->imdraw_cmdbuf, cmd));
+  RDR(emit_imdraw_command(frame->imdraw.cmdbuf, cmd));
 exit:
   return rdr_err;
 error:
@@ -178,8 +233,8 @@ release_frame(struct ref* ref)
     struct world_node* world_node = CONTAINER_OF(node, struct world_node, node);
     RDR(world_ref_put(world_node->world));
   }
-  if(frame->imdraw_cmdbuf)
-    RDR(imdraw_command_buffer_ref_put(frame->imdraw_cmdbuf));
+  if(frame->imdraw.cmdbuf)
+    RDR(imdraw_command_buffer_ref_put(frame->imdraw.cmdbuf));
   sys = frame->sys;
   MEM_FREE(sys->allocator, frame);
   RDR(system_ref_put(sys));
@@ -216,7 +271,7 @@ rdr_create_frame(struct rdr_system* sys, struct rdr_frame** out_frame)
   for(i=0; i < MAX_WORLD_NODE; list_init(&frame->world_node_list[i].node), ++i);
 
   rdr_err = rdr_create_imdraw_command_buffer
-    (sys, MAX_IMDRAW_COMMANDS, &frame->imdraw_cmdbuf);
+    (sys, MAX_IMDRAW_COMMANDS, &frame->imdraw.cmdbuf);
   if(rdr_err != RDR_NO_ERROR)
     goto error;
 
@@ -306,6 +361,7 @@ EXPORT_SYM enum rdr_error
 rdr_frame_imdraw_parallelepiped
   (struct rdr_frame* frame,
    const struct rdr_view* rview,
+   int flag,
    const float pos[3],
    const float size[3],
    const float rotation[3],
@@ -321,7 +377,7 @@ rdr_frame_imdraw_parallelepiped
   }
   compute_transform(&transform, pos, size, rotation);
   rdr_err = imdraw_parallelepiped
-    (frame, rview, &transform, solid_color, wire_color);
+    (frame, rview, flag, &transform, solid_color, wire_color);
   if(rdr_err != RDR_NO_ERROR)
     goto error;
 
@@ -335,6 +391,7 @@ EXPORT_SYM enum rdr_error
 rdr_frame_imdraw_transformed_parallelepiped
   (struct rdr_frame* frame,
    const struct rdr_view* rview,
+   int flag,
    const float mat[16],
    const float solid_color[4],
    const float wire_color[4])
@@ -358,7 +415,7 @@ rdr_frame_imdraw_transformed_parallelepiped
     transform.c3 = vf4_set(mat[12], mat[13], mat[14], mat[15]);
   }
   rdr_err = imdraw_parallelepiped
-    (frame, rview, &transform, solid_color, wire_color);
+    (frame, rview, flag, &transform, solid_color, wire_color);
   if(rdr_err != RDR_NO_ERROR)
     goto error;
 
@@ -372,6 +429,7 @@ EXPORT_SYM enum rdr_error
 rdr_frame_imdraw_ellipse
   (struct rdr_frame* frame,
    const struct rdr_view* rview,
+   int flag,
    const float pos[3],
    const float size[2],
    const float rotation[3],
@@ -382,8 +440,9 @@ rdr_frame_imdraw_ellipse
 
   if(UNLIKELY(!frame || !rview || !pos || !size || !rotation || !color))
     return RDR_INVALID_ARGUMENT;
-  compute_transform(&transform, pos, (float[]){size[0],size[1],1.f}, rotation);
-  rdr_err = imdraw_circle(frame, rview, &transform, color);
+  compute_transform
+    (&transform, pos, (float[]){size[0], size[1], 1.f}, rotation);
+  rdr_err = imdraw_circle(frame, rview, flag, &transform, color);
   return rdr_err;
 }
 
@@ -429,7 +488,7 @@ rdr_flush_frame(struct rdr_frame* frame)
   }
   frame->world_node_id = 0;
   /* Flush im geometry rendering. */
-  RDR(flush_imdraw_command_buffer(frame->imdraw_cmdbuf));
+  RDR(flush_imdraw_command_buffer(frame->imdraw.cmdbuf));
   /* Flush terminal rendering. */
   LIST_FOR_EACH_SAFE(node, tmp, &frame->draw_term_list) {
     struct term_node* term_node = CONTAINER_OF(node, struct term_node, node);

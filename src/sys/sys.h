@@ -53,7 +53,10 @@
     fprintf(stderr, msg); \
     assert(0); \
     exit(-1); \
-  } while(0) \
+  } while(0)
+
+#define BIT(num) \
+  (1 << (num))
 
 #define CONTAINER_OF(ptr, type, member) \
     (type*)((uintptr_t)ptr - offsetof(type, member))

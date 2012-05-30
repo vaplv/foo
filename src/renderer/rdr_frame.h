@@ -42,6 +42,7 @@ extern enum rdr_error
 rdr_frame_imdraw_parallelepiped
   (struct rdr_frame* frame,
    const struct rdr_view* view,
+   int flag,
    const float pos[3],
    const float size[3],
    const float rotation[3],
@@ -52,6 +53,7 @@ extern enum rdr_error
 rdr_frame_imdraw_transformed_parallelepiped
   (struct rdr_frame* frame,
    const struct rdr_view* view,
+   int flag,
    const float transform[16],
    const float solid_color[4], /* May be NULL <=> No solid parallelepiped. */
    const float wire_color[4]); /* May be NULL <=> No wire parallelepiped. */
@@ -60,6 +62,7 @@ extern enum rdr_error
 rdr_frame_imdraw_ellipse
   (struct rdr_frame* frame,
    const struct rdr_view* view,
+   int flag,
    const float pos[3],
    const float size[2],
    const float rotation[3],

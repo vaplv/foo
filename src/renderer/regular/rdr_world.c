@@ -227,18 +227,26 @@ rdr_draw_world(struct rdr_world* world, const struct rdr_view* view)
     .back_face_op.write_mask = 0,
     .depth_func = RB_COMPARISON_LESS_EQUAL
   };
+  struct rb_viewport_desc viewport_desc;
   struct aosf44 view_matrix;
   struct aosf44 proj_matrix;
   struct rdr_model_instance** instance_list = NULL;
   enum rdr_error rdr_err = RDR_NO_ERROR;
   enum sl_error sl_err = SL_NO_ERROR;
   size_t nb_instances = 0;
+  memset(&viewport_desc, 0, sizeof(struct rb_viewport_desc));
 
   if(!world || !view) {
     rdr_err = RDR_INVALID_ARGUMENT;
     goto error;
   }
-
+  viewport_desc.x = view->x;
+  viewport_desc.y = view->y;
+  viewport_desc.width = view->width;
+  viewport_desc.height = view->height;
+  viewport_desc.min_depth = 0.f;
+  viewport_desc.max_depth = 1.f;
+  RBI(&world->sys->rb, viewport(world->sys->ctxt, &viewport_desc));
   RBI(&world->sys->rb, depth_stencil(world->sys->ctxt, &depth_stencil_desc));
 
   sl_err = sl_flat_set_buffer
