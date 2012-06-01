@@ -515,7 +515,7 @@ edit_draw_model_instance_selection
       (selection->ctxt->app, \
        APP_IMDRAW_FLAG_UPPERMOST_LAYER | APP_IMDRAW_FLAG_FIXED_SCREEN_SIZE, \
        pivot, \
-       (float[]){1.f, 1.f},/* Size */ \
+       (float[]){0.1f, 0.1f},/* Size */ \
        (float[]){(pitch), (yaw), (roll)}, /* Rotation */ \
        (float[]){1.f, 1.f, 0.f})) /* Color */
   DRAW_CIRCLE(0.f, 0.f, 0.f);

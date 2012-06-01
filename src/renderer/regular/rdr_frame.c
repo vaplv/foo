@@ -4,6 +4,7 @@
 #include "renderer/regular/rdr_term_c.h"
 #include "renderer/regular/rdr_world_c.h"
 #include "renderer/rdr.h"
+#include "renderer/rdr_imdraw.h"
 #include "renderer/rdr_frame.h"
 #include "renderer/rdr_system.h"
 #include "renderer/rdr_term.h"
@@ -101,25 +102,67 @@ setup_transform_cache
   }
 }
 
-static FINLINE void
+static void
 compute_imdraw_transform
   (struct rdr_frame* frame,
+   int flag,
    const struct rdr_view* view,
    const struct aosf44* model_matrix,
    float transform_matrix[16])
 {
   struct aosf44 transform;
   assert
-    (  frame 
+    (  frame
     && model_matrix
-    && transform_matrix 
+    && transform_matrix
     && IS_ALIGNED(transform_matrix, 16));
 
   setup_transform_cache(&frame->imdraw.transform_cache, view);
-  aosf44_mulf44
-    (&transform, 
-     &frame->imdraw.transform_cache.viewproj_matrix, 
-     model_matrix);
+
+  if(0 == (flag & RDR_IMDRAW_FLAG_FIXED_SCREEN_SIZE)) {
+    aosf44_mulf44
+      (&transform,
+       &frame->imdraw.transform_cache.viewproj_matrix,
+       model_matrix);
+  } else {
+    /* We ensure a fix size of the object by scaling it with respect to its
+     * distance from the eye. Following the thales' theorem the scale factor
+     * `s' between the reference size `x' and the expected size `X' is equal
+     * to: s = X / x = D / d
+     * with `D' the real depth of the model pivot and `d' the reference depth.
+     * Taking one as the reference depth leads to a scale factor equal to the
+     * depth of the model pivot. it is thus sufficient to locally scale the
+     * model by the depth of its pivot in view space to ensure a fix screen
+     * size of the projected model. Note that Since the scale factor is the
+     * same for each coordinates, we just pre-multiply the model matrix by the
+     * scale factor rather than pre-multiplying it by a scale matrix. */
+    const vf4_t view_row2 = vf4_set
+      (view->transform[2],
+       view->transform[6],
+       view->transform[10],
+       view->transform[14]);
+    const vf4_t model_pos = vf4_xyzd(model_matrix->c3, vf4_set1(1.f));
+    const vf4_t model_z_vs = vf4_dot(view_row2, model_pos);
+    struct aosf33 scaled_model_3x3;
+
+    aosf33_mul
+      (&scaled_model_3x3,
+       (struct aosf33[]){{
+          model_matrix->c0,
+          model_matrix->c1,
+          model_matrix->c2
+       }},
+       model_z_vs);
+    aosf44_mulf44
+      (&transform,
+       &frame->imdraw.transform_cache.viewproj_matrix,
+       (struct aosf44[]){{
+          scaled_model_3x3.c0,
+          scaled_model_3x3.c1,
+          scaled_model_3x3.c2,
+          model_matrix->c3
+       }});
+  }
   aosf44_store(transform_matrix, &transform);
 }
 
@@ -154,7 +197,7 @@ imdraw_parallelepiped
     rdr_err = RDR_MEMORY_ERROR;
     goto error;
   }
-  compute_imdraw_transform(frame, rview, trans, tmp);
+  compute_imdraw_transform(frame, flag, rview, trans, tmp);
 
   cmd->type = RDR_IMDRAW_PARALLELEPIPED;
   cmd->flag = flag;
@@ -199,7 +242,7 @@ imdraw_circle
     goto error;
   }
 
-  compute_imdraw_transform(frame, rview, trans, tmp);
+  compute_imdraw_transform(frame, flag, rview, trans, tmp);
 
   cmd->type = RDR_IMDRAW_CIRCLE;
   cmd->flag = flag;
