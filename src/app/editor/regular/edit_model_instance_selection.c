@@ -500,7 +500,7 @@ edit_draw_model_instance_selection
        APP_IMDRAW_FLAG_NONE,
        pos,
        size,
-       (float[]){0.f, 0.f, 0.f}, /* Rotation */ 
+       (float[]){0.f, 0.f, 0.f}, /* Rotation */
        (float[]){0.5f, 0.5f, 0.5f, 0.15f}, /* Solid color */
        (float[]){0.75f, 0.75f, 0.75f, 1.f})); /* Wire color */
     SL(hash_table_it_next(&it, &is_end_reached));
