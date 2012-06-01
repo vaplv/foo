@@ -1,4 +1,5 @@
 #include "app/core/app.h"
+#include "app/core/app_cvar.h"
 #include "app/core/app_imdraw.h"
 #include "app/core/app_model_instance.h"
 #include "app/editor/regular/edit_context_c.h"
@@ -515,7 +516,10 @@ edit_draw_model_instance_selection
       (selection->ctxt->app, \
        APP_IMDRAW_FLAG_UPPERMOST_LAYER | APP_IMDRAW_FLAG_FIXED_SCREEN_SIZE, \
        pivot, \
-       (float[]){0.1f, 0.1f},/* Size */ \
+       (float[]){ /* size */ \
+          selection->ctxt->cvars.pivot_size->value.real, \
+          selection->ctxt->cvars.pivot_size->value.real \
+       }, \
        (float[]){(pitch), (yaw), (roll)}, /* Rotation */ \
        (float[]){1.f, 1.f, 0.f})) /* Color */
   DRAW_CIRCLE(0.f, 0.f, 0.f);

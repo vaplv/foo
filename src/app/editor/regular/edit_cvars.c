@@ -4,6 +4,7 @@
 #include "app/editor/regular/edit_cvars.h"
 #include "app/editor/regular/edit_error_c.h"
 #include "app/editor/edit_context.h"
+#include <float.h>
 #include <string.h>
 
 /*******************************************************************************
@@ -36,10 +37,13 @@ edit_setup_cvars(struct edit_context* ctxt)
 
   REGISTER_CVAR
     ("edit_project_path", APP_CVAR_STRING_DESC(NULL, NULL),
-     &(ctxt->cvars.project_path));
+     &ctxt->cvars.project_path);
   REGISTER_CVAR
     ("edit_show_selection", APP_CVAR_BOOL_DESC(true),
-     &(ctxt->cvars.show_selection));
+     &ctxt->cvars.show_selection);
+  REGISTER_CVAR
+    ("edit_pivot_size", APP_CVAR_FLOAT_DESC(0.1f, FLT_MIN, FLT_MAX),
+     &ctxt->cvars.pivot_size);
 
   #undef REGISTER_CVAR
 
@@ -72,6 +76,7 @@ edit_release_cvars(struct edit_context* ctxt)
 
   UNREGISTER_CVAR("edit_project_path");
   UNREGISTER_CVAR("edit_show_selection");
+  UNREGISTER_CVAR("edit_pivot_size");
 
   #undef UNREGISTER_CVAR
 

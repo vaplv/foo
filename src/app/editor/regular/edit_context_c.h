@@ -20,6 +20,7 @@ struct edit_context {
   struct cvars {
     const struct app_cvar* project_path;
     const struct app_cvar* show_selection;
+    const struct app_cvar* pivot_size;
   } cvars;
 };
 
