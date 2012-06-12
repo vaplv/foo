@@ -10,6 +10,7 @@ enum app_cvar_type {
   APP_CVAR_INT,
   APP_CVAR_STRING,
   APP_CVAR_FLOAT,
+  APP_CVAR_FLOAT3,
   APP_NB_CVAR_TYPES
 };
 
@@ -18,6 +19,7 @@ struct app_cvar {
   union app_cvar_value {
     bool boolean;
     float real;
+    float real3[3];
     int integer;
     const char* string;
   } value;
@@ -67,10 +69,20 @@ struct app_cvar_desc {
     .domain = { .string = { .value_list = val_list }} \
   }}
 
-#define APP_CVAR_BOOL_VALUE(val) (union app_cvar_value){ .boolean = val}
-#define APP_CVAR_INT_VALUE(val) (union app_cvar_value){ .integer = val}
-#define APP_CVAR_FLOAT_VALUE(val) (union app_cvar_value){ .real = val}
-#define APP_CVAR_STRING_VALUE(val) (union app_cvar_value){ .string = val}
+#define APP_CVAR_BOOL_VALUE(val) \
+  (union app_cvar_value){ .boolean = (val) }
+
+#define APP_CVAR_INT_VALUE(val) \
+  (union app_cvar_value){ .integer = (val) }
+
+#define APP_CVAR_FLOAT_VALUE(val) \
+  (union app_cvar_value){ .real = (val) }
+
+#define APP_CVAR_FLOAT3_VALUE(x, y, z) \
+  (union app_cvar_value) { .real3 = { (x), (y), (z)} }
+
+#define APP_CVAR_STRING_VALUE(val) \
+  (union app_cvar_value){ .string = (val) }
 
 /*******************************************************************************
  *
