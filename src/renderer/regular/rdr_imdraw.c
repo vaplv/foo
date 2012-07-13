@@ -45,7 +45,7 @@ static const char* imdraw2d_vs_source =
   " gl_Position = transform * vec4(pos, vec2(0.f, 1.f));\n"
   "}\n";
 
-static const char* imdraw2d_color_vs_source = 
+static const char* imdraw2d_color_vs_source =
   "#version 330\n"
   "uniform mat4x4 transform;\n"
   "layout(location = 0) in vec2 pos;\n"
@@ -53,7 +53,7 @@ static const char* imdraw2d_color_vs_source =
   "flat out vec4 im_color;\n"
   "void main()\n"
   "{\n"
-  " im_color = col;\n"
+  " im_color = vec4(col, 1.f);\n"
   " gl_Position = transform * vec4(pos, vec2(0.f, 1.f));\n"
   "}\n";
 
@@ -149,9 +149,9 @@ invoke_imdraw_circle
   RBU(draw_geometry(&sys->rbu.circle));
 }
 
-static void 
+static void
 setup_im_grid
-  (struct rdr_system* sys, 
+  (struct rdr_system* sys,
    const float* vertices, /* Interleved list of 2D positions and RGB colors */
    size_t sizeof_vertices,
    const unsigned int nsubdiv[2])
@@ -161,21 +161,21 @@ setup_im_grid
   if(sizeof_vertices != 0) {
     const size_t sizeof_vertex = 5 /* 2D pos + RGB color */ * sizeof(float);
     const struct rb_buffer_attrib buf_attr[2] = {
-       [0] = { 
-         .index = 0, 
-         .stride = sizeof_vertex, 
+       [0] = {
+         .index = 0,
+         .stride = sizeof_vertex,
          .offset = 0,
          .type = RB_FLOAT2
        },
-       [1] = { 
-         .index = 1, 
-         .stride = sizeof_vertex, 
+       [1] = {
+         .index = 1,
+         .stride = sizeof_vertex,
          .offset = 2 * sizeof(float),
          .type = RB_FLOAT3
        }
      };
     /* Setup vertex buffer */
-    if((nsubdiv[0] + nsubdiv[1]) 
+    if((nsubdiv[0] + nsubdiv[1])
     <= (sys->im.grid.nsubdiv[0] + sys->im.grid.nsubdiv[1])) {
       RBI(&sys->rb, buffer_data
         (sys->im.grid.vertex_buffer, 0, sizeof_vertices, vertices));
@@ -186,7 +186,7 @@ setup_im_grid
         .usage = RB_USAGE_IMMUTABLE
       };
       if(sys->im.grid.vertex_buffer != NULL) {
-        RBI(&sys->rb, buffer_ref_put(sys->im.grid.vertex_buffer)); 
+        RBI(&sys->rb, buffer_ref_put(sys->im.grid.vertex_buffer));
       }
       RBI(&sys->rb, create_buffer
         (sys->ctxt, &buf_desc, vertices, &sys->im.grid.vertex_buffer));
@@ -207,55 +207,73 @@ static void
 build_im_grid(struct rdr_system* sys, struct rdr_imdraw_command* cmd)
 {
   assert(cmd && sys);
- 
-  if(sys->im.grid.nsubdiv[0] != cmd->data.grid.nsubdiv[0] 
+
+  if(sys->im.grid.nsubdiv[0] != cmd->data.grid.nsubdiv[0]
   || sys->im.grid.nsubdiv[1] != cmd->data.grid.nsubdiv[1]) {
 
     if(cmd->data.grid.nsubdiv[0] && cmd->data.grid.nsubdiv[1]) {
-      const float step[2] = { 
-        1.f/(float)cmd->data.grid.nsubdiv[0], 
-        1.f/(float)cmd->data.grid.nsubdiv[1] 
+      const float step[2] = {
+        1.f/(float)cmd->data.grid.nsubdiv[0],
+        1.f/(float)cmd->data.grid.nsubdiv[1]
       };
       float* vertices = NULL;
       float* vertex = NULL;
       size_t line_id = 0;
-      const size_t nfloat_per_vertex = 5; /* 2D position + RGB color */
-      const size_t nb_vlines = cmd->data.grid.nsubdiv[0] + 1;
-      const size_t nb_hlines = cmd->data.grid.nsubdiv[1] + 1;
-      const size_t sizeof_vertices = 
-        (nb_vlines + nb_hlines) /* number of lines */
+      const unsigned int nfloat_per_vertex = 5; /* 2D position + RGB color */
+      const unsigned int nb_vlines = cmd->data.grid.nsubdiv[0] + 1;
+      const unsigned int nb_hlines = cmd->data.grid.nsubdiv[1] + 1;
+      const bool add_zaxis = (nb_vlines % 2) != 0;
+      const bool add_xaxis = (nb_hlines % 2) != 0;
+      const unsigned int total_nb_lines =
+        nb_vlines
+      + nb_hlines
+      + (add_zaxis == true)
+      + (add_xaxis == true);
+      const size_t sizeof_vertices =
+        total_nb_lines
       * 2 /* vertices per line */
-      * nfloat_per_vertex 
+      * nfloat_per_vertex
       * sizeof(float);
 
       vertices = MEM_ALLOC(sys->allocator, sizeof_vertices);
       assert(vertices != NULL);
 
+      #define SET_COLOR(v, r, g, b) (v)[2]=(r), (v)[3]=(g), (v)[4]=(b)
+
       /* Fill the vertex list */
       vertex = vertices;
       for(line_id = 0; line_id < nb_vlines; ++line_id) {
         const float x = -0.5f + line_id * step[0];
-        vertex[0] = x;
-        vertex[1] = 0.5f;
-        vertex[2] = vertex[3] = vertex[4] = 0.7f; /* color */
-        vertex += nfloat_per_vertex;
+        float* v0 = vertex;
+        float* v1 = vertex + nfloat_per_vertex;
 
-        vertex[0] = x;
-        vertex[1] = -0.5f;
-        vertex[2] = vertex[3] = vertex[4] = 0.7f; /* color */
-        vertex += nfloat_per_vertex;
+        vertex = v1 + nfloat_per_vertex;
+        v0[0] = x; v0[1] = 0.5f;
+        v1[0] = x; v1[1] = -0.5f;
+        if(add_zaxis && line_id == (nb_vlines / 2) + 1) {
+          SET_COLOR(v0, 0.f, 0.f, 1.f);
+          SET_COLOR(v1, 0.f, 0.f, 1.f);
+        } else {
+          SET_COLOR(v0, 0.35f, 0.35f, 0.35f);
+          SET_COLOR(v1, 0.35f, 0.35f, 0.35f);
+        }
       }
       for(line_id = 0; line_id < nb_hlines; ++line_id) {
         const float y = -0.5f + line_id * step[1];
-        vertex[0] = 0.5f;
-        vertex[1] = y;
-        vertex[2] = vertex[3] = vertex[4] = 0.7f; /* color */
-        vertex += nfloat_per_vertex;
+        float* v0 = vertex;
+        float* v1 = vertex + nfloat_per_vertex;
 
-        vertex[0] = -0.5f;
-        vertex[1] = y;
-        vertex[2] = vertex[3] = vertex[4] = 0.7f; /* color */
-        vertex += nfloat_per_vertex;
+        vertex = v1 + nfloat_per_vertex;
+        v0[0] = 0.5f; v0[1] = y;
+        v1[0] = -0.5f; v1[1] = y;
+        if(add_xaxis && line_id == (nb_vlines / 2) + 1) {
+          SET_COLOR(v0, 1.f, 0.f, 0.f);
+          SET_COLOR(v1, 1.f, 0.f, 0.f);
+        } else {
+          SET_COLOR(v0, 0.35f, 0.35f, 0.35f);
+          SET_COLOR(v1, 0.35f, 0.35f, 0.35f);
+        }
+
       }
 
       setup_im_grid(sys, vertices, sizeof_vertices, cmd->data.grid.nsubdiv);
@@ -266,23 +284,20 @@ build_im_grid(struct rdr_system* sys, struct rdr_imdraw_command* cmd)
 
 static void
 invoke_imdraw_grid
-  (struct rdr_system* sys, 
+  (struct rdr_system* sys,
    struct rdr_imdraw_command* cmd)
 {
   assert(sys && cmd && cmd->type == RDR_IMDRAW_GRID);
 
   if(cmd->data.grid.nsubdiv[0] != 0 || cmd->data.grid.nsubdiv[1] != 0) {
-    const unsigned nvertices = 
+    const unsigned nvertices =
       (cmd->data.grid.nsubdiv[0] + cmd->data.grid.nsubdiv[1] + 2) * 2;
-
     build_im_grid(sys, cmd);
 
-    RBI(&sys->rb, bind_program(sys->ctxt, sys->im.draw2d.shading_program));
-    RBI(&sys->rb, bind_program(sys->ctxt, sys->im.draw2d.shading_program));
+    RBI(&sys->rb, bind_program
+      (sys->ctxt, sys->im.draw2d_color.shading_program));
     RBI(&sys->rb, uniform_data
-      (sys->im.draw2d.transform, 1, cmd->data.grid.transform));
-    RBI(&sys->rb, uniform_data
-      (sys->im.draw2d.color, 1, cmd->data.grid.color));
+      (sys->im.draw2d_color.transform, 1, cmd->data.grid.transform));
     RBI(&sys->rb, bind_vertex_array(sys->ctxt, sys->im.grid.vertex_array));
     RBI(&sys->rb, draw(sys->ctxt, RB_LINES, nvertices));
   }
@@ -337,9 +352,10 @@ static void
 init_im_draw
   (struct rbi* rbi,
    struct rb_context* ctxt,
-   struct im_draw* im_draw, 
-   const char* vs_source, 
-   const char* fs_source) 
+   struct im_draw* im_draw,
+   const char* vs_source,
+   const char* fs_source,
+   bool has_color_uniform)
 {
   assert(rbi && im_draw && vs_source && fs_source);
 
@@ -359,8 +375,11 @@ init_im_draw
   RBI(rbi, link_program(im_draw->shading_program));
   RBI(rbi, get_named_uniform
     (ctxt, im_draw->shading_program, "transform", &im_draw->transform));
-  RBI(rbi, get_named_uniform
-    (ctxt, im_draw->shading_program, "color", &im_draw->color));
+
+  if(has_color_uniform) {
+    RBI(rbi, get_named_uniform
+      (ctxt, im_draw->shading_program, "color", &im_draw->color));
+  }
 }
 
 static void
@@ -406,17 +425,26 @@ rdr_init_im_rendering(struct rdr_system* sys)
     return RDR_INVALID_ARGUMENT;
 
   init_im_draw
-    (&sys->rb, 
-     sys->ctxt, 
-     &sys->im.draw2d, 
-     imdraw2d_vs_source, 
-     imdraw_fs_source);
+    (&sys->rb,
+     sys->ctxt,
+     &sys->im.draw2d,
+     imdraw2d_vs_source,
+     imdraw_fs_source,
+     true);
   init_im_draw
-    (&sys->rb, 
-     sys->ctxt, 
-     &sys->im.draw3d, 
-     imdraw3d_vs_source, 
-     imdraw_fs_source);
+    (&sys->rb,
+     sys->ctxt,
+     &sys->im.draw3d,
+     imdraw3d_vs_source,
+     imdraw_fs_source,
+     true);
+  init_im_draw
+    (&sys->rb,
+     sys->ctxt,
+     &sys->im.draw2d_color,
+     imdraw2d_color_vs_source,
+     imdraw_fs_source,
+     false);
 
   return RDR_NO_ERROR;
 }
@@ -428,7 +456,8 @@ rdr_shutdown_im_rendering(struct rdr_system* sys)
     return RDR_INVALID_ARGUMENT;
   release_im_draw(&sys->rb, &sys->im.draw2d);
   release_im_draw(&sys->rb, &sys->im.draw3d);
-  if(sys->im.grid.vertex_buffer) 
+  release_im_draw(&sys->rb, &sys->im.draw2d_color);
+  if(sys->im.grid.vertex_buffer)
     RBI(&sys->rb, buffer_ref_put(sys->im.grid.vertex_buffer));
   if(sys->im.grid.vertex_array)
     RBI(&sys->rb, vertex_array_ref_put(sys->im.grid.vertex_array));

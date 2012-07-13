@@ -1394,6 +1394,9 @@ rdr_clear_term(struct rdr_term* term, enum rdr_term_output output)
   if(!term)
     return RDR_INVALID_ARGUMENT;
 
+  if(0 == term->screen.lines_per_screen)
+    return RDR_NO_ERROR;
+
   if(RDR_TERM_CMDOUT == output) {
     size_t cmdlen = 0;
     SL(wstring_length(term->screen.cmdbuf->string, &cmdlen));
