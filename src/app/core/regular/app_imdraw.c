@@ -131,3 +131,39 @@ error:
   goto exit;
 }
 
+EXPORT_SYM enum app_error
+app_imdraw_grid
+  (struct app* app,
+   int flag,
+   const float pos[3],
+   const float size[2],
+   const float rotation[3],
+   const float color[4])
+{
+  struct rdr_view render_view;
+  enum app_error app_err = APP_NO_ERROR;
+  enum rdr_error rdr_err = RDR_NO_ERROR;
+  memset(&render_view, 0, sizeof(render_view));
+
+  if(UNLIKELY(!app || !pos || !size || !rotation)) {
+    app_err = APP_INVALID_ARGUMENT;
+    goto error;
+  }
+  setup_render_view(app, &render_view);
+  rdr_err = rdr_frame_imdraw_grid
+    (app->rdr.frame,
+     &render_view,
+     app_to_rdr_imdraw_flag(flag),
+     pos,
+     size,
+     rotation,
+     color);
+  if(rdr_err != RDR_NO_ERROR) {
+    app_err = rdr_to_app_error(rdr_err);
+    goto error;
+  }
+exit:
+  return app_err;
+error:
+  goto exit;
+}

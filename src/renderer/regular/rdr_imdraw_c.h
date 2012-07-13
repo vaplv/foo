@@ -5,8 +5,11 @@
 #include "sys/list.h"
 #include "sys/ref_count.h"
 
+#define RDR_IMGRID_NSUBDIV 32
+
 enum rdr_imdraw_type {
   RDR_IMDRAW_CIRCLE,
+  RDR_IMDRAW_GRID,
   RDR_IMDRAW_PARALLELEPIPED,
   RDR_NB_IMDRAW_TYPES
 };
@@ -21,6 +24,11 @@ struct rdr_imdraw_command {
       float transform[16]; /* column major */
       float color[4]; /* RGBA */
     } circle;
+    struct {
+      float transform[16]; /* column major */
+      unsigned int nsubdiv[2];
+      float color[4]; /* RGBA */
+    } grid;
     struct {
       float transform[16]; /* column major */
       float solid_color[4]; /* RGBA */

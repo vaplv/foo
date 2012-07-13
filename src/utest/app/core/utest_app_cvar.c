@@ -104,6 +104,21 @@ main(int argc, char** argv)
   CHECK(cvar->type, APP_CVAR_INT);
   CHECK(cvar->value.integer, 5);
 
+  CHECK(app_add_cvar
+    (app, "foof3__", 
+     APP_CVAR_FLOAT3_DESC(-1.f, 5.f, 7.f, 0.f, 1.f, -1.f, 5.f, -10.f, 10.f)),
+    OK);
+  CHECK(app_get_cvar(app, "foof3__", &cvar), OK);
+  CHECK(cvar->type, APP_CVAR_FLOAT3);
+  CHECK(cvar->value.real3[0], 0.f);
+  CHECK(cvar->value.real3[1], 5.f);
+  CHECK(cvar->value.real3[2], 7.f);
+  CHECK(app_set_cvar(app, "foof3__", APP_CVAR_FLOAT3_VALUE(0.1f,-2.f,5.f)), OK);
+  CHECK(cvar->type, APP_CVAR_FLOAT3);
+  CHECK(cvar->value.real3[0], 0.1f);
+  CHECK(cvar->value.real3[1], -1.f);
+  CHECK(cvar->value.real3[2], 5.f);
+ 
   CHECK(app_add_cvar(app, "foo__", APP_CVAR_STRING_DESC(NULL, NULL)), OK);
   CHECK(app_get_cvar(app, "foo__", &cvar), OK);
   CHECK(cvar->type, APP_CVAR_STRING);

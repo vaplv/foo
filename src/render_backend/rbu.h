@@ -64,6 +64,7 @@ rbu_init_circle
    float radius,
    struct rbu_geometry* circle);
 
+/* Create a parallelepiped. The vertex position is bound to location 0. */
 extern int
 rbu_init_parallelepiped
   (const struct rbi* rbi,
@@ -72,7 +73,7 @@ rbu_init_parallelepiped
    float size[3],
    bool wireframe,
    struct rbu_geometry* cube);
-   
+
 extern int
 rbu_geometry_ref_get
   (struct rbu_geometry* geom);

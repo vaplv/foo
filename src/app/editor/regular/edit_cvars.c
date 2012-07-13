@@ -36,14 +36,21 @@ edit_setup_cvars(struct edit_context* ctxt)
     } while(0)
 
   REGISTER_CVAR
-    ("edit_project_path", APP_CVAR_STRING_DESC(NULL, NULL),
-     &ctxt->cvars.project_path);
-  REGISTER_CVAR
-    ("edit_show_selection", APP_CVAR_BOOL_DESC(true),
-     &ctxt->cvars.show_selection);
+    ("edit_pivot_color", 
+     APP_CVAR_FLOAT3_DESC(1.f, 1.f, 0.f, 0.f, 1.f, 0.f, 1.f, 0.f, 1.f),
+     &ctxt->cvars.pivot_color);
   REGISTER_CVAR
     ("edit_pivot_size", APP_CVAR_FLOAT_DESC(0.1f, FLT_MIN, FLT_MAX),
      &ctxt->cvars.pivot_size);
+  REGISTER_CVAR
+    ("edit_project_path", APP_CVAR_STRING_DESC(NULL, NULL),
+     &ctxt->cvars.project_path);
+  REGISTER_CVAR
+    ("edit_show_grid", APP_CVAR_BOOL_DESC(true),
+     &ctxt->cvars.show_grid);
+  REGISTER_CVAR
+    ("edit_show_selection", APP_CVAR_BOOL_DESC(true),
+     &ctxt->cvars.show_selection);
 
   #undef REGISTER_CVAR
 
@@ -74,9 +81,11 @@ edit_release_cvars(struct edit_context* ctxt)
       } \
     } while(0)
 
-  UNREGISTER_CVAR("edit_project_path");
-  UNREGISTER_CVAR("edit_show_selection");
+  UNREGISTER_CVAR("edit_pivot_color");
   UNREGISTER_CVAR("edit_pivot_size");
+  UNREGISTER_CVAR("edit_project_path");
+  UNREGISTER_CVAR("edit_show_grid");
+  UNREGISTER_CVAR("edit_show_selection");
 
   #undef UNREGISTER_CVAR
 

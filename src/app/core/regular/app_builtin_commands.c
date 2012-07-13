@@ -37,6 +37,15 @@ print_cvar(struct app* app, const char* cvar_name, const struct app_cvar* cvar)
     case APP_CVAR_FLOAT:
       APP_PRINT_MSG(app->logger, "%s %f\n", cvar_name, cvar->value.real);
       break;
+    case APP_CVAR_FLOAT3:
+      APP_PRINT_MSG
+        (app->logger, 
+         "%s %f %f %f\n", 
+         cvar_name, 
+         cvar->value.real3[0],
+         cvar->value.real3[1],
+         cvar->value.real3[2]);
+      break;
     case APP_CVAR_STRING:
       APP_PRINT_MSG(app->logger, "%s %s\n", cvar_name, cvar->value.string);
       break;
@@ -343,7 +352,7 @@ app_setup_builtin_commands(struct app* app)
      (APP_CMDARG_APPEND_STRING(NULL, NULL, "<cvar>",NULL, 1, 1, NULL),
       APP_CMDARG_APPEND_STRING("v", "value", "<value>", NULL, 0, 3, NULL),
       APP_CMDARG_END),
-     "set a client variable"));
+     "set the value of a client variable"));
 
   #undef CALL
 

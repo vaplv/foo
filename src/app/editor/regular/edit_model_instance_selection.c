@@ -476,7 +476,7 @@ edit_draw_model_instance_selection
     edit_err = EDIT_INVALID_ARGUMENT;
     goto error;
   }
-  /* Draw the abb of theselected instances. */
+  /* Draw the aabb of theselected instances. */
   pivot[0] = pivot[1] = pivot[2] = 0.f;
   nb_selected_instances = 0;
   SL(hash_table_begin(selection->instance_htbl, &it, &is_end_reached));
@@ -521,7 +521,11 @@ edit_draw_model_instance_selection
           selection->ctxt->cvars.pivot_size->value.real \
        }, \
        (float[]){(pitch), (yaw), (roll)}, /* Rotation */ \
-       (float[]){1.f, 1.f, 0.f})) /* Color */
+       (float[]){ /* color */ \
+          selection->ctxt->cvars.pivot_color->value.real3[0], \
+          selection->ctxt->cvars.pivot_color->value.real3[1], \
+          selection->ctxt->cvars.pivot_color->value.real3[2] \
+       }))
   DRAW_CIRCLE(0.f, 0.f, 0.f);
   DRAW_CIRCLE(PI * 0.5f, 0.f, 0.f);
   DRAW_CIRCLE(0.f, PI * 0.5f, 0.f);

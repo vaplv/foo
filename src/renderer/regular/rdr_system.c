@@ -127,20 +127,23 @@ rdr_create_system
   CALL(sys->rb.get_config(sys->ctxt, &sys->cfg));
 
   /* Init utils geometries. */
-  CALL(rbu_init_quad(&sys->rb, sys->ctxt, 0.f, 0.f, 1.f, 1.f, &sys->rbu.quad));
-  CALL(rbu_init_parallelepiped
-    (&sys->rb, sys->ctxt,
-     (float[]){0.f, 0.f, 0.f},
-     (float[]){1.f, 1.f, 1.f},
-     false,
-     &sys->rbu.solid_parallelepiped));
   CALL(rbu_init_circle
     (&sys->rb, sys->ctxt,
      64,
      (float[]){0.f, 0.f},
      1.f,
      &sys->rbu.circle));
-
+  CALL(rbu_init_quad
+    (&sys->rb, 
+     sys->ctxt, 
+     0.f, 0.f, 1.f, 1.f, 
+     &sys->rbu.quad));
+  CALL(rbu_init_parallelepiped
+    (&sys->rb, sys->ctxt,
+     (float[]){0.f, 0.f, 0.f},
+     (float[]){1.f, 1.f, 1.f},
+     false,
+     &sys->rbu.solid_parallelepiped));
   CALL(rbu_init_parallelepiped
     (&sys->rb, sys->ctxt,
      (float[]){0.f, 0.f, 0.f},

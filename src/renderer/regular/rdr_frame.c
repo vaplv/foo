@@ -16,8 +16,8 @@
 #include <stddef.h>
 #include <string.h>
 
-#define MAX_TERM_NODE 4
-#define MAX_WORLD_NODE 4
+#define MAX_TERM_NODE 4 /* Maximum number of "draw term" call */
+#define MAX_WORLD_NODE 4 /* Maximum number of draw world" call */
 #define MAX_IMDRAW_COMMANDS 512
 
 struct term_node {
@@ -133,7 +133,7 @@ compute_imdraw_transform
      * Taking one as the reference depth leads to a scale factor equal to the
      * depth of the model pivot. it is thus sufficient to locally scale the
      * model by the depth of its pivot in view space to ensure a fix screen
-     * size of the projected model. Note that Since the scale factor is the
+     * size of the projected model. Note that since the scale factor is the
      * same for each coordinates, we just pre-multiply the model matrix by the
      * scale factor rather than pre-multiplying it by a scale matrix. */
     const vf4_t view_row2 = vf4_set
@@ -249,6 +249,41 @@ imdraw_circle
   setup_imdraw_command_viewport(cmd, rview);
   memcpy(cmd->data.circle.transform, tmp, sizeof(tmp));
   memcpy(cmd->data.circle.color, wire_color, 4 * sizeof(float));
+
+  RDR(emit_imdraw_command(frame->imdraw.cmdbuf, cmd));
+exit:
+  return rdr_err;
+error:
+  assert(cmd == NULL);
+  goto exit;
+}
+
+static enum rdr_error
+imdraw_grid
+  (struct rdr_frame* frame,
+   const struct rdr_view* rview,
+   int flag,
+   const struct aosf44* trans,
+   const float color[4])
+{
+  ALIGN(16) float tmp[16];
+  struct rdr_imdraw_command* cmd = NULL;
+  enum rdr_error rdr_err = RDR_NO_ERROR;
+
+  assert(frame && rview && trans && color);
+
+  RDR(get_imdraw_command(frame->imdraw.cmdbuf, &cmd));
+  if(UNLIKELY(!cmd)) {
+    rdr_err = RDR_MEMORY_ERROR;
+    goto error;
+  }
+  compute_imdraw_transform(frame, flag, rview, trans, tmp);
+  cmd->type = RDR_IMDRAW_GRID;
+  setup_imdraw_command_viewport(cmd, rview);
+  memcpy(cmd->data.grid.transform, tmp, sizeof(tmp));
+  memcpy(cmd->data.grid.color, color, 4 * sizeof(float));
+  cmd->data.grid.nsubdiv[0] = 10;
+  cmd->data.grid.nsubdiv[1] = 10;
 
   RDR(emit_imdraw_command(frame->imdraw.cmdbuf, cmd));
 exit:
@@ -486,6 +521,34 @@ rdr_frame_imdraw_ellipse
   compute_transform
     (&transform, pos, (float[]){size[0], size[1], 1.f}, rotation);
   rdr_err = imdraw_circle(frame, rview, flag, &transform, color);
+  return rdr_err;
+}
+
+EXPORT_SYM enum rdr_error
+rdr_frame_imdraw_grid
+  (struct rdr_frame* frame,
+   const struct rdr_view* rview,
+   int flag,
+   const float pos[3],
+   const float size[2],
+   const float rotation[3],
+   const float color[4])
+{
+  struct aosf44 transform;
+  enum rdr_error rdr_err = RDR_NO_ERROR;
+
+  if(UNLIKELY
+  (  !frame 
+  || !rview 
+  || !pos 
+  || !size 
+  || !rotation 
+  || !color))
+    return RDR_INVALID_ARGUMENT;
+
+  compute_transform
+    (&transform, pos, (float[]){size[0], size[1], 1.f}, rotation);
+  rdr_err = imdraw_grid(frame, rview, flag, &transform, color);
   return rdr_err;
 }
 

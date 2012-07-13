@@ -1,5 +1,6 @@
 #include "app/core/app.h"
 #include "app/core/app_cvar.h"
+#include "app/core/app_imdraw.h"
 #include "app/editor/regular/edit_context_c.h"
 #include "app/editor/regular/edit_cvars.h"
 #include "app/editor/regular/edit_load_save_commands.h"
@@ -8,6 +9,7 @@
 #include "app/editor/regular/edit_object_management_commands.h"
 #include "app/editor/edit_context.h"
 #include "app/editor/edit_model_instance_selection.h"
+#include "sys/math.h"
 #include "sys/mem_allocator.h"
 #include "sys/sys.h"
 #include <assert.h>
@@ -113,8 +115,19 @@ edit_run(struct edit_context* ctxt)
 {
   if(UNLIKELY(!ctxt))
     return EDIT_INVALID_ARGUMENT;
-  if(ctxt->cvars.show_selection->value.boolean)
+
+  if(true == ctxt->cvars.show_selection->value.boolean)
     EDIT(draw_model_instance_selection(ctxt->instance_selection));
+  if(true == ctxt->cvars.show_grid->value.boolean) {
+    APP(imdraw_grid
+      (ctxt->app, 
+       APP_IMDRAW_FLAG_NONE, 
+       (float[]){0.f, 0.f, 0.f},
+       (float[]){1280.f, 1280.f},
+       (float[]){PI * 0.5f, 0.f, 0.f},
+       (float[]){0.25f, 0.25f, 0.25f, 1.f}));
+  }
+
   return EDIT_NO_ERROR;
 }
 

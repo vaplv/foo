@@ -69,6 +69,16 @@ rdr_frame_imdraw_ellipse
    const float color[4]);
 
 extern enum rdr_error
+rdr_frame_imdraw_grid
+  (struct rdr_frame* frame,
+   const struct rdr_view* view,
+   int flag,
+   const float pos[3],
+   const float size[2],
+   const float rotation[3],
+   const float color[4]);
+
+extern enum rdr_error
 rdr_flush_frame
   (struct rdr_frame* frame);
 

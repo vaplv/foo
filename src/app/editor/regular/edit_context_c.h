@@ -18,9 +18,11 @@ struct edit_context {
   struct mem_allocator* allocator;
   struct edit_model_instance_selection* instance_selection;
   struct cvars {
-    const struct app_cvar* project_path;
-    const struct app_cvar* show_selection;
+    const struct app_cvar* pivot_color;
     const struct app_cvar* pivot_size;
+    const struct app_cvar* project_path;
+    const struct app_cvar* show_grid;
+    const struct app_cvar* show_selection;
   } cvars;
 };
 

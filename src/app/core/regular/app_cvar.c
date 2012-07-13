@@ -39,17 +39,27 @@ set_cvar_value
   enum app_error app_err = APP_NO_ERROR;
   assert(logger && name && cvar);
 
+  #define CLAMP(val, min_val, max_val) MAX(MIN((val), (max_val)), (min_val))
+
   switch(cvar->var.type) {
     case APP_CVAR_BOOL:
       cvar->var.value.boolean = val.boolean;
       break;
     case APP_CVAR_INT:
-      cvar->var.value.integer = /* Clamp the value to the cvar domain . */
-        MAX(MIN(val.integer,cvar->domain.integer.max),cvar->domain.integer.min);
+      cvar->var.value.integer =
+        CLAMP(val.integer, cvar->domain.integer.min, cvar->domain.integer.max);
       break;
     case APP_CVAR_FLOAT:
-      cvar->var.value.real = /* Clamp the value to the cvar domain . */
-        MAX(MIN(val.real, cvar->domain.real.max), cvar->domain.real.min);
+      cvar->var.value.real =
+        CLAMP(val.real, cvar->domain.real.min, cvar->domain.real.max);
+      break;
+    case APP_CVAR_FLOAT3:
+      cvar->var.value.real3[0] =
+        CLAMP(val.real3[0],cvar->domain.real3[0].min,cvar->domain.real3[0].max);
+      cvar->var.value.real3[1] =
+        CLAMP(val.real3[1],cvar->domain.real3[1].min,cvar->domain.real3[1].max);
+      cvar->var.value.real3[2] =
+        CLAMP(val.real3[2],cvar->domain.real3[2].min,cvar->domain.real3[2].max);
       break;
     case APP_CVAR_STRING:
       /* The cvar has not predefined value list => copy the val string  into the
@@ -100,6 +110,7 @@ set_cvar_value
       break;
     default: assert(0); break;
   }
+  #undef CLAMP
 exit:
   return app_err;
 error:

@@ -31,5 +31,14 @@ app_imdraw_ellipse
    const float rotation[3],
    const float color[4]);
 
+extern enum app_error
+app_imdraw_grid
+  (struct app* app,
+   int flag,
+   const float pos[3],
+   const float size[2],
+   const float rotation[3],
+   const float color[4]);
+
 #endif /* APP_IMDRAW_H */
 

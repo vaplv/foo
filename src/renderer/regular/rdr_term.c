@@ -35,7 +35,7 @@
 struct line {
   struct list_node node;
   struct sl_wstring* string;
-  struct sl_vector* color_list; /* Vector of struct rgb. */
+  struct sl_vector* color_list; /* Vector of unsigned char{3]. */
 };
 
 struct screen {
@@ -1562,7 +1562,6 @@ rdr_draw_term(struct rdr_term* term)
   if(!metrics.line_space)
     goto exit;
 
-  /* Fill the scratch buffer with the glyph vertices. */
   blob_clear(&term->scratch);
   nb_glyphs = 0;
   y = metrics.line_space / 2;

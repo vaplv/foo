@@ -6,6 +6,7 @@
 #include <string.h>
 
 static const GLenum rb_to_ogl3_primitive_type[] = {
+  [RB_LINES] = GL_LINES,
   [RB_LINE_LOOP] = GL_LINE_LOOP,
   [RB_TRIANGLE_LIST] = GL_TRIANGLES,
   [RB_TRIANGLE_STRIP] = GL_TRIANGLE_STRIP

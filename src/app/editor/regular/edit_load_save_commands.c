@@ -161,7 +161,7 @@ load_map
       && argv[CMD_NAME]->type == APP_CMDARG_STRING
       && argv[FILE_NAME]->type == APP_CMDARG_FILE);
 
-  /* We have to copy the arg since they mey be invalidate by the execution of
+  /* We have to copy the arg since they may be invalidate by the execution of
    * new commands. */
   if(strlen(EDIT_CMD_ARGVAL(argv, FILE_NAME).data.string) + 1
    > sizeof(filename)/sizeof(char)) {

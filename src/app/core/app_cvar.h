@@ -31,6 +31,7 @@ struct app_cvar_desc {
   union app_cvar_domain {
     struct { int min, max; } integer;
     struct { float min, max; } real;
+    struct { float min, max; } real3[3];
     struct { const char** value_list; } string;
   } domain;
 };
@@ -43,7 +44,7 @@ struct app_cvar_desc {
 #define APP_CVAR_BOOL_DESC(init_val) \
   (struct app_cvar_desc[]){{ \
     .type = APP_CVAR_BOOL, \
-    .init_value = { .boolean = init_val }, \
+    .init_value = { .boolean = (init_val) }, \
     .domain = { .integer = { .min = 1, .max = -1 }} \
   }}
 
@@ -51,22 +52,29 @@ struct app_cvar_desc {
 #define APP_CVAR_INT_DESC(init_val, min_val, max_val) \
   (struct app_cvar_desc[]){{ \
     .type = APP_CVAR_INT, \
-    .init_value = { .integer = init_val }, \
-    .domain = { .integer = { .min = min_val, .max = max_val }} \
+    .init_value = { .integer = (init_val) }, \
+    .domain = { .integer = { .min = (min_val), .max = (max_val) }} \
   }}
 
 #define APP_CVAR_FLOAT_DESC(init_val, min_val, max_val) \
   (struct app_cvar_desc[]){{ \
     .type = APP_CVAR_FLOAT, \
-    .init_value = { .real = init_val }, \
-    .domain = { .real = { .min = min_val, .max = max_val }} \
+    .init_value = { .real = (init_val) }, \
+    .domain = { .real = { .min = (min_val), .max = (max_val) }} \
+  }}
+
+#define APP_CVAR_FLOAT3_DESC(x, y, z, minx, maxx, miny, maxy, minz, maxz) \
+  (struct app_cvar_desc[]){{ \
+    .type = APP_CVAR_FLOAT3, \
+    .init_value = { .real3 = {(x), (y), (z)} }, \
+    .domain = { .real3 = {{(minx), (maxx)},{(miny), (maxy)},{(minz), (maxz)}}} \
   }}
 
 #define APP_CVAR_STRING_DESC(init_val, val_list) \
   (struct app_cvar_desc[]){{ \
     .type = APP_CVAR_STRING, \
-    .init_value = { .string = init_val }, \
-    .domain = { .string = { .value_list = val_list }} \
+    .init_value = { .string = (init_val) }, \
+    .domain = { .string = { .value_list = (val_list) }} \
   }}
 
 #define APP_CVAR_BOOL_VALUE(val) \

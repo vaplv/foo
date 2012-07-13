@@ -10,8 +10,8 @@ struct rdr_imdraw_command_buffer {
   struct ref ref;
   struct rdr_system* sys;
   size_t max_command_count;
-  struct list_node emit_command_list; /* Emitted commands. */
-  struct list_node emit_uppermost_command_list; /* Emitted front commands. */
+  struct list_node emit_command_list; /* Emitted cmds. */
+  struct list_node emit_uppermost_command_list; /* Emitted front layer cmds. */
   struct list_node free_command_list; /* Available commands. */
   struct rdr_imdraw_command buffer[]; /* Pool of allocated commands. */
 };
@@ -30,10 +30,34 @@ static const char* imdraw3d_vs_source =
   "void main()\n"
   "{\n"
   " im_color = color;\n"
-  " gl_Position = transform * vec4(pos, 1);\n"
+  " gl_Position = transform * vec4(pos, 1.f);\n"
   "}\n";
 
-static const char* imdraw3d_fs_source =
+static const char* imdraw2d_vs_source =
+  "#version 330\n"
+  "uniform mat4x4 transform;\n"
+  "uniform vec4 color;\n"
+  "layout(location = 0) in vec2 pos;\n"
+  "flat out vec4 im_color;\n"
+  "void main()\n"
+  "{\n"
+  " im_color = color;\n"
+  " gl_Position = transform * vec4(pos, vec2(0.f, 1.f));\n"
+  "}\n";
+
+static const char* imdraw2d_color_vs_source = 
+  "#version 330\n"
+  "uniform mat4x4 transform;\n"
+  "layout(location = 0) in vec2 pos;\n"
+  "layout(location = 1) in vec3 col;\n"
+  "flat out vec4 im_color;\n"
+  "void main()\n"
+  "{\n"
+  " im_color = col;\n"
+  " gl_Position = transform * vec4(pos, vec2(0.f, 1.f));\n"
+  "}\n";
+
+static const char* imdraw_fs_source =
   "#version 330\n"
   "flat in vec4 im_color;\n"
   "out vec4 color;\n"
@@ -108,7 +132,6 @@ invoke_imdraw_parallelepiped
     RBU(draw_geometry(&sys->rbu.wire_parallelepiped));
   }
 
-  RBI(&sys->rb, bind_program(sys->ctxt, NULL));
 }
 
 static void
@@ -118,13 +141,151 @@ invoke_imdraw_circle
 {
   assert(sys && cmd && cmd->type == RDR_IMDRAW_CIRCLE);
 
-  RBI(&sys->rb, bind_program(sys->ctxt, sys->im.draw3d.shading_program));
+  RBI(&sys->rb, bind_program(sys->ctxt, sys->im.draw2d.shading_program));
   RBI(&sys->rb, uniform_data
-    (sys->im.draw3d.transform, 1, cmd->data.circle.transform));
+    (sys->im.draw2d.transform, 1, cmd->data.circle.transform));
   RBI(&sys->rb, uniform_data
-    (sys->im.draw3d.color, 1, cmd->data.circle.color));
+    (sys->im.draw2d.color, 1, cmd->data.circle.color));
   RBU(draw_geometry(&sys->rbu.circle));
-  RBI(&sys->rb, bind_program(sys->ctxt, NULL));
+}
+
+static void 
+setup_im_grid
+  (struct rdr_system* sys, 
+   const float* vertices, /* Interleved list of 2D positions and RGB colors */
+   size_t sizeof_vertices,
+   const unsigned int nsubdiv[2])
+{
+  assert(sys && nsubdiv && vertices && sizeof_vertices);
+
+  if(sizeof_vertices != 0) {
+    const size_t sizeof_vertex = 5 /* 2D pos + RGB color */ * sizeof(float);
+    const struct rb_buffer_attrib buf_attr[2] = {
+       [0] = { 
+         .index = 0, 
+         .stride = sizeof_vertex, 
+         .offset = 0,
+         .type = RB_FLOAT2
+       },
+       [1] = { 
+         .index = 1, 
+         .stride = sizeof_vertex, 
+         .offset = 2 * sizeof(float),
+         .type = RB_FLOAT3
+       }
+     };
+    /* Setup vertex buffer */
+    if((nsubdiv[0] + nsubdiv[1]) 
+    <= (sys->im.grid.nsubdiv[0] + sys->im.grid.nsubdiv[1])) {
+      RBI(&sys->rb, buffer_data
+        (sys->im.grid.vertex_buffer, 0, sizeof_vertices, vertices));
+    } else {
+      const struct rb_buffer_desc buf_desc = {
+        .size = sizeof_vertices,
+        .target = RB_BIND_VERTEX_BUFFER,
+        .usage = RB_USAGE_IMMUTABLE
+      };
+      if(sys->im.grid.vertex_buffer != NULL) {
+        RBI(&sys->rb, buffer_ref_put(sys->im.grid.vertex_buffer)); 
+      }
+      RBI(&sys->rb, create_buffer
+        (sys->ctxt, &buf_desc, vertices, &sys->im.grid.vertex_buffer));
+    }
+    /* Setup vertex array */
+    if(sys->im.grid.vertex_array == NULL) {
+      RBI(&sys->rb, create_vertex_array(sys->ctxt, &sys->im.grid.vertex_array));
+    }
+    RBI(&sys->rb, vertex_attrib_array
+      (sys->im.grid.vertex_array, sys->im.grid.vertex_buffer, 2, buf_attr));
+  }
+
+  sys->im.grid.nsubdiv[0] = nsubdiv[0];
+  sys->im.grid.nsubdiv[1] = nsubdiv[1];
+}
+
+static void
+build_im_grid(struct rdr_system* sys, struct rdr_imdraw_command* cmd)
+{
+  assert(cmd && sys);
+ 
+  if(sys->im.grid.nsubdiv[0] != cmd->data.grid.nsubdiv[0] 
+  || sys->im.grid.nsubdiv[1] != cmd->data.grid.nsubdiv[1]) {
+
+    if(cmd->data.grid.nsubdiv[0] && cmd->data.grid.nsubdiv[1]) {
+      const float step[2] = { 
+        1.f/(float)cmd->data.grid.nsubdiv[0], 
+        1.f/(float)cmd->data.grid.nsubdiv[1] 
+      };
+      float* vertices = NULL;
+      float* vertex = NULL;
+      size_t line_id = 0;
+      const size_t nfloat_per_vertex = 5; /* 2D position + RGB color */
+      const size_t nb_vlines = cmd->data.grid.nsubdiv[0] + 1;
+      const size_t nb_hlines = cmd->data.grid.nsubdiv[1] + 1;
+      const size_t sizeof_vertices = 
+        (nb_vlines + nb_hlines) /* number of lines */
+      * 2 /* vertices per line */
+      * nfloat_per_vertex 
+      * sizeof(float);
+
+      vertices = MEM_ALLOC(sys->allocator, sizeof_vertices);
+      assert(vertices != NULL);
+
+      /* Fill the vertex list */
+      vertex = vertices;
+      for(line_id = 0; line_id < nb_vlines; ++line_id) {
+        const float x = -0.5f + line_id * step[0];
+        vertex[0] = x;
+        vertex[1] = 0.5f;
+        vertex[2] = vertex[3] = vertex[4] = 0.7f; /* color */
+        vertex += nfloat_per_vertex;
+
+        vertex[0] = x;
+        vertex[1] = -0.5f;
+        vertex[2] = vertex[3] = vertex[4] = 0.7f; /* color */
+        vertex += nfloat_per_vertex;
+      }
+      for(line_id = 0; line_id < nb_hlines; ++line_id) {
+        const float y = -0.5f + line_id * step[1];
+        vertex[0] = 0.5f;
+        vertex[1] = y;
+        vertex[2] = vertex[3] = vertex[4] = 0.7f; /* color */
+        vertex += nfloat_per_vertex;
+
+        vertex[0] = -0.5f;
+        vertex[1] = y;
+        vertex[2] = vertex[3] = vertex[4] = 0.7f; /* color */
+        vertex += nfloat_per_vertex;
+      }
+
+      setup_im_grid(sys, vertices, sizeof_vertices, cmd->data.grid.nsubdiv);
+      MEM_FREE(sys->allocator, vertices);
+    }
+  }
+}
+
+static void
+invoke_imdraw_grid
+  (struct rdr_system* sys, 
+   struct rdr_imdraw_command* cmd)
+{
+  assert(sys && cmd && cmd->type == RDR_IMDRAW_GRID);
+
+  if(cmd->data.grid.nsubdiv[0] != 0 || cmd->data.grid.nsubdiv[1] != 0) {
+    const unsigned nvertices = 
+      (cmd->data.grid.nsubdiv[0] + cmd->data.grid.nsubdiv[1] + 2) * 2;
+
+    build_im_grid(sys, cmd);
+
+    RBI(&sys->rb, bind_program(sys->ctxt, sys->im.draw2d.shading_program));
+    RBI(&sys->rb, bind_program(sys->ctxt, sys->im.draw2d.shading_program));
+    RBI(&sys->rb, uniform_data
+      (sys->im.draw2d.transform, 1, cmd->data.grid.transform));
+    RBI(&sys->rb, uniform_data
+      (sys->im.draw2d.color, 1, cmd->data.grid.color));
+    RBI(&sys->rb, bind_vertex_array(sys->ctxt, sys->im.grid.vertex_array));
+    RBI(&sys->rb, draw(sys->ctxt, RB_LINES, nvertices));
+  }
 }
 
 static void
@@ -159,6 +320,9 @@ flush_command_list
       case RDR_IMDRAW_CIRCLE:
         invoke_imdraw_circle(cmdbuf->sys, cmd);
         break;
+      case RDR_IMDRAW_GRID:
+        invoke_imdraw_grid(cmdbuf->sys, cmd);
+        break;
       case RDR_IMDRAW_PARALLELEPIPED:
         invoke_imdraw_parallelepiped(cmdbuf->sys, cmd);
         break;
@@ -166,6 +330,55 @@ flush_command_list
     }
     list_move_tail(node, &cmdbuf->free_command_list);
   }
+  RBI(&cmdbuf->sys->rb, bind_program(cmdbuf->sys->ctxt, NULL));
+}
+
+static void
+init_im_draw
+  (struct rbi* rbi,
+   struct rb_context* ctxt,
+   struct im_draw* im_draw, 
+   const char* vs_source, 
+   const char* fs_source) 
+{
+  assert(rbi && im_draw && vs_source && fs_source);
+
+  RBI(rbi, create_shader
+    (ctxt, RB_VERTEX_SHADER,
+     vs_source,
+     strlen(vs_source),
+     &im_draw->vertex_shader));
+  RBI(rbi, create_shader
+    (ctxt, RB_FRAGMENT_SHADER,
+     fs_source,
+     strlen(fs_source),
+     &im_draw->fragment_shader));
+  RBI(rbi, create_program(ctxt, &im_draw->shading_program));
+  RBI(rbi, attach_shader(im_draw->shading_program, im_draw->vertex_shader));
+  RBI(rbi, attach_shader(im_draw->shading_program, im_draw->fragment_shader));
+  RBI(rbi, link_program(im_draw->shading_program));
+  RBI(rbi, get_named_uniform
+    (ctxt, im_draw->shading_program, "transform", &im_draw->transform));
+  RBI(rbi, get_named_uniform
+    (ctxt, im_draw->shading_program, "color", &im_draw->color));
+}
+
+static void
+release_im_draw(struct rbi* rbi, struct im_draw* im_draw)
+{
+  assert(rbi && im_draw);
+
+  if(im_draw->vertex_shader)
+    RBI(rbi, shader_ref_put(im_draw->vertex_shader));
+  if(im_draw->fragment_shader)
+    RBI(rbi, shader_ref_put(im_draw->fragment_shader));
+  if(im_draw->shading_program)
+    RBI(rbi, program_ref_put(im_draw->shading_program));
+  if(im_draw->transform)
+    RBI(rbi, uniform_ref_put(im_draw->transform));
+  if(im_draw->color)
+    RBI(rbi, uniform_ref_put(im_draw->color));
+  memset(im_draw, 0, sizeof(struct im_draw));
 }
 
 static void
@@ -189,70 +402,37 @@ release_imdraw_command_buffer(struct ref* ref)
 enum rdr_error
 rdr_init_im_rendering(struct rdr_system* sys)
 {
-  enum rdr_error rdr_err = RDR_NO_ERROR;
+  if(UNLIKELY(sys==NULL))
+    return RDR_INVALID_ARGUMENT;
 
-  if(UNLIKELY(sys==NULL)) {
-    rdr_err = RDR_INVALID_ARGUMENT;
-    goto error;
-  }
-  RBI(&sys->rb, create_shader
-    (sys->ctxt,
-     RB_VERTEX_SHADER,
-     imdraw3d_vs_source,
-     strlen(imdraw3d_vs_source),
-     &sys->im.draw3d.vertex_shader));
-  RBI(&sys->rb, create_shader
-    (sys->ctxt,
-     RB_FRAGMENT_SHADER,
-     imdraw3d_fs_source,
-     strlen(imdraw3d_fs_source),
-     &sys->im.draw3d.fragment_shader));
-  RBI(&sys->rb, create_program(sys->ctxt, &sys->im.draw3d.shading_program));
-  RBI(&sys->rb, attach_shader
-    (sys->im.draw3d.shading_program, sys->im.draw3d.vertex_shader));
-  RBI(&sys->rb, attach_shader
-    (sys->im.draw3d.shading_program, sys->im.draw3d.fragment_shader));
-  RBI(&sys->rb, link_program(sys->im.draw3d.shading_program));
+  init_im_draw
+    (&sys->rb, 
+     sys->ctxt, 
+     &sys->im.draw2d, 
+     imdraw2d_vs_source, 
+     imdraw_fs_source);
+  init_im_draw
+    (&sys->rb, 
+     sys->ctxt, 
+     &sys->im.draw3d, 
+     imdraw3d_vs_source, 
+     imdraw_fs_source);
 
-  RBI(&sys->rb, get_named_uniform
-    (sys->ctxt,
-     sys->im.draw3d.shading_program,
-     "transform",
-     &sys->im.draw3d.transform));
-  RBI(&sys->rb, get_named_uniform
-    (sys->ctxt,
-     sys->im.draw3d.shading_program,
-     "color",
-     &sys->im.draw3d.color));
-exit:
-  return rdr_err;
-error:
-  goto exit;
+  return RDR_NO_ERROR;
 }
 
 enum rdr_error
 rdr_shutdown_im_rendering(struct rdr_system* sys)
 {
-  enum rdr_error rdr_err = RDR_NO_ERROR;
-  if(UNLIKELY(sys==NULL)) {
-    rdr_err = RDR_INVALID_ARGUMENT;
-    goto error;
-  }
-  if(sys->im.draw3d.vertex_shader)
-    RBI(&sys->rb, shader_ref_put(sys->im.draw3d.vertex_shader));
-  if(sys->im.draw3d.fragment_shader)
-    RBI(&sys->rb, shader_ref_put(sys->im.draw3d.fragment_shader));
-  if(sys->im.draw3d.shading_program)
-    RBI(&sys->rb, program_ref_put(sys->im.draw3d.shading_program));
-  if(sys->im.draw3d.transform)
-    RBI(&sys->rb, uniform_ref_put(sys->im.draw3d.transform));
-  if(sys->im.draw3d.color)
-    RBI(&sys->rb, uniform_ref_put(sys->im.draw3d.color));
-  memset(&sys->im.draw3d, 0, sizeof(sys->im.draw3d));
-exit:
-  return rdr_err;
-error:
-  goto exit;
+  if(UNLIKELY(sys==NULL))
+    return RDR_INVALID_ARGUMENT;
+  release_im_draw(&sys->rb, &sys->im.draw2d);
+  release_im_draw(&sys->rb, &sys->im.draw3d);
+  if(sys->im.grid.vertex_buffer) 
+    RBI(&sys->rb, buffer_ref_put(sys->im.grid.vertex_buffer));
+  if(sys->im.grid.vertex_array)
+    RBI(&sys->rb, vertex_array_ref_put(sys->im.grid.vertex_array));
+  return RDR_NO_ERROR;
 }
 
 /******************************************************************************
@@ -377,14 +557,8 @@ rdr_emit_imdraw_command
 enum rdr_error
 rdr_flush_imdraw_command_buffer(struct rdr_imdraw_command_buffer* cmdbuf)
 {
-  struct rb_viewport_desc viewport_desc;
-  memset(&viewport_desc, 0, sizeof(viewport_desc));
-
   if(UNLIKELY(cmdbuf == NULL))
     return RDR_INVALID_ARGUMENT;
-
-  viewport_desc.min_depth = 0.f;
-  viewport_desc.max_depth = 1.f;
 
   flush_command_list(cmdbuf, &cmdbuf->emit_command_list);
   if(!is_list_empty(&cmdbuf->emit_uppermost_command_list)) {
