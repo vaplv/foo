@@ -120,14 +120,18 @@ edit_run(struct edit_context* ctxt)
     EDIT(draw_model_instance_selection(ctxt->instance_selection));
   if(true == ctxt->cvars.show_grid->value.boolean) {
     APP(imdraw_grid
-      (ctxt->app, 
-       APP_IMDRAW_FLAG_NONE, 
-       (float[]){0.f, 0.f, 0.f},
-       (float[]){1280.f, 1280.f},
-       (float[]){PI * 0.5f, 0.f, 0.f},
-       (float[]){0.25f, 0.25f, 0.25f, 1.f}));
+      (ctxt->app,
+       APP_IMDRAW_FLAG_NONE,
+       (float[]){0.f, 0.f, 0.f}, /* pos */
+       (float[]){1000.f, 1000.f}, /* size */
+       (float[]){PI * 0.5f, 0.f, 0.f}, /* rotation */
+       (unsigned int[]){10, 10}, /* ndiv */
+       (unsigned int[]){10, 10}, /* nsubdiv */
+       (float[]){0.25f, 0.25f, 0.25f}, /* color */
+       (float[]){0.15f, 0.15f, 0.15f}, /* subcolor */
+       (float[]){0.f, 0.f, 1.f}, /* vaxis_color */
+       (float[]){1.f, 0.f, 0.f}));  /* haxis_color */
   }
-
   return EDIT_NO_ERROR;
 }
 

@@ -153,13 +153,15 @@ static void
 setup_im_grid
   (struct rdr_system* sys,
    const float* vertices, /* Interleved list of 2D positions and RGB colors */
-   size_t sizeof_vertices,
-   const unsigned int nsubdiv[2])
+   unsigned int nvertices)
 {
-  assert(sys && nsubdiv && vertices && sizeof_vertices);
+  assert(sys && (vertices || !nvertices));
 
-  if(sizeof_vertices != 0) {
+  if(nvertices == 0) {
+    sys->im.grid.nvertices = 0;
+  } else {
     const size_t sizeof_vertex = 5 /* 2D pos + RGB color */ * sizeof(float);
+    const size_t sizeof_vertices = nvertices * sizeof_vertex;
     const struct rb_buffer_attrib buf_attr[2] = {
        [0] = {
          .index = 0,
@@ -175,8 +177,7 @@ setup_im_grid
        }
      };
     /* Setup vertex buffer */
-    if((nsubdiv[0] + nsubdiv[1])
-    <= (sys->im.grid.nsubdiv[0] + sys->im.grid.nsubdiv[1])) {
+    if(sizeof_vertices <= sys->im.grid.sizeof_vertex_buffer) {
       RBI(&sys->rb, buffer_data
         (sys->im.grid.vertex_buffer, 0, sizeof_vertices, vertices));
     } else {
@@ -190,6 +191,8 @@ setup_im_grid
       }
       RBI(&sys->rb, create_buffer
         (sys->ctxt, &buf_desc, vertices, &sys->im.grid.vertex_buffer));
+      sys->im.grid.sizeof_vertex_buffer = sizeof_vertices;
+      sys->im.grid.nvertices = nvertices;
     }
     /* Setup vertex array */
     if(sys->im.grid.vertex_array == NULL) {
@@ -198,87 +201,110 @@ setup_im_grid
     RBI(&sys->rb, vertex_attrib_array
       (sys->im.grid.vertex_array, sys->im.grid.vertex_buffer, 2, buf_attr));
   }
-
-  sys->im.grid.nsubdiv[0] = nsubdiv[0];
-  sys->im.grid.nsubdiv[1] = nsubdiv[1];
 }
 
 static void
-build_im_grid(struct rdr_system* sys, struct rdr_imdraw_command* cmd)
+build_im_grid(struct rdr_system* sys, const struct rdr_imdraw_command* cmd)
 {
+  float* vertices = NULL;
+  unsigned int nvertices = 0;
+  const struct rdr_im_grid_desc* grid_desc = NULL;
   assert(cmd && sys);
 
-  if(sys->im.grid.nsubdiv[0] != cmd->data.grid.nsubdiv[0]
-  || sys->im.grid.nsubdiv[1] != cmd->data.grid.nsubdiv[1]) {
+  grid_desc = &cmd->data.grid.desc;
 
-    if(cmd->data.grid.nsubdiv[0] && cmd->data.grid.nsubdiv[1]) {
-      const float step[2] = {
-        1.f/(float)cmd->data.grid.nsubdiv[0],
-        1.f/(float)cmd->data.grid.nsubdiv[1]
-      };
-      float* vertices = NULL;
+  if(0 != memcmp
+     (&sys->im.grid.desc,
+      &cmd->data.grid.desc,
+      sizeof(struct rdr_im_grid_desc))) {
+    if(cmd->data.grid.desc.ndiv[0] && cmd->data.grid.desc.ndiv[1]) {
       float* vertex = NULL;
-      size_t line_id = 0;
+      size_t line_id = 0, subline_id = 0;
+
+      /* Precompute several values */
+      const float step[2] = {
+        1.f / (float)grid_desc->ndiv[0],
+        1.f / (float)grid_desc->ndiv[1]
+      };
+      const float substep[2] = {
+        step[0] / (float)grid_desc->nsubdiv[0],
+        step[1] / (float)grid_desc->nsubdiv[1]
+      };
       const unsigned int nfloat_per_vertex = 5; /* 2D position + RGB color */
-      const unsigned int nb_vlines = cmd->data.grid.nsubdiv[0] + 1;
-      const unsigned int nb_hlines = cmd->data.grid.nsubdiv[1] + 1;
-      const bool add_zaxis = (nb_vlines % 2) != 0;
-      const bool add_xaxis = (nb_hlines % 2) != 0;
+      const unsigned int nb_vlines = grid_desc->ndiv[0] + 1;
+      const unsigned int nb_hlines = grid_desc->ndiv[1] + 1;
+      const unsigned int nb_vsublines =
+        grid_desc->nsubdiv[0] - (grid_desc->nsubdiv[0] > 0);
+      const unsigned int nb_hsublines =
+        grid_desc->nsubdiv[1] - (grid_desc->nsubdiv[1] > 0);
       const unsigned int total_nb_lines =
-        nb_vlines
-      + nb_hlines
-      + (add_zaxis == true)
-      + (add_xaxis == true);
-      const size_t sizeof_vertices =
-        total_nb_lines
-      * 2 /* vertices per line */
-      * nfloat_per_vertex
-      * sizeof(float);
+          nb_vlines
+        + nb_hlines
+        + (grid_desc->ndiv[0] * nb_vsublines)
+        + (grid_desc->ndiv[1] * nb_hsublines)
+        + 2 /* axis */;
 
-      vertices = MEM_ALLOC(sys->allocator, sizeof_vertices);
+      /* Allocate temporary client side vertex buffer */
+      nvertices = total_nb_lines * 2;
+      vertices = MEM_ALLOC
+        (sys->allocator, nvertices * nfloat_per_vertex * sizeof(float));
       assert(vertices != NULL);
-
-      #define SET_COLOR(v, r, g, b) (v)[2]=(r), (v)[3]=(g), (v)[4]=(b)
-
-      /* Fill the vertex list */
       vertex = vertices;
-      for(line_id = 0; line_id < nb_vlines; ++line_id) {
-        const float x = -0.5f + line_id * step[0];
-        float* v0 = vertex;
-        float* v1 = vertex + nfloat_per_vertex;
 
-        vertex = v1 + nfloat_per_vertex;
-        v0[0] = x; v0[1] = 0.5f;
-        v1[0] = x; v1[1] = -0.5f;
-        if(add_zaxis && line_id == (nb_vlines / 2) + 1) {
-          SET_COLOR(v0, 0.f, 0.f, 1.f);
-          SET_COLOR(v1, 0.f, 0.f, 1.f);
-        } else {
-          SET_COLOR(v0, 0.35f, 0.35f, 0.35f);
-          SET_COLOR(v1, 0.35f, 0.35f, 0.35f);
+      #define FARRAY(...) ((float[]){__VA_ARGS__})
+      #define PUSH_VERTEX(vertex, xy, rgb) \
+      do { \
+        (vertex)[0] = (xy)[0]; \
+        (vertex)[1] = (xy)[1]; \
+        (vertex)[2] = (rgb)[0]; \
+        (vertex)[3] = (rgb)[1]; \
+        (vertex)[4] = (rgb)[2]; \
+        (vertex) += nfloat_per_vertex; \
+      } while(0)
+
+      /* Setup vertical lines */
+      for(line_id = 0;  line_id < nb_vlines; ++line_id) {
+        float x = -0.5f + line_id * step[0];
+        PUSH_VERTEX(vertex, FARRAY(x, 0.5f), grid_desc->div_color);
+        PUSH_VERTEX(vertex, FARRAY(x,-0.5f), grid_desc->div_color);
+        if(line_id < nb_vlines - 1) {
+          x += substep[0];
+          /* Setup sub vertical lines */
+          for(subline_id = 0; subline_id < nb_vsublines; ++subline_id) {
+            const float subx = x + subline_id * substep[0];
+            PUSH_VERTEX(vertex, FARRAY(subx, 0.5f), grid_desc->subdiv_color);
+            PUSH_VERTEX(vertex, FARRAY(subx,-0.5f), grid_desc->subdiv_color);
+          }
         }
       }
-      for(line_id = 0; line_id < nb_hlines; ++line_id) {
-        const float y = -0.5f + line_id * step[1];
-        float* v0 = vertex;
-        float* v1 = vertex + nfloat_per_vertex;
-
-        vertex = v1 + nfloat_per_vertex;
-        v0[0] = 0.5f; v0[1] = y;
-        v1[0] = -0.5f; v1[1] = y;
-        if(add_xaxis && line_id == (nb_vlines / 2) + 1) {
-          SET_COLOR(v0, 1.f, 0.f, 0.f);
-          SET_COLOR(v1, 1.f, 0.f, 0.f);
-        } else {
-          SET_COLOR(v0, 0.35f, 0.35f, 0.35f);
-          SET_COLOR(v1, 0.35f, 0.35f, 0.35f);
+      /* Setup horizontal lines */
+     for(line_id = 0; line_id < nb_hlines; ++line_id) {
+        float y = -0.5f + line_id * step[1];
+        PUSH_VERTEX(vertex, FARRAY( 0.5f,y), grid_desc->div_color);
+        PUSH_VERTEX(vertex, FARRAY(-0.5f,y), grid_desc->div_color);
+        if(line_id < nb_hlines - 1) {
+          y += substep[1];
+          for(subline_id = 0; subline_id < nb_hsublines; ++subline_id) {
+            const float suby = y + subline_id * substep[1];
+            PUSH_VERTEX(vertex, FARRAY( 0.5f,suby), grid_desc->subdiv_color);
+            PUSH_VERTEX(vertex, FARRAY(-0.5f,suby), grid_desc->subdiv_color);
+          }
         }
-
       }
-
-      setup_im_grid(sys, vertices, sizeof_vertices, cmd->data.grid.nsubdiv);
-      MEM_FREE(sys->allocator, vertices);
+      /* Vertical axis */
+      PUSH_VERTEX(vertex, FARRAY(0.f, 0.5f), grid_desc->vaxis_color);
+      PUSH_VERTEX(vertex, FARRAY(0.f,-0.5f), grid_desc->vaxis_color);
+      /* Horizontal axis */
+      PUSH_VERTEX(vertex, FARRAY( 0.5f,0.f), grid_desc->haxis_color);
+      PUSH_VERTEX(vertex, FARRAY(-0.5f,0.f), grid_desc->haxis_color);
     }
+
+    #undef FARRAY
+    #undef PUSH_VERTEX
+    setup_im_grid(sys, vertices, nvertices);
+    memcpy(&sys->im.grid.desc, grid_desc, sizeof(struct rdr_im_grid_desc));
+    if(vertices)
+      MEM_FREE(sys->allocator, vertices);
   }
 }
 
@@ -289,17 +315,14 @@ invoke_imdraw_grid
 {
   assert(sys && cmd && cmd->type == RDR_IMDRAW_GRID);
 
-  if(cmd->data.grid.nsubdiv[0] != 0 || cmd->data.grid.nsubdiv[1] != 0) {
-    const unsigned nvertices =
-      (cmd->data.grid.nsubdiv[0] + cmd->data.grid.nsubdiv[1] + 2) * 2;
-    build_im_grid(sys, cmd);
-
+  build_im_grid(sys, cmd);
+  if(sys->im.grid.nvertices != 0) {
     RBI(&sys->rb, bind_program
       (sys->ctxt, sys->im.draw2d_color.shading_program));
     RBI(&sys->rb, uniform_data
       (sys->im.draw2d_color.transform, 1, cmd->data.grid.transform));
     RBI(&sys->rb, bind_vertex_array(sys->ctxt, sys->im.grid.vertex_array));
-    RBI(&sys->rb, draw(sys->ctxt, RB_LINES, nvertices));
+    RBI(&sys->rb, draw(sys->ctxt, RB_LINES, sys->im.grid.nvertices));
   }
 }
 
@@ -348,6 +371,11 @@ flush_command_list
   RBI(&cmdbuf->sys->rb, bind_program(cmdbuf->sys->ctxt, NULL));
 }
 
+enum im_draw_flag {
+  IM_DRAW_NONE = 0,
+  IM_DRAW_HAS_COLOR_UNIFORM = BIT(0)
+};
+
 static void
 init_im_draw
   (struct rbi* rbi,
@@ -355,7 +383,7 @@ init_im_draw
    struct im_draw* im_draw,
    const char* vs_source,
    const char* fs_source,
-   bool has_color_uniform)
+   int flag)
 {
   assert(rbi && im_draw && vs_source && fs_source);
 
@@ -376,7 +404,7 @@ init_im_draw
   RBI(rbi, get_named_uniform
     (ctxt, im_draw->shading_program, "transform", &im_draw->transform));
 
-  if(has_color_uniform) {
+  if(flag & IM_DRAW_HAS_COLOR_UNIFORM) {
     RBI(rbi, get_named_uniform
       (ctxt, im_draw->shading_program, "color", &im_draw->color));
   }
@@ -430,21 +458,21 @@ rdr_init_im_rendering(struct rdr_system* sys)
      &sys->im.draw2d,
      imdraw2d_vs_source,
      imdraw_fs_source,
-     true);
+     IM_DRAW_HAS_COLOR_UNIFORM);
   init_im_draw
     (&sys->rb,
      sys->ctxt,
      &sys->im.draw3d,
      imdraw3d_vs_source,
      imdraw_fs_source,
-     true);
+     IM_DRAW_HAS_COLOR_UNIFORM);
   init_im_draw
     (&sys->rb,
      sys->ctxt,
      &sys->im.draw2d_color,
      imdraw2d_color_vs_source,
      imdraw_fs_source,
-     false);
+     IM_DRAW_NONE);
 
   return RDR_NO_ERROR;
 }

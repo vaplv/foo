@@ -26,8 +26,14 @@ struct rdr_imdraw_command {
     } circle;
     struct {
       float transform[16]; /* column major */
-      unsigned int nsubdiv[2];
-      float color[4]; /* RGBA */
+      struct rdr_im_grid_desc {
+        float div_color[3]; /* RGB */
+        float subdiv_color[3]; /* RGB */
+        float vaxis_color[3]; /* vertical axis RGB */
+        float haxis_color[3]; /* horizontal axis RGB */
+        unsigned int nsubdiv[2]; /* XY */
+        unsigned int ndiv[2]; /* XY */
+      } desc;
     } grid;
     struct {
       float transform[16]; /* column major */

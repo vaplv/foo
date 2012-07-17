@@ -264,15 +264,22 @@ imdraw_grid
    const struct rdr_view* rview,
    int flag,
    const struct aosf44* trans,
-   const float color[4])
+   const unsigned int ndiv[2],
+   const unsigned int nsubdiv[2],
+   const float color[3],
+   const float subcolor[3],
+   const float vaxis_color[3],
+   const float haxis_color[3])
 {
   ALIGN(16) float tmp[16];
   struct rdr_imdraw_command* cmd = NULL;
   enum rdr_error rdr_err = RDR_NO_ERROR;
 
-  assert(frame && rview && trans && color);
+  assert(frame && rview && trans && ndiv && nsubdiv && color && subcolor &&
+         vaxis_color && haxis_color);
 
   RDR(get_imdraw_command(frame->imdraw.cmdbuf, &cmd));
+  memset(&cmd->data.grid, 0, sizeof(cmd->data.grid));
   if(UNLIKELY(!cmd)) {
     rdr_err = RDR_MEMORY_ERROR;
     goto error;
@@ -281,9 +288,12 @@ imdraw_grid
   cmd->type = RDR_IMDRAW_GRID;
   setup_imdraw_command_viewport(cmd, rview);
   memcpy(cmd->data.grid.transform, tmp, sizeof(tmp));
-  memcpy(cmd->data.grid.color, color, 4 * sizeof(float));
-  cmd->data.grid.nsubdiv[0] = 10;
-  cmd->data.grid.nsubdiv[1] = 10;
+  memcpy(cmd->data.grid.desc.ndiv, ndiv, 2 * sizeof(unsigned int));
+  memcpy(cmd->data.grid.desc.nsubdiv, nsubdiv, 2 * sizeof(unsigned int));
+  memcpy(cmd->data.grid.desc.div_color, color, 3 * sizeof(float));
+  memcpy(cmd->data.grid.desc.subdiv_color, subcolor, 3 * sizeof(float));
+  memcpy(cmd->data.grid.desc.vaxis_color, vaxis_color, 3 * sizeof(float));
+  memcpy(cmd->data.grid.desc.haxis_color, haxis_color, 3 * sizeof(float));
 
   RDR(emit_imdraw_command(frame->imdraw.cmdbuf, cmd));
 exit:
@@ -532,23 +542,43 @@ rdr_frame_imdraw_grid
    const float pos[3],
    const float size[2],
    const float rotation[3],
-   const float color[4])
+   const unsigned int ndiv[2],
+   const unsigned int nsubdiv[2],
+   const float color[3],
+   const float subcolor[3],
+   const float vaxis_color[3],
+   const float haxis_color[3])
 {
   struct aosf44 transform;
   enum rdr_error rdr_err = RDR_NO_ERROR;
 
   if(UNLIKELY
-  (  !frame 
-  || !rview 
-  || !pos 
-  || !size 
-  || !rotation 
-  || !color))
+  (  !frame
+  || !rview
+  || !pos
+  || !size
+  || !rotation
+  || !ndiv
+  || !nsubdiv
+  || !color
+  || !subcolor
+  || !vaxis_color
+  || !haxis_color))
     return RDR_INVALID_ARGUMENT;
 
   compute_transform
     (&transform, pos, (float[]){size[0], size[1], 1.f}, rotation);
-  rdr_err = imdraw_grid(frame, rview, flag, &transform, color);
+  rdr_err = imdraw_grid
+    (frame,
+     rview,
+     flag,
+     &transform,
+     ndiv,
+     nsubdiv,
+     color,
+     subcolor,
+     vaxis_color,
+     haxis_color);
   return rdr_err;
 }
 

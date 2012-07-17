@@ -3,6 +3,7 @@
 
 #include "render_backend/rbi.h"
 #include "render_backend/rbu.h"
+#include "renderer/regular/rdr_imdraw_c.h"
 #include "sys/mem_allocator.h"
 #include "sys/ref_count.h"
 
@@ -30,9 +31,11 @@ struct rdr_system {
       struct rb_uniform* color;
     } draw2d, draw3d, draw2d_color;
     struct im_grid {
+      struct rdr_im_grid_desc desc;
       struct rb_buffer* vertex_buffer;
       struct rb_vertex_array* vertex_array;
-      unsigned int nsubdiv[2];
+      size_t sizeof_vertex_buffer;
+      unsigned int nvertices;
     } grid;
   } im;
 

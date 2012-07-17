@@ -76,7 +76,12 @@ rdr_frame_imdraw_grid
    const float pos[3],
    const float size[2],
    const float rotation[3],
-   const float color[4]);
+   const unsigned int ndiv[2],
+   const unsigned int nsubdiv[2],
+   const float color[3],
+   const float subcolor[3],
+   const float vaxis_color[3],
+   const float haxis_color[3]);
 
 extern enum rdr_error
 rdr_flush_frame

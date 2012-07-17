@@ -138,14 +138,29 @@ app_imdraw_grid
    const float pos[3],
    const float size[2],
    const float rotation[3],
-   const float color[4])
+   const unsigned int ndiv[2],
+   const unsigned int nsubdiv[2],
+   const float color[3],
+   const float subcolor[3],
+   const float vaxis_color[3],
+   const float haxis_color[3])
 {
   struct rdr_view render_view;
   enum app_error app_err = APP_NO_ERROR;
   enum rdr_error rdr_err = RDR_NO_ERROR;
   memset(&render_view, 0, sizeof(render_view));
 
-  if(UNLIKELY(!app || !pos || !size || !rotation)) {
+  if(UNLIKELY
+  (  !app 
+  || !pos 
+  || !size 
+  || !rotation
+  || !ndiv
+  || !nsubdiv
+  || !color
+  || !subcolor
+  || !vaxis_color
+  || !haxis_color)) {
     app_err = APP_INVALID_ARGUMENT;
     goto error;
   }
@@ -157,7 +172,12 @@ app_imdraw_grid
      pos,
      size,
      rotation,
-     color);
+     ndiv,
+     nsubdiv,
+     color,
+     subcolor,
+     vaxis_color,
+     haxis_color);
   if(rdr_err != RDR_NO_ERROR) {
     app_err = rdr_to_app_error(rdr_err);
     goto error;
