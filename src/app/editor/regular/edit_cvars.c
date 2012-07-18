@@ -36,6 +36,14 @@ edit_setup_cvars(struct edit_context* ctxt)
     } while(0)
 
   REGISTER_CVAR
+    ("edit_grid_ndiv", 
+     APP_CVAR_INT_DESC(10, 0, 10000),
+     &ctxt->cvars.grid_ndiv);
+  REGISTER_CVAR
+    ("edit_grid_nsubdiv",
+     APP_CVAR_INT_DESC(10, 0, 10000),
+     &ctxt->cvars.grid_nsubdiv);
+  REGISTER_CVAR
     ("edit_pivot_color", 
      APP_CVAR_FLOAT3_DESC(1.f, 1.f, 0.f, 0.f, 1.f, 0.f, 1.f, 0.f, 1.f),
      &ctxt->cvars.pivot_color);
@@ -81,6 +89,8 @@ edit_release_cvars(struct edit_context* ctxt)
       } \
     } while(0)
 
+  UNREGISTER_CVAR("edit_grid_ndiv");
+  UNREGISTER_CVAR("edit_grid_nsubdiv");
   UNREGISTER_CVAR("edit_pivot_color");
   UNREGISTER_CVAR("edit_pivot_size");
   UNREGISTER_CVAR("edit_project_path");

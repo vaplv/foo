@@ -192,8 +192,8 @@ setup_im_grid
       RBI(&sys->rb, create_buffer
         (sys->ctxt, &buf_desc, vertices, &sys->im.grid.vertex_buffer));
       sys->im.grid.sizeof_vertex_buffer = sizeof_vertices;
-      sys->im.grid.nvertices = nvertices;
     }
+    sys->im.grid.nvertices = nvertices;
     /* Setup vertex array */
     if(sys->im.grid.vertex_array == NULL) {
       RBI(&sys->rb, create_vertex_array(sys->ctxt, &sys->im.grid.vertex_array));
