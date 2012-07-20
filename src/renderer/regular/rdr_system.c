@@ -35,6 +35,10 @@ release_system(struct ref* ref)
     RBU(geometry_ref_put(&sys->rbu.solid_parallelepiped));
   if(LIKELY(sys->rbu.wire_parallelepiped.rbi != NULL))
     RBU(geometry_ref_put(&sys->rbu.wire_parallelepiped));
+  if(LIKELY(sys->rbu.cone.rbi != NULL))
+    RBU(geometry_ref_put(&sys->rbu.cone));
+  if(LIKELY(sys->rbu.cylinder.rbi != NULL))
+    RBU(geometry_ref_put(&sys->rbu.cylinder));
 
   RDR(shutdown_im_rendering(sys));
 
@@ -133,10 +137,26 @@ rdr_create_system
      (float[]){0.f, 0.f},
      1.f,
      &sys->rbu.circle));
+  CALL(rbu_init_cylinder
+    (&sys->rb, sys->ctxt,
+     64, /* nslices */
+     1.f, /* base_radius */
+     0.f, /* top radius */
+     1.f, /* height */
+     (float[]){0.f, 0.f, 0.f},
+     &sys->rbu.cone));
+  CALL(rbu_init_cylinder
+    (&sys->rb, sys->ctxt,
+     64, /* nslices */
+     1.f, /* base_radius */
+     1.f, /* top radius */
+     1.f, /* height */
+     (float[]){0.f, 0.f, 0.f},
+     &sys->rbu.cylinder));
   CALL(rbu_init_quad
-    (&sys->rb, 
-     sys->ctxt, 
-     0.f, 0.f, 1.f, 1.f, 
+    (&sys->rb,
+     sys->ctxt,
+     0.f, 0.f, 1.f, 1.f,
      &sys->rbu.quad));
   CALL(rbu_init_parallelepiped
     (&sys->rb, sys->ctxt,

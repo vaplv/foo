@@ -126,7 +126,7 @@ rbu_init_circle
   memset(&buf_desc, 0, sizeof(buf_desc));
   memset(&buf_attr, 0, sizeof(buf_attr));
 
-  if(UNLIKELY(circle == NULL || rbi == NULL)) {
+  if(UNLIKELY(circle == NULL || rbi == NULL || pos == NULL)) {
     err = -1;
     goto error;
   }
@@ -146,7 +146,7 @@ rbu_init_circle
     /* fill vertex data. */
     coord_id = 0;
     for(point_id = 0; point_id < npoints; ++point_id) {
-      const float angle = (float)point_id * rcp_npoints * 2 * PI;
+      const float angle = (float)point_id * rcp_npoints * 1 * PI;
       vertices[coord_id] = pos[0] + cosf(angle) * radius;
       ++coord_id;
       vertices[coord_id] = pos[1] + sinf(angle) * radius;
@@ -284,6 +284,128 @@ error:
   }
   goto exit;
 }
+
+EXPORT_SYM int
+rbu_init_cylinder
+  (const struct rbi* rbi,
+   struct rb_context* ctxt,
+   unsigned int nslices,
+   float base_radius,
+   float top_radius,
+   float height,
+   float pos[3],
+   struct rbu_geometry* cylinder)
+{
+  struct rb_buffer_desc buf_desc;
+  unsigned int slice_id = 0;
+  size_t i = 0;
+  int err = 0;
+
+  if(UNLIKELY(!rbi || !pos || !cylinder)) {
+    err = -1;
+    goto error;
+  }
+  if(nslices > 1024) {
+    err = -1;
+    goto error;
+  }
+  init_geometry(rbi, ctxt, cylinder);
+
+  #define CALL(func) \
+    do { \
+      if(0 != (err = func)) \
+      goto error; \
+    } while(0)
+
+  /* Create the vertex array. */
+  CALL(rbi->create_vertex_array(ctxt, &cylinder->vertex_array));
+
+  /* Vertex buffer */
+  {
+    struct rb_buffer_attrib buf_attr;
+    float vertices[nslices * 2 * 3 /* number of vertex coords */];
+    const float rcp_nslices = 1.f / (float)nslices;
+    memset(&vertices, 0, sizeof(vertices));
+    memset(&buf_attr, 0, sizeof(buf_attr));
+    memset(&buf_desc, 0, sizeof(buf_desc));
+    i = 0;
+
+    for(slice_id = 0; slice_id < nslices; ++slice_id) {
+      const float angle = (float)slice_id * rcp_nslices * 2 * PI;
+      const float sina = sinf(angle);
+      const float cosa = cosf(angle);
+      /* Base */
+      vertices[i++] = pos[0] + cosa * base_radius;
+      vertices[i++] = pos[1] - height * 0.5f;
+      vertices[i++] = pos[2] + sina * base_radius;
+      /* Top */
+      vertices[i++] = pos[0] + cosa * top_radius;
+      vertices[i++] = pos[1] + height * 0.5f;
+      vertices[i++] = pos[2] + sina * top_radius;
+    }
+    /* Setup the vertex buffer. */
+    buf_desc.size = sizeof(vertices);
+    buf_desc.target = RB_BIND_VERTEX_BUFFER;
+    buf_desc.usage = RB_USAGE_IMMUTABLE;
+    CALL(rbi->create_buffer(ctxt, &buf_desc,vertices,&cylinder->vertex_buffer));
+
+    buf_attr.index = 0;
+    buf_attr.stride = 3 * sizeof(float);
+    buf_attr.offset = 0;
+    buf_attr.type = RB_FLOAT3;
+    CALL(rbi->vertex_attrib_array
+      (cylinder->vertex_array, cylinder->vertex_buffer, 1, &buf_attr));
+  }
+
+  /* index buffer */
+  {
+    unsigned int indices[4*nslices + 2];
+    size_t index_id = 0;
+    const unsigned int two_nslices = 2 * nslices;
+    memset(&indices, 0, sizeof(indices));
+    memset(&buf_desc, 0, sizeof(buf_desc));
+    i = 0;
+
+    /* Cylinder */
+    index_id = 0;
+    for(slice_id = 0; slice_id <= nslices; ++slice_id) {
+      indices[i++] = index_id++;
+      indices[i++] = index_id++;
+    }
+    /* Back cap */
+    index_id = 0;
+    for(slice_id = 0; slice_id < nslices; ++slice_id) {
+      indices[i++] = index_id;
+      index_id = two_nslices - 2 - index_id + (-(slice_id % 2 != 0) & 2);
+    }
+    /* Top cap */
+    index_id = 1;
+    for(slice_id = 0; slice_id < nslices; ++slice_id) {
+      indices[i++] = index_id;
+      index_id = two_nslices - index_id + (-(slice_id % 2 != 0) & 2);
+    }
+    /* Setup the index buffer. */
+    buf_desc.size = sizeof(indices);
+    buf_desc.target = RB_BIND_INDEX_BUFFER;
+    buf_desc.usage = RB_USAGE_IMMUTABLE;
+    CALL(rbi->create_buffer(ctxt, &buf_desc, indices, &cylinder->index_buffer));
+    CALL(rbi->vertex_index_array
+      (cylinder->vertex_array, cylinder->index_buffer));
+  }
+
+  #undef CALL
+
+exit:
+  return err;
+error:
+  if(cylinder) {
+    if(cylinder->rbi)
+      RBU(geometry_ref_put(cylinder));
+    memset(cylinder, 0, sizeof(struct rbu_geometry));
+  }
+  goto exit;
+}
+
 
 /*******************************************************************************
  *

@@ -74,6 +74,18 @@ rbu_init_parallelepiped
    bool wireframe,
    struct rbu_geometry* cube);
 
+/* Create a closed cylinder. The vertex position is bound to location 0. */
+extern int
+rbu_init_cylinder
+  (const struct rbi* rbi,
+   struct rb_context* ctxt,
+   unsigned int nslices,
+   float base_radius,
+   float top_radius,
+   float height,
+   float pos[3],
+   struct rbu_geometry* cylinder);
+
 extern int
 rbu_geometry_ref_get
   (struct rbu_geometry* geom);

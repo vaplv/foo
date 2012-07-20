@@ -14,6 +14,10 @@ enum rdr_imdraw_type {
   RDR_NB_IMDRAW_TYPES
 };
 
+/* All im commands have the same size in memory. Consequently some memory space
+ * is lost but this simplify the im command buffer implementation. Today, there
+ * is no specific reason to create a huge command but if it become necessary
+ * the memory management of the command buffer has to be adapted. */
 struct rdr_imdraw_command {
   struct list_node node;
   enum rdr_imdraw_type type;
