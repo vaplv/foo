@@ -297,10 +297,9 @@ sl_flat_set_lower_bound
    const void* data, 
    size_t* lower_bound)
 {
-  bool b = false;
   if(!set || !data || !lower_bound)
     return SL_INVALID_ARGUMENT;
-  b = data_id(set, data, lower_bound, LOWER_BOUND);
+  data_id(set, data, lower_bound, LOWER_BOUND);
   return SL_NO_ERROR;
 }
 
@@ -310,10 +309,9 @@ sl_flat_set_upper_bound
    const void* data, 
    size_t* upper_bound)
 {
-  bool b = false;
   if(!set || !data || !upper_bound)
     return SL_INVALID_ARGUMENT;
-  b = data_id(set, data, upper_bound, UPPER_BOUND);
+  data_id(set, data, upper_bound, UPPER_BOUND);
   return SL_NO_ERROR;
 }
 

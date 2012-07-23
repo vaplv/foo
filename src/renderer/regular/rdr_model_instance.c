@@ -194,7 +194,6 @@ setup_attrib_data_list
 {
   void* buffer = attrib_buffer;
   size_t nb_attrib_data = nb_attribs;
-  size_t i = 0;
   enum rdr_error rdr_err = RDR_NO_ERROR;
 
   assert(sys
@@ -203,6 +202,8 @@ setup_attrib_data_list
       && out_nb_attrib_data);
 
   if(attrib_data_list != NULL) {
+    size_t i = 0;
+
     for(i = 0; i < nb_attribs; ++i) {
       struct rb_attrib_desc attrib_desc;
       int err = 0;

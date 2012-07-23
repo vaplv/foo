@@ -280,7 +280,6 @@ fill_font_cache
   assert(node && font);
   if(!IS_LEAF(node)) {
     struct rdr_glyph* glyph;
-    unsigned char* dst = NULL;
     const struct rdr_glyph_desc* glyph_desc = glyph_list + node->id;
     const size_t cache_Bpp = font->cache_img.Bpp;
     const size_t cache_pitch = font->cache_img.width * cache_Bpp;
@@ -312,6 +311,7 @@ fill_font_cache
 
     /* The glyph bitmap size may be equal to zero (e.g.: the space char). */
     if(0 != glyph_bmp_size) {
+      unsigned char* dst = NULL;
       assert(glyph_desc->bitmap.bytes_per_pixel == cache_Bpp);
       dst = font->cache_img.buffer + y * cache_pitch + x * cache_Bpp;
       copy_bitmap

@@ -354,8 +354,6 @@ sl_vector_resize
    const void* data)
 {
   void* buffer = NULL;
-  size_t new_capacity = 0;
-  size_t i = 0;
   enum sl_error err = SL_NO_ERROR;
 
   if(!vec) {
@@ -363,7 +361,9 @@ sl_vector_resize
     goto error;
   }
   if(size > vec->capacity) {
-    for(new_capacity=MAX(vec->capacity, 1); new_capacity<size; new_capacity*=2);
+    size_t new_capacity = MAX(vec->capacity, 1);
+
+    for( /* Nothing */ ; new_capacity < size; new_capacity *= 2);
     err = ensure_allocated(vec, new_capacity, true);
     if(err != SL_NO_ERROR)
       goto error;
@@ -372,6 +372,8 @@ sl_vector_resize
   if(size > vec->length) {
     buffer = (void*)((uintptr_t)vec->buffer + vec->length * vec->data_size);
     if(data) {
+      size_t i = 0;
+
       for(i = vec->length; i < size; ++i) {
         buffer = memcpy(buffer, data, vec->data_size);
         buffer = (void*)((uintptr_t)buffer + vec->data_size);

@@ -14,19 +14,6 @@
 #define BAD_ARG RDR_INVALID_ARGUMENT
 #define OK RDR_NO_ERROR
 
-static bool
-is_driver_null(const char* name)
-{
-  const char* null_driver_name = "librbnull.so";
-  char* p = NULL;
-  if(name == NULL)
-    return false;
-  p = strstr(name, null_driver_name);
-  return (p != NULL)
-    && (p == name ? true : *(p-1) == '/')
-    && (*(p + strlen(null_driver_name)) == '\0');
-}
-
 int
 main(int argc, char** argv)
 {
@@ -41,7 +28,6 @@ main(int argc, char** argv)
   size_t min_width = 0;
   size_t i = 0;
   int err = 0;
-  bool null_driver = false;
   bool b = false;
 
   /* Resources data. */
@@ -67,7 +53,6 @@ main(int argc, char** argv)
   }
   driver_name = argv[1];
   font_name = argv[2];
-  null_driver = is_driver_null(driver_name);
 
   file = fopen(driver_name, "r");
   if(!file) {

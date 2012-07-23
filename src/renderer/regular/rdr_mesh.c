@@ -117,7 +117,6 @@ set_mesh_indices
    const unsigned int* indices)
 {
   enum rdr_error rdr_err = RDR_NO_ERROR;
-  int err = 0;
   assert(mesh && (indices || !nb_indices));
 
   if(mesh->indices != NULL
@@ -129,6 +128,7 @@ set_mesh_indices
 
   if(nb_indices > 0) {
     const size_t indices_size = sizeof(unsigned int) * nb_indices;
+    int err = 0;
 
     if(mesh->indices == NULL) {
       const struct rb_buffer_desc desc = {
@@ -184,11 +184,9 @@ register_mesh_attribs
   size_t i = 0;
   size_t offset = 0;
   enum rdr_error rdr_err = RDR_NO_ERROR;
-  int previous_mask = 0;
 
   assert(mesh && (!nb_attribs || attrib_list));
 
-  previous_mask = mesh->registered_attribs_mask;
   unregister_all_mesh_attribs(mesh);
 
   for(i = 0, offset = 0; i < nb_attribs; ++i) {

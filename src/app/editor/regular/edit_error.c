@@ -13,6 +13,7 @@ app_to_edit_error(enum app_error err)
       break;
     case APP_NO_ERROR:
       edit_err = EDIT_NO_ERROR;
+      break;
     default:
       edit_err = EDIT_UNKNOWN_ERROR;
       break;
@@ -33,6 +34,7 @@ sl_to_edit_error(enum sl_error err)
       break;
     case SL_NO_ERROR:
       edit_err = EDIT_NO_ERROR;
+      break;
     default:
       edit_err = EDIT_UNKNOWN_ERROR;
       break;

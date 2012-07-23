@@ -82,6 +82,7 @@ typedef __m128i vi4_t;
 #define _VF4_GET_FLOAT(v, i) __builtin_ia32_vec_ext_v4sf(v, i)
 
 /* Swizzle operations. */
+/* cppcheck-suppress duplicateExpression */
 _VEC4_GEN_SWZ_FUNCS(vf4)
 
 /* Set operations. */
@@ -577,6 +578,7 @@ vi4_to_vf4(vi4_t v)
 #define _VI4_GET_INT32(v, i) __builtin_ia32_vec_ext_v4si((__v4si)v, i)
 
 /* Swizzle functions */
+/* cppcheck-suppress duplicateExpression */
 _VEC4_GEN_SWZ_FUNCS(vi4)
 
 /* Set operations. */

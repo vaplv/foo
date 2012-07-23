@@ -92,7 +92,7 @@ rsrc_context_ref_put(struct rsrc_context* ctxt)
 EXPORT_SYM enum rsrc_error
 rsrc_get_error_string(struct rsrc_context* ctxt, const char** str_err)
 {
-  if(!ctxt |! str_err)
+  if(!ctxt || !str_err)
     return RSRC_INVALID_ARGUMENT;
   *str_err = ctxt->errbuf_id == 0 ? NULL : ctxt->errbuf;
   return RSRC_NO_ERROR;

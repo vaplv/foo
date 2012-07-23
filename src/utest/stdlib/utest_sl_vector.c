@@ -16,7 +16,7 @@ main(int argc UNUSED, char** argv UNUSED)
   size_t len = 0;
   size_t size = 0;
   size_t alignment = 0;
-  ALIGN(16) int i[4];
+  ALIGN(16) int i[4] = {0, 0, 0, 0};
 
 
   CHECK(sl_create_vector(0, 0, NULL, NULL), BAD_ARG);

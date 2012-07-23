@@ -247,11 +247,11 @@ create_shader
   }
 
   shader = malloc(sizeof(struct render_shader));
-  memset(shader, 0, sizeof(struct render_shader));
   if(!shader) {
     err = -1;
     goto error;
   }
+  memset(shader, 0, sizeof(struct render_shader));
 
   length = strlen(vs_source);
   err = rbi->create_shader

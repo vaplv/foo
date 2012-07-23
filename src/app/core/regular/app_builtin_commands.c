@@ -39,9 +39,9 @@ print_cvar(struct app* app, const char* cvar_name, const struct app_cvar* cvar)
       break;
     case APP_CVAR_FLOAT3:
       APP_PRINT_MSG
-        (app->logger, 
-         "%s %f %f %f\n", 
-         cvar_name, 
+        (app->logger,
+         "%s %f %f %f\n",
+         cvar_name,
          cvar->value.real3[0],
          cvar->value.real3[1],
          cvar->value.real3[2]);
@@ -297,10 +297,10 @@ cmd_set
       print_cvar(app, cvar_name, cvar);
     } else {
       set_cvar
-        (app, 
-         cvar_name, 
-         cvar, 
-         argv[CVAR_DATA]->value_list, 
+        (app,
+         cvar_name,
+         cvar,
+         argv[CVAR_DATA]->value_list,
          argv[CVAR_DATA]->count);
     }
   }

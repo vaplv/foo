@@ -146,7 +146,7 @@ rbu_init_circle
     /* fill vertex data. */
     coord_id = 0;
     for(point_id = 0; point_id < npoints; ++point_id) {
-      const float angle = (float)point_id * rcp_npoints * 1 * PI;
+      const float angle = (float)point_id * rcp_npoints * 2 * PI;
       vertices[coord_id] = pos[0] + cosf(angle) * radius;
       ++coord_id;
       vertices[coord_id] = pos[1] + sinf(angle) * radius;

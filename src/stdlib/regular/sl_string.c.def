@@ -74,7 +74,7 @@ ensure_allocated(SL_STRING(SL_STRING_TYPE)* str, size_t size, bool keep_old)
   }
 
 exit:
-  return SL_NO_ERROR;
+  return sl_err;
 error:
   if(buffer)
     MEM_FREE(str->allocator, buffer);

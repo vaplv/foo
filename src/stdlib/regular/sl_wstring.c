@@ -8,7 +8,6 @@
 EXPORT_SYM enum sl_error
 sl_wstring_insert_cstr(struct sl_wstring* str, size_t id, const char* cstr)
 {
-  size_t len = 0;
   enum sl_error sl_err = SL_NO_ERROR;
 
   if(!str
@@ -23,7 +22,7 @@ sl_wstring_insert_cstr(struct sl_wstring* str, size_t id, const char* cstr)
     if(sl_err != SL_NO_ERROR)
       goto error;
   } else {
-    len = strlen(cstr);
+    const size_t len = strlen(cstr);
     sl_err = ensure_allocated(str, len + str->len + 1, true);
     if(sl_err != SL_NO_ERROR)
       goto error;

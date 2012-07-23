@@ -153,8 +153,6 @@ bind_mtr_attrib_to_mesh_attrib
 {
   enum rdr_attrib_usage mtr_attr_usage = RDR_ATTRIB_UNKNOWN;
   enum rdr_error rdr_err = RDR_NO_ERROR;
-  int err = 0;
-  bool is_attr_bound = false;
 
   assert(mtr_attr_desc
       && (!nb_mesh_attribs || mesh_attrib_list)
@@ -164,14 +162,15 @@ bind_mtr_attrib_to_mesh_attrib
 
   if(mtr_attr_usage != RDR_ATTRIB_UNKNOWN) {
     size_t i = 0;
+    bool is_attr_bound = false;
 
     for(i = 0; i < nb_mesh_attribs && !is_attr_bound; ++i) {
-        struct rdr_mesh_attrib_desc* mesh_attr =
-          mesh_attrib_list + i;
+      struct rdr_mesh_attrib_desc* mesh_attr = mesh_attrib_list + i;
 
       if(mesh_attr->usage == mtr_attr_usage
       && mesh_attr->type == mtr_attr_desc->type) {
         struct rb_buffer_attrib buffer_attrib;
+        int err = 0;
 
         buffer_attrib.index = mtr_attr_desc->index;
         buffer_attrib.stride = mesh_attr->stride;

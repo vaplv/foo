@@ -51,7 +51,7 @@ compare(const void* p0, const void* p1)
   const struct vvtvn* a = (const struct vvtvn*)p0;
   const struct vvtvn* b = (const struct vvtvn*)p1;
   return (a->v == b->v) & (a->vt == b->vt) & (a->vn == b->vn);
-} 
+}
 
 /*******************************************************************************
  *
@@ -64,7 +64,7 @@ compare(const void* p0, const void* p1)
 static enum rsrc_error
 triangulate
   (struct rsrc_context* ctxt,
-   struct rsrc_wavefront_obj_face* vert_list UNUSED, 
+   struct rsrc_wavefront_obj_face* vert_list UNUSED,
    size_t nb_verts,
    size_t max_nb_verts,
    size_t* out_nb_vert_ids,
@@ -74,16 +74,16 @@ triangulate
   assert
     (  (!nb_verts || vert_list)
     && max_nb_verts >= 3
-    && out_nb_vert_ids 
+    && out_nb_vert_ids
     && out_vert_id_list);
 
-  /* Right now only triangles (sic!) and quads are supported. 
+  /* Right now only triangles (sic!) and quads are supported.
    * TODO implement a generic triangulation algorithm. */
   if(nb_verts != 3 && nb_verts != 4) {
     RSRC(print_error
-      (ctxt, 
+      (ctxt,
        "unexpected polygon with %zu vertices: "
-       "only triangles or quads are supported\n", 
+       "only triangles or quads are supported\n",
        nb_verts));
     rsrc_err = RSRC_PARSING_ERROR;
     goto error;
@@ -193,10 +193,10 @@ build_triangle_list
 
     err = triangulate
       (ctxt,
-       face_verts, 
-       nb_verts, 
-       MAX_TRIANGULATE_FACE_IDS, 
-       &nb_vert_ids, 
+       face_verts,
+       nb_verts,
+       MAX_TRIANGULATE_FACE_IDS,
+       &nb_vert_ids,
        triangulate_face_ids);
     if(err != RSRC_NO_ERROR)
       goto error;
@@ -222,7 +222,7 @@ build_triangle_list
         if(key.vn > 0)
           memcpy(face_vertex + 3, nor[key.vn - 1], sizeof(float[3]));
         if(key.vt > 0) {
-          if(tex[key.vt - 1][2] != 0.f 
+          if(tex[key.vt - 1][2] != 0.f
           && tex[key.vt - 1][2] != 1.f) {  /* We expect 2d tex coords. */
             RSRC(print_error(ctxt, "unexpected 3D tex coords."));
             err = RSRC_PARSING_ERROR;
@@ -281,7 +281,7 @@ release_geometry(struct ref* ref)
 
   RSRC(clear_geometry(geom));
 
-  if(geom->primitive_set_list) 
+  if(geom->primitive_set_list)
     SL(free_vector(geom->primitive_set_list));
   if(geom->hash_table)
     SL(free_hash_table(geom->hash_table));
@@ -381,9 +381,7 @@ rsrc_clear_geometry(struct rsrc_geometry* geom)
 {
   struct primitive_set* prim_set = NULL;
   size_t len = 0;
-  size_t i = 0;
   enum rsrc_error err = RSRC_NO_ERROR;
-  enum sl_error sl_err = SL_NO_ERROR;
 
   if(!geom) {
     err = RSRC_INVALID_ARGUMENT;
@@ -391,6 +389,9 @@ rsrc_clear_geometry(struct rsrc_geometry* geom)
   }
 
   if(geom->primitive_set_list) {
+    size_t i = 0;
+    enum sl_error sl_err = SL_NO_ERROR;
+
     sl_err = sl_vector_buffer
       (geom->primitive_set_list,
        &len,

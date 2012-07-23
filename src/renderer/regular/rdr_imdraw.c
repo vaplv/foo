@@ -207,7 +207,6 @@ static void
 build_im_grid(struct rdr_system* sys, const struct rdr_imdraw_command* cmd)
 {
   float* vertices = NULL;
-  unsigned int nvertices = 0;
   const struct rdr_im_grid_desc* grid_desc = NULL;
   assert(cmd && sys);
 
@@ -217,6 +216,8 @@ build_im_grid(struct rdr_system* sys, const struct rdr_imdraw_command* cmd)
      (&sys->im.grid.desc,
       &cmd->data.grid.desc,
       sizeof(struct rdr_im_grid_desc))) {
+    unsigned int nvertices = 0;
+
     if(cmd->data.grid.desc.ndiv[0] && cmd->data.grid.desc.ndiv[1]) {
       float* vertex = NULL;
       size_t line_id = 0, subline_id = 0;

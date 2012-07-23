@@ -238,7 +238,10 @@ blob_buffer(struct blob* blob)
   return blob->buffer;
 }
 
+
 static FINLINE size_t
+/* cppcheck-suppress unmatchedSuppression */
+/* cppcheck-suppress unusedFunction */
 blob_id(struct blob* blob)
 {
   assert(blob);
@@ -269,8 +272,10 @@ error:
  * Screen functions.
  *
  ******************************************************************************/
-static FINLINE void
-release_line(struct screen* scr, struct line* line)
+static FINLINE 
+/* cppcheck-suppress unmatchedSuppression */
+/* cppcheck-suppress unusedFunction */
+void release_line(struct screen* scr, struct line* line)
 {
   assert(scr && line);
   list_move(&line->node, &scr->free_line_list);
@@ -483,6 +488,7 @@ printer_storage
       [1] = TEX_ATTRIB_ID,
       [2] = COL_ATTRIB_ID
     };
+    /* cppcheck-suppress unusedVariable */
     STATIC_ASSERT(3 == NB_ATTRIBS, Unexpected_constant);
     RBI(&sys->rb, remove_vertex_attrib
       (printer->text.varray, NB_ATTRIBS, attrib_id_list));

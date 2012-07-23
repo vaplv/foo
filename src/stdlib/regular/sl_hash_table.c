@@ -17,6 +17,15 @@ struct entry {
   } pair;
 };
 
+enum {
+  HASH_FNV32,
+  HASH_FNV64,
+  HASH_MURMUR32,
+  HASH_MURMUR64
+};
+
+#define HASH_FUNC HASH_FNV32
+
 struct sl_hash_table {
   struct entry** buffer;
   size_t (*hash_fcn)(const void*);
@@ -44,6 +53,7 @@ STATIC_ASSERT
  * Fowler/Noll/Vo hash function.
  *
  ******************************************************************************/
+#if (HASH_FUNC == HASH_FNV32)
 static FINLINE uint32_t
 fnv32(const void* data, size_t len)
 {
@@ -64,7 +74,9 @@ fnv32(const void* data, size_t len)
   #undef FNV32_PRIME
   #undef OFFSET32_BASIS
 }
+#endif
 
+#if (HASH_FUNC == HASH_FNV64)
 static FINLINE uint64_t
 fnv64(const void* data, size_t len)
 {
@@ -85,12 +97,14 @@ fnv64(const void* data, size_t len)
   #undef FNV64_PRIME
   #undef OFFSET64_BASIS
 }
+#endif
 
 /*******************************************************************************
  *
  * Murmur hash functions.
  *
  ******************************************************************************/
+#if (HASH_FUNC == HASH_MURMUR32)
 static FINLINE uint32_t
 murmur_hash2_32(const void* data, size_t len, uint32_t seed)
 {
@@ -133,7 +147,9 @@ murmur_hash2_32(const void* data, size_t len, uint32_t seed)
   #undef M
   #undef R
 }
+#endif
 
+#if (HASH_FUNC == HASH_MURMUR64)
 static FINLINE uint32_t
 murmur_hash2_64(const void* data, size_t len, uint64_t seed)
 {
@@ -185,6 +201,7 @@ murmur_hash2_64(const void* data, size_t len, uint64_t seed)
   #undef M
   #undef R
 }
+#endif
 
 /*******************************************************************************
  *
@@ -499,7 +516,6 @@ sl_hash_table_find_pair
    struct sl_pair* pair)
 {
   struct entry* entry = NULL;
-  size_t bucket = 0;
   enum sl_error err = SL_NO_ERROR;
   pair->key = pair->data = NULL;
 
@@ -508,7 +524,7 @@ sl_hash_table_find_pair
     goto error;
   }
   if(table->nb_buckets) {
-    bucket = compute_bucket(table->hash_fcn, key, table->nb_buckets);
+    size_t bucket = compute_bucket(table->hash_fcn, key, table->nb_buckets);
     entry = table->buffer[bucket];
 
     while(entry != NULL
@@ -698,13 +714,13 @@ sl_hash(const void* data, size_t len)
   size_t hash = 0;
   #define FNV32
 
-  #if defined(FNV32)
+  #if (HASH_FUNC == HASH_FNV32)
   hash = (size_t)fnv32(data, len);
-  #elif defined(FNV64)
+  #elif (HASH_FUNC == HASH_FNV64)
   hash = (size_t)fnv64(data, len);
-  #elif defined(MURMUR32)
+  #elif (HASH_FUNC == HASH_MURMUR32)
   hash = (size_t)murmur_hash2_32(data, len, 0);
-  #elif defined(MURMUR64)
+  #elif (HASH_FUNC == HASH_MURMUR64)
   hash = (size_t)murmur_hash2_64(data, len, 0);
   #else
   #error Unreachable_code

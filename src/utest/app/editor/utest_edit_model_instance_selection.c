@@ -180,12 +180,12 @@ main(int argc, char** argv)
   CHECK(edit_get_model_instance_selection_pivot(selection, pivot), OK);
   CHECK(app_get_model_instance_aabb(instance[2], min, max), APP_NO_ERROR);
   tmp[0] = (min[0] + max[0]) * 0.5f;
-  tmp[2] = (min[1] + max[1]) * 0.5f;
-  tmp[3] = (min[2] + max[2]) * 0.5f;
+  tmp[1] = (min[1] + max[1]) * 0.5f;
+  tmp[2] = (min[2] + max[2]) * 0.5f;
   CHECK(app_get_model_instance_aabb(instance[3], min, max), APP_NO_ERROR);
   tmp[0] += (min[0] + max[0]) * 0.5f;
-  tmp[2] += (min[1] + max[1]) * 0.5f;
-  tmp[3] += (min[2] + max[2]) * 0.5f;
+  tmp[1] += (min[1] + max[1]) * 0.5f;
+  tmp[2] += (min[2] + max[2]) * 0.5f;
   CHECK(pivot[0], tmp[0] * 0.5f);
   CHECK(pivot[1], tmp[1] * 0.5f);
   CHECK(pivot[2], tmp[2] * 0.5f);

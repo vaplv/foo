@@ -13,6 +13,7 @@ sl_to_wm_error(enum sl_error sl_err)
       break;
     case SL_NO_ERROR:
       wm_err = WM_NO_ERROR;
+      break;
     default:
       wm_err = WM_UNKNOWN_ERROR;
       break;

@@ -371,12 +371,11 @@ static enum app_error
 shutdown_sys(struct app* app)
 {
   enum app_error app_err = APP_NO_ERROR;
-  enum sl_error sl_err = SL_NO_ERROR;
 
   assert(app);
 
   if(app->logger) {
-    sl_err = sl_free_logger(app->logger);
+    const enum sl_error sl_err = sl_free_logger(app->logger);
     if(sl_err != SL_NO_ERROR) {
       app_err = sl_to_app_error(sl_err);
       goto error;
@@ -844,7 +843,6 @@ app_terminal_font(struct app* app, const char* path)
 {
   struct rdr_glyph_desc* glyph_desc_list = NULL;
   enum app_error app_err = APP_NO_ERROR;
-  enum rdr_error rdr_err = RDR_NO_ERROR;
   enum rsrc_error rsrc_err = RSRC_NO_ERROR;
   size_t nb_chars = 0;
   size_t i = 0;
@@ -863,6 +861,7 @@ app_terminal_font(struct app* app, const char* path)
   nb_chars = wcslen(default_charset);
   if(nb_chars) {
     size_t line_space = 0;
+    enum rdr_error rdr_err = RDR_NO_ERROR;
 
     glyph_desc_list = MEM_CALLOC
       (&app->rdr.allocator, nb_chars, sizeof(struct rdr_glyph_desc));
@@ -872,7 +871,6 @@ app_terminal_font(struct app* app, const char* path)
       size_t width = 0;
       size_t height = 0;
       size_t Bpp = 0;
-      size_t size = 0;
 
       rsrc_err = rsrc_font_glyph(app->rsrc.font, default_charset[i], &glyph);
       if(RSRC_NO_ERROR != rsrc_err) {
@@ -882,6 +880,7 @@ app_terminal_font(struct app* app, const char* path)
            default_charset[i],
            path);
       } else {
+        size_t size = 0;
         /* Get glyph desc. */
         RSRC(glyph_desc(glyph, &glyph_desc));
         glyph_desc_list[i].width = glyph_desc.width;

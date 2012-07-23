@@ -25,7 +25,6 @@ command_completion(struct term* term)
   const char** list = NULL;
   size_t cursor = 0;
   size_t len = 0;
-  size_t i = 0;
   assert(term);
 
   app = CONTAINER_OF(term, struct app, term);
@@ -39,6 +38,7 @@ command_completion(struct term* term)
   RDR(term_translate_cursor(app->term.render_term, cursor));
   if(0 != len) {
     if(1 < len) {
+      size_t i = 0;
       for(i = 0; i < len; ++i) {
         if(0 != i) {
           RDR(term_print_wchar
@@ -213,7 +213,7 @@ app_shutdown_term(struct app* app)
   if(true == app->term.is_enabled)
     APP(enable_term(app, false));
   memset(&app->term, 0, sizeof(app->term));
-  
+
 exit:
   return app_err;
 error:
