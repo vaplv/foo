@@ -117,14 +117,14 @@ vf4_acos(vf4_t v)
   const vf4_t h1 = vf4_set1(0.0066700901f);
   const vf4_t h2 = vf4_set1(-0.0170881256f);
   const vf4_t h3 = vf4_set1(0.0308918810f);
-  const vf4_t hi = 
+  const vf4_t hi =
     vf4_madd(vf4_madd(vf4_madd(h0, absv, h1), absv, h2), absv, h3);
 
   const vf4_t l0 = vf4_set1(-0.0501743046f);
   const vf4_t l1 = vf4_set1(0.0889789874f);
   const vf4_t l2 = vf4_set1(-0.2145988016f);
   const vf4_t l3 = vf4_set1(1.5707963050f);
-  const vf4_t lo = 
+  const vf4_t lo =
     vf4_madd(vf4_madd(vf4_madd(l0, absv, l1), absv, l2), absv, l3);
 
   const vf4_t res = vf4_mul(vf4_madd(hi, absv4, lo), t0);

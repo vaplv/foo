@@ -591,7 +591,6 @@ test_vf4(void)
   CHECK(EQ_EPS(vf4_x(i), 8.506521f, 1.e-5f), true);
   CHECK(EQ_EPS(vf4_y(i), 1.570796f, 1.e-5f), true);
   CHECK(EQ_EPS(vf4_z(i), 1.009206f, 1.e-5f), true);
-
   i = vf4_xyz_to_rthetaphi(vf4_set(0.f, 0.f, 3.1f, 0.f));
   CHECK(EQ_EPS(vf4_x(i), 3.1f, 1.e-5f), true);
   CHECK(EQ_EPS(vf4_y(i), 0.f, 1.e-5f), true);
@@ -608,6 +607,39 @@ test_vf4(void)
   CHECK(EQ_EPS(vf4_x(i), 9.053778f, 1.e-5f), true);
   CHECK(EQ_EPS(vf4_y(i), 1.221327f, 1.e-5f), true);
   CHECK(EQ_EPS(vf4_z(i), 1.009206f, 1.e-5f), true);
+
+  i = vf4_xyz_to_rthetaphi(vf4_set(-4.53f, 7.2f, 3.1f, 0.f));
+  CHECK(EQ_EPS(vf4_x(i), 9.053778f, 1.e-5f), true);
+  CHECK(EQ_EPS(vf4_y(i), 1.221327f, 1.e-5f), true);
+  CHECK(EQ_EPS(vf4_z(i), 2.132386f, 1.e-5f), true);
+  i = vf4_xyz_to_rthetaphi(vf4_set(-4.53f, -7.2f, 3.1f, 0.f));
+  CHECK(EQ_EPS(vf4_x(i), 9.053778f, 1.e-5f), true);
+  CHECK(EQ_EPS(vf4_y(i), 1.221327f, 1.e-5f), true);
+  CHECK(EQ_EPS(vf4_z(i), -2.132386f, 1.e-5f) || 
+        EQ_EPS(vf4_z(i), 2*PI - 2.132386f, 1.e-5f), true);
+  i = vf4_xyz_to_rthetaphi(vf4_set(4.53f, -7.2f, 3.1f, 0.f));
+  CHECK(EQ_EPS(vf4_x(i), 9.053778f, 1.e-5f), true);
+  CHECK(EQ_EPS(vf4_y(i), 1.221327f, 1.e-5f), true);
+  CHECK(EQ_EPS(vf4_z(i), -1.009206f, 1.e-5f) ||
+        EQ_EPS(vf4_z(i), 2*PI - 1.009206f, 1.e-5f), true);
+  i = vf4_xyz_to_rthetaphi(vf4_set(4.53f, 7.2f, -3.1f, 0.f));
+  CHECK(EQ_EPS(vf4_x(i), 9.053778f, 1.e-5f), true);
+  CHECK(EQ_EPS(vf4_y(i), 1.920264f, 1.e-5f), true);
+  CHECK(EQ_EPS(vf4_z(i), 1.009206f, 1.e-5f), true);
+  i = vf4_xyz_to_rthetaphi(vf4_set(-4.53f, 7.2f, -3.1f, 0.f));
+  CHECK(EQ_EPS(vf4_x(i), 9.053778f, 1.e-5f), true);
+  CHECK(EQ_EPS(vf4_y(i), 1.920264f, 1.e-5f), true);
+  CHECK(EQ_EPS(vf4_z(i), 2.132386f, 1.e-5f), true);
+  i = vf4_xyz_to_rthetaphi(vf4_set(4.53f, -7.2f, -3.1f, 0.f));
+  CHECK(EQ_EPS(vf4_x(i), 9.053778f, 1.e-5f), true);
+  CHECK(EQ_EPS(vf4_y(i), 1.920264f, 1.e-5f), true);
+  CHECK(EQ_EPS(vf4_z(i), -1.009206f, 1.e-5f) ||
+        EQ_EPS(vf4_z(i), 2*PI - 1.009206f, 1.e-5f), true);
+  i = vf4_xyz_to_rthetaphi(vf4_set(-4.53f, -7.2f, -3.1f, 0.f));
+  CHECK(EQ_EPS(vf4_x(i), 9.053778f, 1.e-5f), true);
+  CHECK(EQ_EPS(vf4_y(i), 1.920264f, 1.e-5f), true);
+  CHECK(EQ_EPS(vf4_z(i), -2.132386f, 1.e-5f) || 
+        EQ_EPS(vf4_z(i), 2*PI - 2.132386f, 1.e-5f), true);
 }
 
 static void
