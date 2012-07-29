@@ -554,6 +554,20 @@ vi4_to_vf4(vi4_t v)
   return _mm_cvtepi32_ps(v);
 }
 
+static FINLINE vf4_t /* Cartesian (xyz) to spherical (r, theta, phi)*/
+vf4_xyz_to_rthetaphi(vf4_t v)
+{
+  const vf4_t zero = vf4_zero();
+  const vf4_t len2 = vf4_len2(v);
+  const vf4_t len3 = vf4_len3(v);
+  const vf4_t theta = vf4_sel
+    (vf4_acos(vf4_div(vf4_zzzz(v), len3)), zero, vf4_eq(len3, zero));
+  const vf4_t phi = vf4_sel
+    (vf4_asin(vf4_div(vf4_yyyy(v), len2)), zero, vf4_eq(len2, zero));
+
+  return vf4_xyab(vf4_xayb(len3, theta), phi);
+}
+
 #undef _VF4_GET_FLOAT
 #undef _vf4_SWZ
 
