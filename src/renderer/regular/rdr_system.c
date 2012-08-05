@@ -133,23 +133,23 @@ rdr_create_system
   /* Init utils geometries. */
   CALL(rbu_init_circle
     (&sys->rb, sys->ctxt,
-     64,
+     32,
      (float[]){0.f, 0.f},
      1.f,
      &sys->rbu.circle));
   CALL(rbu_init_cylinder
     (&sys->rb, sys->ctxt,
-     64, /* nslices */
-     1.f, /* base_radius */
+     32, /* nslices */
+     0.5f, /* base_radius */
      0.f, /* top radius */
      1.f, /* height */
      (float[]){0.f, 0.f, 0.f},
      &sys->rbu.cone));
   CALL(rbu_init_cylinder
     (&sys->rb, sys->ctxt,
-     64, /* nslices */
-     1.f, /* base_radius */
-     1.f, /* top radius */
+     32, /* nslices */
+     0.5f, /* base_radius */
+     0.5f, /* top radius */
      1.f, /* height */
      (float[]){0.f, 0.f, 0.f},
      &sys->rbu.cylinder));

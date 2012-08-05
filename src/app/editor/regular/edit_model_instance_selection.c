@@ -476,7 +476,7 @@ edit_draw_model_instance_selection
     edit_err = EDIT_INVALID_ARGUMENT;
     goto error;
   }
-  /* Draw the aabb of theselected instances. */
+  /* Draw the aabb of the selected instances. */
   pivot[0] = pivot[1] = pivot[2] = 0.f;
   nb_selected_instances = 0;
   SL(hash_table_begin(selection->instance_htbl, &it, &is_end_reached));
@@ -530,6 +530,26 @@ edit_draw_model_instance_selection
   DRAW_CIRCLE(PI * 0.5f, 0.f, 0.f);
   DRAW_CIRCLE(0.f, PI * 0.5f, 0.f);
   #undef DRAW_CIRCLE
+
+  /* Draw the basis. */
+  APP(imdraw_vector
+    (selection->ctxt->app,
+     APP_IMDRAW_FLAG_FIXED_SCREEN_SIZE | APP_IMDRAW_FLAG_UPPERMOST_LAYER,
+     pivot,
+     (float[]){pivot[0], pivot[1] + 0.2f, pivot[2]},
+     (float[]){0.f, 1.f, 0.f}));
+  APP(imdraw_vector
+    (selection->ctxt->app,
+     APP_IMDRAW_FLAG_FIXED_SCREEN_SIZE | APP_IMDRAW_FLAG_UPPERMOST_LAYER,
+     pivot,
+     (float[]){pivot[0] + 0.2f, pivot[1], pivot[2]},
+     (float[]){1.f, 0.f, 0.f}));
+  APP(imdraw_vector
+    (selection->ctxt->app,
+     APP_IMDRAW_FLAG_FIXED_SCREEN_SIZE | APP_IMDRAW_FLAG_UPPERMOST_LAYER,
+     pivot,
+     (float[]){pivot[0], pivot[1], pivot[2] + 0.2f},
+     (float[]){0.f, 0.f, 1.f}));
 
 exit:
   return edit_err;

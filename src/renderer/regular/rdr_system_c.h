@@ -37,6 +37,10 @@ struct rdr_system {
       size_t sizeof_vertex_buffer;
       unsigned int nvertices;
     } grid;
+    struct im_line {
+      struct rb_buffer* vertex_buffer;
+      struct rb_vertex_array* vertex_array;
+    } line;
   } im;
 
   /* Render backend utils. */

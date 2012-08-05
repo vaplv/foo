@@ -310,6 +310,7 @@ rbu_init_cylinder
     goto error;
   }
   init_geometry(rbi, ctxt, cylinder);
+  nslices += nslices % 2; /* Ceil to even value */
 
   #define CALL(func) \
     do { \
@@ -325,6 +326,7 @@ rbu_init_cylinder
     struct rb_buffer_attrib buf_attr;
     float vertices[nslices * 2 * 3 /* number of vertex coords */];
     const float rcp_nslices = 1.f / (float)nslices;
+    const float half_height = height * 0.5f;
     memset(&vertices, 0, sizeof(vertices));
     memset(&buf_attr, 0, sizeof(buf_attr));
     memset(&buf_desc, 0, sizeof(buf_desc));
@@ -334,13 +336,13 @@ rbu_init_cylinder
       const float angle = (float)slice_id * rcp_nslices * 2 * PI;
       const float sina = sinf(angle);
       const float cosa = cosf(angle);
-      /* Base */
-      vertices[i++] = pos[0] + cosa * base_radius;
-      vertices[i++] = pos[1] - height * 0.5f;
-      vertices[i++] = pos[2] + sina * base_radius;
       /* Top */
+      vertices[i++] = pos[0] + cosa * base_radius;
+      vertices[i++] = pos[1] - half_height;
+      vertices[i++] = pos[2] + sina * base_radius;
+      /* Base */
       vertices[i++] = pos[0] + cosa * top_radius;
-      vertices[i++] = pos[1] + height * 0.5f;
+      vertices[i++] = pos[1] + half_height;
       vertices[i++] = pos[2] + sina * top_radius;
     }
     /* Setup the vertex buffer. */
@@ -359,31 +361,31 @@ rbu_init_cylinder
 
   /* index buffer */
   {
-    unsigned int indices[4*nslices + 2];
+    unsigned int indices[4*nslices - 2];
     size_t index_id = 0;
     const unsigned int two_nslices = 2 * nslices;
     memset(&indices, 0, sizeof(indices));
     memset(&buf_desc, 0, sizeof(buf_desc));
     i = 0;
 
-    /* Cylinder */
+    /* Top cap */
     index_id = 0;
-    for(slice_id = 0; slice_id <= nslices; ++slice_id) {
-      indices[i++] = index_id++;
-      indices[i++] = index_id++;
+    for(slice_id = 0; slice_id < nslices; ++slice_id) {
+      indices[i++] = index_id;
+      index_id = (two_nslices - 2) - index_id + (-(slice_id % 2 != 0) & 2);
+    }
+    /* Cylinder */
+    for(slice_id = 0; slice_id < two_nslices - 1; ++slice_id) {
+      index_id = (index_id + 1) % (two_nslices);
+      indices[i++] = index_id;
     }
     /* Back cap */
-    index_id = 0;
-    for(slice_id = 0; slice_id < nslices; ++slice_id) {
+    for(slice_id = 0; slice_id < nslices - 1; ++slice_id) {
+      index_id = two_nslices - index_id - (-(slice_id % 2 != 0) & 2);
+      index_id = index_id % two_nslices;
       indices[i++] = index_id;
-      index_id = two_nslices - 2 - index_id + (-(slice_id % 2 != 0) & 2);
-    }
-    /* Top cap */
-    index_id = 1;
-    for(slice_id = 0; slice_id < nslices; ++slice_id) {
-      indices[i++] = index_id;
-      index_id = two_nslices - index_id + (-(slice_id % 2 != 0) & 2);
-    }
+    } 
+
     /* Setup the index buffer. */
     buf_desc.size = sizeof(indices);
     buf_desc.target = RB_BIND_INDEX_BUFFER;
@@ -391,6 +393,9 @@ rbu_init_cylinder
     CALL(rbi->create_buffer(ctxt, &buf_desc, indices, &cylinder->index_buffer));
     CALL(rbi->vertex_index_array
       (cylinder->vertex_array, cylinder->index_buffer));
+
+    cylinder->primitive_type = RB_TRIANGLE_STRIP;
+    cylinder->nb_vertices = sizeof(indices) / sizeof(unsigned int);
   }
 
   #undef CALL

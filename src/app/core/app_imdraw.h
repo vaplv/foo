@@ -45,5 +45,13 @@ app_imdraw_grid
    const float vaxis_color[3],
    const float haxis_color[3]);
 
+extern enum app_error
+app_imdraw_vector
+  (struct app* app,
+   int flag,
+   const float start[3],
+   const float end[3],
+   const float color[4]);
+
 #endif /* APP_IMDRAW_H */
 

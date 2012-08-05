@@ -11,6 +11,7 @@ enum rdr_imdraw_type {
   RDR_IMDRAW_CIRCLE,
   RDR_IMDRAW_GRID,
   RDR_IMDRAW_PARALLELEPIPED,
+  RDR_IMDRAW_VECTOR,
   RDR_NB_IMDRAW_TYPES
 };
 
@@ -26,8 +27,13 @@ struct rdr_imdraw_command {
   union {
     struct {
       float transform[16]; /* column major */
-      float color[4]; /* RGBA */
+      float color[4]; /* RGBA. TODO transform in RGB */
     } circle;
+    struct {
+      float transform[16]; /* column major */
+      float vector[3];
+      float color[3];/*RGB */
+    } vector;
     struct {
       float transform[16]; /* column major */
       struct rdr_im_grid_desc {

@@ -79,7 +79,7 @@ extern int
 rbu_init_cylinder
   (const struct rbi* rbi,
    struct rb_context* ctxt,
-   unsigned int nslices,
+   unsigned int nslices, /* Ceil to even value */
    float base_radius,
    float top_radius,
    float height,

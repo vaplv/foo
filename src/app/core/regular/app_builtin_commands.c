@@ -174,7 +174,7 @@ cmd_ls
 {
   bool new_line = false;
   size_t len = 0;
-  enum { CMD_NAME, CMD_FLAG, MODEL_FLAG, INSTANCE_FLAG, CVAR_FLAG, ARGC };
+  enum { CMD_NAME, CMD_FLAG, INSTANCE_FLAG, MODEL_FLAG, CVAR_FLAG, ARGC };
 
   assert(app != NULL
       && argc == ARGC

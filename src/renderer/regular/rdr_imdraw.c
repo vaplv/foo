@@ -1,3 +1,4 @@
+#include "maths/simd/aosf44.h"
 #include "renderer/regular/rdr_imdraw_c.h"
 #include "renderer/regular/rdr_system_c.h"
 #include "renderer/rdr.h"
@@ -135,9 +136,7 @@ invoke_imdraw_parallelepiped
 }
 
 static void
-invoke_imdraw_circle
-  (struct rdr_system* sys,
-   struct rdr_imdraw_command* cmd)
+invoke_imdraw_circle(struct rdr_system* sys, struct rdr_imdraw_command* cmd)
 {
   assert(sys && cmd && cmd->type == RDR_IMDRAW_CIRCLE);
 
@@ -150,9 +149,102 @@ invoke_imdraw_circle
 }
 
 static void
+invoke_imdraw_vector(struct rdr_system* sys, struct rdr_imdraw_command* cmd)
+{
+  struct aosf44 f44;
+  ALIGN(16) float array[16]; 
+  struct aosf33 f33;
+  const vf4_t vec = vf4_set
+    (cmd->data.vector.vector[0],
+     cmd->data.vector.vector[1],
+     cmd->data.vector.vector[2],
+     0.f);
+  const vf4_t sqr_len = vf4_dot3(vec, vec);
+  vf4_t len = vf4_zero();
+
+  if(vf4_x(sqr_len) <= 0.f) {
+    memcpy(array, cmd->data.vector.transform, 16 * sizeof(float));
+  } else {
+    vf4_t tvec, bvec;
+    const union { uint32_t ui; float f; } mask = { .ui = 0x80000000 };
+    const vf4_t rcp_len = vf4_rsqrt(sqr_len);
+    vf4_t nvec;
+
+    len = vf4_mul(sqr_len, rcp_len);
+    nvec = vf4_mul(vec, rcp_len);
+
+    /* Build an orthonormal basis from the vector to draw. If its X component
+     * is not null we build an orthogonal vector by rotating the original one
+     * by PI/2 around the Y axis. In all other cases the orthogonal vector is
+     * defined by rotating the vector by PI/2 around the X axis. The last
+     * orthogonal vector is finally computed by simply performing a cross
+     * product between the two previous vectors. Note that it is not necessary
+     * to normalize the result of the cross product since tvec and nvec are
+     * already normalized *AND* are perpendiculars.
+     *
+     * This orthogonal basis is then used to build a rotation matrix to
+     * transform the reference vector (0, 1, 0) which is the vector used to
+     * generate the vector geometry.  */ 
+    if(cmd->data.vector.vector[0] != 0.f) {
+      tvec = vf4_xor(vf4_zyxw(nvec), vf4_set(0.f, 0.f, mask.f, 0.f));
+    } else {
+      tvec = vf4_xor(vf4_xzyw(nvec), vf4_set(0.f, mask.f, 0.f, 0.f));
+    }
+    bvec = vf4_cross3(tvec, nvec);
+
+    if(IS_ALIGNED(cmd->data.vector.transform, 16)) {
+      aosf44_load(&f44, cmd->data.vector.transform);
+    } else {
+      memcpy(array, cmd->data.vector.transform, 16 * sizeof(float));
+      aosf44_load(&f44, array);
+    }
+    /* transform the rotation matrix by the object to world transform matrix */
+    aosf33_mulf33
+      (&f33, 
+       (struct aosf33[]){{f44.c0, f44.c1, f44.c2}}, 
+       (struct aosf33[]){{bvec, nvec, tvec}});
+  }
+
+  RBI(&sys->rb, bind_program(sys->ctxt, sys->im.draw3d.shading_program));
+  RBI(&sys->rb, uniform_data
+    (sys->im.draw3d.color, 1, cmd->data.vector.color));
+    RBI(&sys->rb, bind_vertex_array(sys->ctxt, sys->im.line.vertex_array));
+
+  /* Stretch the line to the correct size by scaling the matrix by the vector
+   * length */
+  f44.c0 = vf4_mul(f33.c0, len);
+  f44.c1 = vf4_mul(f33.c1, len);
+  f44.c2 = vf4_mul(f33.c2, len);
+  aosf44_store(array, &f44);
+  RBI(&sys->rb, uniform_data(sys->im.draw3d.transform, 1, array));
+  RBI(&sys->rb, draw(sys->ctxt, RB_LINES, 2));
+
+  /* Set the vector termination to the its position by translating the matrix
+   * by the vector length */ 
+  if(cmd->flag & RDR_IMDRAW_FLAG_FIXED_SCREEN_SIZE) {
+    /* Empirical scale factor for the cone in "fixed screen size" mode */
+    const vf4_t scale = vf4_set1(0.05f); 
+    const vf4_t rcp_scale = vf4_rcp(scale);
+
+    f44.c0 = vf4_mul(f33.c0, scale);
+    f44.c1 = vf4_mul(f33.c1, scale);
+    f44.c2 = vf4_mul(f33.c2, scale);
+    f44.c3 = vf4_madd(f44.c1, vf4_mul(len, rcp_scale), f44.c3);
+  } else {
+    f44.c0 = f33.c0;
+    f44.c1 = f33.c1;
+    f44.c2 = f33.c2;
+    f44.c3 = vf4_madd(f44.c1, len, f44.c3);
+  }
+  aosf44_store(array, &f44);
+  RBI(&sys->rb, uniform_data(sys->im.draw3d.transform, 1, array));
+  RBU(draw_geometry(&sys->rbu.cone));
+}
+
+static void
 setup_im_grid
   (struct rdr_system* sys,
-   const float* vertices, /* Interleved list of 2D positions and RGB colors */
+   const float* vertices, /* Interleaved list of 2D positions and RGB colors */
    unsigned int nvertices)
 {
   assert(sys && (vertices || !nvertices));
@@ -365,6 +457,9 @@ flush_command_list
       case RDR_IMDRAW_PARALLELEPIPED:
         invoke_imdraw_parallelepiped(cmdbuf->sys, cmd);
         break;
+      case RDR_IMDRAW_VECTOR:
+        invoke_imdraw_vector(cmdbuf->sys, cmd);
+        break;
       default: assert(0); break;
     }
     list_move_tail(node, &cmdbuf->free_command_list);
@@ -412,6 +507,32 @@ init_im_draw
 }
 
 static void
+init_im_line(struct rbi* rbi, struct rb_context* ctxt, struct im_line* line)
+{
+  struct rb_buffer* vbuf = NULL;
+  struct rb_vertex_array* varray = NULL;
+  const float vertices[] = {  0.f, 0.f, 0.f, 0.f, 1.f, 0.f };
+  const struct rb_buffer_desc vbuf_desc = {
+    .size = sizeof(vertices),
+    .target = RB_BIND_VERTEX_BUFFER,
+    .usage = RB_USAGE_IMMUTABLE
+  };
+  const struct rb_buffer_attrib vbuf_attr = {
+    .index = 0,
+    .stride = sizeof(vertices) / 2,
+    .offset = 0,
+    .type = RB_FLOAT3
+  };
+  assert(rbi && line);
+
+  RBI(rbi, create_buffer(ctxt, &vbuf_desc, vertices, &vbuf));
+  RBI(rbi, create_vertex_array(ctxt, &varray));
+  RBI(rbi, vertex_attrib_array(varray, vbuf, 1, &vbuf_attr));
+  line->vertex_buffer = vbuf;
+  line->vertex_array = varray;
+}
+
+static void
 release_im_draw(struct rbi* rbi, struct im_draw* im_draw)
 {
   assert(rbi && im_draw);
@@ -427,6 +548,30 @@ release_im_draw(struct rbi* rbi, struct im_draw* im_draw)
   if(im_draw->color)
     RBI(rbi, uniform_ref_put(im_draw->color));
   memset(im_draw, 0, sizeof(struct im_draw));
+}
+
+static void
+release_im_grid(struct rbi* rbi, struct im_grid* im_grid)
+{
+  assert(rbi && im_grid);
+
+  if(im_grid->vertex_buffer)
+    RBI(rbi, buffer_ref_put(im_grid->vertex_buffer));
+  if(im_grid->vertex_array)
+    RBI(rbi, vertex_array_ref_put(im_grid->vertex_array));
+  memset(im_grid, 0, sizeof(struct im_grid));
+}
+
+static void
+release_im_line(struct rbi* rbi, struct im_line* im_line)
+{
+  assert(rbi && im_line);
+
+  if(im_line->vertex_array)
+    RBI(rbi, vertex_array_ref_put(im_line->vertex_array));
+  if(im_line->vertex_buffer)
+    RBI(rbi, buffer_ref_put(im_line->vertex_buffer));
+  memset(im_line, 0, sizeof(struct im_line));
 }
 
 static void
@@ -474,6 +619,8 @@ rdr_init_im_rendering(struct rdr_system* sys)
      imdraw2d_color_vs_source,
      imdraw_fs_source,
      IM_DRAW_NONE);
+  /* The im grid is not intialized. It is automatically created in runtime. */
+  init_im_line(&sys->rb, sys->ctxt, &sys->im.line);
 
   return RDR_NO_ERROR;
 }
@@ -486,10 +633,8 @@ rdr_shutdown_im_rendering(struct rdr_system* sys)
   release_im_draw(&sys->rb, &sys->im.draw2d);
   release_im_draw(&sys->rb, &sys->im.draw3d);
   release_im_draw(&sys->rb, &sys->im.draw2d_color);
-  if(sys->im.grid.vertex_buffer)
-    RBI(&sys->rb, buffer_ref_put(sys->im.grid.vertex_buffer));
-  if(sys->im.grid.vertex_array)
-    RBI(&sys->rb, vertex_array_ref_put(sys->im.grid.vertex_array));
+  release_im_grid(&sys->rb, &sys->im.grid);
+  release_im_line(&sys->rb, &sys->im.line);
   return RDR_NO_ERROR;
 }
 

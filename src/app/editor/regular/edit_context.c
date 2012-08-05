@@ -123,16 +123,19 @@ edit_run(struct edit_context* ctxt)
       (ctxt->app,
        APP_IMDRAW_FLAG_NONE,
        (float[]){0.f, 0.f, 0.f}, /* pos */
-       (float[]){1000.f, 1000.f}, /* size */
+       (float[]){
+          ctxt->cvars.grid_size->value.real,
+          ctxt->cvars.grid_size->value.real
+       },
        (float[]){PI * 0.5f, 0.f, 0.f}, /* rotation */
        (unsigned int[]){ /* ndiv */
-          ctxt->cvars.grid_ndiv->value.integer, 
+          ctxt->cvars.grid_ndiv->value.integer,
           ctxt->cvars.grid_ndiv->value.integer
        },
        (unsigned int[]){ /* nsubdiv */
-          ctxt->cvars.grid_nsubdiv->value.integer, 
+          ctxt->cvars.grid_nsubdiv->value.integer,
           ctxt->cvars.grid_nsubdiv->value.integer
-       }, 
+       },
        (float[]){0.25f, 0.25f, 0.25f}, /* color */
        (float[]){0.15f, 0.15f, 0.15f}, /* subcolor */
        (float[]){0.f, 0.f, 1.f}, /* vaxis_color */

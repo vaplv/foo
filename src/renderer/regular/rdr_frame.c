@@ -67,6 +67,7 @@ compute_transform
   struct aosf33 f33;
   assert(transform && pos && size && rotation);
 
+  /* Transform = translation * rotation * scale */
   aosf33_rotation(&f33, rotation[0], rotation[1], rotation[2]);
   f33.c0 = vf4_mul(f33.c0, vf4_set1(size[0]));
   f33.c1 = vf4_mul(f33.c1, vf4_set1(size[1]));
@@ -152,7 +153,7 @@ compute_imdraw_transform
           model_matrix->c1,
           model_matrix->c2
        }},
-       model_z_vs);
+       vf4_minus(model_z_vs));
     aosf44_mulf44
       (&transform,
        &frame->imdraw.transform_cache.viewproj_matrix,
@@ -250,6 +251,42 @@ imdraw_circle
   memcpy(cmd->data.circle.transform, tmp, sizeof(tmp));
   memcpy(cmd->data.circle.color, wire_color, 4 * sizeof(float));
 
+  RDR(emit_imdraw_command(frame->imdraw.cmdbuf, cmd));
+exit:
+  return rdr_err;
+error:
+  assert(cmd == NULL);
+  goto exit;
+}
+
+static enum rdr_error
+imdraw_vector
+  (struct rdr_frame* frame,
+   const struct rdr_view* rview,
+   int flag,
+   const struct aosf44* trans,
+   const float vec[3],
+   const float color[3])
+{
+  ALIGN(16) float tmp[16];
+  struct rdr_imdraw_command* cmd = NULL;
+  enum rdr_error rdr_err = RDR_NO_ERROR;
+
+  assert(frame && rview && trans && color);
+
+  RDR(get_imdraw_command(frame->imdraw.cmdbuf, &cmd));
+  if(UNLIKELY(!cmd)) {
+    rdr_err = RDR_MEMORY_ERROR;
+    goto error;
+  }
+  compute_imdraw_transform(frame, flag, rview, trans, tmp);
+
+  cmd->type = RDR_IMDRAW_VECTOR;
+  cmd->flag = flag;
+  setup_imdraw_command_viewport(cmd, rview);
+  memcpy(cmd->data.vector.transform, tmp, sizeof(tmp));
+  memcpy(cmd->data.vector.vector, vec, 3 * sizeof(float));
+  memcpy(cmd->data.vector.color, color, 3 * sizeof(float));
   RDR(emit_imdraw_command(frame->imdraw.cmdbuf, cmd));
 exit:
   return rdr_err;
@@ -519,7 +556,7 @@ rdr_frame_imdraw_ellipse
    const struct rdr_view* rview,
    int flag,
    const float pos[3],
-   const float size[2],
+   const float size[3],
    const float rotation[3],
    const float color[4])
 {
@@ -531,6 +568,33 @@ rdr_frame_imdraw_ellipse
   compute_transform
     (&transform, pos, (float[]){size[0], size[1], 1.f}, rotation);
   rdr_err = imdraw_circle(frame, rview, flag, &transform, color);
+  return rdr_err;
+}
+
+EXPORT_SYM enum rdr_error
+rdr_frame_imdraw_vector
+  (struct rdr_frame* frame,
+   const struct rdr_view* rview,
+   int flag,
+   const float start[3],
+   const float end[3],
+   const float color[3])
+{
+  struct aosf44 transform;
+  float vec[3] = {0.f, 0.f, 0.f};
+  enum rdr_error rdr_err = RDR_NO_ERROR;
+
+  if(UNLIKELY(!frame || !rview || !start || !end || !color))
+    return RDR_INVALID_ARGUMENT;
+
+  vec[0] = end[0] - start[0];
+  vec[1] = end[1] - start[1];
+  vec[2] = end[2] - start[2];
+  transform.c0 = vf4_set(1.f, 0.f, 0.f, 0.f);
+  transform.c1 = vf4_set(0.f, 1.f, 0.f, 0.f);
+  transform.c2 = vf4_set(0.f, 0.f, 1.f, 0.f);
+  transform.c3 = vf4_set(start[0], start[1], start[2], 1.f);
+  rdr_err = imdraw_vector(frame, rview, flag, &transform, vec, color);
   return rdr_err;
 }
 
@@ -633,6 +697,7 @@ rdr_flush_frame(struct rdr_frame* frame)
     list_del(node);
   }
   frame->term_node_id = 0;
+
   /* Flush render backend. */
   RBI(&frame->sys->rb, flush(frame->sys->ctxt));
 

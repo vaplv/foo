@@ -20,6 +20,7 @@ struct edit_context {
   struct cvars {
     const struct app_cvar* grid_ndiv;
     const struct app_cvar* grid_nsubdiv;
+    const struct app_cvar* grid_size;
     const struct app_cvar* pivot_color;
     const struct app_cvar* pivot_size;
     const struct app_cvar* project_path;
