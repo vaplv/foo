@@ -85,6 +85,31 @@ release_regular_model_instance_selection(struct ref* ref)
 }
 
 static void
+draw_pivot(struct edit_context* ctxt, const float pos[3])
+{
+  assert(app && pos);
+  #define DRAW_CIRCLE(pitch, yaw, roll) \
+    APP(imdraw_ellipse \
+      (ctxt->app, \
+       APP_IMDRAW_FLAG_UPPERMOST_LAYER | APP_IMDRAW_FLAG_FIXED_SCREEN_SIZE, \
+       pos, \
+       (float[]){ /* size */ \
+          ctxt->cvars.pivot_size->value.real, \
+          ctxt->cvars.pivot_size->value.real \
+       }, \
+       (float[]){(pitch), (yaw), (roll)}, /* Rotation */ \
+       (float[]){ /* color */ \
+          ctxt->cvars.pivot_color->value.real3[0], \
+          ctxt->cvars.pivot_color->value.real3[1], \
+          ctxt->cvars.pivot_color->value.real3[2] \
+       }))
+  DRAW_CIRCLE(0.f, 0.f, 0.f);
+  DRAW_CIRCLE(PI * 0.5f, 0.f, 0.f);
+  DRAW_CIRCLE(0.f, PI * 0.5f, 0.f);
+  #undef DRAW_CIRCLE
+}
+
+static void
 release_model_instance_selection(struct ref* ref)
 {
   struct edit_context* ctxt = NULL;
@@ -506,30 +531,12 @@ edit_draw_model_instance_selection
     SL(hash_table_it_next(&it, &is_end_reached));
     ++nb_selected_instances;
   }
-  /* Draw the pivot. */
+
   rcp_nb_selected_instances = 1.f / (float) nb_selected_instances;
   pivot[0] *= rcp_nb_selected_instances;
   pivot[1] *= rcp_nb_selected_instances;
   pivot[2] *= rcp_nb_selected_instances;
-  #define DRAW_CIRCLE(pitch, yaw, roll) \
-    APP(imdraw_ellipse \
-      (selection->ctxt->app, \
-       APP_IMDRAW_FLAG_UPPERMOST_LAYER | APP_IMDRAW_FLAG_FIXED_SCREEN_SIZE, \
-       pivot, \
-       (float[]){ /* size */ \
-          selection->ctxt->cvars.pivot_size->value.real, \
-          selection->ctxt->cvars.pivot_size->value.real \
-       }, \
-       (float[]){(pitch), (yaw), (roll)}, /* Rotation */ \
-       (float[]){ /* color */ \
-          selection->ctxt->cvars.pivot_color->value.real3[0], \
-          selection->ctxt->cvars.pivot_color->value.real3[1], \
-          selection->ctxt->cvars.pivot_color->value.real3[2] \
-       }))
-  DRAW_CIRCLE(0.f, 0.f, 0.f);
-  DRAW_CIRCLE(PI * 0.5f, 0.f, 0.f);
-  DRAW_CIRCLE(0.f, PI * 0.5f, 0.f);
-  #undef DRAW_CIRCLE
+  draw_pivot(selection->ctxt, pivot);
 
   /* Draw the basis. */
   APP(imdraw_vector
