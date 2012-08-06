@@ -2,6 +2,7 @@
 #define RDR_FRAME_H
 
 #include "renderer/rdr_error.h"
+#include "renderer/rdr_imdraw.h"
 
 struct rdr_frame;
 struct rdr_system;
@@ -88,6 +89,8 @@ rdr_frame_imdraw_vector
   (struct rdr_frame* frame,
    const struct rdr_view* view,
    int flag,
+   enum rdr_im_vector_marker start_marker,
+   enum rdr_im_vector_marker end_marker,
    const float start[3],
    const float end[3],
    const float color[3]);

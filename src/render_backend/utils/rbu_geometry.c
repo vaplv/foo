@@ -258,7 +258,8 @@ rbu_init_parallelepiped
     SETUP_INDEX_BUFFER(indices, RB_LINE_LOOP);
   } else {
     const unsigned int indices[14] = {
-      1, 0, 2, 3, 7, 0, 4, 1, 5, 2, 6, 7, 5, 4
+      /* 1, 0, 2, 3, 7, 0, 4, 1, 5, 2, 6, 7, 5, 4*/
+      0, 1, 3, 2, 6, 1, 5, 0, 4, 3, 7, 6, 4, 5
     };
     SETUP_INDEX_BUFFER(indices, RB_TRIANGLE_STRIP);
   }

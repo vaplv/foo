@@ -12,6 +12,12 @@ enum app_imdraw_flag {
   APP_IMDRAW_FLAG_NONE = 0
 };
 
+enum app_im_vector_marker {
+  APP_IM_VECTOR_CUBE_MARKER,
+  APP_IM_VECTOR_CONE_MARKER,
+  APP_IM_VECTOR_MARKER_NONE
+};
+
 extern enum app_error
 app_imdraw_parallelepiped
   (struct app* app,
@@ -49,6 +55,8 @@ extern enum app_error
 app_imdraw_vector
   (struct app* app,
    int flag,
+   enum app_im_vector_marker start_marker,
+   enum app_im_vector_marker end_marker,
    const float start[3],
    const float end[3],
    const float color[4]);

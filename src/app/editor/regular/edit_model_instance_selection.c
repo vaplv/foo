@@ -535,18 +535,24 @@ edit_draw_model_instance_selection
   APP(imdraw_vector
     (selection->ctxt->app,
      APP_IMDRAW_FLAG_FIXED_SCREEN_SIZE | APP_IMDRAW_FLAG_UPPERMOST_LAYER,
+     APP_IM_VECTOR_MARKER_NONE,
+     APP_IM_VECTOR_CONE_MARKER,
      pivot,
      (float[]){pivot[0], pivot[1] + 0.2f, pivot[2]},
      (float[]){0.f, 1.f, 0.f}));
   APP(imdraw_vector
     (selection->ctxt->app,
      APP_IMDRAW_FLAG_FIXED_SCREEN_SIZE | APP_IMDRAW_FLAG_UPPERMOST_LAYER,
+     APP_IM_VECTOR_MARKER_NONE,
+     APP_IM_VECTOR_CONE_MARKER,
      pivot,
      (float[]){pivot[0] + 0.2f, pivot[1], pivot[2]},
      (float[]){1.f, 0.f, 0.f}));
   APP(imdraw_vector
     (selection->ctxt->app,
      APP_IMDRAW_FLAG_FIXED_SCREEN_SIZE | APP_IMDRAW_FLAG_UPPERMOST_LAYER,
+     APP_IM_VECTOR_MARKER_NONE,
+     APP_IM_VECTOR_CUBE_MARKER,
      pivot,
      (float[]){pivot[0], pivot[1], pivot[2] + 0.2f},
      (float[]){0.f, 0.f, 1.f}));

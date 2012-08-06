@@ -265,6 +265,8 @@ imdraw_vector
    const struct rdr_view* rview,
    int flag,
    const struct aosf44* trans,
+   enum rdr_im_vector_marker start_marker,
+   enum rdr_im_vector_marker end_marker,
    const float vec[3],
    const float color[3])
 {
@@ -287,6 +289,8 @@ imdraw_vector
   memcpy(cmd->data.vector.transform, tmp, sizeof(tmp));
   memcpy(cmd->data.vector.vector, vec, 3 * sizeof(float));
   memcpy(cmd->data.vector.color, color, 3 * sizeof(float));
+  cmd->data.vector.start_marker = start_marker;
+  cmd->data.vector.end_marker = end_marker;
   RDR(emit_imdraw_command(frame->imdraw.cmdbuf, cmd));
 exit:
   return rdr_err;
@@ -576,6 +580,8 @@ rdr_frame_imdraw_vector
   (struct rdr_frame* frame,
    const struct rdr_view* rview,
    int flag,
+   enum rdr_im_vector_marker start_marker,
+   enum rdr_im_vector_marker end_marker,
    const float start[3],
    const float end[3],
    const float color[3])
@@ -594,7 +600,8 @@ rdr_frame_imdraw_vector
   transform.c1 = vf4_set(0.f, 1.f, 0.f, 0.f);
   transform.c2 = vf4_set(0.f, 0.f, 1.f, 0.f);
   transform.c3 = vf4_set(start[0], start[1], start[2], 1.f);
-  rdr_err = imdraw_vector(frame, rview, flag, &transform, vec, color);
+  rdr_err = imdraw_vector
+    (frame, rview, flag, &transform, start_marker, end_marker, vec, color);
   return rdr_err;
 }
 

@@ -2,6 +2,7 @@
 #define RDR_IMDRAW_C_H
 
 #include "renderer/rdr_error.h"
+#include "renderer/rdr_imdraw.h"
 #include "sys/list.h"
 #include "sys/ref_count.h"
 
@@ -33,6 +34,8 @@ struct rdr_imdraw_command {
       float transform[16]; /* column major */
       float vector[3];
       float color[3];/*RGB */
+      enum rdr_im_vector_marker start_marker;
+      enum rdr_im_vector_marker end_marker;
     } vector;
     struct {
       float transform[16]; /* column major */

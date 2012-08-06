@@ -29,6 +29,28 @@ app_to_rdr_imdraw_flag(int app_flag)
   return flag;
 }
 
+static enum rdr_im_vector_marker
+app_to_rdr_im_vector_marker(enum app_im_vector_marker marker)
+{
+  enum rdr_im_vector_marker rmarker = RDR_IM_VECTOR_MARKER_NONE;
+
+  switch(marker) {
+    case APP_IM_VECTOR_CUBE_MARKER:
+      rmarker = RDR_IM_VECTOR_CUBE_MARKER;
+      break;
+    case APP_IM_VECTOR_CONE_MARKER:
+      rmarker = RDR_IM_VECTOR_CONE_MARKER;
+      break;
+    case APP_IM_VECTOR_MARKER_NONE:
+      rmarker = RDR_IM_VECTOR_MARKER_NONE;
+      break;
+    default:
+      assert(0);
+      break;
+  };
+  return rmarker;
+}
+
 static FINLINE void
 setup_render_view(struct app* app, struct rdr_view* render_view)
 {
@@ -192,6 +214,8 @@ EXPORT_SYM enum app_error
 app_imdraw_vector
   (struct app* app,
    int flag,
+   enum app_im_vector_marker start_marker,
+   enum app_im_vector_marker end_marker,
    const float start[3],
    const float end[3],
    const float color[3])
@@ -210,6 +234,8 @@ app_imdraw_vector
     (app->rdr.frame,
      &render_view,
      app_to_rdr_imdraw_flag(flag),
+     app_to_rdr_im_vector_marker(start_marker),
+     app_to_rdr_im_vector_marker(end_marker),
      start,
      end,
      color);

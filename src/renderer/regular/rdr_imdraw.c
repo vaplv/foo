@@ -152,7 +152,7 @@ static void
 invoke_imdraw_vector(struct rdr_system* sys, struct rdr_imdraw_command* cmd)
 {
   struct aosf44 f44;
-  ALIGN(16) float array[16]; 
+  ALIGN(16) float array[16];
   struct aosf33 f33;
   const vf4_t vec = vf4_set
     (cmd->data.vector.vector[0],
@@ -160,6 +160,7 @@ invoke_imdraw_vector(struct rdr_system* sys, struct rdr_imdraw_command* cmd)
      cmd->data.vector.vector[2],
      0.f);
   const vf4_t sqr_len = vf4_dot3(vec, vec);
+
   vf4_t len = vf4_zero();
 
   if(vf4_x(sqr_len) <= 0.f) {
@@ -184,7 +185,7 @@ invoke_imdraw_vector(struct rdr_system* sys, struct rdr_imdraw_command* cmd)
      *
      * This orthogonal basis is then used to build a rotation matrix to
      * transform the reference vector (0, 1, 0) which is the vector used to
-     * generate the vector geometry.  */ 
+     * generate the vector geometry.  */
     if(cmd->data.vector.vector[0] != 0.f) {
       tvec = vf4_xor(vf4_zyxw(nvec), vf4_set(0.f, 0.f, mask.f, 0.f));
     } else {
@@ -200,8 +201,8 @@ invoke_imdraw_vector(struct rdr_system* sys, struct rdr_imdraw_command* cmd)
     }
     /* transform the rotation matrix by the object to world transform matrix */
     aosf33_mulf33
-      (&f33, 
-       (struct aosf33[]){{f44.c0, f44.c1, f44.c2}}, 
+      (&f33,
+       (struct aosf33[]){{f44.c0, f44.c1, f44.c2}},
        (struct aosf33[]){{bvec, nvec, tvec}});
   }
 
@@ -219,26 +220,57 @@ invoke_imdraw_vector(struct rdr_system* sys, struct rdr_imdraw_command* cmd)
   RBI(&sys->rb, uniform_data(sys->im.draw3d.transform, 1, array));
   RBI(&sys->rb, draw(sys->ctxt, RB_LINES, 2));
 
-  /* Set the vector termination to the its position by translating the matrix
-   * by the vector length */ 
-  if(cmd->flag & RDR_IMDRAW_FLAG_FIXED_SCREEN_SIZE) {
-    /* Empirical scale factor for the cone in "fixed screen size" mode */
-    const vf4_t scale = vf4_set1(0.05f); 
-    const vf4_t rcp_scale = vf4_rcp(scale);
+  #define DRAW_MARKER(marker) \
+    do { \
+      switch(marker) { \
+        case RDR_IM_VECTOR_CUBE_MARKER:  \
+          RBU(draw_geometry(&sys->rbu.solid_parallelepiped)); \
+          break; \
+        case RDR_IM_VECTOR_CONE_MARKER: \
+          RBU(draw_geometry(&sys->rbu.cone)); \
+          break; \
+        default: assert(0); break; \
+      } \
+    } while(0)
 
-    f44.c0 = vf4_mul(f33.c0, scale);
-    f44.c1 = vf4_mul(f33.c1, scale);
-    f44.c2 = vf4_mul(f33.c2, scale);
-    f44.c3 = vf4_madd(f44.c1, vf4_mul(len, rcp_scale), f44.c3);
-  } else {
-    f44.c0 = f33.c0;
-    f44.c1 = f33.c1;
-    f44.c2 = f33.c2;
-    f44.c3 = vf4_madd(f44.c1, len, f44.c3);
+  if(cmd->data.vector.end_marker != RDR_IM_VECTOR_MARKER_NONE
+  || cmd->data.vector.start_marker != RDR_IM_VECTOR_MARKER_NONE) {
+
+    if(cmd->flag & RDR_IMDRAW_FLAG_FIXED_SCREEN_SIZE) {
+      /* Empirical scale factor for the markers in "fixed screen size" space */
+      const vf4_t marker_scale = vf4_set1(0.05f);
+      const vf4_t rcp_marker_scale = vf4_rcp(marker_scale);
+
+      f44.c0 = vf4_mul(f33.c0, marker_scale);
+      f44.c1 = vf4_mul(f33.c1, marker_scale);
+      f44.c2 = vf4_mul(f33.c2, marker_scale);
+      len = vf4_mul(len, rcp_marker_scale);
+    } else {
+      f44.c0 = f33.c0;
+      f44.c1 = f33.c1;
+      f44.c2 = f33.c2;
+    }
+    if(cmd->data.vector.end_marker != RDR_IM_VECTOR_MARKER_NONE) {
+      const vf4_t saved_c3 = f44.c3;
+
+      /* Set the end marker to its position by translating the matrix
+       * by the vector length. */
+      f44.c3 = vf4_madd(f44.c1, len, f44.c3);
+      aosf44_store(array, &f44);
+      RBI(&sys->rb, uniform_data(sys->im.draw3d.transform, 1, array));
+      DRAW_MARKER(cmd->data.vector.end_marker);
+      f44.c3 = saved_c3;
+    }
+    if(cmd->data.vector.start_marker != RDR_IM_VECTOR_MARKER_NONE) {
+      /* rotate the start marker by PI around the X axis. */
+      f44.c1 = vf4_minus(f44.c1);
+      f44.c2 = vf4_minus(f44.c2);
+      aosf44_store(array, &f44);
+      RBI(&sys->rb, uniform_data(sys->im.draw3d.transform, 1, array));
+      DRAW_MARKER(cmd->data.vector.start_marker);
+    }
   }
-  aosf44_store(array, &f44);
-  RBI(&sys->rb, uniform_data(sys->im.draw3d.transform, 1, array));
-  RBU(draw_geometry(&sys->rbu.cone));
+  #undef DRAW_MARKER
 }
 
 static void
