@@ -87,7 +87,8 @@ release_regular_model_instance_selection(struct ref* ref)
 static void
 draw_pivot(struct edit_context* ctxt, const float pos[3])
 {
-  assert(app && pos);
+  assert(ctxt && pos);
+
   #define DRAW_CIRCLE(pitch, yaw, roll) \
     APP(imdraw_ellipse \
       (ctxt->app, \
@@ -103,10 +104,51 @@ draw_pivot(struct edit_context* ctxt, const float pos[3])
           ctxt->cvars.pivot_color->value.real3[1], \
           ctxt->cvars.pivot_color->value.real3[2] \
        }))
+
   DRAW_CIRCLE(0.f, 0.f, 0.f);
   DRAW_CIRCLE(PI * 0.5f, 0.f, 0.f);
   DRAW_CIRCLE(0.f, PI * 0.5f, 0.f);
+
   #undef DRAW_CIRCLE
+}
+
+static void
+draw_basis
+  (struct edit_context* ctxt,
+   const float pos[3],
+   enum app_im_vector_marker end_marker)
+{
+  assert(ctxt && pos);
+
+  #define DRAW_VECTOR(end, color)  \
+   APP(imdraw_vector \
+      (ctxt->app, \
+       APP_IMDRAW_FLAG_FIXED_SCREEN_SIZE | APP_IMDRAW_FLAG_UPPERMOST_LAYER, \
+       APP_IM_VECTOR_MARKER_NONE, \
+       end_marker, \
+       pos, \
+       end, \
+       color))
+
+   DRAW_VECTOR
+     (((float[]){pos[0] + 0.2f, pos[1], pos[2]}),
+      ((float[]){1.f, 0.f, 0.f}));
+   DRAW_VECTOR
+     (((float[]){pos[0], pos[1] + 0.2f, pos[2]}),
+      ((float[]){0.f, 1.f, 0.f}));
+   DRAW_VECTOR
+     (((float[]){pos[0], pos[1], pos[2] + 0.2f}),
+      ((float[]){0.f, 0.f, 1.f}));
+
+  APP(imdraw_parallelepiped
+    (ctxt->app,
+     APP_IMDRAW_FLAG_FIXED_SCREEN_SIZE | APP_IMDRAW_FLAG_UPPERMOST_LAYER,
+     pos,
+     (float[]){0.05f, 0.05f, 0.05f},
+     (float[]){0.f, 0.f, 0.f},
+     (float[]){1.f, 1.f, 0.f, 0.5f},
+     (float[]){1.f, 1.f, 0.f, 1.f}));
+  #undef DRAW_VECTOR
 }
 
 static void
@@ -536,33 +578,7 @@ edit_draw_model_instance_selection
   pivot[0] *= rcp_nb_selected_instances;
   pivot[1] *= rcp_nb_selected_instances;
   pivot[2] *= rcp_nb_selected_instances;
-  draw_pivot(selection->ctxt, pivot);
-
-  /* Draw the basis. */
-  APP(imdraw_vector
-    (selection->ctxt->app,
-     APP_IMDRAW_FLAG_FIXED_SCREEN_SIZE | APP_IMDRAW_FLAG_UPPERMOST_LAYER,
-     APP_IM_VECTOR_MARKER_NONE,
-     APP_IM_VECTOR_CONE_MARKER,
-     pivot,
-     (float[]){pivot[0], pivot[1] + 0.2f, pivot[2]},
-     (float[]){0.f, 1.f, 0.f}));
-  APP(imdraw_vector
-    (selection->ctxt->app,
-     APP_IMDRAW_FLAG_FIXED_SCREEN_SIZE | APP_IMDRAW_FLAG_UPPERMOST_LAYER,
-     APP_IM_VECTOR_MARKER_NONE,
-     APP_IM_VECTOR_CONE_MARKER,
-     pivot,
-     (float[]){pivot[0] + 0.2f, pivot[1], pivot[2]},
-     (float[]){1.f, 0.f, 0.f}));
-  APP(imdraw_vector
-    (selection->ctxt->app,
-     APP_IMDRAW_FLAG_FIXED_SCREEN_SIZE | APP_IMDRAW_FLAG_UPPERMOST_LAYER,
-     APP_IM_VECTOR_MARKER_NONE,
-     APP_IM_VECTOR_CUBE_MARKER,
-     pivot,
-     (float[]){pivot[0], pivot[1], pivot[2] + 0.2f},
-     (float[]){0.f, 0.f, 1.f}));
+  draw_basis(selection->ctxt, pivot, APP_IM_VECTOR_CONE_MARKER);
 
 exit:
   return edit_err;

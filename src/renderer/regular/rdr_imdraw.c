@@ -191,7 +191,7 @@ invoke_imdraw_vector(struct rdr_system* sys, struct rdr_imdraw_command* cmd)
     } else {
       tvec = vf4_xor(vf4_xzyw(nvec), vf4_set(0.f, mask.f, 0.f, 0.f));
     }
-    bvec = vf4_cross3(tvec, nvec);
+    bvec = vf4_cross3(nvec, tvec);
 
     if(IS_ALIGNED(cmd->data.vector.transform, 16)) {
       aosf44_load(&f44, cmd->data.vector.transform);

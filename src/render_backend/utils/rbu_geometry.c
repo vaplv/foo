@@ -258,8 +258,7 @@ rbu_init_parallelepiped
     SETUP_INDEX_BUFFER(indices, RB_LINE_LOOP);
   } else {
     const unsigned int indices[14] = {
-      /* 1, 0, 2, 3, 7, 0, 4, 1, 5, 2, 6, 7, 5, 4*/
-      0, 1, 3, 2, 6, 1, 5, 0, 4, 3, 7, 6, 4, 5
+      1, 0, 2, 3, 7, 0, 4, 1, 5, 2, 6, 7, 5, 4
     };
     SETUP_INDEX_BUFFER(indices, RB_TRIANGLE_STRIP);
   }
@@ -337,14 +336,14 @@ rbu_init_cylinder
       const float angle = (float)slice_id * rcp_nslices * 2 * PI;
       const float sina = sinf(angle);
       const float cosa = cosf(angle);
-      /* Top */
-      vertices[i++] = pos[0] + cosa * base_radius;
-      vertices[i++] = pos[1] - half_height;
-      vertices[i++] = pos[2] + sina * base_radius;
-      /* Base */
+      /* top */
       vertices[i++] = pos[0] + cosa * top_radius;
       vertices[i++] = pos[1] + half_height;
       vertices[i++] = pos[2] + sina * top_radius;
+      /* base */
+      vertices[i++] = pos[0] + cosa * base_radius;
+      vertices[i++] = pos[1] - half_height;
+      vertices[i++] = pos[2] + sina * base_radius;
     }
     /* Setup the vertex buffer. */
     buf_desc.size = sizeof(vertices);
