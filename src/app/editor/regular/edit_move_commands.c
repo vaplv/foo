@@ -27,6 +27,7 @@ mv
    void* data)
 {
   enum { CMD_NAME, INSTANCE_NAME, SELECTION_FLAG, POS_X, POS_Y, POS_Z, ARGC };
+  unsigned int nb_defined_mv = 0;
 
   assert(app != NULL
       && argc == ARGC
@@ -39,11 +40,17 @@ mv
       && argv[POS_Y]->type == APP_CMDARG_FLOAT
       && argv[POS_Z]->type == APP_CMDARG_FLOAT);
 
+  nb_defined_mv =
+    (EDIT_CMD_ARGVAL(argv, INSTANCE_NAME).is_defined == true)
+  + (EDIT_CMD_ARGVAL(argv, SELECTION_FLAG).is_defined == true);
 
-  if(EDIT_CMD_ARGVAL(argv, INSTANCE_NAME).is_defined
-  && EDIT_CMD_ARGVAL(argv, SELECTION_FLAG).is_defined) {
+  if(nb_defined_mv == 2) {
     APP(log(app, APP_LOG_ERROR,
       "expect moving an instance or the selection but not both\n"));
+    goto error;
+  } else if(nb_defined_mv == 0) {
+    APP(log(app, APP_LOG_ERROR,
+      "missing the selection flag or the name of the instance to move\n"));
     goto error;
   }
 
@@ -63,7 +70,7 @@ mv
 
     EDIT(translate_model_instance_selection
       (ctxt->instance_selection, translation));
-  } else { /* EDIT_CMD_ARGVAL(argv, INSTANCE_NAME).is_defined */
+  } else if(EDIT_CMD_ARGVAL(argv, INSTANCE_NAME).is_defined) {
     ALIGN(16) float tmp[4];
     const struct aosf44* f44 = NULL;
     struct app_model_instance* instance = NULL;
@@ -114,6 +121,7 @@ translate
   struct edit_context* ctxt = data;
   size_t nb_defined_flags = 0;
   float trans[3] = { 0.f, 0.f, 0.f };
+  unsigned int nb_defined_translate = 0;
   enum {
     CMD_NAME,
     EYE_SPACE_FLAG,
@@ -155,10 +163,17 @@ translate
     goto error;
   }
 
-  if(EDIT_CMD_ARGVAL(argv, INSTANCE_NAME).is_defined
-  && EDIT_CMD_ARGVAL(argv, SELECTION_FLAG).is_defined) {
+  nb_defined_translate =
+    (EDIT_CMD_ARGVAL(argv, INSTANCE_NAME).is_defined == true)
+  + (EDIT_CMD_ARGVAL(argv, SELECTION_FLAG).is_defined == true);
+
+  if(nb_defined_translate == 2) {
     APP(log(app, APP_LOG_ERROR,
       "expect translating an instance or the selection but not both\n"));
+    goto error;
+  } else if(nb_defined_translate == 0) {
+    APP(log(app, APP_LOG_ERROR,
+      "missing the selection flag or the name of the instance to translate\n"));
     goto error;
   }
 
@@ -236,6 +251,7 @@ rotate
   struct edit_context* ctxt = data;
   size_t nb_defined_flags = 0;
   float rot[3] = {0.f, 0.f, 0.f};
+  unsigned int nb_defined_rotate = 0;
   enum {
     CMD_NAME,
     EYE_SPACE_FLAG,
@@ -279,10 +295,18 @@ rotate
     goto error;
   }
 
-  if(EDIT_CMD_ARGVAL(argv, INSTANCE_NAME).is_defined
-  && EDIT_CMD_ARGVAL(argv, SELECTION_FLAG).is_defined) {
+
+  nb_defined_rotate =
+    (EDIT_CMD_ARGVAL(argv, INSTANCE_NAME).is_defined == true)
+  + (EDIT_CMD_ARGVAL(argv, SELECTION_FLAG).is_defined == true);
+
+  if(nb_defined_rotate == 2) {
     APP(log(app, APP_LOG_ERROR,
       "expect rotating an instance or the selection but not both\n"));
+    goto error;
+  } else if(nb_defined_rotate == 0) {
+    APP(log(app, APP_LOG_ERROR,
+      "missing the selection flag or the name of the instance to rotate\n"));
     goto error;
   }
 
@@ -373,6 +397,7 @@ scale
   struct edit_context* ctxt = data;
   size_t nb_defined_flags = 0;
   float scale[3] = {1.f, 1.f, 1.f};
+  unsigned int nb_defined_scale = 0;
   enum {
     CMD_NAME,
     EYE_SPACE_FLAG,
@@ -414,10 +439,17 @@ scale
     goto error;
   }
 
-  if(EDIT_CMD_ARGVAL(argv, INSTANCE_NAME).is_defined
-  && EDIT_CMD_ARGVAL(argv, SELECTION_FLAG).is_defined) {
+  nb_defined_scale =
+    (EDIT_CMD_ARGVAL(argv, INSTANCE_NAME).is_defined == true)
+  + (EDIT_CMD_ARGVAL(argv, SELECTION_FLAG).is_defined == true);
+
+  if(nb_defined_scale == 2) {
     APP(log(app, APP_LOG_ERROR,
       "expect scaling an instance or the selection but not both\n"));
+    goto error;
+  } else if(nb_defined_scale == 0) {
+    APP(log(app, APP_LOG_ERROR,
+      "missing the selection flag or the name of the instance to scale\n"));
     goto error;
   }
 
