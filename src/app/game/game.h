@@ -30,5 +30,10 @@ game_run
   (struct game* game,
    bool* keep_running);
 
+extern enum game_error
+game_enable_inputs
+  (struct game* game,
+   bool is_enable);
+
 #endif /* GAME_H. */
 

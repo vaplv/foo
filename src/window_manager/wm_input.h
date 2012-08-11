@@ -156,7 +156,7 @@ wm_is_key_callback_attached
   (struct wm_device* device,
    void (*func)(enum wm_key, enum wm_state, void* data),
    void* data, /* May be NULL. */
-   bool* is_attached); 
+   bool* is_attached);
 
 extern enum wm_error
 wm_attach_char_callback

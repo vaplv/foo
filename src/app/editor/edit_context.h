@@ -2,6 +2,7 @@
 #define EDIT_CONTEXT_H
 
 #include "app/editor/edit_error.h"
+#include <stdbool.h>
 
 #ifndef NDEBUG
   #include <assert.h>
@@ -31,6 +32,11 @@ edit_context_ref_put
 extern enum edit_error
 edit_run
   (struct edit_context* ctxt);
+
+extern enum edit_error
+edit_enable_inputs
+  (struct edit_context* ctxt,
+   bool is_enable);
 
 #endif /* EDIT_CONTEXT_H */
 

@@ -21,7 +21,7 @@
 static void
 game_key_callback(enum wm_key key, enum wm_state state, void* data)
 {
-  struct inputs* inputs = data;
+  struct post_event* post = data;
   assert(data);
 
   if(state != WM_PRESS)
@@ -29,10 +29,7 @@ game_key_callback(enum wm_key key, enum wm_state state, void* data)
 
   switch(key) {
     case WM_KEY_ESC:
-      inputs->post.exit = 1;
-      break;
-    case WM_KEY_SQUARE:
-      inputs->post.terminal = 1;
+      post->exit = 1;
       break;
     default:
       break;
@@ -81,34 +78,12 @@ update_game_inputs(struct game* game)
 static enum game_error
 process_inputs(struct game* game)
 {
-  struct wm_device* wm = NULL;
   enum game_error game_err = GAME_NO_ERROR;
-  bool term_state = false;
   assert(game);
 
   /* Reset inputs. */
   memset(&game->inputs, 0, sizeof(struct inputs));
-
-  /* Flush user inputs. */
-  APP(get_window_manager_device(game->app, &wm));
-  WM(flush_events(wm));
-
-  /* Update terminal state. */
-  APP(is_term_enabled(game->app, &term_state));
-  if(0 != game->inputs.post.terminal) {
-    enum app_error app_err = APP_NO_ERROR;
-    app_err = app_enable_term(game->app, !term_state);
-    if(APP_NO_ERROR != app_err) {
-      game_err = app_to_game_error(app_err);
-      goto error;
-    }
-  }
-
-  if(false == term_state) {
-    update_game_inputs(game);
-  } else {
-    game->inputs.post.exit = 0;
-  }
+  update_game_inputs(game);
 
   /* Update the view. */
   if(0 != game->inputs.move_right
@@ -134,10 +109,7 @@ process_inputs(struct game* game)
        rotate_scale * (float)game->inputs.roll));
   }
 
-exit:
   return game_err;
-error:
-  goto exit;
 }
 
 /*******************************************************************************
@@ -153,10 +125,8 @@ game_create
 {
   struct mem_allocator* allocator = NULL;
   struct game* game = NULL;
-  struct wm_device* wm = NULL;
   enum app_error app_err = APP_NO_ERROR;
   enum game_error game_err = GAME_NO_ERROR;
-  enum wm_error wm_err = WM_NO_ERROR;
 
   if(!app || !out_game) {
     game_err = GAME_INVALID_ARGUMENT;
@@ -176,12 +146,6 @@ game_create
     goto error;
   }
   game->app = app;
-  APP(get_window_manager_device(game->app, &wm));
-  wm_err = wm_attach_key_callback(wm, game_key_callback, &game->inputs);
-  if(wm_err != WM_NO_ERROR) {
-    game_err = wm_to_game_error(wm_err);
-    goto error;
-  }
 
 exit:
   if(out_game)
@@ -224,15 +188,74 @@ game_run(struct game* game, bool* keep_running)
     game_err = GAME_INVALID_ARGUMENT;
     goto error;
   }
-  game_err = process_inputs(game);
-  if(GAME_NO_ERROR != game_err)
-    goto error;
+  if(game->process_inputs == false) {
+    *keep_running = true;
+  } else {
+    game_err = process_inputs(game);
+    if(GAME_NO_ERROR != game_err)
+      goto error;
 
-  *keep_running = !game->inputs.post.exit;
+    *keep_running = !game->post.exit;
+
+    /* Reset post event. */
+    memset(&game->post, 0, sizeof(struct post_event));
+  }
 
 exit:
   return game_err;
 error:
+  goto exit;
+}
+
+EXPORT_SYM enum game_error
+game_enable_inputs(struct game* game, bool is_enable)
+{
+  struct wm_device* wm = NULL;
+  bool is_clbk_attached = false;
+  enum game_error game_err = GAME_NO_ERROR;
+  enum wm_error wm_err = WM_NO_ERROR;
+
+  if(!game) {
+    game_err = GAME_INVALID_ARGUMENT;
+    goto error;
+  }
+ 
+  APP(get_window_manager_device(game->app, &wm));
+  WM(is_key_callback_attached
+    (wm, game_key_callback, &game->post, &is_clbk_attached));
+
+  if(is_enable && !is_clbk_attached) {
+    wm_err = wm_attach_key_callback(wm, game_key_callback, &game->post);
+    if(wm_err != WM_NO_ERROR) {
+      game_err = wm_to_game_error(wm_err);
+      goto error;
+    }
+  }
+  if(!is_enable && is_clbk_attached) {
+    wm_err = wm_detach_key_callback(wm, game_key_callback, &game->post);
+    if(wm_err != WM_NO_ERROR) {
+      game_err = wm_to_game_error(wm_err);
+      goto error;
+    }
+  }
+  game->process_inputs = is_enable;
+
+exit:
+  return game_err;
+
+error:
+  if(game) {
+    if(wm) {
+      bool b = false;
+      WM(is_key_callback_attached(wm, game_key_callback, &game->post, &b));
+      if(!b && is_clbk_attached) {
+        WM(attach_key_callback(wm, game_key_callback, &game->post));
+      }
+      if(b && !is_clbk_attached) {
+        WM(detach_key_callback(wm, game_key_callback, &game->post));
+      }
+    }
+  }
   goto exit;
 }
 

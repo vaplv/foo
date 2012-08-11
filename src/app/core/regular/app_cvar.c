@@ -22,7 +22,7 @@ struct cvar {
  *
  ******************************************************************************/
 static int
-cmp_str(const void* a, const void* b)
+compare_str(const void* a, const void* b)
 {
   const char* str0 = *(const char**)a;
   const char* str1 = *(const char**)b;
@@ -294,7 +294,7 @@ app_init_cvar_system(struct app* app)
      ALIGNOF(const char*),
      sizeof(struct cvar*),
      ALIGNOF(struct cvar*),
-     cmp_str,
+     compare_str,
      app->allocator,
      &app->cvar_system.map);
   if(sl_err != SL_NO_ERROR) {

@@ -755,6 +755,7 @@ app_run(struct app* app, bool* keep_running)
     app_err = APP_INVALID_ARGUMENT;
     goto error;
   }
+
   app_err = app_draw_world(app->world, app->view);
   if(app_err != APP_NO_ERROR)
     goto error;
@@ -772,6 +773,14 @@ exit:
 
 error:
   goto exit;
+}
+
+EXPORT_SYM enum app_error
+app_flush_events(struct app* app)
+{
+  enum wm_error wm_err = WM_NO_ERROR;
+  wm_err = wm_flush_events(app->wm.device);
+  return wm_to_app_error(wm_err);
 }
 
 EXPORT_SYM enum app_error

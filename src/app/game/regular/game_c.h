@@ -23,12 +23,13 @@ struct game {
     signed char pitch;
     signed char yaw;
     signed char roll;
-    struct post_event {
-      unsigned int exit : 1;
-      unsigned int terminal : 1;
-    } post;
   } inputs;
+  struct post_event {
+    unsigned int exit : 1;
+    unsigned int terminal : 1;
+  } post;
   struct app* app;
+  bool process_inputs;
   struct mem_allocator* allocator;
 };
 

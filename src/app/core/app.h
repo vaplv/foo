@@ -65,6 +65,10 @@ app_run
    bool* keep_running);
 
 extern enum app_error
+app_flush_events
+  (struct app* app);
+
+extern enum app_error
 app_log
   (struct app*,
    enum app_log_type log_type,

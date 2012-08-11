@@ -85,29 +85,28 @@ release_regular_model_instance_selection(struct ref* ref)
 }
 
 static void
-draw_pivot(struct edit_context* ctxt, const float pos[3])
+draw_basis_circles
+  (struct edit_context* ctxt, 
+   const float pos[3], 
+   float size,
+   const float col_x[3],
+   const float col_y[3],
+   const float col_z[3])
 {
   assert(ctxt && pos);
 
-  #define DRAW_CIRCLE(pitch, yaw, roll) \
+  #define DRAW_CIRCLE(pitch, yaw, roll, color) \
     APP(imdraw_ellipse \
       (ctxt->app, \
        APP_IMDRAW_FLAG_UPPERMOST_LAYER | APP_IMDRAW_FLAG_FIXED_SCREEN_SIZE, \
        pos, \
-       (float[]){ /* size */ \
-          ctxt->cvars.pivot_size->value.real, \
-          ctxt->cvars.pivot_size->value.real \
-       }, \
-       (float[]){(pitch), (yaw), (roll)}, /* Rotation */ \
-       (float[]){ /* color */ \
-          ctxt->cvars.pivot_color->value.real3[0], \
-          ctxt->cvars.pivot_color->value.real3[1], \
-          ctxt->cvars.pivot_color->value.real3[2] \
-       }))
+       (float[]){size, size}, \
+       (float[]){(pitch), (yaw), (roll)}, \
+       (color)))
 
-  DRAW_CIRCLE(0.f, 0.f, 0.f);
-  DRAW_CIRCLE(PI * 0.5f, 0.f, 0.f);
-  DRAW_CIRCLE(0.f, PI * 0.5f, 0.f);
+  DRAW_CIRCLE(PI * 0.5f, 0.f, 0.f, col_x);
+  DRAW_CIRCLE(0.f, 0.f, 0.f, col_y);
+  DRAW_CIRCLE(0.f, PI * 0.5f, 0.f, col_z);
 
   #undef DRAW_CIRCLE
 }
@@ -116,6 +115,7 @@ static void
 draw_basis
   (struct edit_context* ctxt,
    const float pos[3],
+   float size,
    enum app_im_vector_marker end_marker)
 {
   assert(ctxt && pos);
@@ -131,13 +131,13 @@ draw_basis
        color))
 
    DRAW_VECTOR
-     (((float[]){pos[0] + 0.2f, pos[1], pos[2]}),
+     (((float[]){pos[0] + size, pos[1], pos[2]}),
       ((float[]){1.f, 0.f, 0.f}));
    DRAW_VECTOR
-     (((float[]){pos[0], pos[1] + 0.2f, pos[2]}),
+     (((float[]){pos[0], pos[1] + size, pos[2]}),
       ((float[]){0.f, 1.f, 0.f}));
    DRAW_VECTOR
-     (((float[]){pos[0], pos[1], pos[2] + 0.2f}),
+     (((float[]){pos[0], pos[1], pos[2] + size}),
       ((float[]){0.f, 0.f, 1.f}));
 
   APP(imdraw_parallelepiped
@@ -148,7 +148,39 @@ draw_basis
      (float[]){0.f, 0.f, 0.f},
      (float[]){1.f, 1.f, 0.f, 0.5f},
      (float[]){1.f, 1.f, 0.f, 1.f}));
+
   #undef DRAW_VECTOR
+}
+
+static void
+draw_tool(struct edit_context* ctxt, float pos[3])
+{
+  const float size = 0.2f;
+
+  if(ctxt->states.move_flag & EDIT_MOVE_SCALE) {
+    draw_basis(ctxt, pos, size, APP_IM_VECTOR_CUBE_MARKER);
+  } 
+  if(ctxt->states.move_flag & EDIT_MOVE_TRANSLATE) {
+    draw_basis(ctxt, pos, size, APP_IM_VECTOR_CONE_MARKER);
+  } 
+  if(ctxt->states.move_flag & EDIT_MOVE_ROTATE) {
+    draw_basis_circles
+      (ctxt, 
+       pos, 
+       size,
+       (float[]){1.f, 0.f, 0.f},
+       (float[]){0.f, 1.f, 0.f},
+       (float[]){0.f, 0.f, 1.f});
+  } 
+  if(ctxt->states.move_flag == EDIT_MOVE_NONE) {
+    draw_basis_circles
+      (ctxt, 
+       pos,
+       0.05,
+       ctxt->cvars.pivot_color->value.real3,
+       ctxt->cvars.pivot_color->value.real3,
+       ctxt->cvars.pivot_color->value.real3);
+  }
 }
 
 static void
@@ -578,7 +610,7 @@ edit_draw_model_instance_selection
   pivot[0] *= rcp_nb_selected_instances;
   pivot[1] *= rcp_nb_selected_instances;
   pivot[2] *= rcp_nb_selected_instances;
-  draw_basis(selection->ctxt, pivot, APP_IM_VECTOR_CONE_MARKER);
+  draw_tool(selection->ctxt, pivot);
 
 exit:
   return edit_err;

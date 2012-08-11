@@ -54,7 +54,7 @@ hash_str(const void* key)
 }
 
 static bool
-eq_str(const void* key0, const void* key1)
+eqstr(const void* key0, const void* key1)
 {
   const char* str0 = *(const char**)key0;
   const char* str1 = *(const char**)key1;
@@ -62,7 +62,7 @@ eq_str(const void* key0, const void* key1)
 }
 
 static int
-cmp_str(const void* a, const void* b)
+cmpstr(const void* a, const void* b)
 {
   const char* str0 = *(const char**)a;
   const char* str1 = *(const char**)b;
@@ -932,7 +932,6 @@ error:
 
 /*******************************************************************************
  *
- *
  * Private functions.
  *
  ******************************************************************************/
@@ -952,7 +951,7 @@ app_init_command_system(struct app* app)
      sizeof(struct list_node),
      ALIGNOF(struct list_node),
      hash_str,
-     eq_str,
+     eqstr,
      app->allocator,
      &app->cmd.htbl);
   if(SL_NO_ERROR != sl_err) {
@@ -962,7 +961,7 @@ app_init_command_system(struct app* app)
   sl_err = sl_create_flat_set
     (sizeof(const char*),
      ALIGNOF(const char*),
-     cmp_str,
+     cmpstr,
      app->allocator,
      &app->cmd.name_set);
   if(SL_NO_ERROR != sl_err) {
@@ -1004,3 +1003,4 @@ app_shutdown_command_system(struct app* app)
     fclose(app->cmd.stream);
   return APP_NO_ERROR;
 }
+
