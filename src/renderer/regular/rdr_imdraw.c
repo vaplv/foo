@@ -166,31 +166,23 @@ invoke_imdraw_vector(struct rdr_system* sys, struct rdr_imdraw_command* cmd)
   if(vf4_x(sqr_len) <= 0.f) {
     memcpy(array, cmd->data.vector.transform, 16 * sizeof(float));
   } else {
-    vf4_t tvec, bvec;
-    const union { uint32_t ui; float f; } mask = { .ui = 0x80000000 };
     const vf4_t rcp_len = vf4_rsqrt(sqr_len);
-    vf4_t nvec;
+    vf4_t nvec, tvec, bvec, tmp, xxxx, yyyy, zzzz;
 
     len = vf4_mul(sqr_len, rcp_len);
     nvec = vf4_mul(vec, rcp_len);
 
-    /* Build an orthonormal basis from the vector to draw. If its X component
-     * is not null we build an orthogonal vector by rotating the original one
-     * by PI/2 around the Y axis. In all other cases the orthogonal vector is
-     * defined by rotating the vector by PI/2 around the X axis. The last
-     * orthogonal vector is finally computed by simply performing a cross
-     * product between the two previous vectors. Note that it is not necessary
-     * to normalize the result of the cross product since tvec and nvec are
-     * already normalized *AND* are perpendiculars.
-     *
-     * This orthogonal basis is then used to build a rotation matrix to
-     * transform the reference vector (0, 1, 0) which is the vector used to
-     * generate the vector geometry.  */
-    if(cmd->data.vector.vector[0] != 0.f) {
-      tvec = vf4_xor(vf4_zyxw(nvec), vf4_set(0.f, 0.f, mask.f, 0.f));
-    } else {
-      tvec = vf4_xor(vf4_xzyw(nvec), vf4_set(0.f, mask.f, 0.f, 0.f));
-    }
+    /* Build an orthonormal basis from the vector to draw. This orthogonal
+     * basis is then used to build a rotation matrix to transform the reference
+     * vector (0, 1, 0) which is the vector used to generate the vector
+     * geometry.  */
+    tmp = vf4_abs(nvec);
+    xxxx = vf4_xxxx(tmp); yyyy = vf4_yyyy(tmp); zzzz = vf4_zzzz(tmp);
+    tmp = vf4_min(vf4_min(xxxx, yyyy), zzzz);
+    tvec = vf4_sel(vf4_sel(
+      vf4_set(0.f,0.f,1.f,0.f), vf4_set(0.f,1.f,0.f,0.f), vf4_eq(tmp, yyyy)),
+      vf4_set(1.f,0.f,0.f,0.F), vf4_eq(tmp, xxxx));
+    tvec = vf4_normalize3(vf4_cross3(tvec, nvec));
     bvec = vf4_cross3(nvec, tvec);
 
     if(IS_ALIGNED(cmd->data.vector.transform, 16)) {
