@@ -140,7 +140,7 @@ compare_callbacks(const void* a, const void* b)
 }
 
 static size_t
-hash(const void* key) 
+hash(const void* key)
 {
   return sl_hash(key, sizeof(int));
 }
@@ -185,6 +185,24 @@ wm_to_glfw_mouse_button(enum wm_mouse_button button)
   return wm_to_glfw_mouse_button_lut[button];
 }
 
+static FINLINE enum wm_mouse_button
+glfw_to_wm_button(int button)
+{
+  enum wm_mouse_button wm_button = WM_MOUSE_BUTTON_0;
+  switch(button) {
+    case GLFW_MOUSE_BUTTON_1: wm_button = WM_MOUSE_BUTTON_0; break;
+    case GLFW_MOUSE_BUTTON_2: wm_button = WM_MOUSE_BUTTON_1; break;
+    case GLFW_MOUSE_BUTTON_3: wm_button = WM_MOUSE_BUTTON_2; break;
+    case GLFW_MOUSE_BUTTON_4: wm_button = WM_MOUSE_BUTTON_3; break;
+    case GLFW_MOUSE_BUTTON_5: wm_button = WM_MOUSE_BUTTON_4; break;
+    case GLFW_MOUSE_BUTTON_6: wm_button = WM_MOUSE_BUTTON_5; break;
+    case GLFW_MOUSE_BUTTON_7: wm_button = WM_MOUSE_BUTTON_6; break;
+    case GLFW_MOUSE_BUTTON_8: wm_button = WM_MOUSE_BUTTON_7; break;
+    default: assert(0); break;
+  }
+  return wm_button;
+}
+
 static FINLINE enum wm_state
 glfw_to_wm_state(int state)
 {
@@ -193,6 +211,50 @@ glfw_to_wm_state(int state)
     return WM_PRESS;
   else
     return WM_RELEASE;
+}
+
+static enum wm_error
+attach_clbk
+  (struct sl_flat_set* list,
+   wm_callback_t clbk,
+   void* data,
+   size_t* len)
+{
+  enum sl_error sl_err = SL_NO_ERROR;
+  assert(list && clbk && data && len);
+
+  SL(flat_set_buffer(list, len, NULL, NULL, NULL));
+  sl_err = sl_flat_set_insert(list, (struct callback[]){{clbk, data}}, NULL);
+  return sl_to_wm_error(sl_err);
+}
+
+static enum wm_error
+detach_clbk
+  (struct sl_flat_set* list,
+   wm_callback_t clbk,
+   void* data,
+   size_t* len)
+{
+  enum sl_error sl_err = SL_NO_ERROR;
+  assert(list && clbk && data && len);
+
+  SL(flat_set_buffer(list, len, NULL, NULL, NULL));
+  sl_err = sl_flat_set_erase(list, (struct callback[]){{clbk, data}}, NULL);
+  return sl_to_wm_error(sl_err);
+}
+
+static bool
+is_clbk_attached
+  (struct sl_flat_set* list,
+   wm_callback_t clbk,
+   void* data)
+{
+  size_t len = 0, id = 0;
+  assert(list && clbk && data);
+
+  SL(flat_set_find(list, (struct callback[]){{clbk, data}}, &id));
+  SL(flat_set_buffer(list, &len, NULL, NULL, NULL));
+  return id != len;
 }
 
 static void
@@ -228,6 +290,39 @@ glfw_char_callback(int character, int action)
   for(i = 0; i < nb_clbk; ++i) {
     ((void (*)(wchar_t, enum wm_state, void*))clbk_list[i].func)
       (ch, wm_state, clbk_list[i].data);
+  }
+}
+
+static void
+glfw_mouse_button_callback(int button, int action)
+{
+  struct callback* clbk_list = NULL;
+  size_t nb_clbk = 0;
+  size_t i = 0;
+  const enum wm_mouse_button wm_button = glfw_to_wm_button(button);
+  const enum wm_state wm_state = glfw_to_wm_state(action);
+  assert(NULL != g_device);
+
+  SL(flat_set_buffer
+    (g_device->mouse_button_clbk_list, &nb_clbk, 0, 0, (void**)&clbk_list));
+  for(i = 0; i < nb_clbk; ++i) {
+    ((void (*)(enum wm_mouse_button, enum wm_state, void*))clbk_list[i].func)
+      (wm_button, wm_state, clbk_list[i].data);
+  }
+}
+
+static void
+glfw_mouse_motion_callback(int x, int y)
+{
+  struct callback* clbk_list = NULL;
+  size_t nb_clbk = 0;
+  size_t i = 0;
+  assert(NULL != g_device);
+
+  SL(flat_set_buffer
+    (g_device->mouse_motion_clbk_list, &nb_clbk, 0, 0, (void**)&clbk_list));
+  for(i = 0; i < nb_clbk; ++i) {
+    ((void (*)(int, int, void*))clbk_list[i].func)(x, y, clbk_list[i].data);
   }
 }
 
@@ -313,197 +408,94 @@ wm_get_mouse_position
   return WM_NO_ERROR;
 }
 
-EXPORT_SYM enum wm_error
-wm_attach_key_callback
-  (struct wm_device* device,
-   void (*func)(enum wm_key, enum wm_state, void*),
-   void* data)
-{
-  size_t len = 0;
-  enum sl_error sl_err = SL_NO_ERROR;
-  enum wm_error wm_err = WM_NO_ERROR;
-
-  if(!device || !func) {
-    wm_err = WM_INVALID_ARGUMENT;
-    goto error;
+#define DECLARE_ATTACH_CLBK_FUNC(name, glfw_name, ...) \
+  EXPORT_SYM enum wm_error \
+  CONCAT(CONCAT(wm_attach_, name), _callback) \
+    (struct wm_device* device, \
+     void (*func)(__VA_ARGS__), \
+     void* data) \
+  { \
+    size_t len = 0; \
+    enum wm_error wm_err = WM_NO_ERROR; \
+    if(!device || !func) { \
+      wm_err = WM_INVALID_ARGUMENT; \
+      goto error; \
+    } \
+    wm_err = attach_clbk \
+      (device->CONCAT(name, _clbk_list), WM_CALLBACK(func), data, &len); \
+    if(wm_err != WM_NO_ERROR) \
+      goto error; \
+  /* If it is the first attached callback, setup the callback which dispatch \
+   * the glfw key events to the attached callbacks. */ \
+  if(len == 0) \
+    CONCAT(CONCAT(glfwSet, glfw_name), Callback) \
+      (CONCAT(CONCAT(glfw_, name), _callback)); \
+  exit: \
+    return wm_err; \
+  error: \
+    goto exit; \
   }
-  /* If it is the first attached callback, setup the callback which dispatch
-   * the glfw key events to the attached callbacks. */
-  SL(flat_set_buffer(device->key_clbk_list, &len, NULL, NULL, NULL));
-  if(0 == len)
-    glfwSetKeyCallback(glfw_key_callback);
+DECLARE_ATTACH_CLBK_FUNC(key, Key, enum wm_key, enum wm_state, void*)
+DECLARE_ATTACH_CLBK_FUNC(char, Char, wchar_t, enum wm_state, void*)
+DECLARE_ATTACH_CLBK_FUNC(mouse_motion, MousePos, int, int, void*)
+DECLARE_ATTACH_CLBK_FUNC
+  (mouse_button, MouseButton, enum wm_mouse_button, enum wm_state, void*)
+#undef DECLARE_ATTACH_CLBK_FUNC
 
-  sl_err = sl_flat_set_insert
-    (device->key_clbk_list, 
-     (struct callback[]){{WM_CALLBACK(func), data}}, 
-     NULL);
-  if(sl_err != SL_NO_ERROR) {
-    wm_err = sl_to_wm_error(sl_err);
-    goto error;
+
+#define DECLARE_DETACH_CLBK_FUNC(name, glfw_name, ...) \
+  EXPORT_SYM enum wm_error \
+  CONCAT(CONCAT(wm_detach_, name), _callback) \
+    (struct wm_device* device, \
+     void (*func)(__VA_ARGS__), \
+     void* data) \
+  { \
+    size_t len = 0; \
+    enum wm_error wm_err = WM_NO_ERROR; \
+    if(!device || !func) { \
+      wm_err = WM_INVALID_ARGUMENT; \
+      goto error; \
+    } \
+    wm_err = detach_clbk \
+      (device->CONCAT(name, _clbk_list), WM_CALLBACK(func), data, &len); \
+    if(wm_err != WM_NO_ERROR) \
+      goto error; \
+    /* Detach the glfw callback if no more key callback is attached. */ \
+    if(0 == len) \
+      CONCAT(CONCAT(glfwSet, glfw_name), Callback)(NULL); \
+  exit: \
+    return wm_err; \
+  error: \
+    goto exit; \
   }
+DECLARE_DETACH_CLBK_FUNC(key, Key, enum wm_key, enum wm_state, void*)
+DECLARE_DETACH_CLBK_FUNC(char, Char, wchar_t, enum wm_state, void*)
+DECLARE_DETACH_CLBK_FUNC(mouse_motion, MousePos, int, int, void*)
+DECLARE_DETACH_CLBK_FUNC
+  (mouse_button, MouseButton, enum wm_mouse_button, enum wm_state, void*)
+#undef DECLARE_DETACH_CLBK_FUNC
 
-exit:
-  return wm_err;
-error:
-  goto exit;
-}
 
-EXPORT_SYM enum wm_error
-wm_detach_key_callback
-  (struct wm_device* device,
-   void (*func)(enum wm_key, enum wm_state, void*),
-   void* data)
-{
-  size_t len = 0;
-  enum sl_error sl_err = SL_NO_ERROR;
-  enum wm_error wm_err = WM_NO_ERROR;
-
-  if(!device || !func) {
-    wm_err = WM_INVALID_ARGUMENT;
-    goto error;
+#define DECLARE_IS_CLBK_ATTACHED_FUNC(name, ...) \
+  EXPORT_SYM enum wm_error \
+  CONCAT(CONCAT(wm_is_, name), _callback_attached) \
+    (struct wm_device* device, \
+     void (*func)(__VA_ARGS__), \
+     void* data, \
+     bool* is_attached) \
+  { \
+    if(!device || !func || !is_attached) \
+      return WM_INVALID_ARGUMENT; \
+    *is_attached = is_clbk_attached \
+      (device->CONCAT(name, _clbk_list), WM_CALLBACK(func), data); \
+    return WM_NO_ERROR; \
   }
-  sl_err = sl_flat_set_erase
-    (device->key_clbk_list, 
-     (struct callback[]){{WM_CALLBACK(func), data}},
-     NULL);
-  if(sl_err != SL_NO_ERROR) {
-    wm_err = sl_to_wm_error(sl_err);
-    goto error;
-  }
-  /* Detach the glfw callback if no more key callback is attached. */
-  SL(flat_set_buffer(device->key_clbk_list, &len, NULL, NULL, NULL));
-  if(0 == len)
-    glfwSetKeyCallback(NULL);
-
-exit:
-  return wm_err;
-error:
-  goto exit;
-}
-
-EXPORT_SYM enum wm_error
-wm_is_key_callback_attached
-  (struct wm_device* device,
-   void (*func)(enum wm_key, enum wm_state, void*),
-   void* data,
-   bool* is_attached)
-{
-  size_t len = 0;
-  size_t id = 0;
-  enum wm_error wm_err = WM_NO_ERROR;
-
-  if(!device || !func || !is_attached) {
-    wm_err = WM_INVALID_ARGUMENT;
-    goto error;
-  }
-  SL(flat_set_find
-    (device->key_clbk_list, 
-     (struct callback[]){{WM_CALLBACK(func), data}},
-     &id));
-  SL(flat_set_buffer(device->key_clbk_list, &len, NULL, NULL, NULL));
-  *is_attached = id != len;
-exit:
-  return wm_err;
-error:
-  goto exit;
-}
-
-EXPORT_SYM enum wm_error
-wm_attach_char_callback
-  (struct wm_device* device,
-   void (*func)(wchar_t, enum wm_state, void*),
-   void* data)
-{
-  size_t len = 0;
-  enum sl_error sl_err = SL_NO_ERROR;
-  enum wm_error wm_err = WM_NO_ERROR;
-
-  if(!device || !func) {
-    wm_err = WM_INVALID_ARGUMENT;
-    goto error;
-  }
-  /* If it is the first attached callback, setup the callback which dispatch
-   * the glfw char events to the attached callbacks. */
-  SL(flat_set_buffer(device->char_clbk_list, &len, NULL, NULL, NULL));
-  if(0 == len)
-    glfwSetCharCallback(glfw_char_callback);
-
-  sl_err = sl_flat_set_insert
-    (device->char_clbk_list, 
-     (struct callback[]){{WM_CALLBACK(func), data}}, 
-     NULL);
-  if(sl_err != SL_NO_ERROR) {
-    wm_err = sl_to_wm_error(sl_err);
-    goto error;
-  }
-
-exit:
-  return wm_err;
-error:
-  goto exit;
-
-}
-
-EXPORT_SYM enum wm_error
-wm_detach_char_callback
-  (struct wm_device* device,
-   void (*func)(wchar_t, enum wm_state, void*),
-   void* data)
-{
-  size_t len = 0;
-  enum sl_error sl_err = SL_NO_ERROR;
-  enum wm_error wm_err = WM_NO_ERROR;
-
-  if(!device || !func) {
-    wm_err = WM_INVALID_ARGUMENT;
-    goto error;
-  }
-  sl_err = sl_flat_set_erase
-    (device->char_clbk_list, 
-     (struct callback[]){{WM_CALLBACK(func), 
-     data}},
-     NULL);
-  if(sl_err != SL_NO_ERROR) {
-    wm_err = sl_to_wm_error(sl_err);
-    goto error;
-  }
-  /* Detach the glfw callback if no more char callback is attached. */
-  SL(flat_set_buffer(device->char_clbk_list, &len, NULL, NULL, NULL));
-  if(0 == len)
-    glfwSetCharCallback(NULL);
-
-exit:
-  return wm_err;
-error:
-  goto exit;
-}
-
-EXPORT_SYM enum wm_error
-wm_is_char_callback_attached
-  (struct wm_device* device,
-   void (*func)(wchar_t, enum wm_state, void*),
-   void* data,
-   bool* is_attached)
-{
-  size_t len = 0;
-  size_t id = 0;
-  enum wm_error wm_err = WM_NO_ERROR;
-
-  if(!device || !func || !is_attached) {
-    wm_err = WM_INVALID_ARGUMENT;
-    goto error;
-  }
-  SL(flat_set_find
-    (device->char_clbk_list, 
-     (struct callback[]){{WM_CALLBACK(func), data}},
-     &id));
-  SL(flat_set_buffer(device->char_clbk_list, &len, NULL, NULL, NULL));
-  *is_attached = id != len;
-exit:
-  return wm_err;
-error:
-  goto exit;
-}
+DECLARE_IS_CLBK_ATTACHED_FUNC(key, enum wm_key, enum wm_state, void*)
+DECLARE_IS_CLBK_ATTACHED_FUNC(char, wchar_t, enum wm_state, void*)
+DECLARE_IS_CLBK_ATTACHED_FUNC(mouse_motion, int, int, void*)
+DECLARE_IS_CLBK_ATTACHED_FUNC
+  (mouse_button, enum wm_mouse_button, enum wm_state, void*)
+#undef DECLARE_IS_CLBK_ATTACHED_FUNC
 
 /*******************************************************************************
  *
@@ -531,18 +523,19 @@ wm_init_inputs(struct wm_device* device)
       } \
     } while(0)
 
-  CALL(sl_create_flat_set
-    (sizeof(struct callback),
-     ALIGNOF(struct callback),
-     compare_callbacks,
-     device->allocator,
-     &device->key_clbk_list));
-  CALL(sl_create_flat_set
-    (sizeof(struct callback),
-     ALIGNOF(struct callback),
-     compare_callbacks,
-     device->allocator,
-     &device->char_clbk_list));
+  #define CREATE_CLBK_FLAT_SET(out) \
+    CALL(sl_create_flat_set \
+      (sizeof(struct callback), \
+       ALIGNOF(struct callback), \
+       compare_callbacks, \
+       device->allocator, \
+       (out)))
+  CREATE_CLBK_FLAT_SET(&device->key_clbk_list);
+  CREATE_CLBK_FLAT_SET(&device->char_clbk_list);
+  CREATE_CLBK_FLAT_SET(&device->mouse_button_clbk_list);
+  CREATE_CLBK_FLAT_SET(&device->mouse_motion_clbk_list);
+  #undef CREATE_CLBK_FLAT_SET
+
   CALL(sl_create_hash_table
     (sizeof(int),
      ALIGNOF(int),
@@ -556,7 +549,7 @@ wm_init_inputs(struct wm_device* device)
   len = sizeof(wm_to_glfw_key_lut) / sizeof(int);
   for(i = 0; i < len; ++i) {
     CALL(sl_hash_table_insert
-      (device->glfw_to_wm_key_htbl, 
+      (device->glfw_to_wm_key_htbl,
        (int[]){wm_to_glfw_key_lut[i]},
        (enum wm_key[]){(enum wm_key)i}));
   }
@@ -574,14 +567,19 @@ wm_shutdown_inputs(struct wm_device* device)
   if(!device)
     return WM_INVALID_ARGUMENT;
 
-  if(device->key_clbk_list) {
-    SL(free_flat_set(device->key_clbk_list));
-    device->key_clbk_list = NULL;
-  }
-  if(device->char_clbk_list) {
-    SL(free_flat_set(device->char_clbk_list));
-    device->char_clbk_list = NULL;
-  }
+  #define RELEASE_CLBK_FLAT_SET(clbk_flat_set) \
+    do {  \
+      if(clbk_flat_set) { \
+        SL(free_flat_set(clbk_flat_set)); \
+        (clbk_flat_set) = NULL; \
+      } \
+    } while(0)
+  RELEASE_CLBK_FLAT_SET(device->key_clbk_list);
+  RELEASE_CLBK_FLAT_SET(device->char_clbk_list);
+  RELEASE_CLBK_FLAT_SET(device->mouse_button_clbk_list);
+  RELEASE_CLBK_FLAT_SET(device->mouse_motion_clbk_list);
+  #undef RELEASE_CLBK_FLAT_SET
+
   if(device->glfw_to_wm_key_htbl) {
     SL(free_hash_table(device->glfw_to_wm_key_htbl));
     device->glfw_to_wm_key_htbl = NULL;

@@ -177,5 +177,43 @@ wm_is_char_callback_attached
    void* data, /* May be NULL. */
    bool* is_attached);
 
+extern enum wm_error
+wm_attach_mouse_button_callback
+  (struct wm_device* device,
+   void (*func)(enum wm_mouse_button, enum wm_state, void* data),
+   void* data); /* May be NULL. */
+
+extern enum wm_error
+wm_detach_mouse_button_callback
+  (struct wm_device* device,
+   void (*func)(enum wm_mouse_button, enum wm_state, void* data),
+   void* data); /* May be NULL. */
+
+extern enum wm_error
+wm_is_mouse_button_callback_attached
+  (struct wm_device* device,
+   void (*func)(enum wm_mouse_button, enum wm_state, void* data),
+   void* data, /* May be NULL. */
+   bool* is_attached);
+
+extern enum wm_error
+wm_attach_mouse_motion_callback
+  (struct wm_device* device,
+   void (*func)(int x, int y, void* data),
+   void* data); /* May be NULL. */
+
+extern enum wm_error
+wm_detach_mouse_motion_callback
+  (struct wm_device* device,
+   void (*func)(int x, int y, void* data),
+   void* data); /* May be NULL. */
+
+extern enum wm_error
+wm_is_mouse_motion_callback_attached
+  (struct wm_device* device,
+   void (*func)(int x, int y, void* data),
+   void* data, /* May be NULL. */
+   bool* is_attached);
+
 #endif /* WM_INPUT_H */
 

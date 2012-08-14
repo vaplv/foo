@@ -1034,8 +1034,7 @@ app_enable_term(struct app* app, bool enable)
 {
   if(!app)
     return APP_INVALID_ARGUMENT;
-  app_setup_term(app, enable);
-  return APP_NO_ERROR;
+  return app_setup_term(app, enable);
 }
 
 EXPORT_SYM enum app_error

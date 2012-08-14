@@ -18,8 +18,10 @@ struct callback {
 struct wm_device {
   struct ref ref;
   struct mem_allocator* allocator;
-  struct sl_flat_set* key_clbk_list; /* Set of struct key_callback. */
-  struct sl_flat_set* char_clbk_list; /* Set of struct char_callback. */
+  struct sl_flat_set* key_clbk_list;
+  struct sl_flat_set* char_clbk_list;
+  struct sl_flat_set* mouse_button_clbk_list;
+  struct sl_flat_set* mouse_motion_clbk_list;
   struct sl_hash_table* glfw_to_wm_key_htbl;
 };
 
