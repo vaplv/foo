@@ -169,6 +169,15 @@ app_view_rotate
 }
 
 EXPORT_SYM enum app_error
+app_raw_view_transform(struct app_view* view, const struct aosf44* transform)
+{
+  if(UNLIKELY(!view || !transform))
+    return APP_INVALID_ARGUMENT;
+  view->transform = *transform;
+  return APP_NO_ERROR;
+}
+
+EXPORT_SYM enum app_error
 app_get_view_basis
   (struct app_view* view,
    float pos[3],

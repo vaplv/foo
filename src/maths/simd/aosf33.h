@@ -233,17 +233,26 @@ static FINLINE void
 aosf33_rotation(struct aosf33* res, float pitch, float yaw, float roll)
 {
   /* XYZ norm. */
-  const float c1 = cos(pitch);
-  const float c2 = cos(yaw);
-  const float c3 = cos(roll);
-  const float s1 = sin(pitch);
-  const float s2 = sin(yaw);
-  const float s3 = sin(roll);
+  const float c1 = cosf(pitch);
+  const float c2 = cosf(yaw);
+  const float c3 = cosf(roll);
+  const float s1 = sinf(pitch);
+  const float s2 = sinf(yaw);
+  const float s3 = sinf(roll);
   res->c0 = vf4_set(c2*c3, c1*s3 + c3*s1*s2, s1*s3 - c1*c3*s2, 0.f);
   res->c1 = vf4_set(-c2*s3, c1*c3 - s1*s2*s3, c1*s2*s3 + c3*s1, 0.f);
   res->c2 = vf4_set(s2, -c2*s1, c1*c2, 0.f);
 }
 
+static FINLINE void /* rotation around the Y axis */
+aosf33_yaw_rotation(struct aosf33* res, float yaw)
+{
+  const float c = cosf(yaw);
+  const float s = sinf(yaw);
+  res->c0 = vf4_set(c, 0.f, -s, 0.f);
+  res->c1 = vf4_set(0.f, 1.f, 0.f, 0.f);
+  res->c2 = vf4_set(s, 0.f, c, 0.f);
+}
 
 #endif /* AOSF33_H */
 

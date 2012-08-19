@@ -5,9 +5,9 @@
 #include "sys/ref_count.h"
 
 struct app_view {
+  struct aosf44 transform;
   struct ref ref;
   struct app* app;
-  struct aosf44 transform;
   float ratio;
   float fov_x; /* In radian. */
   float znear, zfar;

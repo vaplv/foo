@@ -1,6 +1,7 @@
 #include "app/core/app.h"
 #include "app/core/app_cvar.h"
 #include "app/core/app_imdraw.h"
+#include "app/core/app_view.h"
 #include "app/editor/regular/edit_context_c.h"
 #include "app/editor/regular/edit_cvars.h"
 #include "app/editor/regular/edit_error_c.h"
@@ -15,6 +16,7 @@
 #include "sys/mem_allocator.h"
 #include "sys/sys.h"
 #include <assert.h>
+#include <string.h>
 
 /*******************************************************************************
  *
@@ -64,11 +66,12 @@ edit_create_context
     edit_err = EDIT_INVALID_ARGUMENT;
     goto error;
   }
-  ctxt = MEM_CALLOC(edit_allocator, 1, sizeof(struct edit_context));
+  ctxt = MEM_ALIGNED_ALLOC(edit_allocator, sizeof(struct edit_context), 16);
   if(!ctxt) {
     edit_err = EDIT_MEMORY_ERROR;
     goto error;
   }
+  memset(ctxt, 0, sizeof(struct edit_context));
   ctxt->allocator = edit_allocator;
   ref_init(&ctxt->ref);
   APP(ref_get(app));
@@ -116,10 +119,14 @@ edit_context_ref_put(struct edit_context* ctxt)
 EXPORT_SYM enum edit_error
 edit_run(struct edit_context* ctxt)
 {
+  enum edit_error edit_err = EDIT_NO_ERROR;
 
-  if(UNLIKELY(!ctxt))
-    return EDIT_INVALID_ARGUMENT;
+  if(UNLIKELY(!ctxt)) {
+    edit_err = EDIT_INVALID_ARGUMENT;
+    goto error;
+  }
 
+  /* Draw im geometries. */
   if(true == ctxt->cvars.show_selection->value.boolean)
     EDIT(draw_model_instance_selection(ctxt->instance_selection));
   if(true == ctxt->cvars.show_grid->value.boolean) {
@@ -145,7 +152,23 @@ edit_run(struct edit_context* ctxt)
        (float[]){0.f, 0.f, 1.f}, /* vaxis_color */
        (float[]){1.f, 0.f, 0.f}));  /* haxis_color */
   }
-  return EDIT_NO_ERROR;
+
+  /* Process inputs. */
+  if(ctxt->process_inputs) {
+    struct app_view* view = NULL;
+      
+    edit_err = edit_process_inputs(ctxt);
+    if(edit_err != EDIT_NO_ERROR)
+      goto error;
+
+    APP(get_main_view(ctxt->app, &view));
+    APP(raw_view_transform(view, &ctxt->view.transform));
+  }
+
+exit:
+  return edit_err;
+error:
+  goto exit;
 }
 
 EXPORT_SYM enum edit_error
@@ -153,14 +176,21 @@ edit_enable_inputs(struct edit_context* ctxt, bool is_enable)
 {
   enum edit_error edit_err = EDIT_NO_ERROR;
 
-  if(is_enable) {
-    edit_err = edit_init_inputs(ctxt);
-  } else {
-    edit_err = edit_release_inputs(ctxt);
+  if(UNLIKELY(!ctxt)) {
+     edit_err = EDIT_INVALID_ARGUMENT;
+     goto error;
   }
-  if(edit_err != EDIT_NO_ERROR)
-    goto error;
-  ctxt->process_inputs = is_enable;
+
+  if(ctxt->process_inputs != is_enable) {
+    if(is_enable) {
+      edit_err = edit_init_inputs(ctxt);
+    } else {
+      edit_err = edit_release_inputs(ctxt);
+    }
+    if(edit_err != EDIT_NO_ERROR)
+      goto error;
+    ctxt->process_inputs = is_enable;
+  }
 exit:
   return edit_err;
 error:

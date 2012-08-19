@@ -136,8 +136,13 @@ wm_get_mouse_button_state
 extern enum wm_error
 wm_get_mouse_position
   (struct wm_device* device,
-   int* x,
-   int* y);
+   int* x, /* May be NULL. */
+   int* y); /* May be NULL. */
+
+extern enum wm_error
+wm_get_mouse_wheel
+  (struct wm_device* device,
+   int* pos);
 
 extern enum wm_error
 wm_attach_key_callback
@@ -212,6 +217,25 @@ extern enum wm_error
 wm_is_mouse_motion_callback_attached
   (struct wm_device* device,
    void (*func)(int x, int y, void* data),
+   void* data, /* May be NULL. */
+   bool* is_attached);
+
+extern enum wm_error
+wm_attach_mouse_wheel_callback
+  (struct wm_device* device,
+   void (*func)(int pos, void* data),
+   void* data); /* May be NULL. */
+
+extern enum wm_error
+wm_detach_mouse_wheel_callback
+  (struct wm_device* device,
+   void (*func)(int pos, void* data),
+   void* data); /* May be NULL. */
+
+extern enum wm_error
+wm_is_mouse_wheel_callback_attached
+  (struct wm_device* device,
+   void (*func)(int pos, void* data),
    void* data, /* May be NULL. */
    bool* is_attached);
 

@@ -50,6 +50,11 @@ app_view_rotate
    float roll); /* Z in radian. */
 
 extern enum app_error
+app_raw_view_transform
+  (struct app_view* view,
+   const struct aosf44* transform);
+
+extern enum app_error
 app_get_view_basis
   (struct app_view* view,
    float pos[3],

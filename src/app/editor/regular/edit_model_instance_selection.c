@@ -157,13 +157,13 @@ draw_tool(struct edit_context* ctxt, float pos[3])
 {
   const float size = 0.2f;
 
-  if(ctxt->states.move_flag & EDIT_MOVE_SCALE) {
+  if(ctxt->states.entity_transform_flag & EDIT_TRANSFORM_SCALE) {
     draw_basis(ctxt, pos, size, APP_IM_VECTOR_CUBE_MARKER);
   } 
-  if(ctxt->states.move_flag & EDIT_MOVE_TRANSLATE) {
+  if(ctxt->states.entity_transform_flag & EDIT_TRANSFORM_TRANSLATE) {
     draw_basis(ctxt, pos, size, APP_IM_VECTOR_CONE_MARKER);
   } 
-  if(ctxt->states.move_flag & EDIT_MOVE_ROTATE) {
+  if(ctxt->states.entity_transform_flag & EDIT_TRANSFORM_ROTATE) {
     draw_basis_circles
       (ctxt, 
        pos, 
@@ -172,7 +172,7 @@ draw_tool(struct edit_context* ctxt, float pos[3])
        (float[]){0.f, 1.f, 0.f},
        (float[]){0.f, 0.f, 1.f});
   } 
-  if(ctxt->states.move_flag == EDIT_MOVE_NONE) {
+  if(ctxt->states.entity_transform_flag == EDIT_TRANSFORM_NONE) {
     draw_basis_circles
       (ctxt, 
        pos,

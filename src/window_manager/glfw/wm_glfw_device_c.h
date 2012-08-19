@@ -22,6 +22,7 @@ struct wm_device {
   struct sl_flat_set* char_clbk_list;
   struct sl_flat_set* mouse_button_clbk_list;
   struct sl_flat_set* mouse_motion_clbk_list;
+  struct sl_flat_set* mouse_wheel_clbk_list;
   struct sl_hash_table* glfw_to_wm_key_htbl;
 };
 

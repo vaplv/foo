@@ -13,5 +13,9 @@ extern enum edit_error
 edit_release_inputs
   (struct edit_context* ctxt);
 
+extern enum edit_error
+edit_process_inputs
+  (struct edit_context* ctxt);
+
 #endif /* EDIT_INPUTS_H */
 

@@ -951,6 +951,15 @@ app_get_window_manager_device(struct app* app, struct wm_device** out_wm)
 }
 
 EXPORT_SYM enum app_error
+app_get_active_window(struct app* app, struct wm_window** window)
+{
+  if(!app || !window)
+    return APP_INVALID_ARGUMENT;
+  *window = app->wm.window;
+  return APP_NO_ERROR;
+}
+
+EXPORT_SYM enum app_error
 app_get_main_view(struct app* app, struct app_view** out_view)
 {
   if(!app || !out_view)

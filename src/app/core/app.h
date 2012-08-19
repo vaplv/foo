@@ -26,6 +26,7 @@ struct app_model_instance;
 struct app_view;
 struct app_world;
 struct wm_device;
+struct wm_window;
 struct sys;
 
 typedef void(*app_callback_t)(void);
@@ -89,6 +90,11 @@ extern enum app_error
 app_get_window_manager_device
   (struct app* app,
    struct wm_device** wm);
+
+extern enum app_error
+app_get_active_window
+  (struct app* app,
+   struct wm_window** window); /* May be NULL. */
 
 extern enum app_error
 app_get_main_view
