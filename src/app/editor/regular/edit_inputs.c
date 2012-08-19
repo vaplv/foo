@@ -85,9 +85,9 @@ mouse_motion_clbk(int x, int y, void* data)
     if(ctxt->states.view_transform_flag & EDIT_TRANSFORM_TRANSLATE) {
       /* With a sensitivity of 1 the camera translate of 200 WORLD_UNIT when
        * the mouse cross over the entire window. */
-      ctxt->inputs.view_translation[0] += 
+      ctxt->inputs.view_translation[0] +=
         200 * WORLD_UNIT * motion[0] * sensitivity;
-      ctxt->inputs.view_translation[1] += 
+      ctxt->inputs.view_translation[1] +=
         200 * WORLD_UNIT * motion[1] * sensitivity;
     }
     ctxt->states.mouse_cursor[0] = x;
@@ -291,7 +291,7 @@ edit_process_inputs(struct edit_context* ctxt)
     ctxt->inputs.view_rotation[1] = -ctxt->inputs.view_rotation[1];
   aosf33_yaw_rotation(&yaw_rot, ctxt->inputs.view_rotation[1]);
   aosf33_rotation
-    (&pitch_roll_rot, 
+    (&pitch_roll_rot,
      ctxt->inputs.view_rotation[0], 0.f, ctxt->inputs.view_rotation[2]);
   /* Retrieve the position of the camera in world space. */
   rot.c0 = ctxt->view.transform.c0;

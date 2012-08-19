@@ -19,7 +19,15 @@ if(UNIX)
 else(UNIX)
   message(FATAL_ERROR "Unsupported platform.")
 endif(UNIX)
-  
+
+find_program(CPPCHECK cppcheck)
+if(CPPCHECK) 
+  add_custom_target(static_check 
+    cppcheck ${foo_SOURCE_DIR} --quiet --enable=all -I${foo_SOURCE_DIR})
+else(CPPCHECK)
+  message(STATUS "cppcheck is not found: disable static_check target")
+endif(CPPCHECK)
+
 include_directories(. /usr/include /usr/local/include)
 link_directories(/usr/lib /usr/local/lib ${CMAKE_LIBRARY_OUTPUT_DIRECTORY})
 

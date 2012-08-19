@@ -213,7 +213,6 @@ game_enable_inputs(struct game* game, bool is_enable)
   struct wm_device* wm = NULL;
   bool is_clbk_attached = false;
   enum game_error game_err = GAME_NO_ERROR;
-  enum wm_error wm_err = WM_NO_ERROR;
 
   if(!game) {
     game_err = GAME_INVALID_ARGUMENT;
@@ -221,6 +220,7 @@ game_enable_inputs(struct game* game, bool is_enable)
   }
  
   if(game->process_inputs != is_enable) {
+    enum wm_error wm_err = WM_NO_ERROR;
     APP(get_window_manager_device(game->app, &wm));
     WM(is_key_callback_attached
        (wm, game_key_callback, &game->post, &is_clbk_attached));

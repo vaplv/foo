@@ -236,7 +236,6 @@ save
   const char* cmd_name = NULL;
   const char* output_file = NULL;
   FILE* file = NULL;
-  int err = 0;
   enum { CMD_NAME, OUTPUT_FILE, FORCE_FLAG, ARGC };
 
   assert(app != NULL
@@ -265,6 +264,7 @@ save
 
     file = fopen(output_file, "r");
     if(file!=NULL && EDIT_CMD_ARGVAL(argv, FORCE_FLAG).is_defined == false) {
+    int err = 0;
       APP(log(app, APP_LOG_ERROR,
         "%s: the file `%s' already exist. "
         "Use the --force flag to overwrite it\n",
