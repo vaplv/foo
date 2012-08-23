@@ -264,7 +264,7 @@ save
 
     file = fopen(output_file, "r");
     if(file!=NULL && EDIT_CMD_ARGVAL(argv, FORCE_FLAG).is_defined == false) {
-    int err = 0;
+      int err = 0;
       APP(log(app, APP_LOG_ERROR,
         "%s: the file `%s' already exist. "
         "Use the --force flag to overwrite it\n",

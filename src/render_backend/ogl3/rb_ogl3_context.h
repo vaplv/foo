@@ -15,6 +15,7 @@ struct rb_context {
   struct state_cache {
     GLuint buffer_binding[RB_OGL3_NB_BUFFER_TARGETS];
     GLuint current_program;
+    GLuint framebuffer_binding;
     GLuint sampler_binding[RB_OGL3_MAX_TEXTURE_UNITS];
     GLuint texture_binding_2d[RB_OGL3_MAX_TEXTURE_UNITS];
     GLuint vertex_array_binding;

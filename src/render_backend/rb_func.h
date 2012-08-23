@@ -410,6 +410,47 @@ RB_FUNC(
 
 /*******************************************************************************
  *
+ * Framebuffer TODO ogl3 implementation
+ *
+ ******************************************************************************/
+RB_FUNC(
+  int,
+  create_framebuffer,
+    struct rb_context* ctxt,
+    const struct rb_framebuffer_desc* desc,
+    struct rb_framebuffer** buffer
+)
+
+RB_FUNC(
+  int,
+  framebuffer_ref_get,
+    struct rb_framebuffer* ctxt
+)
+
+RB_FUNC(
+  int,
+  framebuffer_ref_put,
+    struct rb_framebuffer* ctxt
+)
+
+RB_FUNC(
+  int,
+  bind_framebuffer,
+    struct rb_context* ctxt,
+    struct rb_framebuffer* buffer /* May be NULL. */
+)
+
+RB_FUNC(
+  int,
+  framebuffer_render_targets,
+    struct rb_framebuffer* buffer,
+    unsigned int count,
+    const struct rb_render_target* render_target_list[], /* May be NULL. */
+    const struct rb_render_target* depth_stencil /* May be NULL. */
+)
+
+/*******************************************************************************
+ *
  * Miscellaneous functions.
  *
  ******************************************************************************/

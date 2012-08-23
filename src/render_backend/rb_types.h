@@ -138,20 +138,25 @@ enum rb_cull_mode {
   RB_CULL_BACK
 };
 
+enum rb_render_target_type {
+  RB_RENDER_TARGET_TEXTURE2D
+};
+
 /*******************************************************************************
  *
  * Opaque render backend data structures.
  *
  ******************************************************************************/
+struct rb_attrib;
 struct rb_context;
-struct rb_tex2d;
 struct rb_buffer;
-struct rb_vertex_array;
+struct rb_framebuffer;
+struct rb_program;
 struct rb_sampler;
 struct rb_shader;
-struct rb_program;
+struct rb_tex2d;
 struct rb_uniform;
-struct rb_attrib;
+struct rb_vertex_array;
 
 /*******************************************************************************
  *
@@ -245,6 +250,21 @@ struct rb_rasterizer_desc {
   enum rb_fill_mode fill_mode;
   enum rb_cull_mode cull_mode;
   enum rb_face_orientation front_facing;
+};
+
+struct rb_framebuffer_desc {
+  unsigned int width;
+  unsigned int height;
+  unsigned int sample_count;
+  unsigned int buffer_count;
+};
+
+struct rb_render_target {
+  enum rb_render_target_type type;
+  void* ressource;
+  union {
+    struct { unsigned int mip_level; } tex2d;
+  } desc;
 };
 
 #endif /* RB_TYPES */
