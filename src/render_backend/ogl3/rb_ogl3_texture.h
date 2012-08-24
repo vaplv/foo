@@ -6,7 +6,12 @@
 
 struct rb_context;
 struct rb_buffer;
-struct mip_level;
+struct mip_level {
+  size_t pixbuf_offset;
+  unsigned int width;
+  unsigned int height;
+};
+
 
 struct rb_tex2d {
   struct ref ref;

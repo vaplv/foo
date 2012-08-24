@@ -31,24 +31,37 @@ struct world_node {
   struct rdr_world* world;
 };
 
+/* im draw system. */
+struct imdraw {
+  struct rdr_imdraw_command_buffer* cmdbuf;
+  struct transform_cache {
+    struct rdr_view view;
+    struct aosf44 proj_matrix;
+    struct aosf44 view_matrix;
+    struct aosf44 viewproj_matrix;
+  } transform_cache;
+};
+
+struct framebuffer {
+  struct rb_framebuffer* buffer;
+  struct rb_tex2d* picking_tex; /* TODO replace by a render buffer. */
+  struct rb_tex2d* depth_stencil_tex; /* TODO replace bu a render buffer. */
+};
+
 struct rdr_frame {
-  ALIGN(16) struct term_node term_node_list[MAX_TERM_NODE];
+  /* Raw memory of draw command nodes. */
+  ALIGN(16) struct term_node term_node_list[MAX_TERM_NODE]; 
   struct world_node world_node_list[MAX_WORLD_NODE];
-  struct ref ref;
-  struct rdr_system* sys;
-  struct imdraw {
-    struct rdr_imdraw_command_buffer* cmdbuf;
-    struct transform_cache {
-      struct rdr_view view;
-      struct aosf44 proj_matrix;
-      struct aosf44 view_matrix;
-      struct aosf44 viewproj_matrix;
-    } transform_cache;
-  } imdraw;
-  size_t term_node_id;
+  /* Draw term/world command management. */
+  size_t term_node_id; 
   size_t world_node_id;
   struct list_node draw_term_list;
   struct list_node draw_world_list;
+  /* Miscellaneous */
+  struct imdraw imdraw; /* im draw system. */
+  struct framebuffer framebuffer;  /* offline framebuffer. */
+  struct ref ref;
+  struct rdr_system* sys;
   float bkg_color[4];
 };
 
@@ -345,6 +358,85 @@ error:
 }
 
 static void
+release_framebuffer(struct rdr_system* sys, struct framebuffer* framebuffer)
+{
+  assert(sys && framebuffer);
+  if(framebuffer->buffer)
+    RBI(&sys->rb, framebuffer_ref_put(framebuffer->buffer));
+  if(framebuffer->picking_tex)
+    RBI(&sys->rb, tex2d_ref_put(framebuffer->picking_tex));
+  if(framebuffer->depth_stencil_tex)
+    RBI(&sys->rb, tex2d_ref_put(framebuffer->depth_stencil_tex));
+}
+
+static enum rdr_error
+init_framebuffer
+  (struct rdr_system* sys,
+   struct framebuffer* framebuffer, 
+   const struct rdr_frame_desc* desc)
+{
+  struct rb_framebuffer_desc bufdesc;
+  struct rb_tex2d_desc tex2ddesc;
+  struct rb_render_target rt0;
+  struct rb_render_target depth_stencil_rt;
+  enum rdr_error rdr_err = RDR_NO_ERROR;
+  memset(&bufdesc, 0, sizeof(bufdesc));
+  memset(&tex2ddesc, 0, sizeof(tex2ddesc));
+  memset(&rt0, 0, sizeof(struct rb_render_target));
+  memset(&depth_stencil_rt, 0, sizeof(struct rb_render_target));
+
+  assert(framebuffer && desc);
+
+  #define CALL(func) \
+    do { \
+      if((func) != 0) { \
+        rdr_err = RDR_DRIVER_ERROR; \
+        goto error; \
+      } \
+    } while(0)
+
+  bufdesc.width = desc->width;
+  bufdesc.height = desc->height;
+  bufdesc.sample_count = 1;
+  bufdesc.buffer_count = 1;
+  CALL(sys->rb.create_framebuffer(sys->ctxt, &bufdesc, &framebuffer->buffer));
+
+  tex2ddesc.width = desc->width;
+  tex2ddesc.height = desc->height;
+  tex2ddesc.mip_count = 1;
+  tex2ddesc.format = RB_RGBA;
+  tex2ddesc.usage = RB_USAGE_DEFAULT;
+  tex2ddesc.compress = 0;
+  CALL(sys->rb.create_tex2d
+    (sys->ctxt, &tex2ddesc, (const void*[]){NULL}, &framebuffer->picking_tex));
+
+  tex2ddesc.format = RB_DEPTH_COMPONENT;
+  CALL(sys->rb.create_tex2d
+    (sys->ctxt, 
+     &tex2ddesc, 
+     (const void*[]){NULL}, 
+     &framebuffer->depth_stencil_tex));
+
+  rt0.type = RB_RENDER_TARGET_TEXTURE2D;
+  rt0.resource = (void*)framebuffer->picking_tex;
+  rt0.desc.tex2d.mip_level = 0;
+  depth_stencil_rt.type = RB_RENDER_TARGET_TEXTURE2D;
+  depth_stencil_rt.resource = (void*)framebuffer->depth_stencil_tex;
+  depth_stencil_rt.desc.tex2d.mip_level = 0;
+  CALL(sys->rb.framebuffer_render_targets
+    (framebuffer->buffer, 1, &rt0, &depth_stencil_rt));
+
+  #undef CALL
+
+exit:
+  return rdr_err;
+error:
+  release_framebuffer(sys, framebuffer);
+  memset(framebuffer, 0, sizeof(struct framebuffer));
+  goto exit;
+}
+
+static void
 release_frame(struct ref* ref)
 {
   struct list_node* node = NULL;
@@ -364,6 +456,7 @@ release_frame(struct ref* ref)
   }
   if(frame->imdraw.cmdbuf)
     RDR(imdraw_command_buffer_ref_put(frame->imdraw.cmdbuf));
+  release_framebuffer(frame->sys, &frame->framebuffer);
   sys = frame->sys;
   MEM_FREE(sys->allocator, frame);
   RDR(system_ref_put(sys));
@@ -375,13 +468,16 @@ release_frame(struct ref* ref)
  *
  ******************************************************************************/
 EXPORT_SYM enum rdr_error
-rdr_create_frame(struct rdr_system* sys, struct rdr_frame** out_frame)
+rdr_create_frame
+  (struct rdr_system* sys, 
+   const struct rdr_frame_desc* desc, 
+   struct rdr_frame** out_frame)
 {
   struct rdr_frame* frame = NULL;
   enum rdr_error rdr_err = RDR_NO_ERROR;
   size_t i = 0;
 
-  if(!sys || !out_frame) {
+  if(UNLIKELY(!sys || !desc || !out_frame)) {
     rdr_err = RDR_INVALID_ARGUMENT;
     goto error;
   }
@@ -401,6 +497,10 @@ rdr_create_frame(struct rdr_system* sys, struct rdr_frame** out_frame)
 
   rdr_err = rdr_create_imdraw_command_buffer
     (sys, MAX_IMDRAW_COMMANDS, &frame->imdraw.cmdbuf);
+  if(rdr_err != RDR_NO_ERROR)
+    goto error;
+
+  rdr_err = init_framebuffer(frame->sys, &frame->framebuffer, desc);
   if(rdr_err != RDR_NO_ERROR)
     goto error;
 

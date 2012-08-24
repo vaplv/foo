@@ -254,7 +254,8 @@ main(int argc, char* argv[])
 
   RDR(create_model(sys, mesh, mtr, &model));
   RDR(create_world(sys, &world));
-  RDR(create_frame(sys, &frame));
+  RDR(create_frame
+    (sys, (struct rdr_frame_desc[]){{win_desc.width,win_desc.height}}, &frame));
   RDR(background_color(frame, (float[]){0.1f, 0.1f, 0.1f}));
 
   for(i = 0; i < 27; ++i) {

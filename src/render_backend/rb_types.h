@@ -26,7 +26,8 @@ enum rb_tex_format {
   RB_RGB,
   RB_RGBA,
   RB_SRGB,
-  RB_SRGBA
+  RB_SRGBA,
+  RB_DEPTH_COMPONENT
 };
 
 enum rb_tex_filter {
@@ -261,7 +262,7 @@ struct rb_framebuffer_desc {
 
 struct rb_render_target {
   enum rb_render_target_type type;
-  void* ressource;
+  void* resource;
   union {
     struct { unsigned int mip_level; } tex2d;
   } desc;

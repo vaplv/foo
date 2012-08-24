@@ -410,7 +410,7 @@ RB_FUNC(
 
 /*******************************************************************************
  *
- * Framebuffer TODO ogl3 implementation
+ * Framebuffer
  *
  ******************************************************************************/
 RB_FUNC(
@@ -445,7 +445,7 @@ RB_FUNC(
   framebuffer_render_targets,
     struct rb_framebuffer* buffer,
     unsigned int count,
-    const struct rb_render_target* render_target_list[], /* May be NULL. */
+    const struct rb_render_target render_target_list[], /* May be NULL. */
     const struct rb_render_target* depth_stencil /* May be NULL. */
 )
 

@@ -10,12 +10,6 @@
 
 #define BUFFER_OFFSET(i) ((char*)NULL + (i))
 
-struct mip_level {
-  size_t pixbuf_offset;
-  unsigned int width;
-  unsigned int height;
-};
-
 /*******************************************************************************
  *
  * Helper functions.
@@ -48,6 +42,7 @@ ogl3_internal_format(enum rb_tex_format fmt)
     case RB_RGBA: ogl3_ifmt = GL_RGBA8; break;
     case RB_SRGB: ogl3_ifmt = GL_SRGB8; break;
     case RB_SRGBA: ogl3_ifmt = GL_SRGB8_ALPHA8; break;
+    case RB_DEPTH_COMPONENT: ogl3_ifmt = GL_DEPTH_COMPONENT24; break;
     default:
       assert(0);
       break;
@@ -65,6 +60,7 @@ ogl3_format(enum rb_tex_format fmt)
     case RB_RGBA: ogl3_fmt = GL_RGBA; break;
     case RB_SRGB: ogl3_fmt = GL_RGB; break;
     case RB_SRGBA: ogl3_fmt = GL_RGBA; break;
+    case RB_DEPTH_COMPONENT: ogl3_fmt = GL_DEPTH_COMPONENT; break;
     default:
       assert(0);
       break;
@@ -85,6 +81,9 @@ sizeof_ogl3_format(GLenum fmt)
       break;
     case GL_RGBA:
       size = 4 * sizeof(GLbyte);
+      break;
+    case GL_DEPTH_COMPONENT:
+      size = 3 * sizeof(GLbyte);
       break;
     default:
       assert(0);
@@ -141,7 +140,8 @@ rb_create_tex2d
   || !desc 
   || !init_data 
   || !out_tex 
-  || !desc->mip_count)
+  || !desc->mip_count
+  || (desc->format == RB_DEPTH_COMPONENT && desc->compress))
     goto error;
 
   tex = MEM_CALLOC(ctxt->allocator, 1, sizeof(struct rb_tex2d));

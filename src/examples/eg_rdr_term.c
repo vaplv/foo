@@ -135,7 +135,9 @@ main(int argc, char** argv)
   WM(create_window(dev, &win_desc, &win));
 
   RDR(create_system(driver_name, NULL, &sys));
-  RDR(create_frame(sys, &frame));
+  RDR(create_frame
+    (sys, (struct rdr_frame_desc[]){{win_desc.width,win_desc.height}}, &frame));
+
   RDR(background_color(frame, (float[]){0.05f, 0.05f, 0.05f}));
   RDR(create_font(sys, &font));
   RDR(font_data(font, line_space, NB_CHARS, glyph_desc_list));

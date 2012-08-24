@@ -22,6 +22,9 @@ main(int argc, char** argv)
   struct wm_window_desc win_desc = {
     .width = 800, .height = 600, .fullscreen = false
   };
+  struct rdr_frame_desc frame_desc = { 
+    .width = win_desc.width, .height = win_desc.height 
+  };
   /* Renderer data structure. */
   struct rdr_frame* frame = NULL;
   struct rdr_system* sys = NULL;
@@ -58,10 +61,14 @@ main(int argc, char** argv)
   CHECK(rdr_create_font(sys, &font), OK);
   CHECK(rdr_create_term(sys, font, 16, 25, &term), OK);
 
-  CHECK(rdr_create_frame(NULL, NULL), BAD_ARG);
-  CHECK(rdr_create_frame(sys, NULL), BAD_ARG);
-  CHECK(rdr_create_frame(NULL, &frame), BAD_ARG);
-  CHECK(rdr_create_frame(sys, &frame), OK);
+  CHECK(rdr_create_frame(NULL, NULL, NULL), BAD_ARG);
+  CHECK(rdr_create_frame(sys, NULL, NULL), BAD_ARG);
+  CHECK(rdr_create_frame(NULL, NULL, &frame), BAD_ARG);
+  CHECK(rdr_create_frame(sys, NULL, &frame), BAD_ARG);
+  CHECK(rdr_create_frame(NULL, &frame_desc, NULL), BAD_ARG);
+  CHECK(rdr_create_frame(sys, &frame_desc, NULL), BAD_ARG);
+  CHECK(rdr_create_frame(NULL, &frame_desc, &frame), BAD_ARG);
+  CHECK(rdr_create_frame(sys, &frame_desc, &frame), OK);
 
   CHECK(rdr_background_color(NULL, NULL), BAD_ARG);
   CHECK(rdr_background_color(frame, NULL), BAD_ARG);

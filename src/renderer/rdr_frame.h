@@ -10,9 +10,15 @@ struct rdr_term;
 struct rdr_view;
 struct rdr_world;
 
+struct rdr_frame_desc {
+  unsigned int width;
+  unsigned int height;
+};
+
 extern enum rdr_error
 rdr_create_frame
   (struct rdr_system* sys,
+   const struct rdr_frame_desc* desc,
    struct rdr_frame** frame);
 
 extern enum rdr_error

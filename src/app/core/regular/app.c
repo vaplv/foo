@@ -453,6 +453,11 @@ init_renderer(struct app* app, const char* driver)
   enum app_error app_err = APP_NO_ERROR;
   enum app_error tmp_err = APP_NO_ERROR;
   enum rdr_error rdr_err = RDR_NO_ERROR;
+  struct wm_window_desc win_desc;
+  struct rdr_frame_desc frame_desc;
+  memset(&win_desc, 0, sizeof(win_desc));
+  memset(&frame_desc, 0, sizeof(frame_desc));
+  
   assert(app != NULL);
 
   mem_init_proxy_allocator
@@ -469,7 +474,11 @@ init_renderer(struct app* app, const char* driver)
   CALL(rdr_system_attach_log_stream
     (app->rdr.system, &std_log_func, (void*)(0xDEADBEEF)));
 
-  CALL(rdr_create_frame(app->rdr.system, &app->rdr.frame));
+  WM(get_window_desc(app->wm.window, &win_desc));
+  frame_desc.width = win_desc.width;
+  frame_desc.height = win_desc.height;
+
+  CALL(rdr_create_frame(app->rdr.system, &frame_desc, &app->rdr.frame));
   CALL(rdr_background_color(app->rdr.frame, (float[]){0.1f, 0.1f, 0.1f}));
   CALL(rdr_create_material(app->rdr.system, &app->rdr.default_material));
   CALL(rdr_create_font(app->rdr.system, &app->rdr.term_font));
