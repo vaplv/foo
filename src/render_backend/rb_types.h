@@ -22,11 +22,18 @@ enum {
  *
  ******************************************************************************/
 enum rb_tex_format {
+  /* Common unsigned byte formats. */
   RB_R,
   RB_RGB,
   RB_RGBA,
   RB_SRGB,
   RB_SRGBA,
+  /* Unsigned int formats. */
+  RB_R_UINT16,
+  RB_RG_UINT16,
+  RB_RGB_UINT16,
+  RB_RGBA_UINT16,
+  /* Special formats. */
   RB_DEPTH_COMPONENT,
   RB_DEPTH_STENCIL
 };

@@ -15,6 +15,17 @@
  * Helper functions.
  *
  ******************************************************************************/
+static FINLINE int
+is_format_compressible(enum rb_tex_format fmt)
+{
+  return 
+     fmt == RB_R 
+  || fmt == RB_RGB
+  || fmt == RB_RGBA
+  || fmt == RB_SRGB
+  || fmt == RB_SRGBA;
+}
+
 static FINLINE GLenum
 ogl3_compressed_internal_format(enum rb_tex_format fmt)
 {
@@ -42,6 +53,10 @@ ogl3_internal_format(enum rb_tex_format fmt)
     case RB_RGBA: ogl3_ifmt = GL_RGBA8; break;
     case RB_SRGB: ogl3_ifmt = GL_SRGB8; break;
     case RB_SRGBA: ogl3_ifmt = GL_SRGB8_ALPHA8; break;
+    case RB_R_UINT16: ogl3_ifmt = GL_R16UI; break;
+    case RB_RG_UINT16: ogl3_ifmt = GL_RG16UI; break;
+    case RB_RGB_UINT16: ogl3_ifmt = GL_RGB16UI; break;
+    case RB_RGBA_UINT16: ogl3_ifmt = GL_RGBA16UI; break;
     case RB_DEPTH_COMPONENT: ogl3_ifmt = GL_DEPTH_COMPONENT24; break;
     case RB_DEPTH_STENCIL: ogl3_ifmt = GL_DEPTH24_STENCIL8; break;
     default:
@@ -58,20 +73,22 @@ ogl3_format(enum rb_tex_format fmt)
   switch(fmt) {
     case RB_R: ogl3_fmt = GL_RED; break;
     case RB_RGB: ogl3_fmt = GL_RGB; break;
-    case RB_RGBA: ogl3_fmt = GL_RGBA; break;
     case RB_SRGB: ogl3_fmt = GL_RGB; break;
+    case RB_RGBA: ogl3_fmt = GL_RGBA; break;
     case RB_SRGBA: ogl3_fmt = GL_RGBA; break;
+    case RB_R_UINT16: ogl3_fmt = GL_RED_INTEGER; break;
+    case RB_RG_UINT16: ogl3_fmt = GL_RG_INTEGER; break;
+    case RB_RGB_UINT16: ogl3_fmt = GL_RGB_INTEGER; break;
+    case RB_RGBA_UINT16: ogl3_fmt = GL_RGBA_INTEGER; break;
     case RB_DEPTH_COMPONENT: ogl3_fmt = GL_DEPTH_COMPONENT; break;
     case RB_DEPTH_STENCIL: ogl3_fmt = GL_DEPTH_STENCIL; break;
-    default:
-      assert(0);
-      break;
+    default: assert(0); break;
   }
   return ogl3_fmt;
 }
 
 static FINLINE GLenum
-ogl3_type(GLenum fmt)
+ogl3_type(enum rb_tex_format fmt)
 {
   GLenum type = GL_NONE;
   switch(fmt) {
@@ -81,6 +98,12 @@ ogl3_type(GLenum fmt)
     case RB_SRGB:
     case RB_SRGBA:
       type = GL_UNSIGNED_BYTE;
+      break;
+    case RB_R_UINT16:
+    case RB_RG_UINT16:
+    case RB_RGB_UINT16:
+    case RB_RGBA_UINT16:
+      type = GL_UNSIGNED_INT;
       break;
     case RB_DEPTH_COMPONENT:
       type = GL_FLOAT;
@@ -97,30 +120,48 @@ ogl3_type(GLenum fmt)
 
 
 static FINLINE size_t
-sizeof_ogl3_format(GLenum fmt)
+sizeof_pixel(GLenum fmt, GLenum type)
 {
-  size_t size = 0;
+  unsigned int ncomponents = 0;
+  size_t sizeof_component = 0;
   switch(fmt) {
-    case GL_RED:
-      size = 1 * sizeof(GLbyte);
+    case GL_RED: 
+    case GL_RED_INTEGER:
+      ncomponents = 1; break;
+    case GL_RG:
+    case GL_RG_INTEGER:
+      ncomponents = 2; 
       break;
-    case GL_RGB:
-      size = 3 * sizeof(GLbyte);
+    case GL_RGB: 
+    case GL_RGB_INTEGER:
+      ncomponents = 3; 
       break;
-    case GL_RGBA:
-      size = 4 * sizeof(GLbyte);
+    case GL_RGBA: 
+    case GL_RGBA_INTEGER:
+      ncomponents = 4; 
       break;
     case GL_DEPTH_COMPONENT:
-      size = sizeof(float);
+    case GL_DEPTH_STENCIL: 
+      ncomponents = 1;
       break;
-    case GL_DEPTH_STENCIL:
-      size = sizeof(uint32_t);
-      break;
-    default:
-      assert(0);
-      break;
+    default: assert(0); break;
   }
-  return size;
+  switch(type) {
+    case GL_UNSIGNED_BYTE: 
+      sizeof_component = sizeof(unsigned char); 
+      break;
+    case GL_UNSIGNED_INT: 
+      sizeof_component = sizeof(uint32_t); 
+      break;
+    case GL_FLOAT: 
+      sizeof_component = sizeof(float); 
+      break;
+    case GL_UNSIGNED_INT_24_8: 
+      sizeof_component = 4;
+      break;
+    default: assert(0); break;
+  }
+  return ncomponents * sizeof_component;
 }
 
 static void
@@ -172,8 +213,7 @@ rb_create_tex2d
   || !init_data
   || !out_tex
   || !desc->mip_count
-  || (desc->format == RB_DEPTH_COMPONENT && desc->compress)
-  || (desc->format == RB_DEPTH_STENCIL && desc->compress))
+  || (desc->compress && !is_format_compressible(desc->format)))
     goto error;
 
   tex = MEM_CALLOC(ctxt->allocator, 1, sizeof(struct rb_tex2d));
@@ -204,7 +244,7 @@ rb_create_tex2d
     : ogl3_internal_format(desc->format);
 
   /* Define the mip parameters and the required size into the pixel buffer. */
-  pixel_size = sizeof_ogl3_format(tex->format);
+  pixel_size = sizeof_pixel(tex->format, tex->type);
   for(i = 0, size = 0; i < desc->mip_count; ++i) {
     tex->mip_list[i].pixbuf_offset = size;
     tex->mip_list[i].width = MAX(desc->width / (1<<i), 1);
@@ -291,7 +331,7 @@ rb_tex2d_data(struct rb_tex2d* tex, unsigned int level, const void* data)
     return -1;
   state_cache = &tex->ctxt->state_cache;
   mip_level = tex->mip_list + level;
-  pixel_size = sizeof_ogl3_format(tex->format);
+  pixel_size = sizeof_pixel(tex->format, tex->type);
   mip_size = mip_level->width * mip_level->height * pixel_size;
 
   #define TEX_IMAGE_2D(data) \

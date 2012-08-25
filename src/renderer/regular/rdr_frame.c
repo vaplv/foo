@@ -312,6 +312,7 @@ error:
   goto exit;
 }
 
+d
 static enum rdr_error
 imdraw_grid
   (struct rdr_frame* frame,
@@ -404,7 +405,7 @@ init_framebuffer
   tex2ddesc.width = desc->width;
   tex2ddesc.height = desc->height;
   tex2ddesc.mip_count = 1;
-  tex2ddesc.format = RB_RGBA;
+  tex2ddesc.format = RB_RG_UINT16;
   tex2ddesc.usage = RB_USAGE_DEFAULT;
   tex2ddesc.compress = 0;
   CALL(sys->rb.create_tex2d
