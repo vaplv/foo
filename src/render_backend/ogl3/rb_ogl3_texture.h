@@ -21,6 +21,7 @@ struct rb_tex2d {
   unsigned int mip_count;
   GLenum format;
   GLenum internal_format;
+  GLenum type;
   GLuint name;
 };
 

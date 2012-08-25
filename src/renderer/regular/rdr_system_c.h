@@ -7,6 +7,8 @@
 #include "sys/mem_allocator.h"
 #include "sys/ref_count.h"
 
+#define RDR_ERRBUF_LEN 1024
+
 struct rb_context;
 struct sl_logger;
 
@@ -52,6 +54,9 @@ struct rdr_system {
     struct rbu_geometry solid_parallelepiped;
     struct rbu_geometry wire_parallelepiped;
   } rbu;
+
+  char errbuf[RDR_ERRBUF_LEN];
+  size_t errbuf_id;
 };
 
 #endif /* RDR_SYSTEM_C_H. */

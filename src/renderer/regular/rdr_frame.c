@@ -50,10 +50,10 @@ struct framebuffer {
 
 struct rdr_frame {
   /* Raw memory of draw command nodes. */
-  ALIGN(16) struct term_node term_node_list[MAX_TERM_NODE]; 
+  ALIGN(16) struct term_node term_node_list[MAX_TERM_NODE];
   struct world_node world_node_list[MAX_WORLD_NODE];
   /* Draw term/world command management. */
-  size_t term_node_id; 
+  size_t term_node_id;
   size_t world_node_id;
   struct list_node draw_term_list;
   struct list_node draw_world_list;
@@ -372,7 +372,7 @@ release_framebuffer(struct rdr_system* sys, struct framebuffer* framebuffer)
 static enum rdr_error
 init_framebuffer
   (struct rdr_system* sys,
-   struct framebuffer* framebuffer, 
+   struct framebuffer* framebuffer,
    const struct rdr_frame_desc* desc)
 {
   struct rb_framebuffer_desc bufdesc;
@@ -412,9 +412,9 @@ init_framebuffer
 
   tex2ddesc.format = RB_DEPTH_COMPONENT;
   CALL(sys->rb.create_tex2d
-    (sys->ctxt, 
-     &tex2ddesc, 
-     (const void*[]){NULL}, 
+    (sys->ctxt,
+     &tex2ddesc,
+     (const void*[]){NULL},
      &framebuffer->depth_stencil_tex));
 
   rt0.type = RB_RENDER_TARGET_TEXTURE2D;
@@ -425,6 +425,9 @@ init_framebuffer
   depth_stencil_rt.desc.tex2d.mip_level = 0;
   CALL(sys->rb.framebuffer_render_targets
     (framebuffer->buffer, 1, &rt0, &depth_stencil_rt));
+  CALL(sys->rb.framebuffer_render_targets
+    (framebuffer->buffer, 1, &rt0, NULL));
+
 
   #undef CALL
 
@@ -469,8 +472,8 @@ release_frame(struct ref* ref)
  ******************************************************************************/
 EXPORT_SYM enum rdr_error
 rdr_create_frame
-  (struct rdr_system* sys, 
-   const struct rdr_frame_desc* desc, 
+  (struct rdr_system* sys,
+   const struct rdr_frame_desc* desc,
    struct rdr_frame** out_frame)
 {
   struct rdr_frame* frame = NULL;

@@ -43,6 +43,7 @@ ogl3_internal_format(enum rb_tex_format fmt)
     case RB_SRGB: ogl3_ifmt = GL_SRGB8; break;
     case RB_SRGBA: ogl3_ifmt = GL_SRGB8_ALPHA8; break;
     case RB_DEPTH_COMPONENT: ogl3_ifmt = GL_DEPTH_COMPONENT24; break;
+    case RB_DEPTH_STENCIL: ogl3_ifmt = GL_DEPTH24_STENCIL8; break;
     default:
       assert(0);
       break;
@@ -61,12 +62,39 @@ ogl3_format(enum rb_tex_format fmt)
     case RB_SRGB: ogl3_fmt = GL_RGB; break;
     case RB_SRGBA: ogl3_fmt = GL_RGBA; break;
     case RB_DEPTH_COMPONENT: ogl3_fmt = GL_DEPTH_COMPONENT; break;
+    case RB_DEPTH_STENCIL: ogl3_fmt = GL_DEPTH_STENCIL; break;
     default:
       assert(0);
       break;
   }
   return ogl3_fmt;
 }
+
+static FINLINE GLenum
+ogl3_type(GLenum fmt)
+{
+  GLenum type = GL_NONE;
+  switch(fmt) {
+    case RB_R:
+    case RB_RGB:
+    case RB_RGBA:
+    case RB_SRGB:
+    case RB_SRGBA:
+      type = GL_UNSIGNED_BYTE;
+      break;
+    case RB_DEPTH_COMPONENT:
+      type = GL_FLOAT;
+      break;
+    case RB_DEPTH_STENCIL:
+      type = GL_UNSIGNED_INT_24_8;
+      break;
+    default:
+      assert(0);
+      break;
+  }
+  return type;
+}
+
 
 static FINLINE size_t
 sizeof_ogl3_format(GLenum fmt)
@@ -83,7 +111,10 @@ sizeof_ogl3_format(GLenum fmt)
       size = 4 * sizeof(GLbyte);
       break;
     case GL_DEPTH_COMPONENT:
-      size = 3 * sizeof(GLbyte);
+      size = sizeof(float);
+      break;
+    case GL_DEPTH_STENCIL:
+      size = sizeof(uint32_t);
       break;
     default:
       assert(0);
@@ -136,12 +167,13 @@ rb_create_tex2d
   unsigned int i = 0;
   int err = 0;
 
-  if(!ctxt 
-  || !desc 
-  || !init_data 
-  || !out_tex 
+  if(!ctxt
+  || !desc
+  || !init_data
+  || !out_tex
   || !desc->mip_count
-  || (desc->format == RB_DEPTH_COMPONENT && desc->compress))
+  || (desc->format == RB_DEPTH_COMPONENT && desc->compress)
+  || (desc->format == RB_DEPTH_STENCIL && desc->compress))
     goto error;
 
   tex = MEM_CALLOC(ctxt->allocator, 1, sizeof(struct rb_tex2d));
@@ -155,7 +187,7 @@ rb_create_tex2d
   OGL(BindTexture(GL_TEXTURE_2D, tex->name));
   OGL(TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, desc->mip_count - 1));
   OGL(BindTexture
-    (GL_TEXTURE_2D, 
+    (GL_TEXTURE_2D,
      ctxt->state_cache.texture_binding_2d[ctxt->state_cache.active_texture]));
 
   tex->mip_count = desc->mip_count;
@@ -165,6 +197,7 @@ rb_create_tex2d
     goto error;
 
   tex->format = ogl3_format(desc->format);
+  tex->type = ogl3_type(desc->format);
   tex->internal_format =
     desc->compress
     ? ogl3_compressed_internal_format(desc->format)
@@ -270,7 +303,7 @@ rb_tex2d_data(struct rb_tex2d* tex, unsigned int level, const void* data)
        mip_level->height, \
        0, \
        tex->format, \
-       GL_UNSIGNED_BYTE, \
+       tex->type, \
        data))
 
   OGL(BindTexture(GL_TEXTURE_2D, tex->name));

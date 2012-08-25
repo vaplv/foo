@@ -6,6 +6,7 @@
 #include "sys/mem_allocator.h"
 #include "sys/sys.h"
 #include <assert.h>
+#include <limits.h>
 #include <stdbool.h>
 #include <string.h>
 
@@ -18,9 +19,9 @@ struct rb_framebuffer {
   struct ref ref;
   struct rb_framebuffer_desc desc;
   struct rb_context* ctxt;
-  struct render_target* render_target_list;
-  struct render_target depth_stencil;
   GLuint name;
+  struct render_target depth_stencil;
+  struct render_target render_target_list[];
 };
 
 /*******************************************************************************
@@ -28,27 +29,17 @@ struct rb_framebuffer {
  * Helper functions.
  *
  ******************************************************************************/
-static FINLINE bool
-is_ogl_attachment_valid(GLenum attachment)
-{
-  return attachment == GL_DEPTH_STENCIL_ATTACHMENT
-  ||  (  attachment >= GL_COLOR_ATTACHMENT0
-      && attachment <= GL_COLOR_ATTACHMENT0 + RB_OGL3_MAX_COLOR_ATTACHMENTS);
-}
-
 /* Retrieve the render target of the buffer from the OGL attachment. */
 static struct render_target*
-ogl3_attachment_to_render_target
-  (struct rb_framebuffer* buffer, GLenum attachment)
+attachment_to_render_target(struct rb_framebuffer* buffer, int attachment)
 {
   struct render_target* rt = NULL;
-  assert(buffer && is_ogl_attachment_valid(attachment));
-  if(attachment == GL_DEPTH_STENCIL_ATTACHMENT) {
+  assert(buffer);
+  if(attachment < 0) {
     rt = &buffer->depth_stencil;
   } else {
-    const size_t id = attachment - GL_COLOR_ATTACHMENT0;
-    assert(id < buffer->desc.buffer_count);
-    rt = buffer->render_target_list + id;
+    assert((unsigned int)attachment < buffer->desc.buffer_count);
+    rt = buffer->render_target_list + attachment;
   }
   return rt;
 }
@@ -72,20 +63,37 @@ release_render_target_resource(struct render_target* rt)
 static int
 attach_tex2d
   (struct rb_framebuffer* buffer,
-   GLenum attachment,
+   int attachment,
    unsigned int mip,
    struct rb_tex2d* tex2d)
 {
   struct render_target* rt = NULL;
+  GLenum ogl3_attachment = GL_NONE;
   int err = 0;
 
-  assert(buffer && is_ogl_attachment_valid(attachment));
+  assert(buffer);
 
-  rt = ogl3_attachment_to_render_target(buffer, attachment);
+  if(attachment >= 0) {
+    assert((unsigned int)attachment < buffer->desc.buffer_count);
+    ogl3_attachment = GL_COLOR_ATTACHMENT0 + attachment;
+  } else {
+    switch(tex2d->format) {
+      case GL_DEPTH_STENCIL:
+        ogl3_attachment = GL_DEPTH_STENCIL_ATTACHMENT;
+        break;
+      case GL_DEPTH_COMPONENT:
+        ogl3_attachment = GL_DEPTH_ATTACHMENT;
+        break;
+      default:
+        assert(0);
+        break;
+    }
+  }
+  rt = attachment_to_render_target(buffer, attachment);
   if(!tex2d) {
     release_render_target_resource(rt);
     OGL(FramebufferTexture2D
-      (GL_FRAMEBUFFER, attachment, GL_TEXTURE_2D, 0, mip));
+      (GL_FRAMEBUFFER, ogl3_attachment, GL_TEXTURE_2D, 0, mip));
   } else {
     if(tex2d->mip_count < mip
     || tex2d->mip_list[mip].width != buffer->desc.width
@@ -96,7 +104,7 @@ attach_tex2d
     RB(tex2d_ref_get(tex2d));
     rt->resource = tex2d;
     OGL(FramebufferTexture2D
-      (GL_FRAMEBUFFER, attachment, GL_TEXTURE_2D, tex2d->name, mip));
+      (GL_FRAMEBUFFER, ogl3_attachment, GL_TEXTURE_2D, tex2d->name, mip));
   }
 exit:
   return err;
@@ -108,7 +116,7 @@ error:
 static int
 attach_render_target
   (struct rb_framebuffer* buffer,
-   GLenum attachment,
+   int attachment, /* < 0 <=> depth stencil. */
    const struct rb_render_target* render_target)
 {
   int err = 0;
@@ -149,7 +157,6 @@ release_framebuffer(struct ref* ref)
   }
 
   ctxt = buffer->ctxt;
-  MEM_FREE(ctxt->allocator, buffer->render_target_list);
   MEM_FREE(ctxt->allocator, buffer);
   RB(context_ref_put(ctxt));
 }
@@ -176,18 +183,15 @@ rb_create_framebuffer
   if(desc->sample_count > 1)
     goto error;
 
-  buffer = MEM_CALLOC(ctxt->allocator, 1, sizeof(struct rb_framebuffer));
+  buffer = MEM_CALLOC
+    (ctxt->allocator, 1,
+     sizeof(struct rb_framebuffer)
+     + sizeof(struct render_target) * desc->buffer_count);
   if(!buffer)
     goto error;
   ref_init(&buffer->ref);
   RB(context_ref_get(ctxt));
   buffer->ctxt = ctxt;
-
-  buffer->render_target_list = MEM_CALLOC
-    (ctxt->allocator, desc->buffer_count, sizeof(struct render_target));
-  if(!buffer->render_target_list)
-    goto error;
-
   OGL(GenFramebuffers(1, &buffer->name));
   memcpy(&buffer->desc, desc, sizeof(struct rb_framebuffer_desc));
 
@@ -243,6 +247,7 @@ rb_framebuffer_render_targets
 {
   unsigned int i = 0;
   int err = 0;
+  GLenum status = GL_FRAMEBUFFER_COMPLETE;
   bool is_bound = false;
 
   if(UNLIKELY
@@ -254,9 +259,48 @@ rb_framebuffer_render_targets
   OGL(BindFramebuffer(GL_FRAMEBUFFER, buffer->name));
   is_bound = true;
 
-  attach_render_target(buffer, GL_DEPTH_STENCIL_ATTACHMENT, depth_stencil);
+  if(depth_stencil)
+    attach_render_target(buffer, -1, depth_stencil);
   for(i = 0; i < count; ++i) {
-    attach_render_target(buffer, GL_COLOR_ATTACHMENT0+i, render_target_list+i);
+    assert(i <= INT_MAX);
+    attach_render_target(buffer, (int)i, render_target_list+i);
+  }
+
+  status = OGL(CheckFramebufferStatus(GL_FRAMEBUFFER));
+  if(status != GL_FRAMEBUFFER_COMPLETE) {
+    #ifndef NDEBUG
+    fprintf(stderr, "framebuffer:status error: ");
+    switch(status) {
+      case GL_FRAMEBUFFER_UNDEFINED:
+        fprintf(stderr, "undefined framebuffer\n");
+        break;
+      case GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT:
+        fprintf(stderr, "incomplete attachment\n");
+        break;
+      case GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT:
+        fprintf(stderr, "missing attachment\n");
+        break;
+      case GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER:
+        fprintf(stderr, "incomplete draw buffer\n");
+        break;
+      case GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER:
+        fprintf(stderr, "incomplete read buffer\n");
+        break;
+      case GL_FRAMEBUFFER_UNSUPPORTED:
+        fprintf(stderr, "unsupported framebuffer\n");
+        break;
+      case  GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE:
+        fprintf(stderr, "incomplete multisample\n");
+        break;
+      case GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS:
+        fprintf(stderr, "incomplete layer targets\n");
+        break;
+      default:
+        fprintf(stderr, "unhandle framebuffer status\n");
+        break;
+    }
+    #endif
+    goto error;
   }
 
 exit:

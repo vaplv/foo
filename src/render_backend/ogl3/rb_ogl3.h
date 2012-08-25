@@ -12,13 +12,13 @@
   #include <stdio.h>
   #define OGL(func)\
     gl##func;\
-    {\
+    do {\
       GLenum gl_error = glGetError();\
       if(gl_error != GL_NO_ERROR) {\
         fprintf(stderr, "error:opengl: %s\n", gluErrorString(gl_error));\
         assert(gl_error == GL_NO_ERROR);\
       }\
-    }
+    } while(0)
 #else
   #define OGL(func) gl##func
 #endif

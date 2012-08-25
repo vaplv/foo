@@ -27,7 +27,8 @@ enum rb_tex_format {
   RB_RGBA,
   RB_SRGB,
   RB_SRGBA,
-  RB_DEPTH_COMPONENT
+  RB_DEPTH_COMPONENT,
+  RB_DEPTH_STENCIL
 };
 
 enum rb_tex_filter {
