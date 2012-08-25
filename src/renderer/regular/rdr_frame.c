@@ -312,7 +312,6 @@ error:
   goto exit;
 }
 
-d
 static enum rdr_error
 imdraw_grid
   (struct rdr_frame* frame,
