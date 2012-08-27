@@ -23,6 +23,9 @@ struct rdr_system {
   struct rb_context* ctxt;
   struct rb_config cfg;
 
+  /* Ids of the next created objects. */
+  uint16_t next_model_id;
+
   /* im rendering. */
   struct im_rendering {
     struct im_draw {
@@ -54,10 +57,17 @@ struct rdr_system {
     struct rbu_geometry solid_parallelepiped;
     struct rbu_geometry wire_parallelepiped;
   } rbu;
-
-  char errbuf[RDR_ERRBUF_LEN];
-  size_t errbuf_id;
 };
+
+enum rdr_error
+rdr_gen_model_id
+  (struct rdr_system* sys, 
+   uint16_t* out_id);
+
+enum rdr_error
+rdr_delete_model_id
+  (struct rdr_system* sys,
+   uint16_t id);
 
 #endif /* RDR_SYSTEM_C_H. */
 

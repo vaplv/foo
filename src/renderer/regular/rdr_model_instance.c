@@ -98,7 +98,8 @@ struct rdr_model_instance {
   /* Data of the model instance. */
   void* uniform_buffer;
   void* attrib_buffer;
-  /* */
+  /* Miscellaneous data. */
+  uint16_t id; /* Unique name identifying the instance. */
   enum rdr_material_density material_density;
   struct rdr_rasterizer_desc rasterizer_desc;
   struct ref ref;
@@ -464,8 +465,8 @@ get_model_instance_obb
     *extend_x = *extend_y = *extend_z = vf4_set1(FLT_MAX);
   } else {
     const struct aosf33 f33 = {
-      .c0 = instance->transform.c0, 
-      .c1 = instance->transform.c1, 
+      .c0 = instance->transform.c0,
+      .c1 = instance->transform.c1,
       .c2 = instance->transform.c2
     };
     const vf4_t vmin = vf4_set(min_bound[0], min_bound[1], min_bound[2], 1.f);
@@ -522,6 +523,9 @@ release_model_instance(struct ref* ref)
   if(instance->attrib_buffer)
     MEM_FREE(instance->sys->allocator, instance->attrib_buffer);
 
+  if(instance->id)
+    RDR(delete_model_instance_id(instance->model, instance->id));
+
   RDR(model_ref_put(instance->model));
   sys = instance->sys;
   MEM_FREE(instance->sys->allocator, instance);
@@ -571,6 +575,10 @@ rdr_create_model_instance
   instance->model = model;
   RDR(system_ref_get(sys));
   instance->sys = sys;
+
+  rdr_err = rdr_gen_model_instance_id(model, &instance->id);
+  if(rdr_err != RDR_NO_ERROR)
+    goto error;
 
   sl_err = sl_create_flat_set
     (sizeof(struct callback),
@@ -1128,7 +1136,8 @@ rdr_draw_instances
       goto error;
     }
     if(instance->model != bound_mdl) {
-      rdr_err = rdr_bind_model(sys, instance->model, &nb_bound_indices);
+      rdr_err = rdr_bind_model
+        (sys, instance->model, &nb_bound_indices, RDR_MODEL_BIND_ALL);
       if(rdr_err != RDR_NO_ERROR)
         goto error;
       bound_mdl = instance->model;
@@ -1188,7 +1197,7 @@ rdr_draw_instances
 
 exit:
   if(sys)
-    RDR(bind_model(sys, NULL, NULL));
+    RDR(bind_model(sys, NULL, NULL, RDR_MODEL_BIND_NONE));
   return rdr_err;
 
 error:

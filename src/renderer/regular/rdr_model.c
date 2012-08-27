@@ -42,6 +42,8 @@ struct rdr_model {
   size_t nb_indices;
   int bound_attrib_index_list[RDR_NB_ATTRIB_USAGES];
   int bound_attrib_mask;
+  /* Vertex array which bound only position attribs. */
+  struct rb_vertex_array* vertex_pos_array;
   /* Data of the model. */
   struct rdr_mesh* mesh;
   struct rdr_material* material;
@@ -56,7 +58,9 @@ struct rdr_model {
   /* Cumulated size in bytes of the size of the instance attrib/uniform data. */
   size_t sizeof_instance_attrib_data;
   size_t sizeof_uniform_data;
-  /* */
+  /* Miscellaneous. */
+  uint16_t id; /* Unique name identifying the model. */
+  uint16_t next_instance_id;
   bool is_setuped;
   struct ref ref;
 };
@@ -153,6 +157,9 @@ bind_mtr_attrib_to_mesh_attrib
 {
   enum rdr_attrib_usage mtr_attr_usage = RDR_ATTRIB_UNKNOWN;
   enum rdr_error rdr_err = RDR_NO_ERROR;
+  /* Used to manage errors. */
+  bool is_vertex_array_updated = false;
+  bool is_vertex_pos_array_updated = false;
 
   assert(mtr_attr_desc
       && (!nb_mesh_attribs || mesh_attrib_list)
@@ -183,6 +190,16 @@ bind_mtr_attrib_to_mesh_attrib
           rdr_err = RDR_DRIVER_ERROR;
           goto error;
         }
+        is_vertex_array_updated = true;
+        if(mtr_attr_usage == RDR_ATTRIB_POSITION) {
+          err = model->sys->rb.vertex_attrib_array
+            (model->vertex_array, mesh_data, 1, &buffer_attrib);
+          if(err != 0) {
+            rdr_err = RDR_DRIVER_ERROR;
+            goto error;
+          }
+          is_vertex_pos_array_updated = true;
+        }
         is_attr_bound = true;
         model->bound_attrib_index_list[mtr_attr_usage] = mtr_attr_desc->index;
         model->bound_attrib_mask |= (1 << mesh_attr->usage);
@@ -192,8 +209,15 @@ bind_mtr_attrib_to_mesh_attrib
 
 exit:
   return rdr_err;
-
 error:
+  if(is_vertex_array_updated) {
+    RBI(&model->sys->rb, remove_vertex_attrib
+      (model->vertex_array, 1, (const int[]){mtr_attr_desc->index}));
+  }
+  if(is_vertex_pos_array_updated) {
+    RBI(&model->sys->rb, remove_vertex_attrib
+    (model->vertex_pos_array, 1, (const int[]){mtr_attr_desc->index}));
+  }
   goto exit;
 }
 
@@ -526,10 +550,15 @@ release_model(struct ref* ref)
 
   if(mdl->vertex_array)
     RBI(&mdl->sys->rb, vertex_array_ref_put(mdl->vertex_array));
+  if(mdl->vertex_pos_array)
+    RBI(&mdl->sys->rb, vertex_array_ref_put(mdl->vertex_pos_array));
   if(mdl->mesh)
     RDR(mesh_ref_put(mdl->mesh));
   if(mdl->material)
     RDR(material_ref_put(mdl->material));
+
+  if(mdl->id)
+    RDR(delete_model_id(mdl->sys, mdl->id));
 
   sys = mdl->sys;
   MEM_FREE(mdl->sys->allocator, mdl);
@@ -607,6 +636,11 @@ rdr_create_model
   ref_init(&model->ref);
   RDR(system_ref_get(sys));
   model->sys = sys;
+  model->next_instance_id = 1; /* Zero is an invalid id. */
+
+  rdr_err = rdr_gen_model_id(sys, &model->id);
+  if(rdr_err != RDR_NO_ERROR)
+    goto error;
 
   for(i = 0; i < RDR_NB_MODEL_SIGNALS; ++i) {
     sl_err = sl_create_flat_set
@@ -622,6 +656,12 @@ rdr_create_model
   }
   err = model->sys->rb.create_vertex_array
     (model->sys->ctxt, &model->vertex_array);
+  if(err != 0) {
+    rdr_err = RDR_DRIVER_ERROR;
+    goto error;
+  }
+  err = model->sys->rb.create_vertex_array
+    (model->sys->ctxt, &model->vertex_pos_array);
   if(err != 0) {
     rdr_err = RDR_DRIVER_ERROR;
     goto error;
@@ -804,7 +844,8 @@ EXPORT_SYM enum rdr_error
 rdr_bind_model
   (struct rdr_system* sys,
    struct rdr_model* model,
-   size_t* out_nb_indices)
+   size_t* out_nb_indices,
+   int flag)
 {
   struct rdr_material* mtr = NULL;
   struct rb_vertex_array* vertex_array = NULL;
@@ -816,12 +857,20 @@ rdr_bind_model
     rdr_err = RDR_INVALID_ARGUMENT;
     goto error;
   }
+  if(flag == RDR_MODEL_BIND_NONE)
+    goto exit;
 
   if(model) {
     mtr = model->material;
     nb_indices = model->nb_indices;
-    vertex_array = model->vertex_array;
-
+    if(flag == RDR_MODEL_BIND_ALL) {
+      vertex_array = model->vertex_array;
+    } else if(flag == RDR_MODEL_BIND_POSITION) {
+      vertex_array = model->vertex_pos_array;
+    } else {
+      rdr_err = RDR_INVALID_ARGUMENT;
+      goto error;
+    }
     if(model->is_setuped == false) {
       rdr_err = setup_model(model);
       if(rdr_err != RDR_NO_ERROR)
@@ -930,6 +979,32 @@ rdr_is_model_callback_attached
     (model->callback_set[sig], (struct callback[]){{func, data}}, &i));
   SL(flat_set_buffer(model->callback_set[sig], &len, NULL, NULL, NULL));
   *is_attached = (i != len);
+  return RDR_NO_ERROR;
+}
+
+enum rdr_error
+rdr_gen_model_instance_id(struct rdr_model* model, uint16_t* out_id)
+{
+  if(UNLIKELY(!model || !out_id))
+    return RDR_INVALID_ARGUMENT;
+  if(UNLIKELY(model->next_instance_id == 0))
+    return RDR_MEMORY_ERROR;
+  *out_id = model->next_instance_id++;
+  return RDR_NO_ERROR;
+}
+
+enum rdr_error
+rdr_delete_model_instance_id(struct rdr_model* model, uint16_t id)
+{
+  if(UNLIKELY
+  (  !model
+  || id >= model->next_instance_id
+  || (id == UINT16_MAX && model->next_instance_id != 0)))
+    return RDR_INVALID_ARGUMENT;
+
+  /* The id is released only if it is equal to the next id minus one. In all
+   * other cases, we can't release the id. */
+  model->next_instance_id -= (id == model->next_instance_id - 1);
   return RDR_NO_ERROR;
 }
 

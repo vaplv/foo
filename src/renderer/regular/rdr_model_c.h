@@ -17,6 +17,12 @@ enum rdr_model_signal {
   RDR_NB_MODEL_SIGNALS
 };
 
+enum rdr_model_bind_flag {
+  RDR_MODEL_BIND_POSITION = BIT(0),
+  RDR_MODEL_BIND_ALL = ~0,
+  RDR_MODEL_BIND_NONE = 0
+};
+
 struct rb_uniform;
 struct rb_attrib;
 struct rdr_model;
@@ -39,7 +45,8 @@ extern enum rdr_error
 rdr_bind_model
   (struct rdr_system* sys,
    struct rdr_model* model,
-   size_t* out_nb_indices);
+   size_t* out_nb_indices,
+   int flag); /* Combination of enum rdr_model_bind_flag */
 
 extern enum rdr_error
 rdr_get_model_desc
@@ -67,6 +74,16 @@ rdr_is_model_callback_attached
    void (*func)(struct rdr_model*,void*),
    void* data,
    bool* is_attached);
+
+extern enum rdr_error
+rdr_gen_model_instance_id
+  (struct rdr_model* model,
+   uint16_t* out_id);
+
+extern enum rdr_error
+rdr_delete_model_instance_id
+  (struct rdr_model* model,
+   uint16_t id);
 
 #endif /* RDR_MODEL_C_H */
 
