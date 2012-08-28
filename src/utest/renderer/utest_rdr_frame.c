@@ -53,7 +53,7 @@ main(int argc, char** argv)
   if(argc != 2) {
     printf("usage: %s RB_DRIVER\n", argv[0]);
     goto error;
-  }
+ }
   driver_name = argv[1];
 
   CHECK(wm_create_device(NULL, &device), WM_NO_ERROR);

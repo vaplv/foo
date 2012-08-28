@@ -99,7 +99,6 @@ struct rdr_model_instance {
   void* uniform_buffer;
   void* attrib_buffer;
   /* Miscellaneous data. */
-  uint16_t id; /* Unique name identifying the instance. */
   enum rdr_material_density material_density;
   struct rdr_rasterizer_desc rasterizer_desc;
   struct ref ref;
@@ -523,9 +522,6 @@ release_model_instance(struct ref* ref)
   if(instance->attrib_buffer)
     MEM_FREE(instance->sys->allocator, instance->attrib_buffer);
 
-  if(instance->id)
-    RDR(delete_model_instance_id(instance->model, instance->id));
-
   RDR(model_ref_put(instance->model));
   sys = instance->sys;
   MEM_FREE(instance->sys->allocator, instance);
@@ -575,10 +571,6 @@ rdr_create_model_instance
   instance->model = model;
   RDR(system_ref_get(sys));
   instance->sys = sys;
-
-  rdr_err = rdr_gen_model_instance_id(model, &instance->id);
-  if(rdr_err != RDR_NO_ERROR)
-    goto error;
 
   sl_err = sl_create_flat_set
     (sizeof(struct callback),

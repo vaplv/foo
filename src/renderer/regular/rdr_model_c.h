@@ -75,15 +75,5 @@ rdr_is_model_callback_attached
    void* data,
    bool* is_attached);
 
-extern enum rdr_error
-rdr_gen_model_instance_id
-  (struct rdr_model* model,
-   uint16_t* out_id);
-
-extern enum rdr_error
-rdr_delete_model_instance_id
-  (struct rdr_model* model,
-   uint16_t id);
-
 #endif /* RDR_MODEL_C_H */
 

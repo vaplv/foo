@@ -59,8 +59,6 @@ struct rdr_model {
   size_t sizeof_instance_attrib_data;
   size_t sizeof_uniform_data;
   /* Miscellaneous. */
-  uint16_t id; /* Unique name identifying the model. */
-  uint16_t next_instance_id;
   bool is_setuped;
   struct ref ref;
 };
@@ -557,9 +555,6 @@ release_model(struct ref* ref)
   if(mdl->material)
     RDR(material_ref_put(mdl->material));
 
-  if(mdl->id)
-    RDR(delete_model_id(mdl->sys, mdl->id));
-
   sys = mdl->sys;
   MEM_FREE(mdl->sys->allocator, mdl);
   RDR(system_ref_put(sys));
@@ -636,11 +631,6 @@ rdr_create_model
   ref_init(&model->ref);
   RDR(system_ref_get(sys));
   model->sys = sys;
-  model->next_instance_id = 1; /* Zero is an invalid id. */
-
-  rdr_err = rdr_gen_model_id(sys, &model->id);
-  if(rdr_err != RDR_NO_ERROR)
-    goto error;
 
   for(i = 0; i < RDR_NB_MODEL_SIGNALS; ++i) {
     sl_err = sl_create_flat_set
@@ -979,32 +969,6 @@ rdr_is_model_callback_attached
     (model->callback_set[sig], (struct callback[]){{func, data}}, &i));
   SL(flat_set_buffer(model->callback_set[sig], &len, NULL, NULL, NULL));
   *is_attached = (i != len);
-  return RDR_NO_ERROR;
-}
-
-enum rdr_error
-rdr_gen_model_instance_id(struct rdr_model* model, uint16_t* out_id)
-{
-  if(UNLIKELY(!model || !out_id))
-    return RDR_INVALID_ARGUMENT;
-  if(UNLIKELY(model->next_instance_id == 0))
-    return RDR_MEMORY_ERROR;
-  *out_id = model->next_instance_id++;
-  return RDR_NO_ERROR;
-}
-
-enum rdr_error
-rdr_delete_model_instance_id(struct rdr_model* model, uint16_t id)
-{
-  if(UNLIKELY
-  (  !model
-  || id >= model->next_instance_id
-  || (id == UINT16_MAX && model->next_instance_id != 0)))
-    return RDR_INVALID_ARGUMENT;
-
-  /* The id is released only if it is equal to the next id minus one. In all
-   * other cases, we can't release the id. */
-  model->next_instance_id -= (id == model->next_instance_id - 1);
   return RDR_NO_ERROR;
 }
 

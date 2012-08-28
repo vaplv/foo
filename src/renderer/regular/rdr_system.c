@@ -99,7 +99,6 @@ rdr_create_system
   }
   sys->allocator = allocator;
   ref_init(&sys->ref);
-  sys->next_model_id = 1; /* Zero is an invalid id. */
 
   /* The render backend does not use the user defined allocator since when its
    * interface is shut down the __FILE__ pointers reported by its internal
@@ -256,35 +255,5 @@ exit:
   return rdr_err;
 error:
   goto exit;
-}
-
-/*******************************************************************************
- *
- * Private render system functions.
- *
- ******************************************************************************/
-enum rdr_error
-rdr_gen_model_id(struct rdr_system* sys, uint16_t* out_id)
-{
-  if(UNLIKELY(!sys || !out_id))
-    return RDR_INVALID_ARGUMENT;
-  if(UNLIKELY(sys->next_model_id == 0))
-    return RDR_MEMORY_ERROR;
-  *out_id = sys->next_model_id++;
-  return RDR_NO_ERROR;
-}
-
-enum rdr_error
-rdr_delete_model_id(struct rdr_system* sys, uint16_t id)
-{
-  if(UNLIKELY
-  (  !sys
-  || id >= sys->next_model_id
-  || (id == UINT16_MAX && sys->next_model_id != 0)))
-    return RDR_INVALID_ARGUMENT;
-  /* The id is released only if it is equal to the next id minus one. In all
-   * other cases, we can't release the id. */
-  sys->next_model_id -= (id == sys->next_model_id - 1);
-  return RDR_NO_ERROR;
 }
 
