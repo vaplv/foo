@@ -35,6 +35,15 @@ rdr_background_color
    const float rgb[3]);
 
 extern enum rdr_error
+rdr_flush_frame
+  (struct rdr_frame* frame);
+
+/*******************************************************************************
+ *
+ * Draw commands.
+ *
+ ******************************************************************************/
+extern enum rdr_error
 rdr_frame_draw_world
   (struct rdr_frame* frame,
    struct rdr_world* world,
@@ -45,6 +54,11 @@ rdr_frame_draw_term
   (struct rdr_frame* frame,
    struct rdr_term* term);
 
+/*******************************************************************************
+ *
+ * Im draw commands.
+ *
+ ******************************************************************************/
 extern enum rdr_error
 rdr_frame_imdraw_parallelepiped
   (struct rdr_frame* frame,
@@ -101,9 +115,18 @@ rdr_frame_imdraw_vector
    const float end[3],
    const float color[3]);
 
+/*******************************************************************************
+ *
+ * Pick commands.
+ *
+ ******************************************************************************/
 extern enum rdr_error
-rdr_flush_frame
-  (struct rdr_frame* frame);
+rdr_frame_pick_model_instance
+  (struct rdr_frame* frame,
+   struct rdr_world* world,
+   const struct rdr_view* view,
+   const unsigned int pos[2], /* In pixels. */
+   const unsigned int size[2]); /* In pixels. */
 
 #endif /* RDR_FRAME_H */
 

@@ -278,8 +278,8 @@ enum rdr_error
 rdr_delete_model_id(struct rdr_system* sys, uint16_t id)
 {
   if(UNLIKELY
-  (  !sys 
-  || id >= sys->next_model_id 
+  (  !sys
+  || id >= sys->next_model_id
   || (id == UINT16_MAX && sys->next_model_id != 0)))
     return RDR_INVALID_ARGUMENT;
   /* The id is released only if it is equal to the next id minus one. In all

@@ -31,6 +31,8 @@ main(int argc, char** argv)
   struct rdr_world* world = NULL;
   struct rdr_font* font = NULL;
   struct rdr_term* term = NULL;
+  const unsigned int pos[2] = { 0, 0 };
+  const unsigned int size[2] = { 1, 1 };
   const struct rdr_view view = {
     .transform = {
       1.f, 0.f, 0.f, 0.f,
@@ -88,6 +90,39 @@ main(int argc, char** argv)
   CHECK(rdr_frame_draw_term(frame, NULL), BAD_ARG);
   CHECK(rdr_frame_draw_term(NULL, term), BAD_ARG);
   CHECK(rdr_frame_draw_term(frame, term), OK);
+
+  CHECK(rdr_frame_pick_model_instance(NULL, NULL, NULL, NULL, NULL), BAD_ARG);
+  CHECK(rdr_frame_pick_model_instance(frame, NULL, NULL, NULL, NULL), BAD_ARG);
+  CHECK(rdr_frame_pick_model_instance(NULL, world, NULL, NULL, NULL), BAD_ARG);
+  CHECK(rdr_frame_pick_model_instance(frame, world, NULL, NULL, NULL), BAD_ARG);
+  CHECK(rdr_frame_pick_model_instance(NULL, NULL, &view, NULL, NULL), BAD_ARG);
+  CHECK(rdr_frame_pick_model_instance(frame, NULL, &view, NULL, NULL), BAD_ARG);
+  CHECK(rdr_frame_pick_model_instance(NULL, world, &view, NULL, NULL), BAD_ARG);
+  CHECK(rdr_frame_pick_model_instance(frame, world,&view, NULL, NULL), BAD_ARG);
+  CHECK(rdr_frame_pick_model_instance(NULL, NULL, NULL, pos, NULL), BAD_ARG);
+  CHECK(rdr_frame_pick_model_instance(frame, NULL, NULL, pos, NULL), BAD_ARG);
+  CHECK(rdr_frame_pick_model_instance(NULL, world, NULL, pos, NULL), BAD_ARG);
+  CHECK(rdr_frame_pick_model_instance(frame, world, NULL, pos, NULL), BAD_ARG);
+  CHECK(rdr_frame_pick_model_instance(NULL, NULL, &view, pos, NULL), BAD_ARG);
+  CHECK(rdr_frame_pick_model_instance(frame, NULL, &view, pos, NULL), BAD_ARG);
+  CHECK(rdr_frame_pick_model_instance(NULL, world, &view, pos, NULL), BAD_ARG);
+  CHECK(rdr_frame_pick_model_instance(frame, world, &view, pos, NULL), BAD_ARG);
+  CHECK(rdr_frame_pick_model_instance(NULL, NULL, NULL, NULL, size), BAD_ARG);
+  CHECK(rdr_frame_pick_model_instance(frame, NULL, NULL, NULL, size), BAD_ARG);
+  CHECK(rdr_frame_pick_model_instance(NULL, world, NULL, NULL, size), BAD_ARG);
+  CHECK(rdr_frame_pick_model_instance(frame, world, NULL, NULL, size), BAD_ARG);
+  CHECK(rdr_frame_pick_model_instance(NULL, NULL, &view, NULL, size), BAD_ARG);
+  CHECK(rdr_frame_pick_model_instance(frame, NULL, &view, NULL, size), BAD_ARG);
+  CHECK(rdr_frame_pick_model_instance(NULL, world, &view, NULL, size), BAD_ARG);
+  CHECK(rdr_frame_pick_model_instance(frame, world, &view, NULL, size), BAD_ARG);
+  CHECK(rdr_frame_pick_model_instance(NULL, NULL, NULL, pos, size), BAD_ARG);
+  CHECK(rdr_frame_pick_model_instance(frame, NULL, NULL, pos, size), BAD_ARG);
+  CHECK(rdr_frame_pick_model_instance(NULL, world, NULL, pos, size), BAD_ARG);
+  CHECK(rdr_frame_pick_model_instance(frame, world, NULL, pos, size), BAD_ARG);
+  CHECK(rdr_frame_pick_model_instance(NULL, NULL, &view, pos, size), BAD_ARG);
+  CHECK(rdr_frame_pick_model_instance(frame, NULL, &view, pos, size), BAD_ARG);
+  CHECK(rdr_frame_pick_model_instance(NULL, world, &view, pos, size), BAD_ARG);
+  CHECK(rdr_frame_pick_model_instance(frame, world, &view, pos, size), OK);
 
   CHECK(rdr_flush_frame(NULL), BAD_ARG);
   CHECK(rdr_flush_frame(frame), OK);

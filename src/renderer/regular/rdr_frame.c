@@ -16,9 +16,10 @@
 #include <stddef.h>
 #include <string.h>
 
-#define MAX_TERM_NODE 4 /* Maximum number of "draw term" call */
-#define MAX_WORLD_NODE 4 /* Maximum number of draw world" call */
+#define MAX_TERM_NODES 4 /* Maximum number of "draw term" call */
+#define MAX_WORLD_NODES 4 /* Maximum number of draw world" call */
 #define MAX_IMDRAW_COMMANDS 512
+#define MAX_PICK_NODES 4
 
 struct term_node {
   struct list_node node;
@@ -29,6 +30,14 @@ struct world_node {
   struct list_node node;
   struct rdr_view view;
   struct rdr_world* world;
+};
+
+struct pick_node {
+  struct list_node node;
+  struct rdr_view view;
+  struct rdr_world* world;
+  unsigned int pos[2];
+  unsigned int size[2];
 };
 
 /* im draw system. */
@@ -50,13 +59,16 @@ struct framebuffer {
 
 struct rdr_frame {
   /* Raw memory of draw command nodes. */
-  ALIGN(16) struct term_node term_node_list[MAX_TERM_NODE];
-  struct world_node world_node_list[MAX_WORLD_NODE];
-  /* Draw term/world command management. */
+  ALIGN(16) struct term_node term_node_list[MAX_TERM_NODES];
+  struct world_node world_node_list[MAX_WORLD_NODES];
+  struct pick_node pick_node_list[MAX_PICK_NODES];
+  /* Command management. */
   size_t term_node_id;
   size_t world_node_id;
+  size_t pick_node_id;
   struct list_node draw_term_list;
   struct list_node draw_world_list;
+  struct list_node pick_model_instance_list;
   /* Miscellaneous */
   struct imdraw imdraw; /* im draw system. */
   struct framebuffer framebuffer;  /* offline framebuffer. */
@@ -495,8 +507,10 @@ rdr_create_frame
   frame->sys = sys;
   list_init(&frame->draw_world_list);
   list_init(&frame->draw_term_list);
-  for(i=0; i < MAX_TERM_NODE; list_init(&frame->term_node_list[i].node), ++i);
-  for(i=0; i < MAX_WORLD_NODE; list_init(&frame->world_node_list[i].node), ++i);
+  list_init(&frame->pick_model_instance_list);
+  for(i=0; i < MAX_TERM_NODES; list_init(&frame->term_node_list[i].node), ++i);
+  for(i=0; i < MAX_WORLD_NODES; list_init(&frame->world_node_list[i].node),++i);
+  for(i=0; i < MAX_PICK_NODES; list_init(&frame->pick_node_list[i].node), ++i);
 
   rdr_err = rdr_create_imdraw_command_buffer
     (sys, MAX_IMDRAW_COMMANDS, &frame->imdraw.cmdbuf);
@@ -556,7 +570,7 @@ rdr_frame_draw_world
 
   if(!frame || !world || !view)
     return RDR_INVALID_ARGUMENT;
-  if(frame->world_node_id >= MAX_WORLD_NODE)
+  if(frame->world_node_id >= MAX_WORLD_NODES)
     return RDR_MEMORY_ERROR;
 
   world_node = frame->world_node_list + frame->world_node_id;
@@ -577,7 +591,7 @@ rdr_frame_draw_term(struct rdr_frame* frame, struct rdr_term* term)
 
   if(!frame || !term)
     return RDR_INVALID_ARGUMENT;
-  if(frame->term_node_id >= MAX_TERM_NODE)
+  if(frame->term_node_id >= MAX_TERM_NODES)
     return RDR_MEMORY_ERROR;
 
   term_node = frame->term_node_list + frame->term_node_id;
@@ -757,6 +771,33 @@ rdr_frame_imdraw_grid
 }
 
 EXPORT_SYM enum rdr_error
+rdr_frame_pick_model_instance
+  (struct rdr_frame* frame,
+   struct rdr_world* world,
+   const struct rdr_view* view,
+   const unsigned int pos[2],
+   const unsigned int size[2])
+{
+  struct pick_node* pick_node = NULL;
+
+  if(UNLIKELY(!frame || !world || !view || !pos || !size))
+    return RDR_INVALID_ARGUMENT;
+  if(frame->pick_node_id >= MAX_PICK_NODES)
+    return RDR_MEMORY_ERROR;
+
+  pick_node = frame->pick_node_list + frame->pick_node_id;
+  ++frame->pick_node_id;
+  RDR(world_ref_get(world));
+  pick_node->world = world;
+  memcpy(&pick_node->view, view, sizeof(struct rdr_view));
+  memcpy(pick_node->pos, pos, sizeof(unsigned int) * 2);
+  memcpy(pick_node->size, size, sizeof(unsigned int) * 2);
+  list_add(&frame->pick_model_instance_list, &pick_node->node);
+
+  return RDR_NO_ERROR;
+}
+
+EXPORT_SYM enum rdr_error
 rdr_flush_frame(struct rdr_frame* frame)
 {
   const struct rb_depth_stencil_desc depth_stencil_desc = {
@@ -789,6 +830,14 @@ rdr_flush_frame(struct rdr_frame* frame)
      1.f,
      0));
 
+  /* Flush pick commands. */
+  LIST_FOR_EACH_SAFE(node, tmp, &frame->pick_model_instance_list) {
+    struct pick_node* pick_node = CONTAINER_OF(node, struct pick_node, node);
+    /* TODO perform the picking action. */
+    RDR(world_ref_put(pick_node->world));
+    list_del(node);
+  }
+  frame->pick_node_id = 0;
   /* Flush world rendering. */
   LIST_FOR_EACH_SAFE(node, tmp, &frame->draw_world_list) {
     struct world_node* world_node = CONTAINER_OF(node, struct world_node, node);
