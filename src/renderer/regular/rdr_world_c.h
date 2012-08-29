@@ -6,11 +6,13 @@
 struct aosf44;
 struct rdr_view;
 struct rdr_world;
+struct rdr_draw_desc;
 
 extern enum rdr_error
 rdr_draw_world
   (struct rdr_world* world,
-   const struct rdr_view* view);
+   const struct rdr_view* view,
+   const struct rdr_draw_desc* draw_desc);
 
 extern enum rdr_error
 rdr_compute_projection_matrix

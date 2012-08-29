@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 
+/* Predefined attrib  */
 enum rdr_uniform_usage {
   RDR_PROJECTION_UNIFORM,
   RDR_MODELVIEW_UNIFORM,
@@ -17,10 +18,10 @@ enum rdr_model_signal {
   RDR_NB_MODEL_SIGNALS
 };
 
-enum rdr_model_bind_flag {
-  RDR_MODEL_BIND_POSITION = BIT(0),
-  RDR_MODEL_BIND_ALL = ~0,
-  RDR_MODEL_BIND_NONE = 0
+enum rdr_bind_flag {
+  RDR_BIND_ATTRIB_POSITION = BIT(0),
+  RDR_BIND_NONE = 0,
+  RDR_BIND_ALL = ~0
 };
 
 struct rb_uniform;
@@ -29,12 +30,14 @@ struct rdr_model;
 struct rdr_model_callback;
 struct rdr_system;
 
+struct rdr_uniform {
+  struct rb_uniform* uniform;
+  enum rdr_uniform_usage usage;
+};
+
 struct rdr_model_desc {
   struct rb_attrib** attrib_list;
-  struct rdr_model_uniform {
-    struct rb_uniform* uniform;
-    enum rdr_uniform_usage usage;
-  }* uniform_list;
+  struct rdr_uniform* uniform_list;
   size_t nb_attribs;
   size_t nb_uniforms;
   size_t sizeof_attrib_data;
@@ -46,7 +49,7 @@ rdr_bind_model
   (struct rdr_system* sys,
    struct rdr_model* model,
    size_t* out_nb_indices,
-   int flag); /* Combination of enum rdr_model_bind_flag */
+   int flag); /* Combination of enum rdr_bind_flag */
 
 extern enum rdr_error
 rdr_get_model_desc

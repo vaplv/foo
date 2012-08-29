@@ -1,4 +1,5 @@
 #include "maths/simd/aosf44.h"
+#include "renderer/regular/rdr_attrib_c.h"
 #include "renderer/regular/rdr_imdraw_c.h"
 #include "renderer/regular/rdr_system_c.h"
 #include "renderer/regular/rdr_term_c.h"
@@ -57,6 +58,14 @@ struct framebuffer {
   struct rb_tex2d* depth_stencil_tex; /* TODO replace bu a render buffer. */
 };
 
+struct pick_shader {
+  struct rb_shader* vertex_shader;
+  struct rb_shader* fragment_shader;
+  struct rb_program* shading_program;
+  struct rb_uniform* id;
+  struct rb_uniform* mvp; /* Model view proj. */
+};
+
 struct rdr_frame {
   /* Raw memory of draw command nodes. */
   ALIGN(16) struct term_node term_node_list[MAX_TERM_NODES];
@@ -71,11 +80,38 @@ struct rdr_frame {
   struct list_node pick_model_instance_list;
   /* Miscellaneous */
   struct imdraw imdraw; /* im draw system. */
-  struct framebuffer framebuffer;  /* offline framebuffer. */
+  struct framebuffer framebuffer; /* offline framebuffer. */
+  struct pick_shader pick_shader;
   struct ref ref;
   struct rdr_system* sys;
   float bkg_color[4];
 };
+
+/*******************************************************************************
+ *
+ * Embedded shaders.
+ *
+ ******************************************************************************/
+static const char* pick_model_instance_vs_source = 
+  "#version 330\n"
+  "layout(location =" STR(RDR_ATTRIB_POSITION_ID) ") in vec3 pos;\n"
+  "uniform uint in_mdl_id;\n"
+  "uniform mat4x4 mvp;\n"
+  "flat out uint mdl_id;\n"
+  "void main()\n"
+  "{\n"
+  " mdl_id = in_mdl_id;\n"
+  " gl_Position = mvp * vec4(pos, 1.f);\n"
+  "}\n";
+
+static const char* pick_model_instance_fs_source = 
+  "#version 330\n"
+  "flat in uint mdl_id;\n"
+  "out uint out_mdl_id;\n"
+  "void main()\n"
+  "{\n"
+  " out_mdl_id = mdl_id;\n"
+  "}\n";
 
 /*******************************************************************************
  *
@@ -416,7 +452,7 @@ init_framebuffer
   tex2ddesc.width = desc->width;
   tex2ddesc.height = desc->height;
   tex2ddesc.mip_count = 1;
-  tex2ddesc.format = RB_RG_UINT16;
+  tex2ddesc.format = RB_R_UINT16;
   tex2ddesc.usage = RB_USAGE_DEFAULT;
   tex2ddesc.compress = 0;
   CALL(sys->rb.create_tex2d
@@ -452,6 +488,56 @@ error:
 }
 
 static void
+release_pick_shader(struct rdr_system* sys, struct pick_shader* pick_shader)
+{
+  if(pick_shader->vertex_shader)
+    RBI(&sys->rb, shader_ref_put(pick_shader->vertex_shader));
+  if(pick_shader->fragment_shader)
+    RBI(&sys->rb, shader_ref_put(pick_shader->fragment_shader));
+  if(pick_shader->shading_program)
+    RBI(&sys->rb, program_ref_put(pick_shader->shading_program));
+  if(pick_shader->id)
+    RBI(&sys->rb, uniform_ref_put(pick_shader->id));
+  if(pick_shader->mvp)
+    RBI(&sys->rb, uniform_ref_put(pick_shader->mvp));
+}
+
+static enum rdr_error
+init_pick_shader(struct rdr_system* sys, struct pick_shader* pick_shader)
+{
+  assert(pick_shader);
+
+  /* Compile the shader sources. */
+  RBI(&sys->rb, create_shader
+    (sys->ctxt,
+     RB_VERTEX_SHADER,
+     pick_model_instance_vs_source,
+     strlen(pick_model_instance_vs_source),
+     &pick_shader->vertex_shader));
+  RBI(&sys->rb, create_shader
+    (sys->ctxt,
+     RB_FRAGMENT_SHADER,
+     pick_model_instance_fs_source,
+     strlen(pick_model_instance_fs_source),
+     &pick_shader->fragment_shader));
+
+  /* Link a shading program from the compiled shader source. */
+  RBI(&sys->rb, create_program(sys->ctxt, &pick_shader->shading_program));
+  RBI(&sys->rb, attach_shader
+    (pick_shader->shading_program, pick_shader->vertex_shader));
+  RBI(&sys->rb, attach_shader
+    (pick_shader->shading_program, pick_shader->fragment_shader));
+  RBI(&sys->rb, link_program(pick_shader->shading_program));
+
+  /* Retrieve the uniform of the shading program. */
+  RBI(&sys->rb, get_named_uniform
+    (sys->ctxt, pick_shader->shading_program, "in_mdl_id", &pick_shader->id));
+  RBI(&sys->rb, get_named_uniform
+    (sys->ctxt, pick_shader->shading_program, "mvp", &pick_shader->mvp));
+  return RDR_NO_ERROR;
+}
+
+static void
 release_frame(struct ref* ref)
 {
   struct list_node* node = NULL;
@@ -471,7 +557,10 @@ release_frame(struct ref* ref)
   }
   if(frame->imdraw.cmdbuf)
     RDR(imdraw_command_buffer_ref_put(frame->imdraw.cmdbuf));
+
   release_framebuffer(frame->sys, &frame->framebuffer);
+  release_pick_shader(frame->sys, &frame->pick_shader);
+
   sys = frame->sys;
   MEM_FREE(sys->allocator, frame);
   RDR(system_ref_put(sys));
@@ -516,8 +605,10 @@ rdr_create_frame
     (sys, MAX_IMDRAW_COMMANDS, &frame->imdraw.cmdbuf);
   if(rdr_err != RDR_NO_ERROR)
     goto error;
-
   rdr_err = init_framebuffer(frame->sys, &frame->framebuffer, desc);
+  if(rdr_err != RDR_NO_ERROR)
+    goto error;
+  rdr_err = init_pick_shader(frame->sys, &frame->pick_shader);
   if(rdr_err != RDR_NO_ERROR)
     goto error;
 
@@ -831,6 +922,9 @@ rdr_flush_frame(struct rdr_frame* frame)
      0));
 
   /* Flush pick commands. */
+  /*struct rdr_draw_desc draw_desc;
+  draw_desc.flag = RDR_DRAW_POSITION_FLAG;
+  draw_desc.shading_program = frame->pick_shader.shading_program;*/
   LIST_FOR_EACH_SAFE(node, tmp, &frame->pick_model_instance_list) {
     struct pick_node* pick_node = CONTAINER_OF(node, struct pick_node, node);
     /* TODO perform the picking action. */
@@ -841,7 +935,7 @@ rdr_flush_frame(struct rdr_frame* frame)
   /* Flush world rendering. */
   LIST_FOR_EACH_SAFE(node, tmp, &frame->draw_world_list) {
     struct world_node* world_node = CONTAINER_OF(node, struct world_node, node);
-    RDR(draw_world(world_node->world, &world_node->view));
+    RDR(draw_world(world_node->world, &world_node->view, NULL));
     RDR(world_ref_put(world_node->world));
     list_del(node);
   }

@@ -1,3 +1,4 @@
+#include "renderer/regular/rdr_attrib_c.h"
 #include "renderer/regular/rdr_error_c.h"
 #include "renderer/regular/rdr_font_c.h"
 #include "renderer/regular/rdr_system_c.h"
@@ -27,9 +28,6 @@
 #define INDICES_PER_GLYPH 6
 #define SIZEOF_GLYPH_VERTEX (3/*pos*/ + 2/*tex*/ + 3/*col*/) * sizeof(float)
 #define GLYPH_CACHE_TEX_UNIT 0
-#define POS_ATTRIB_ID 0
-#define TEX_ATTRIB_ID 1
-#define COL_ATTRIB_ID 2
 #define NB_ATTRIBS 3
 
 struct line {
@@ -110,9 +108,9 @@ struct rdr_term {
  ******************************************************************************/
 static const char* print_vs_source =
   "#version 330\n"
-  "layout(location =" STR(POS_ATTRIB_ID) ") in vec3 pos;\n"
-  "layout(location =" STR(TEX_ATTRIB_ID) ") in vec2 tex;\n"
-  "layout(location =" STR(COL_ATTRIB_ID) ") in vec3 col;\n"
+  "layout(location =" STR(RDR_ATTRIB_POSITION_ID) ") in vec3 pos;\n"
+  "layout(location =" STR(RDR_ATTRIB_TEXCOORD_ID) ") in vec2 tex;\n"
+  "layout(location =" STR(RDR_ATTRIB_COLOR_ID) ") in vec3 col;\n"
   "uniform vec3 scale;\n"
   "uniform vec3 bias;\n"
   "smooth out vec2 glyph_tex;\n"
@@ -484,9 +482,9 @@ printer_storage
   printer->text.max_nb_glyphs = nb_glyphs;
   if(0 == nb_glyphs) {
     const int attrib_id_list[NB_ATTRIBS] = {
-      [0] = POS_ATTRIB_ID,
-      [1] = TEX_ATTRIB_ID,
-      [2] = COL_ATTRIB_ID
+      [0] = RDR_ATTRIB_POSITION_ID,
+      [1] = RDR_ATTRIB_TEXCOORD_ID,
+      [2] = RDR_ATTRIB_COLOR_ID
     };
     /* cppcheck-suppress unusedVariable */
     STATIC_ASSERT(3 == NB_ATTRIBS, Unexpected_constant);
@@ -830,8 +828,8 @@ init_printer_cursor(struct rdr_system* sys, struct cursor* cursor)
 
   /* Shading program. */
   RBI(&sys->rb, create_program(sys->ctxt, &cursor->shading_program));
-  RBI(&sys->rb, attach_shader(cursor->shading_program, cursor->vertex_shader));
-  RBI(&sys->rb, attach_shader(cursor->shading_program, cursor->fragment_shader));
+  RBI(&sys->rb, attach_shader(cursor->shading_program,cursor->vertex_shader));
+  RBI(&sys->rb, attach_shader(cursor->shading_program,cursor->fragment_shader));
   RBI(&sys->rb, link_program(cursor->shading_program));
 
   RBI(&sys->rb, get_named_uniform
@@ -851,15 +849,15 @@ init_printer_text(struct rdr_system* sys, struct text* text)
   ctxt = sys->ctxt;
 
   /* Vertex array. */
-  text->attrib_list[0].index = POS_ATTRIB_ID; /* Position .*/
+  text->attrib_list[0].index = RDR_ATTRIB_POSITION_ID; /* Position .*/
   text->attrib_list[0].stride = SIZEOF_GLYPH_VERTEX;
   text->attrib_list[0].offset = 0;
   text->attrib_list[0].type = RB_FLOAT3;
-  text->attrib_list[1].index = TEX_ATTRIB_ID; /* Tex coord. */
+  text->attrib_list[1].index = RDR_ATTRIB_TEXCOORD_ID; /* Tex coord. */
   text->attrib_list[1].stride = SIZEOF_GLYPH_VERTEX;
   text->attrib_list[1].offset = 3 * sizeof(float);
   text->attrib_list[1].type = RB_FLOAT2;
-  text->attrib_list[2].index = COL_ATTRIB_ID; /* Color. */
+  text->attrib_list[2].index = RDR_ATTRIB_COLOR_ID; /* Color. */
   text->attrib_list[2].stride = SIZEOF_GLYPH_VERTEX;
   text->attrib_list[2].offset = 5 * sizeof(float);
   text->attrib_list[2].type = RB_FLOAT3;
@@ -1709,8 +1707,5 @@ error:
 #undef VERTICES_PER_GLYPH
 #undef INDICES_PER_GLYPH
 #undef SIZEOF_GLYPH_VERTEX
-#undef POS_ATTRIB_ID
-#undef TEX_ATTRIB_ID
-#undef COL_ATTRIB_ID
 #undef NB_ATTRIBS
 

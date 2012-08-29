@@ -53,7 +53,7 @@ struct rdr_model {
   struct rb_attrib** instance_attrib_list;
   size_t nb_instance_attribs;
   /* Array of material constant (e.g.: modelview/projection matrices, etc) */
-  struct rdr_model_uniform* uniform_list;
+  struct rdr_uniform* uniform_list;
   size_t nb_uniforms;
   /* Cumulated size in bytes of the size of the instance attrib/uniform data. */
   size_t sizeof_instance_attrib_data;
@@ -334,7 +334,7 @@ setup_model_uniforms
    struct rb_uniform* uniform_list[],
    struct rdr_model* model)
 {
-  struct rdr_model_uniform* model_uniform_list = NULL;
+  struct rdr_uniform* model_uniform_list = NULL;
   size_t sizeof_uniform_data = 0;
   size_t i = 0;
   enum rdr_error rdr_err = RDR_NO_ERROR;
@@ -348,7 +348,7 @@ setup_model_uniforms
 
   if(nb_uniforms) {
     model_uniform_list = MEM_ALLOC
-      (model->sys->allocator, sizeof(struct rdr_model_uniform) * nb_uniforms);
+      (model->sys->allocator, sizeof(struct rdr_uniform) * nb_uniforms);
     if(!model_uniform_list) {
       rdr_err = RDR_MEMORY_ERROR;
       goto error;
@@ -847,15 +847,15 @@ rdr_bind_model
     rdr_err = RDR_INVALID_ARGUMENT;
     goto error;
   }
-  if(flag == RDR_MODEL_BIND_NONE)
+  if(flag == RDR_BIND_NONE)
     goto exit;
 
   if(model) {
     mtr = model->material;
     nb_indices = model->nb_indices;
-    if(flag == RDR_MODEL_BIND_ALL) {
+    if(flag == RDR_BIND_ALL) {
       vertex_array = model->vertex_array;
-    } else if(flag == RDR_MODEL_BIND_POSITION) {
+    } else if(flag == RDR_BIND_ATTRIB_POSITION) {
       vertex_array = model->vertex_pos_array;
     } else {
       rdr_err = RDR_INVALID_ARGUMENT;
@@ -874,9 +874,11 @@ rdr_bind_model
     goto error;
   }
 
-  rdr_err = rdr_bind_material(sys, mtr);
-  if(rdr_err != RDR_NO_ERROR)
-    goto error;
+  if(flag == RDR_BIND_ALL) {
+    rdr_err = rdr_bind_material(sys, mtr);
+    if(rdr_err != RDR_NO_ERROR)
+      goto error;
+  }
 
 exit:
   if(out_nb_indices)

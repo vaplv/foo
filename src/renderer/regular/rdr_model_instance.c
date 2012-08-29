@@ -136,7 +136,7 @@ static enum rdr_error
 setup_uniform_data_list
   (struct rdr_system* sys,
    size_t nb_uniforms,
-   const struct rdr_model_uniform* model_uniform_list,
+   const struct rdr_uniform* model_uniform_list,
    void* uniform_buffer,
    size_t* out_nb_uniform_data,
    struct rdr_model_instance_data* uniform_data_list)
@@ -232,10 +232,10 @@ error:
 }
 
 static enum rdr_error
-dispatch_uniform_data
+regular_dispatch_uniform_data
   (struct rdr_system* sys,
    size_t nb_uniforms,
-   struct rdr_model_uniform* model_uniform_list,
+   struct rdr_uniform* model_uniform_list,
    void* uniform_data_list,
    const struct aosf44* transform,
    const struct aosf44* view_matrix,
@@ -315,7 +315,7 @@ error:
 }
 
 static enum rdr_error
-dispatch_attrib_data
+regular_dispatch_attrib_data
   (struct rdr_system* sys,
    size_t nb_attribs,
    struct rb_attrib* model_attrib_list[],
@@ -484,6 +484,186 @@ get_model_instance_obb
     *extend_z = aosf33_mulf3(&f33, vextz);
   }
   return is_infinite;
+}
+
+static enum rdr_error
+regular_draw_instances
+  (struct rdr_system* sys,
+   const struct aosf44* view_matrix,
+   const struct aosf44* proj_matrix,
+   size_t nb_instances,
+   struct rdr_model_instance** instance_list)
+{
+  struct rdr_model_desc bound_mdl_desc;
+  struct rdr_model* bound_mdl = NULL;
+  size_t nb_bound_indices = 0;
+  size_t i = 0;
+  enum rdr_material_density used_density = NB_MATERIAL_DENSITY;
+  enum rdr_fill_mode used_fill_mode = NB_FILL_MODES;
+  enum rdr_cull_mode used_cull_mode = NB_CULL_MODES;
+  enum rdr_error rdr_err = RDR_NO_ERROR;
+  int err = 0;
+
+  assert(sys && view_matrix && proj_matrix && (!nb_instances || instance_list));
+
+  for(i = 0; i < nb_instances; ++i) {
+    struct rdr_model_instance* instance = instance_list[i];
+    if(instance == NULL) {
+      rdr_err = RDR_INVALID_ARGUMENT;
+      goto error;
+    }
+    if(instance->model != bound_mdl) {
+      rdr_err = rdr_bind_model
+        (sys, instance->model, &nb_bound_indices, RDR_BIND_ALL);
+      if(rdr_err != RDR_NO_ERROR)
+        goto error;
+      bound_mdl = instance->model;
+
+      rdr_err = rdr_get_model_desc(bound_mdl, &bound_mdl_desc);
+      if(rdr_err != RDR_NO_ERROR)
+        goto error;
+    }
+
+    rdr_err = regular_dispatch_uniform_data
+      (sys,
+       bound_mdl_desc.nb_uniforms,
+       bound_mdl_desc.uniform_list,
+       instance->uniform_buffer,
+       &instance->transform,
+       view_matrix,
+       proj_matrix);
+    if(rdr_err != RDR_NO_ERROR)
+      goto error;
+
+    rdr_err = regular_dispatch_attrib_data
+      (sys,
+       bound_mdl_desc.nb_attribs,
+       bound_mdl_desc.attrib_list,
+       instance->attrib_buffer);
+    if(rdr_err != RDR_NO_ERROR)
+      goto error;
+
+    if(used_density != instance->material_density) {
+      used_density = instance->material_density;
+      err = sys->rb.blend
+        (sys->ctxt, &material_density_to_blend_desc[used_density]);
+      if(err != 0) {
+        rdr_err = RDR_DRIVER_ERROR;
+        goto error;
+      }
+    }
+
+    if(used_fill_mode != instance->rasterizer_desc.fill_mode
+    || used_cull_mode != instance->rasterizer_desc.cull_mode) {
+      used_fill_mode = instance->rasterizer_desc.fill_mode;
+      used_cull_mode = instance->rasterizer_desc.cull_mode;
+      err = sys->rb.rasterizer
+        (sys->ctxt, &rdr_to_rb_rasterizer[used_fill_mode][used_cull_mode]);
+      if(err != 0) {
+        rdr_err = RDR_DRIVER_ERROR;
+        goto error;
+      }
+    }
+
+    err = sys->rb.draw_indexed(sys->ctxt, RB_TRIANGLE_LIST, nb_bound_indices);
+    if(err != 0) {
+      rdr_err = RDR_DRIVER_ERROR;
+      goto error;
+    }
+  }
+
+exit:
+  if(sys)
+    RDR(bind_model(sys, NULL, NULL, RDR_BIND_ALL));
+  return rdr_err;
+error:
+  goto exit;
+}
+
+static enum rdr_error
+draw_instances
+  (struct rdr_system* sys,
+   const struct aosf44* view_matrix,
+   const struct aosf44* proj_matrix,
+   size_t nb_instances,
+   struct rdr_model_instance** instance_list,
+   const struct rdr_draw_desc* draw_desc)
+{
+  struct rdr_model* bound_mdl = NULL;
+  size_t nb_bound_indices = 0;
+  size_t i = 0;
+  enum rdr_fill_mode used_fill_mode = NB_FILL_MODES;
+  enum rdr_cull_mode used_cull_mode = NB_CULL_MODES;
+  enum rdr_error rdr_err = RDR_NO_ERROR;
+  int err = 0;
+
+  assert
+    (  sys 
+    && view_matrix 
+    && proj_matrix 
+    && (!nb_instances || instance_list)
+    && draw_desc);
+
+  /* Bind the specific shading program. */
+  err = sys->rb.bind_program(sys->ctxt, draw_desc->shading_program);
+  if(err != 0) {
+    rdr_err = RDR_DRIVER_ERROR;
+    goto error;
+  }
+
+  for(i = 0; i < nb_instances; ++i) {
+    struct rdr_model_instance* instance = instance_list[i];
+    if(instance == NULL) {
+      rdr_err = RDR_INVALID_ARGUMENT;
+      goto error;
+    }
+
+    if(instance->model != bound_mdl) {
+      rdr_err = rdr_bind_model
+        (sys, instance->model, &nb_bound_indices, RDR_BIND_ATTRIB_POSITION);
+      if(rdr_err != RDR_NO_ERROR)
+        goto error;
+      bound_mdl = instance->model;
+    }
+
+    /* TODO
+     rdr_err = dispatch_uniform_data
+      (sys,
+       draw_desc->nb_uniforms,
+       draw_desc->uniform_list,
+       &instance->transform,
+       view_matrix,
+       proj_matrix);
+    if(rdr_err != RDR_NO_ERROR)
+      goto error; */
+
+    if(used_fill_mode != instance->rasterizer_desc.fill_mode
+    || used_cull_mode != instance->rasterizer_desc.cull_mode) {
+      used_fill_mode = instance->rasterizer_desc.fill_mode;
+      used_cull_mode = instance->rasterizer_desc.cull_mode;
+      err = sys->rb.rasterizer
+        (sys->ctxt, &rdr_to_rb_rasterizer[used_fill_mode][used_cull_mode]);
+      if(err != 0) {
+        rdr_err = RDR_DRIVER_ERROR;
+        goto error;
+      }
+    }
+
+    err = sys->rb.draw_indexed(sys->ctxt, RB_TRIANGLE_LIST, nb_bound_indices);
+    if(err != 0) {
+      rdr_err = RDR_DRIVER_ERROR;
+      goto error;
+    }
+  }
+
+exit:
+  if(sys) {
+    RDR(bind_model(sys, NULL, NULL, RDR_BIND_ATTRIB_POSITION));
+    RBI(&sys->rb, bind_program(sys->ctxt, NULL));
+  }
+  return rdr_err;
+error:
+  goto exit;
 }
 
 static void
@@ -1104,94 +1284,29 @@ rdr_draw_instances
    const struct aosf44* view_matrix,
    const struct aosf44* proj_matrix,
    size_t nb_instances,
-   struct rdr_model_instance** instance_list)
+   struct rdr_model_instance** instance_list,
+   const struct rdr_draw_desc* draw_desc)
 {
-  struct rdr_model_desc bound_mdl_desc;
-  struct rdr_model* bound_mdl = NULL;
-  size_t nb_bound_indices = 0;
-  size_t i = 0;
-  enum rdr_material_density used_density = NB_MATERIAL_DENSITY;
-  enum rdr_fill_mode used_fill_mode = NB_FILL_MODES;
-  enum rdr_cull_mode used_cull_mode = NB_CULL_MODES;
   enum rdr_error rdr_err = RDR_NO_ERROR;
-  int err = 0;
 
-  if(!sys || !view_matrix || !proj_matrix || (nb_instances && !instance_list)) {
+  if(UNLIKELY
+  (  !sys 
+  || !view_matrix 
+  || !proj_matrix 
+  || (nb_instances && !instance_list))) {
     rdr_err = RDR_INVALID_ARGUMENT;
     goto error;
   }
 
-  for(i = 0; i < nb_instances; ++i) {
-    struct rdr_model_instance* instance = instance_list[i];
-    if(instance == NULL) {
-      rdr_err = RDR_INVALID_ARGUMENT;
-      goto error;
-    }
-    if(instance->model != bound_mdl) {
-      rdr_err = rdr_bind_model
-        (sys, instance->model, &nb_bound_indices, RDR_MODEL_BIND_ALL);
-      if(rdr_err != RDR_NO_ERROR)
-        goto error;
-      bound_mdl = instance->model;
-
-      rdr_err = rdr_get_model_desc(bound_mdl, &bound_mdl_desc);
-      if(rdr_err != RDR_NO_ERROR)
-        goto error;
-    }
-
-    rdr_err = dispatch_uniform_data
-      (sys,
-       bound_mdl_desc.nb_uniforms,
-       bound_mdl_desc.uniform_list,
-       instance->uniform_buffer,
-       &instance->transform,
-       view_matrix,
-       proj_matrix);
-    if(rdr_err != RDR_NO_ERROR)
-      goto error;
-
-    rdr_err = dispatch_attrib_data
-      (sys,
-       bound_mdl_desc.nb_attribs,
-       bound_mdl_desc.attrib_list,
-       instance->attrib_buffer);
-    if(rdr_err != RDR_NO_ERROR)
-      goto error;
-
-    if(used_density != instance->material_density) {
-      used_density = instance->material_density;
-      err = sys->rb.blend
-        (sys->ctxt, &material_density_to_blend_desc[used_density]);
-      if(err != 0) {
-        rdr_err = RDR_DRIVER_ERROR;
-        goto error;
-      }
-    }
-
-    if(used_fill_mode != instance->rasterizer_desc.fill_mode
-    || used_cull_mode != instance->rasterizer_desc.cull_mode) {
-      used_fill_mode = instance->rasterizer_desc.fill_mode;
-      used_cull_mode = instance->rasterizer_desc.cull_mode;
-      err = sys->rb.rasterizer
-        (sys->ctxt, &rdr_to_rb_rasterizer[used_fill_mode][used_cull_mode]);
-      if(err != 0) {
-        rdr_err = RDR_DRIVER_ERROR;
-        goto error;
-      }
-    }
-
-    err = sys->rb.draw_indexed(sys->ctxt, RB_TRIANGLE_LIST, nb_bound_indices);
-    if(err != 0) {
-      rdr_err = RDR_DRIVER_ERROR;
-      goto error;
-    }
+  if(!draw_desc) {
+    rdr_err = regular_draw_instances
+      (sys, view_matrix, proj_matrix, nb_instances, instance_list);
+  } else {
+    rdr_err = draw_instances
+      (sys, view_matrix, proj_matrix, nb_instances, instance_list, draw_desc);
   }
-
 exit:
-  if(sys)
-    RDR(bind_model(sys, NULL, NULL, RDR_MODEL_BIND_NONE));
   return rdr_err;
-
 error:
   goto exit;
 }

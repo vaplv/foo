@@ -217,7 +217,10 @@ error:
  *
  ******************************************************************************/
 enum rdr_error
-rdr_draw_world(struct rdr_world* world, const struct rdr_view* view)
+rdr_draw_world
+  (struct rdr_world* world, 
+   const struct rdr_view* view, 
+   const struct rdr_draw_desc* draw_desc)
 {
   const struct rb_depth_stencil_desc depth_stencil_desc = {
     .enable_depth_test = 1,
@@ -236,7 +239,7 @@ rdr_draw_world(struct rdr_world* world, const struct rdr_view* view)
   size_t nb_instances = 0;
   memset(&viewport_desc, 0, sizeof(struct rb_viewport_desc));
 
-  if(!world || !view) {
+  if(UNLIKELY(!world || !view)) {
     rdr_err = RDR_INVALID_ARGUMENT;
     goto error;
   }
@@ -265,7 +268,12 @@ rdr_draw_world(struct rdr_world* world, const struct rdr_view* view)
     aosf44_load(&view_matrix, view->transform);
     RDR(compute_projection_matrix(view, &proj_matrix));
     rdr_err = rdr_draw_instances
-      (world->sys, &view_matrix, &proj_matrix, nb_instances, instance_list);
+      (world->sys, 
+       &view_matrix, 
+       &proj_matrix, 
+       nb_instances, 
+       instance_list, 
+       draw_desc);
     if(rdr_err != RDR_NO_ERROR)
       goto error;
   }
