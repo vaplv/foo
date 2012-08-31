@@ -11,6 +11,7 @@ struct rdr_system;
 struct rdr_draw_desc {
   struct rb_program* shading_program;
   struct rdr_uniform* uniform_list;
+  size_t nb_uniforms;
   int bind_flag; /* combination of rdr bind flags. */
 };
 

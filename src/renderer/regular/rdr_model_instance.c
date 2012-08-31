@@ -232,90 +232,106 @@ error:
 }
 
 static enum rdr_error
-regular_dispatch_uniform_data
+dispatch_uniform_data
   (struct rdr_system* sys,
    size_t nb_uniforms,
-   struct rdr_uniform* model_uniform_list,
-   void* uniform_data_list,
+   struct rdr_uniform* uniform_list,
+   void* uniform_data_list, /* NULL <=> regular uniforms are not dispatched */
    const struct aosf44* transform,
    const struct aosf44* view_matrix,
    const struct aosf44* proj_matrix)
 {
-  struct aosf44 tmp_mat44;
   ALIGN(16) float mat[16];
-  void* data;
+  struct aosf44 tmp_mat44;
   size_t i = 0;
   enum rdr_error rdr_err = RDR_NO_ERROR;
 
-  memset(mat, 0, sizeof(mat));
-
   assert(sys
-      && (!nb_uniforms || (uniform_data_list && model_uniform_list))
+      && (!nb_uniforms || uniform_list)
       && transform
       && view_matrix
       && proj_matrix);
 
-  data = (float*)uniform_data_list;
-  for(i = 0; i < nb_uniforms; ++i) {
-    struct rb_uniform_desc uniform_desc;
-    int err = 0;
+  #define CALL(func) \
+    do { \
+      if(0 != func) { \
+        rdr_err = RDR_DRIVER_ERROR; \
+        goto error; \
+      } \
+    } while(0)
 
-    err = sys->rb.get_uniform_desc
-      (model_uniform_list[i].uniform, &uniform_desc);
-    if(err != 0) {
-      rdr_err = RDR_DRIVER_ERROR;
-      goto error;
+  if(uniform_data_list == NULL) {
+    for(i = 0; i < nb_uniforms; ++i) {
+      /* TODO: cache the matrix transformation. */
+      switch(uniform_list[i].usage) {
+        case RDR_MODELVIEW_UNIFORM:
+          aosf44_mulf44(&tmp_mat44, view_matrix, transform);
+          aosf44_store(mat, &tmp_mat44);
+          break;
+        case RDR_PROJECTION_UNIFORM:
+          aosf44_store(mat, proj_matrix);
+          break;
+        case RDR_VIEWPROJ_UNIFORM:
+          aosf44_mulf44(&tmp_mat44, view_matrix, transform);
+          aosf44_mulf44(&tmp_mat44, proj_matrix, &tmp_mat44);
+          aosf44_store(mat, &tmp_mat44);
+          break;
+        case RDR_MODELVIEW_INVTRANS_UNIFORM:
+          aosf44_mulf44(&tmp_mat44, view_matrix, transform);
+          aosf44_invtrans(&tmp_mat44, &tmp_mat44);
+          aosf44_store(mat, &tmp_mat44);
+          break;
+        case RDR_REGULAR_UNIFORM: /* nothing */ break;
+        default: assert(false); break;
+      }
+      if(uniform_list[i].usage != RDR_REGULAR_UNIFORM) 
+        CALL(sys->rb.uniform_data(uniform_list[i].uniform, 1, mat));
     }
+  } else {
+    float* data = (float*)uniform_data_list;
 
-    /* TODO: cache the matrix transformation. */
-    switch(model_uniform_list[i].usage) {
-      case RDR_MODELVIEW_UNIFORM:
-        aosf44_mulf44(&tmp_mat44, view_matrix, transform);
-        aosf44_store(mat, &tmp_mat44);
-        memcpy(data, mat, sizeof(mat));
-        break;
-      case RDR_PROJECTION_UNIFORM:
-        aosf44_store(mat, proj_matrix);
-        memcpy(data, mat, sizeof(mat));
-        break;
-      case RDR_VIEWPROJ_UNIFORM:
-        aosf44_mulf44(&tmp_mat44, view_matrix, transform);
-        aosf44_mulf44(&tmp_mat44, proj_matrix, &tmp_mat44);
-        aosf44_store(mat, &tmp_mat44);
-        memcpy(data, mat, sizeof(mat));
-        break;
-      case RDR_MODELVIEW_INVTRANS_UNIFORM:
-        aosf44_mulf44(&tmp_mat44, view_matrix, transform);
-        aosf44_invtrans(&tmp_mat44, &tmp_mat44);
-        aosf44_store(mat, &tmp_mat44);
-        memcpy(data, mat, sizeof(mat));
-        break;
-      case RDR_REGULAR_UNIFORM:
-        /* nothing */
-        break;
-      default:
-        assert(false);
-        break;
+    for(i = 0; i < nb_uniforms; ++i) {
+      struct rb_uniform_desc uniform_desc;
+      /* TODO: cache the matrix transformation. */
+      switch(uniform_list[i].usage) {
+        case RDR_MODELVIEW_UNIFORM:
+          aosf44_mulf44(&tmp_mat44, view_matrix, transform);
+          aosf44_store(mat, &tmp_mat44);
+          memcpy(data, mat, sizeof(mat));
+          break;
+        case RDR_PROJECTION_UNIFORM:
+          aosf44_store(mat, proj_matrix);
+          memcpy(data, mat, sizeof(mat));
+          break;
+        case RDR_VIEWPROJ_UNIFORM:
+          aosf44_mulf44(&tmp_mat44, view_matrix, transform);
+          aosf44_mulf44(&tmp_mat44, proj_matrix, &tmp_mat44);
+          aosf44_store(mat, &tmp_mat44);
+          memcpy(data, mat, sizeof(mat));
+          break;
+        case RDR_MODELVIEW_INVTRANS_UNIFORM:
+          aosf44_mulf44(&tmp_mat44, view_matrix, transform);
+          aosf44_invtrans(&tmp_mat44, &tmp_mat44);
+          aosf44_store(mat, &tmp_mat44);
+          memcpy(data, mat, sizeof(mat));
+          break;
+        case RDR_REGULAR_UNIFORM: /* nothing */ break;
+        default: assert(false); break;
+      }
+      CALL(sys->rb.uniform_data(uniform_list[i].uniform, 1, data));
+      CALL(sys->rb.get_uniform_desc(uniform_list[i].uniform, &uniform_desc));
+      data = (void*)((uintptr_t)data + sizeof_rb_type(uniform_desc.type));
     }
-
-    err = sys->rb.uniform_data
-      (model_uniform_list[i].uniform, 1, data);
-    if(err != 0) {
-      rdr_err = RDR_DRIVER_ERROR;
-      goto error;
-    }
-    data = (void*)((uintptr_t)data + sizeof_rb_type(uniform_desc.type));
   }
-
+  #undef CALL
 exit:
   return rdr_err;
-
 error:
   goto exit;
 }
 
 static enum rdr_error
-regular_dispatch_attrib_data
+dispatch_attrib_data
   (struct rdr_system* sys,
    size_t nb_attribs,
    struct rb_attrib* model_attrib_list[],
@@ -524,7 +540,7 @@ regular_draw_instances
         goto error;
     }
 
-    rdr_err = regular_dispatch_uniform_data
+    rdr_err = dispatch_uniform_data
       (sys,
        bound_mdl_desc.nb_uniforms,
        bound_mdl_desc.uniform_list,
@@ -535,7 +551,7 @@ regular_draw_instances
     if(rdr_err != RDR_NO_ERROR)
       goto error;
 
-    rdr_err = regular_dispatch_attrib_data
+    rdr_err = dispatch_attrib_data
       (sys,
        bound_mdl_desc.nb_attribs,
        bound_mdl_desc.attrib_list,
@@ -574,7 +590,7 @@ regular_draw_instances
 
 exit:
   if(sys)
-    RDR(bind_model(sys, NULL, NULL, RDR_BIND_ALL));
+    RDR(bind_model(sys, NULL, NULL, 0));
   return rdr_err;
 error:
   goto exit;
@@ -604,7 +620,7 @@ draw_instances
     && (!nb_instances || instance_list)
     && draw_desc);
 
-  /* Bind the specific shading program. */
+  /* Bind the shading program defined by the draw decriptor. */
   err = sys->rb.bind_program(sys->ctxt, draw_desc->shading_program);
   if(err != 0) {
     rdr_err = RDR_DRIVER_ERROR;
@@ -626,16 +642,16 @@ draw_instances
       bound_mdl = instance->model;
     }
 
-    /* TODO
      rdr_err = dispatch_uniform_data
       (sys,
        draw_desc->nb_uniforms,
        draw_desc->uniform_list,
+       NULL,
        &instance->transform,
        view_matrix,
        proj_matrix);
     if(rdr_err != RDR_NO_ERROR)
-      goto error; */
+      goto error;
 
     if(used_fill_mode != instance->rasterizer_desc.fill_mode
     || used_cull_mode != instance->rasterizer_desc.cull_mode) {
@@ -658,7 +674,7 @@ draw_instances
 
 exit:
   if(sys) {
-    RDR(bind_model(sys, NULL, NULL, RDR_BIND_ATTRIB_POSITION));
+    RDR(bind_model(sys, NULL, NULL, 0));
     RBI(&sys->rb, bind_program(sys->ctxt, NULL));
   }
   return rdr_err;

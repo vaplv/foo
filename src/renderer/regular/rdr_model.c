@@ -847,10 +847,7 @@ rdr_bind_model
     rdr_err = RDR_INVALID_ARGUMENT;
     goto error;
   }
-  if(flag == RDR_BIND_NONE)
-    goto exit;
-
-  if(model) {
+  if(model && RDR_BIND_NONE) {
     mtr = model->material;
     nb_indices = model->nb_indices;
     if(flag == RDR_BIND_ALL) {
