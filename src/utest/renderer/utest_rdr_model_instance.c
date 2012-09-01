@@ -320,7 +320,7 @@ main(int argc, char** argv)
   struct rdr_model_instance* inst1 = NULL;
   const char* vs_source =
     "#version 330\n"
-    "uniform mat4x4 rdr_viewproj;\n"
+    "uniform mat4x4 rdr_modelviewproj;\n"
     "uniform float tmp;\n"
     "in vec4 rdr_position;\n"
     "in vec4 rdr_color; \n"
@@ -328,7 +328,7 @@ main(int argc, char** argv)
     "void main()\n"
     "{\n"
       "vec4 v = tmp * rdr_position;\n"
-      "gl_Position = rdr_viewproj * v;\n"
+      "gl_Position = rdr_modelviewproj * v;\n"
       "color = rdr_color;\n"
     "}\n";
   const char* vs_source1 =

@@ -236,13 +236,14 @@ dispatch_uniform_data
   (struct rdr_system* sys,
    size_t nb_uniforms,
    struct rdr_uniform* uniform_list,
-   void* uniform_data_list, /* NULL <=> regular uniforms are not dispatched */
+   void* uniform_data_list,
    const struct aosf44* transform,
    const struct aosf44* view_matrix,
-   const struct aosf44* proj_matrix)
+   const struct aosf44* proj_matrix,
+   const size_t draw_id)
 {
-  ALIGN(16) float mat[16];
   struct aosf44 tmp_mat44;
+  ALIGN(16) float mat[16];
   size_t i = 0;
   enum rdr_error rdr_err = RDR_NO_ERROR;
 
@@ -259,33 +260,47 @@ dispatch_uniform_data
         goto error; \
       } \
     } while(0)
+  #define CHECK_DRAW_ID_UNFORM(id) \
+    do { \
+      if(id > UINT32_MAX) { \
+        rdr_err = RDR_OVERFLOW_ERROR; \
+        goto error; \
+      } \
+    } while(0)
 
   if(uniform_data_list == NULL) {
     for(i = 0; i < nb_uniforms; ++i) {
       /* TODO: cache the matrix transformation. */
-      switch(uniform_list[i].usage) {
+      switch(uniform_list[draw_id].usage) {
         case RDR_MODELVIEW_UNIFORM:
           aosf44_mulf44(&tmp_mat44, view_matrix, transform);
           aosf44_store(mat, &tmp_mat44);
+          CALL(sys->rb.uniform_data(uniform_list[i].uniform, 1, mat));
           break;
         case RDR_PROJECTION_UNIFORM:
           aosf44_store(mat, proj_matrix);
+          CALL(sys->rb.uniform_data(uniform_list[i].uniform, 1, mat));
           break;
-        case RDR_VIEWPROJ_UNIFORM:
+        case RDR_MODELVIEWPROJ_UNIFORM:
           aosf44_mulf44(&tmp_mat44, view_matrix, transform);
           aosf44_mulf44(&tmp_mat44, proj_matrix, &tmp_mat44);
           aosf44_store(mat, &tmp_mat44);
+          CALL(sys->rb.uniform_data(uniform_list[i].uniform, 1, mat));
           break;
         case RDR_MODELVIEW_INVTRANS_UNIFORM:
           aosf44_mulf44(&tmp_mat44, view_matrix, transform);
           aosf44_invtrans(&tmp_mat44, &tmp_mat44);
           aosf44_store(mat, &tmp_mat44);
+          CALL(sys->rb.uniform_data(uniform_list[i].uniform, 1, mat));
+          break;
+        case RDR_DRAW_ID_UNIFORM:
+          CHECK_DRAW_ID_UNFORM(draw_id);
+          CALL(sys->rb.uniform_data
+            (uniform_list[i].uniform, 1, (uint32_t[]){(uint32_t)draw_id}));
           break;
         case RDR_REGULAR_UNIFORM: /* nothing */ break;
         default: assert(false); break;
       }
-      if(uniform_list[i].usage != RDR_REGULAR_UNIFORM) 
-        CALL(sys->rb.uniform_data(uniform_list[i].uniform, 1, mat));
     }
   } else {
     float* data = (float*)uniform_data_list;
@@ -303,7 +318,7 @@ dispatch_uniform_data
           aosf44_store(mat, proj_matrix);
           memcpy(data, mat, sizeof(mat));
           break;
-        case RDR_VIEWPROJ_UNIFORM:
+        case RDR_MODELVIEWPROJ_UNIFORM:
           aosf44_mulf44(&tmp_mat44, view_matrix, transform);
           aosf44_mulf44(&tmp_mat44, proj_matrix, &tmp_mat44);
           aosf44_store(mat, &tmp_mat44);
@@ -315,6 +330,10 @@ dispatch_uniform_data
           aosf44_store(mat, &tmp_mat44);
           memcpy(data, mat, sizeof(mat));
           break;
+        case RDR_DRAW_ID_UNIFORM:
+          CHECK_DRAW_ID_UNFORM(draw_id);
+          memcpy(data, (uint32_t[]){(uint32_t)draw_id}, sizeof(uint32_t));
+          break;
         case RDR_REGULAR_UNIFORM: /* nothing */ break;
         default: assert(false); break;
       }
@@ -324,6 +343,7 @@ dispatch_uniform_data
     }
   }
   #undef CALL
+  #undef CHECK_DRAW_ID_UNFORM
 exit:
   return rdr_err;
 error:
@@ -513,7 +533,7 @@ regular_draw_instances
   struct rdr_model_desc bound_mdl_desc;
   struct rdr_model* bound_mdl = NULL;
   size_t nb_bound_indices = 0;
-  size_t i = 0;
+  size_t draw_id = 0;
   enum rdr_material_density used_density = NB_MATERIAL_DENSITY;
   enum rdr_fill_mode used_fill_mode = NB_FILL_MODES;
   enum rdr_cull_mode used_cull_mode = NB_CULL_MODES;
@@ -522,8 +542,8 @@ regular_draw_instances
 
   assert(sys && view_matrix && proj_matrix && (!nb_instances || instance_list));
 
-  for(i = 0; i < nb_instances; ++i) {
-    struct rdr_model_instance* instance = instance_list[i];
+  for(draw_id = 0; draw_id < nb_instances; ++draw_id) {
+    struct rdr_model_instance* instance = instance_list[draw_id];
     if(instance == NULL) {
       rdr_err = RDR_INVALID_ARGUMENT;
       goto error;
@@ -547,7 +567,8 @@ regular_draw_instances
        instance->uniform_buffer,
        &instance->transform,
        view_matrix,
-       proj_matrix);
+       proj_matrix,
+       draw_id);
     if(rdr_err != RDR_NO_ERROR)
       goto error;
 
@@ -607,16 +628,16 @@ draw_instances
 {
   struct rdr_model* bound_mdl = NULL;
   size_t nb_bound_indices = 0;
-  size_t i = 0;
+  size_t draw_id = 0;
   enum rdr_fill_mode used_fill_mode = NB_FILL_MODES;
   enum rdr_cull_mode used_cull_mode = NB_CULL_MODES;
   enum rdr_error rdr_err = RDR_NO_ERROR;
   int err = 0;
 
   assert
-    (  sys 
-    && view_matrix 
-    && proj_matrix 
+    (  sys
+    && view_matrix
+    && proj_matrix
     && (!nb_instances || instance_list)
     && draw_desc);
 
@@ -627,8 +648,8 @@ draw_instances
     goto error;
   }
 
-  for(i = 0; i < nb_instances; ++i) {
-    struct rdr_model_instance* instance = instance_list[i];
+  for(draw_id = 0; draw_id < nb_instances; ++draw_id) {
+    struct rdr_model_instance* instance = instance_list[draw_id];
     if(instance == NULL) {
       rdr_err = RDR_INVALID_ARGUMENT;
       goto error;
@@ -642,14 +663,15 @@ draw_instances
       bound_mdl = instance->model;
     }
 
-     rdr_err = dispatch_uniform_data
+    rdr_err = dispatch_uniform_data
       (sys,
        draw_desc->nb_uniforms,
        draw_desc->uniform_list,
        NULL,
        &instance->transform,
        view_matrix,
-       proj_matrix);
+       proj_matrix,
+       draw_desc->draw_id_bias + draw_id);
     if(rdr_err != RDR_NO_ERROR)
       goto error;
 
@@ -1306,9 +1328,9 @@ rdr_draw_instances
   enum rdr_error rdr_err = RDR_NO_ERROR;
 
   if(UNLIKELY
-  (  !sys 
-  || !view_matrix 
-  || !proj_matrix 
+  (  !sys
+  || !view_matrix
+  || !proj_matrix
   || (nb_instances && !instance_list))) {
     rdr_err = RDR_INVALID_ARGUMENT;
     goto error;

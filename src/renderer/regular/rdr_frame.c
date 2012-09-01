@@ -1,6 +1,7 @@
 #include "maths/simd/aosf44.h"
 #include "renderer/regular/rdr_attrib_c.h"
 #include "renderer/regular/rdr_imdraw_c.h"
+#include "renderer/regular/rdr_model_c.h"
 #include "renderer/regular/rdr_system_c.h"
 #include "renderer/regular/rdr_term_c.h"
 #include "renderer/regular/rdr_world_c.h"
@@ -58,12 +59,12 @@ struct framebuffer {
   struct rb_tex2d* depth_stencil_tex; /* TODO replace bu a render buffer. */
 };
 
+enum { PICK_UNIFORM_MVP, PICK_UNIFORM_MDL_ID, NB_PICK_UNIFORMS };
 struct pick_shader {
   struct rb_shader* vertex_shader;
   struct rb_shader* fragment_shader;
   struct rb_program* shading_program;
-  struct rb_uniform* id;
-  struct rb_uniform* mvp; /* Model view proj. */
+  struct rdr_uniform uniform_list[NB_PICK_UNIFORMS];
 };
 
 struct rdr_frame {
@@ -490,16 +491,18 @@ error:
 static void
 release_pick_shader(struct rdr_system* sys, struct pick_shader* pick_shader)
 {
+  size_t i = 0;
   if(pick_shader->vertex_shader)
     RBI(&sys->rb, shader_ref_put(pick_shader->vertex_shader));
   if(pick_shader->fragment_shader)
     RBI(&sys->rb, shader_ref_put(pick_shader->fragment_shader));
   if(pick_shader->shading_program)
     RBI(&sys->rb, program_ref_put(pick_shader->shading_program));
-  if(pick_shader->id)
-    RBI(&sys->rb, uniform_ref_put(pick_shader->id));
-  if(pick_shader->mvp)
-    RBI(&sys->rb, uniform_ref_put(pick_shader->mvp));
+
+  for(i = 0; i < NB_PICK_UNIFORMS; ++i) {
+    if(pick_shader->uniform_list[i].uniform)
+      RBI(&sys->rb, uniform_ref_put(pick_shader->uniform_list[i].uniform));
+  }
 }
 
 static enum rdr_error
@@ -530,10 +533,18 @@ init_pick_shader(struct rdr_system* sys, struct pick_shader* pick_shader)
   RBI(&sys->rb, link_program(pick_shader->shading_program));
 
   /* Retrieve the uniform of the shading program. */
+  pick_shader->uniform_list[PICK_UNIFORM_MDL_ID].usage = RDR_DRAW_ID_UNIFORM;
   RBI(&sys->rb, get_named_uniform
-    (sys->ctxt, pick_shader->shading_program, "in_mdl_id", &pick_shader->id));
+    (sys->ctxt, 
+     pick_shader->shading_program, 
+     "in_mdl_id", 
+     &pick_shader->uniform_list[PICK_UNIFORM_MDL_ID].uniform));
+  pick_shader->uniform_list[PICK_UNIFORM_MVP].usage = RDR_MODELVIEWPROJ_UNIFORM;
   RBI(&sys->rb, get_named_uniform
-    (sys->ctxt, pick_shader->shading_program, "mvp", &pick_shader->mvp));
+    (sys->ctxt, 
+     pick_shader->shading_program, 
+     "mvp", 
+     &pick_shader->uniform_list[PICK_UNIFORM_MVP].uniform));
   return RDR_NO_ERROR;
 }
 

@@ -22,6 +22,9 @@ sl_to_rdr_error(enum sl_error sl_err)
     case SL_MEMORY_ERROR:
       rdr_err = RDR_MEMORY_ERROR;
       break;
+    case SL_OVERFLOW_ERROR:
+      rdr_err = RDR_OVERFLOW_ERROR;
+      break;
     default:
       rdr_err = RDR_UNKNOWN_ERROR;
       break;

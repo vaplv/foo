@@ -31,8 +31,9 @@ static const char*
 builtin_uniform_name_list[] = {
   [RDR_MODELVIEW_UNIFORM] = "rdr_modelview",
   [RDR_PROJECTION_UNIFORM] = "rdr_projection",
-  [RDR_VIEWPROJ_UNIFORM] = "rdr_viewproj",
-  [RDR_MODELVIEW_INVTRANS_UNIFORM] = "rdr_modelview_invtrans"
+  [RDR_MODELVIEWPROJ_UNIFORM] = "rdr_modelviewproj",
+  [RDR_MODELVIEW_INVTRANS_UNIFORM] = "rdr_modelview_invtrans",
+  [RDR_DRAW_ID_UNIFORM] = "rdr_draw_id"
 };
 
 struct rdr_model {
@@ -847,11 +848,11 @@ rdr_bind_model
     rdr_err = RDR_INVALID_ARGUMENT;
     goto error;
   }
-  if(model && RDR_BIND_NONE) {
-    mtr = model->material;
+  if(model && flag != RDR_BIND_NONE) {
     nb_indices = model->nb_indices;
     if(flag == RDR_BIND_ALL) {
       vertex_array = model->vertex_array;
+      mtr = model->material;
     } else if(flag == RDR_BIND_ATTRIB_POSITION) {
       vertex_array = model->vertex_pos_array;
     } else {
@@ -871,11 +872,9 @@ rdr_bind_model
     goto error;
   }
 
-  if(flag == RDR_BIND_ALL) {
-    rdr_err = rdr_bind_material(sys, mtr);
-    if(rdr_err != RDR_NO_ERROR)
-      goto error;
-  }
+  rdr_err = rdr_bind_material(sys, mtr);
+  if(rdr_err != RDR_NO_ERROR)
+    goto error;
 
 exit:
   if(out_nb_indices)
