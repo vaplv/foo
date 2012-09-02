@@ -1,9 +1,11 @@
 #include "maths/simd/aosf44.h"
 #include "renderer/regular/rdr_attrib_c.h"
+#include "renderer/regular/rdr_draw_desc.h"
 #include "renderer/regular/rdr_imdraw_c.h"
 #include "renderer/regular/rdr_model_c.h"
 #include "renderer/regular/rdr_system_c.h"
 #include "renderer/regular/rdr_term_c.h"
+#include "renderer/regular/rdr_uniform.h"
 #include "renderer/regular/rdr_world_c.h"
 #include "renderer/rdr.h"
 #include "renderer/rdr_imdraw.h"
@@ -914,9 +916,11 @@ rdr_flush_frame(struct rdr_frame* frame)
     .cull_mode = RB_CULL_BACK,
     .front_facing = RB_ORIENTATION_CCW
   };
+  struct rdr_draw_desc pick_draw_desc;
   struct list_node* node = NULL;
   struct list_node* tmp = NULL;
   enum rdr_error rdr_err = RDR_NO_ERROR;
+  memset(&pick_draw_desc, 0, sizeof(pick_draw_desc));
 
   if(UNLIKELY(frame==NULL)) {
     rdr_err = RDR_INVALID_ARGUMENT;
@@ -933,12 +937,14 @@ rdr_flush_frame(struct rdr_frame* frame)
      0));
 
   /* Flush pick commands. */
-  /*struct rdr_draw_desc draw_desc;
-  draw_desc.flag = RDR_DRAW_POSITION_FLAG;
-  draw_desc.shading_program = frame->pick_shader.shading_program;*/
+  pick_draw_desc.shading_program = frame->pick_shader.shading_program;
+  pick_draw_desc.uniform_list = frame->pick_shader.uniform_list;
+  pick_draw_desc.nb_uniforms = NB_PICK_UNIFORMS;
+  pick_draw_desc.draw_id_bias = 0;
+  pick_draw_desc.bind_flag = RDR_BIND_ATTRIB_POSITION;
   LIST_FOR_EACH_SAFE(node, tmp, &frame->pick_model_instance_list) {
     struct pick_node* pick_node = CONTAINER_OF(node, struct pick_node, node);
-    /* TODO perform the picking action. */
+    RDR(draw_world(pick_node->world, &pick_node->view, &pick_draw_desc));
     RDR(world_ref_put(pick_node->world));
     list_del(node);
   }

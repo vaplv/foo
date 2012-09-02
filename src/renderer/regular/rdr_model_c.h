@@ -4,25 +4,9 @@
 #include <stdbool.h>
 #include <stddef.h>
 
-/* Predefined attrib  */
-enum rdr_uniform_usage {
-  RDR_PROJECTION_UNIFORM, 
-  RDR_MODELVIEW_UNIFORM,
-  RDR_MODELVIEWPROJ_UNIFORM,
-  RDR_MODELVIEW_INVTRANS_UNIFORM,
-  RDR_DRAW_ID_UNIFORM,
-  RDR_REGULAR_UNIFORM
-};
-
 enum rdr_model_signal {
   RDR_MODEL_SIGNAL_UPDATE_DATA,
   RDR_NB_MODEL_SIGNALS
-};
-
-enum rdr_bind_flag {
-  RDR_BIND_ATTRIB_POSITION = BIT(0),
-  RDR_BIND_NONE = 0,
-  RDR_BIND_ALL = ~0
 };
 
 struct rb_uniform;
@@ -30,11 +14,6 @@ struct rb_attrib;
 struct rdr_model;
 struct rdr_model_callback;
 struct rdr_system;
-
-struct rdr_uniform {
-  struct rb_uniform* uniform;
-  enum rdr_uniform_usage usage;
-};
 
 struct rdr_model_desc {
   struct rb_attrib** attrib_list;

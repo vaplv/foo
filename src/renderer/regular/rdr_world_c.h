@@ -4,9 +4,9 @@
 #include "renderer/rdr_error.h"
 
 struct aosf44;
+struct rdr_draw_desc;
 struct rdr_view;
 struct rdr_world;
-struct rdr_draw_desc;
 
 extern enum rdr_error
 rdr_draw_world
