@@ -133,6 +133,14 @@ main(int argc, char** argv)
   CHECK(rdr_frame_ref_put(frame), OK);
   CHECK(rdr_frame_ref_put(frame), OK);
 
+  /* Check that the release of the frame is correctly handled despite it was
+   * not flushed. */
+  CHECK(rdr_create_frame(sys, &frame_desc, &frame), OK);
+  CHECK(rdr_frame_draw_world(frame, world, &view), OK);
+  CHECK(rdr_frame_draw_term(frame, term), OK);
+  CHECK(rdr_frame_pick_model_instance(frame, world, &view, pos, size), OK);
+  CHECK(rdr_frame_ref_put(frame), OK);
+
   CHECK(rdr_system_ref_put(sys), OK);
   CHECK(rdr_world_ref_put(world), OK);
   CHECK(rdr_font_ref_put(font), OK);
