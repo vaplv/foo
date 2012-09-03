@@ -13,7 +13,6 @@ enum rdr_bind_flag {
 };
 
 struct rdr_draw_desc {
-  struct rb_program* shading_program;
   struct rdr_uniform* uniform_list;
   size_t nb_uniforms;
   size_t draw_id_bias; /* bias to add to the built-in draw id uniform. */

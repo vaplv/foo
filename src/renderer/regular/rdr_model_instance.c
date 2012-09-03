@@ -643,13 +643,6 @@ draw_instances
     && (!nb_instances || instance_list)
     && draw_desc);
 
-  /* Bind the shading program defined by the draw decriptor. */
-  err = sys->rb.bind_program(sys->ctxt, draw_desc->shading_program);
-  if(err != 0) {
-    rdr_err = RDR_DRIVER_ERROR;
-    goto error;
-  }
-
   for(draw_id = 0; draw_id < nb_instances; ++draw_id) {
     struct rdr_model_instance* instance = instance_list[draw_id];
     if(instance == NULL) {
@@ -697,10 +690,8 @@ draw_instances
   }
 
 exit:
-  if(sys) {
+  if(sys)
     RDR(bind_model(sys, NULL, NULL, 0));
-    RBI(&sys->rb, bind_program(sys->ctxt, NULL));
-  }
   return rdr_err;
 error:
   goto exit;

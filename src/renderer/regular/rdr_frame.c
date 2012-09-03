@@ -2,6 +2,7 @@
 #include "renderer/regular/rdr_attrib_c.h"
 #include "renderer/regular/rdr_imdraw_c.h"
 #include "renderer/regular/rdr_model_c.h"
+#include "renderer/regular/rdr_picking.h"
 #include "renderer/regular/rdr_system_c.h"
 #include "renderer/regular/rdr_term_c.h"
 #include "renderer/regular/rdr_world_c.h"
@@ -66,6 +67,7 @@ struct rdr_frame {
   struct list_node draw_world_list;
   struct list_node pick_model_instance_list;
   /* Miscellaneous */
+  struct rdr_picking* picking;
   struct imdraw imdraw; /* im draw system. */
   struct ref ref;
   struct rdr_system* sys;
@@ -388,6 +390,8 @@ release_frame(struct ref* ref)
   }
   if(frame->imdraw.cmdbuf)
     RDR(imdraw_command_buffer_ref_put(frame->imdraw.cmdbuf));
+  if(frame->picking)
+    RDR(free_picking(frame->sys, frame->picking));
 
   sys = frame->sys;
   MEM_FREE(sys->allocator, frame);
@@ -406,8 +410,10 @@ rdr_create_frame
    struct rdr_frame** out_frame)
 {
   struct rdr_frame* frame = NULL;
+  struct rdr_picking_desc picking_desc;
   enum rdr_error rdr_err = RDR_NO_ERROR;
   size_t i = 0;
+  memset(&picking_desc, 0, sizeof(struct rdr_picking_desc));
 
   if(UNLIKELY(!sys || !desc || !out_frame)) {
     rdr_err = RDR_INVALID_ARGUMENT;
@@ -431,6 +437,12 @@ rdr_create_frame
 
   rdr_err = rdr_create_imdraw_command_buffer
     (sys, MAX_IMDRAW_COMMANDS, &frame->imdraw.cmdbuf);
+  if(rdr_err != RDR_NO_ERROR)
+    goto error;
+
+  picking_desc.width= desc->width;
+  picking_desc.height = desc->height;
+  rdr_err = rdr_create_picking(sys, &picking_desc, &frame->picking);
   if(rdr_err != RDR_NO_ERROR)
     goto error;
 

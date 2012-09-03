@@ -18,8 +18,8 @@
 static FINLINE int
 is_format_compressible(enum rb_tex_format fmt)
 {
-  return 
-     fmt == RB_R 
+  return
+     fmt == RB_R
   || fmt == RB_RGB
   || fmt == RB_RGBA
   || fmt == RB_SRGB
@@ -125,38 +125,38 @@ sizeof_pixel(GLenum fmt, GLenum type)
   unsigned int ncomponents = 0;
   size_t sizeof_component = 0;
   switch(fmt) {
-    case GL_RED: 
+    case GL_RED:
     case GL_RED_INTEGER:
       ncomponents = 1; break;
     case GL_RG:
     case GL_RG_INTEGER:
-      ncomponents = 2; 
+      ncomponents = 2;
       break;
-    case GL_RGB: 
+    case GL_RGB:
     case GL_RGB_INTEGER:
-      ncomponents = 3; 
+      ncomponents = 3;
       break;
-    case GL_RGBA: 
+    case GL_RGBA:
     case GL_RGBA_INTEGER:
-      ncomponents = 4; 
+      ncomponents = 4;
       break;
     case GL_DEPTH_COMPONENT:
-    case GL_DEPTH_STENCIL: 
+    case GL_DEPTH_STENCIL:
       ncomponents = 1;
       break;
     default: assert(0); break;
   }
   switch(type) {
-    case GL_UNSIGNED_BYTE: 
-      sizeof_component = sizeof(unsigned char); 
+    case GL_UNSIGNED_BYTE:
+      sizeof_component = sizeof(unsigned char);
       break;
-    case GL_UNSIGNED_INT: 
-      sizeof_component = sizeof(uint32_t); 
+    case GL_UNSIGNED_INT:
+      sizeof_component = sizeof(uint32_t);
       break;
-    case GL_FLOAT: 
-      sizeof_component = sizeof(float); 
+    case GL_FLOAT:
+      sizeof_component = sizeof(float);
       break;
-    case GL_UNSIGNED_INT_24_8: 
+    case GL_UNSIGNED_INT_24_8:
       sizeof_component = 4;
       break;
     default: assert(0); break;

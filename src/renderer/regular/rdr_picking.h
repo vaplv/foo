@@ -31,11 +31,12 @@ rdr_free_picking
 
 extern enum rdr_error
 rdr_pick
-  (struct rdr_picking* picking,
+  (struct rdr_system* sys,
+   struct rdr_picking* picking,
    struct rdr_world* world,
    const struct rdr_view* view,
-   const unsigned int pos[2],
-   const unsigned int size[2],
+   const unsigned int pos[2], /* in screen space pixels. */
+   const unsigned int size[2], /* in screen space pixels. */
    enum rdr_pick pick_type);
 
 #endif /* RDR_PICKING_H */

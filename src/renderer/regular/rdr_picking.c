@@ -1,9 +1,16 @@
+#include "renderer/regular/rdr_attrib_c.h"
 #include "renderer/regular/rdr_draw_desc.h"
+#include "renderer/regular/rdr_error_c.h"
 #include "renderer/regular/rdr_picking.h"
 #include "renderer/regular/rdr_system_c.h"
 #include "renderer/regular/rdr_uniform.h"
+#include "renderer/regular/rdr_world_c.h"
 #include "render_backend/rbi.h"
 #include "renderer/rdr.h"
+#include "renderer/rdr_world.h"
+#include "stdlib/sl.h"
+#include "stdlib/sl_vector.h"
+#include "sys/math.h"
 #include <assert.h>
 #include <string.h>
 
@@ -11,6 +18,9 @@ enum { PICK_UNIFORM_MVP, PICK_UNIFORM_MDL_ID, NB_PICK_UNIFORMS };
 
 struct rdr_picking {
   struct rdr_picking_desc desc;
+  struct result {
+    struct sl_vector* picked_model_instance_list; /* vector of draw id */
+  } result;
   struct framebuffer {
     struct rb_framebuffer* buffer;
     struct rb_tex2d* picking_tex; /* TODO replace by a render buffer. */
@@ -37,7 +47,7 @@ static const char* picking_vs_source =
   "flat out uint id;\n"
   "void main()\n"
   "{\n"
-  " mdl_id = in_mdl_id;\n"
+  " id = in_id;\n"
   " gl_Position = mvp * vec4(pos, 1.f);\n"
   "}\n";
 
@@ -87,7 +97,7 @@ init_framebuffer
   memset(&rt0, 0, sizeof(struct rb_render_target));
   memset(&depth_stencil_rt, 0, sizeof(struct rb_render_target));
 
-  assert(!sys || !width || !height || !framebuffer);
+  assert(sys && width && height && framebuffer);
 
   #define CALL(func) \
     do { \
@@ -135,7 +145,6 @@ exit:
   return rdr_err;
 error:
   release_framebuffer(sys, framebuffer);
-  memset(framebuffer, 0, sizeof(struct framebuffer));
   goto exit;
 }
 
@@ -160,7 +169,7 @@ release_shading(struct rdr_system* sys, struct shading* shading)
 static enum rdr_error
 init_shading(struct rdr_system* sys, struct shading* shading)
 {
-  assert(!sys || !shading);
+  assert(sys && shading);
 
   /* Compile the shader sources. */
   RBI(&sys->rb, create_shader
@@ -195,6 +204,37 @@ init_shading(struct rdr_system* sys, struct shading* shading)
   return RDR_NO_ERROR;
 }
 
+static void
+release_result(struct rdr_system* sys UNUSED, struct result* result)
+{
+  assert(sys && result);
+  if(result->picked_model_instance_list)
+    SL(free_vector(result->picked_model_instance_list));
+  memset(result, 0, sizeof(struct result));
+}
+
+static enum rdr_error
+init_result(struct rdr_system* sys, struct result* result)
+{
+  enum rdr_error rdr_err = RDR_NO_ERROR;
+  enum sl_error sl_err = SL_NO_ERROR;
+  assert(sys && result);
+
+  sl_err = sl_create_vector
+    (sizeof(uint32_t),
+     16,
+     sys->allocator,
+     &result->picked_model_instance_list);
+  if(sl_err != SL_NO_ERROR) {
+    rdr_err = sl_to_rdr_error(sl_err);
+    goto error;
+  }
+exit:
+  return rdr_err;
+error:
+  goto exit;
+}
+
 /*******************************************************************************
  *
  * Picking functions
@@ -209,7 +249,7 @@ rdr_create_picking
   struct rdr_picking* picking = NULL;
   enum rdr_error rdr_err = RDR_NO_ERROR;
 
-  if(UNLIKELY(!sys || !picking)) {
+  if(UNLIKELY(!sys || !out_picking)) {
     rdr_err = RDR_INVALID_ARGUMENT;
     goto error;
   }
@@ -219,14 +259,16 @@ rdr_create_picking
     rdr_err = RDR_MEMORY_ERROR;
     goto error;
   }
-  memcpy(&picking->desc, desc, sizeof(struct rdr_picking_desc));
-
   rdr_err = init_framebuffer
     (sys, desc->width, desc->height, &picking->framebuffer);
   if(rdr_err != RDR_NO_ERROR)
     goto error;
 
   rdr_err = init_shading(sys, &picking->shading);
+  if(rdr_err != RDR_NO_ERROR)
+    goto error;
+
+  rdr_err = init_result(sys, &picking->result);
   if(rdr_err != RDR_NO_ERROR)
     goto error;
 
@@ -245,24 +287,19 @@ error:
 enum rdr_error
 rdr_free_picking(struct rdr_system* sys, struct rdr_picking* picking)
 {
-  enum rdr_error rdr_err = RDR_NO_ERROR;
-
-  if(!sys || !picking) {
-    rdr_err = RDR_INVALID_ARGUMENT;
-    goto error;
-  }
+  if(!sys || !picking)
+    return RDR_INVALID_ARGUMENT;
   release_framebuffer(sys, &picking->framebuffer);
   release_shading(sys, &picking->shading);
-exit:
-  return rdr_err;
-error:
-  goto exit;
+  release_result(sys, &picking->result);
+  MEM_FREE(sys->allocator, picking);
+  return RDR_NO_ERROR;
 }
-
 
 extern enum rdr_error
 rdr_pick
-  (struct rdr_picking* picking,
+  (struct rdr_system* sys,
+   struct rdr_picking* picking,
    struct rdr_world* world,
    const struct rdr_view* view,
    const unsigned int pos[2],
@@ -270,6 +307,11 @@ rdr_pick
    enum rdr_pick pick_type)
 {
   struct rdr_draw_desc draw_desc;
+  struct rdr_view pick_view;
+  float scale[2] = {0.f, 0.f}; /* scale factor from viewport to pick space. */
+  unsigned int viewport_pos[2] = {0, 0}; /* position in viewport space. */
+  unsigned int coord0[2] = {0, 0}; /* blit coordinate 0 */
+  unsigned int coord1[2] = {0, 0}; /* blit coordinate 1 */
   enum rdr_error rdr_err = RDR_NO_ERROR;
   memset(&draw_desc, 0, sizeof(struct rdr_draw_desc));
 
@@ -277,17 +319,54 @@ rdr_pick
     rdr_err = RDR_INVALID_ARGUMENT;
     goto error;
   }
-  if(pick_type == RDR_PICK_NONE)
+  if(pick_type == RDR_PICK_NONE
+  || pos[0] < view->x 
+  || pos[1] < view->y 
+  || size[0] == 0
+  || size[1] == 0)
     goto exit;
 
+  /* Adjust the input viewport to match the pick definition. */
+  memcpy(&pick_view, view, sizeof(struct rdr_view));
+  pick_view.x = pick_view.y = 0;
+  pick_view.width = picking->desc.width;
+  pick_view.height = picking->desc.height;
+
+  /* Compute the blit coordinates in pick space. */
+  scale[0] = (float)picking->desc.width / (float)(view->width - view->x);
+  scale[1] = (float)picking->desc.height / (float)(view->height - view->y);
+  viewport_pos[0] = pos[0] - view->x; 
+  viewport_pos[1] = pos[1] - view->y;
+  coord0[0] = viewport_pos[0] * scale[0];
+  coord0[1] = viewport_pos[1] * scale[1];
+  coord1[0] = (viewport_pos[0] + size[0] - 1) * scale[0];
+  coord1[1] = (viewport_pos[1] + size[1] - 1) * scale[1];
+  coord1[0] = MIN(coord1[0], picking->desc.width);
+  coord1[1] = MIN(coord1[1], picking->desc.height);
+
+  /* Define the draw desc. */
   if(pick_type == RDR_PICK_MODEL_INSTANCE) {
-    draw_desc.shading_program = picking->shading.program;
     draw_desc.uniform_list = picking->shading.uniform_list;
     draw_desc.nb_uniforms = NB_PICK_UNIFORMS;
     draw_desc.draw_id_bias = 0;
     draw_desc.bind_flag = RDR_BIND_ATTRIB_POSITION;
   }
-  assert(0);
+
+  /* Draw the world into the picking buffer. */
+  RBI(&sys->rb, bind_framebuffer(sys->ctxt, picking->framebuffer.buffer));
+  RBI(&sys->rb, bind_program(sys->ctxt, picking->shading.program));
+  RDR(draw_world(world, &pick_view, &draw_desc));
+  RBI(&sys->rb, bind_framebuffer(sys->ctxt, NULL));
+  RBI(&sys->rb, bind_program(sys->ctxt, NULL));
+
+  /* Read back pick texture content. */
+  SL(clear_vector(picking->result.picked_model_instance_list));
+  SL(vector_push_back_n
+    (picking->result.picked_model_instance_list, 
+     (coord1[0] - coord0[0]) * (coord1[1] - coord0[0]), 
+     (uint32_t[]){0}));
+  /* TODO */
+
 exit:
   return rdr_err;
 error:

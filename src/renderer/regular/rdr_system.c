@@ -175,7 +175,7 @@ rdr_create_system
   rdr_err = rdr_init_im_rendering(sys);
   if(rdr_err != RDR_NO_ERROR)
     goto error;
-
+  
 exit:
   if(out_sys)
     *out_sys = sys;

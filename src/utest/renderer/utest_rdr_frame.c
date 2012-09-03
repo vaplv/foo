@@ -12,7 +12,7 @@
 #define OK RDR_NO_ERROR
 
 int
-main(int argc, char** argv) 
+main(int argc, char** argv)
 {
   const char* driver_name = NULL;
   int err = 0;
@@ -22,8 +22,8 @@ main(int argc, char** argv)
   struct wm_window_desc win_desc = {
     .width = 800, .height = 600, .fullscreen = false
   };
-  struct rdr_frame_desc frame_desc = { 
-    .width = win_desc.width, .height = win_desc.height 
+  struct rdr_frame_desc frame_desc = {
+    .width = win_desc.width, .height = win_desc.height
   };
   /* Renderer data structure. */
   struct rdr_frame* frame = NULL;
