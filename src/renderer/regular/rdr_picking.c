@@ -308,6 +308,8 @@ rdr_pick
 {
   struct rdr_draw_desc draw_desc;
   struct rdr_view pick_view;
+  uint32_t* buf = NULL;
+  size_t bufsiz = 0;
   float scale[2] = {0.f, 0.f}; /* scale factor from viewport to pick space. */
   unsigned int viewport_pos[2] = {0, 0}; /* position in viewport space. */
   unsigned int coord0[2] = {0, 0}; /* blit coordinate 0 */
@@ -365,7 +367,34 @@ rdr_pick
     (picking->result.picked_model_instance_list, 
      (coord1[0] - coord0[0]) * (coord1[1] - coord0[0]), 
      (uint32_t[]){0}));
-  /* TODO */
+  SL(vector_buffer
+    (picking->result.picked_model_instance_list, 
+     &bufsiz, NULL, NULL, (void**)&buf));
+
+  #ifndef NDEBUG
+  {
+    size_t tmp = 0;
+    RBI(&sys->rb, read_back_framebuffer
+      (picking->framebuffer.buffer,
+       0,
+       coord0[0], 
+       coord0[1],
+       coord1[0] - coord0[0], 
+       coord1[1] - coord1[1],
+       &tmp,
+       NULL));
+    assert(tmp == bufsiz);
+  }
+  #endif
+  RBI(&sys->rb, read_back_framebuffer
+    (picking->framebuffer.buffer,
+     0,
+     coord0[0], 
+     coord0[1],
+     coord1[0] - coord0[0], 
+     coord1[1] - coord1[1],
+     NULL,
+     buf));
 
 exit:
   return rdr_err;

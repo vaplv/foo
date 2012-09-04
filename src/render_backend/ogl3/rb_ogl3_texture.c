@@ -118,52 +118,6 @@ ogl3_type(enum rb_tex_format fmt)
   return type;
 }
 
-
-static FINLINE size_t
-sizeof_pixel(GLenum fmt, GLenum type)
-{
-  unsigned int ncomponents = 0;
-  size_t sizeof_component = 0;
-  switch(fmt) {
-    case GL_RED:
-    case GL_RED_INTEGER:
-      ncomponents = 1; break;
-    case GL_RG:
-    case GL_RG_INTEGER:
-      ncomponents = 2;
-      break;
-    case GL_RGB:
-    case GL_RGB_INTEGER:
-      ncomponents = 3;
-      break;
-    case GL_RGBA:
-    case GL_RGBA_INTEGER:
-      ncomponents = 4;
-      break;
-    case GL_DEPTH_COMPONENT:
-    case GL_DEPTH_STENCIL:
-      ncomponents = 1;
-      break;
-    default: assert(0); break;
-  }
-  switch(type) {
-    case GL_UNSIGNED_BYTE:
-      sizeof_component = sizeof(unsigned char);
-      break;
-    case GL_UNSIGNED_INT:
-      sizeof_component = sizeof(uint32_t);
-      break;
-    case GL_FLOAT:
-      sizeof_component = sizeof(float);
-      break;
-    case GL_UNSIGNED_INT_24_8:
-      sizeof_component = 4;
-      break;
-    default: assert(0); break;
-  }
-  return ncomponents * sizeof_component;
-}
-
 static void
 release_tex2d(struct ref* ref)
 {
@@ -244,7 +198,7 @@ rb_create_tex2d
     : ogl3_internal_format(desc->format);
 
   /* Define the mip parameters and the required size into the pixel buffer. */
-  pixel_size = sizeof_pixel(tex->format, tex->type);
+  pixel_size = rb_ogl3_sizeof_pixel(tex->format, tex->type);
   for(i = 0, size = 0; i < desc->mip_count; ++i) {
     tex->mip_list[i].pixbuf_offset = size;
     tex->mip_list[i].width = MAX(desc->width / (1<<i), 1);
@@ -331,7 +285,7 @@ rb_tex2d_data(struct rb_tex2d* tex, unsigned int level, const void* data)
     return -1;
   state_cache = &tex->ctxt->state_cache;
   mip_level = tex->mip_list + level;
-  pixel_size = sizeof_pixel(tex->format, tex->type);
+  pixel_size = rb_ogl3_sizeof_pixel(tex->format, tex->type);
   mip_size = mip_level->width * mip_level->height * pixel_size;
 
   #define TEX_IMAGE_2D(data) \
@@ -381,4 +335,54 @@ rb_tex2d_data(struct rb_tex2d* tex, unsigned int level, const void* data)
 }
 
 #undef BUFFER_OFFSET
+
+/*******************************************************************************
+ *
+ * Ogl3 texture functions.
+ *
+ ******************************************************************************/
+size_t
+rb_ogl3_sizeof_pixel(GLenum fmt, GLenum type)
+{
+  unsigned int ncomponents = 0;
+  size_t sizeof_component = 0;
+  switch(fmt) {
+    case GL_RED:
+    case GL_RED_INTEGER:
+      ncomponents = 1; break;
+    case GL_RG:
+    case GL_RG_INTEGER:
+      ncomponents = 2;
+      break;
+    case GL_RGB:
+    case GL_RGB_INTEGER:
+      ncomponents = 3;
+      break;
+    case GL_RGBA:
+    case GL_RGBA_INTEGER:
+      ncomponents = 4;
+      break;
+    case GL_DEPTH_COMPONENT:
+    case GL_DEPTH_STENCIL:
+      ncomponents = 1;
+      break;
+    default: assert(0); break;
+  }
+  switch(type) {
+    case GL_UNSIGNED_BYTE:
+      sizeof_component = sizeof(unsigned char);
+      break;
+    case GL_UNSIGNED_INT:
+      sizeof_component = sizeof(uint32_t);
+      break;
+    case GL_FLOAT:
+      sizeof_component = sizeof(float);
+      break;
+    case GL_UNSIGNED_INT_24_8:
+      sizeof_component = 4;
+      break;
+    default: assert(0); break;
+  }
+  return ncomponents * sizeof_component;
+}
 

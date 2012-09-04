@@ -449,6 +449,19 @@ RB_FUNC(
     const struct rb_render_target* depth_stencil /* May be NULL. */
 )
 
+RB_FUNC(
+  int,
+  read_back_framebuffer,
+    struct rb_framebuffer* buffer, 
+    int rt_id, /* Id of the render target to read. < 0 <=> depth stencil */
+    size_t x,
+    size_t y, 
+    size_t width,
+    size_t height,
+    size_t* read_size, /* Size of the read data. May be NULL. */
+    void* read_data /* May be NULL. */
+)
+
 /*******************************************************************************
  *
  * Miscellaneous functions.

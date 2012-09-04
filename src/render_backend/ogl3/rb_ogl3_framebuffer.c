@@ -10,9 +10,10 @@
 #include <stdbool.h>
 #include <string.h>
 
-struct render_target {
-  enum rb_render_target_type type;
-  void* resource;
+struct ogl3_render_target_desc {
+  GLenum format;
+  GLenum type;
+  size_t size;
 };
 
 struct rb_framebuffer {
@@ -20,8 +21,8 @@ struct rb_framebuffer {
   struct rb_framebuffer_desc desc;
   struct rb_context* ctxt;
   GLuint name;
-  struct render_target depth_stencil;
-  struct render_target render_target_list[];
+  struct rb_render_target depth_stencil;
+  struct rb_render_target render_target_list[];
 };
 
 /*******************************************************************************
@@ -29,24 +30,9 @@ struct rb_framebuffer {
  * Helper functions.
  *
  ******************************************************************************/
-/* Retrieve the render target of the buffer from the OGL attachment. */
-static struct render_target*
-attachment_to_render_target(struct rb_framebuffer* buffer, int attachment)
-{
-  struct render_target* rt = NULL;
-  assert(buffer);
-  if(attachment < 0) {
-    rt = &buffer->depth_stencil;
-  } else {
-    assert((unsigned int)attachment < buffer->desc.buffer_count);
-    rt = buffer->render_target_list + attachment;
-  }
-  return rt;
-}
-
 /* Release the render target resource if it exists. */
 static void
-release_render_target_resource(struct render_target* rt)
+release_render_target_resource(struct rb_render_target* rt)
 {
   assert(rt);
   if(rt->resource == NULL)
@@ -57,25 +43,32 @@ release_render_target_resource(struct render_target* rt)
       break;
     default: assert(0); break;
   }
-  rt->resource = NULL;
+  memset(rt, 0, sizeof(struct rb_render_target));
 }
 
 static int
 attach_tex2d
   (struct rb_framebuffer* buffer,
    int attachment,
-   unsigned int mip,
-   struct rb_tex2d* tex2d)
+   const struct rb_render_target* render_target)
 {
-  struct render_target* rt = NULL;
+  struct rb_render_target* rt = NULL;
+  struct rb_tex2d* tex2d = NULL;
   GLenum ogl3_attachment = GL_NONE;
+  unsigned int mip = 0;
   int err = 0;
 
-  assert(buffer);
+  assert
+    (  buffer 
+    && (attachment < 0 || (unsigned int)attachment < buffer->desc.buffer_count)
+    && render_target);
 
+  tex2d = (struct rb_tex2d*)render_target->resource;
+  mip = render_target->desc.tex2d.mip_level;
   if(attachment >= 0) {
     assert((unsigned int)attachment < buffer->desc.buffer_count);
     ogl3_attachment = GL_COLOR_ATTACHMENT0 + attachment;
+    rt = buffer->render_target_list + attachment;
   } else {
     switch(tex2d->format) {
       case GL_DEPTH_STENCIL:
@@ -88,8 +81,8 @@ attach_tex2d
         assert(0);
         break;
     }
-  }
-  rt = attachment_to_render_target(buffer, attachment);
+    rt = &buffer->depth_stencil;
+  } 
   if(!tex2d) {
     release_render_target_resource(rt);
     OGL(FramebufferTexture2D
@@ -102,10 +95,11 @@ attach_tex2d
     }
     release_render_target_resource(rt);
     RB(tex2d_ref_get(tex2d));
-    rt->resource = tex2d;
     OGL(FramebufferTexture2D
       (GL_FRAMEBUFFER, ogl3_attachment, GL_TEXTURE_2D, tex2d->name, mip));
   }
+  memcpy(rt, render_target, sizeof(struct rb_render_target));
+
 exit:
   return err;
 error:
@@ -120,24 +114,47 @@ attach_render_target
    const struct rb_render_target* render_target)
 {
   int err = 0;
-  assert(render_target);
+  assert
+    (  buffer 
+    && (attachment < 0 || (unsigned int)attachment < buffer->desc.buffer_count)
+    && render_target);
 
-  switch(render_target->type) {
+ switch(render_target->type) {
     case RB_RENDER_TARGET_TEXTURE2D:
-      err = attach_tex2d
-        (buffer,
-         attachment,
-         render_target->desc.tex2d.mip_level,
-         (struct rb_tex2d*)render_target->resource);
-      if(err != 0)
-        goto error;
+      err = attach_tex2d(buffer,attachment, render_target);
       break;
     default: assert(0); break;
   }
+
+  if(err != 0)
+    goto error;
+
 exit:
   return err;
 error:
   goto exit;
+}
+
+static void
+get_ogl3_render_target_desc
+  (const struct rb_render_target* target, 
+   struct ogl3_render_target_desc* ogl3_desc)
+{
+  struct rb_tex2d* tex2d = NULL;
+
+  assert(target);
+  switch(target->type) {
+    case RB_RENDER_TARGET_TEXTURE2D:
+      tex2d = (struct rb_tex2d*)target->resource;
+      ogl3_desc->format = tex2d->format;
+      ogl3_desc->type = tex2d->type;
+      ogl3_desc->size = 
+        tex2d->mip_list[target->desc.tex2d.mip_level].width
+      * tex2d->mip_list[target->desc.tex2d.mip_level].height;
+      break;
+    default: assert(0); break;
+  }
+  ogl3_desc->size *= rb_ogl3_sizeof_pixel(ogl3_desc->format, ogl3_desc->type);
 }
 
 static void
@@ -186,7 +203,7 @@ rb_create_framebuffer
   buffer = MEM_CALLOC
     (ctxt->allocator, 1,
      sizeof(struct rb_framebuffer)
-     + sizeof(struct render_target) * desc->buffer_count);
+     + sizeof(struct rb_render_target) * desc->buffer_count);
   if(!buffer)
     goto error;
   ref_init(&buffer->ref);
@@ -308,6 +325,56 @@ exit:
     OGL(BindFramebuffer
       (GL_FRAMEBUFFER, buffer->ctxt->state_cache.framebuffer_binding));
   }
+  return err;
+error:
+  err = -1;
+  goto exit;
+}
+
+EXPORT_SYM int
+rb_read_back_framebuffer
+  (struct rb_framebuffer* buffer,
+   int rt_id,
+   size_t x,
+   size_t y, 
+   size_t width,
+   size_t height,
+   size_t* read_size,
+   void* read_data)
+{
+  struct ogl3_render_target_desc desc;
+  struct rb_render_target* render_target = NULL;
+  int err = 0;
+  GLenum ogl3_attachment = GL_NONE;
+  memset(&desc, 0, sizeof(struct ogl3_render_target_desc));
+
+  if(UNLIKELY
+  (  !buffer 
+  || buffer->desc.sample_count > 1 /* read back is not supported on MS FBO. */
+  || (unsigned int)rt_id >= buffer->desc.buffer_count))
+    goto error;
+
+  if(rt_id > 0) {
+    render_target = buffer->render_target_list + rt_id;
+    ogl3_attachment = GL_COLOR_ATTACHMENT0 + rt_id;
+  } else {
+    render_target = &buffer->depth_stencil;
+    ogl3_attachment = GL_DEPTH_ATTACHMENT;
+  }
+
+  get_ogl3_render_target_desc(render_target, &desc);
+  if(read_size) {
+    *read_size = desc.size;
+  }
+  if(read_data) {
+    OGL(BindFramebuffer(GL_FRAMEBUFFER, buffer->name));
+    OGL(ReadBuffer(ogl3_attachment));
+    OGL(ReadPixels(x, y, width, height, desc.format, desc.type, read_data));
+    OGL(BindFramebuffer
+      (GL_FRAMEBUFFER, buffer->ctxt->state_cache.framebuffer_binding));
+  }
+
+exit:
   return err;
 error:
   err = -1;

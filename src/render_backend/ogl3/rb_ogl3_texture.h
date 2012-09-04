@@ -12,7 +12,6 @@ struct mip_level {
   unsigned int height;
 };
 
-
 struct rb_tex2d {
   struct ref ref;
   struct rb_context* ctxt;
@@ -24,5 +23,10 @@ struct rb_tex2d {
   GLenum type;
   GLuint name;
 };
+
+extern size_t
+rb_ogl3_sizeof_pixel
+  (GLenum format, 
+   GLenum type);
 
 #endif /* RB_OGL3_TEXTURE_H */
