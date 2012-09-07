@@ -5,6 +5,7 @@
 
 struct aosf44;
 struct rdr_draw_desc;
+struct rdr_model_instance;
 struct rdr_view;
 struct rdr_world;
 
@@ -18,6 +19,15 @@ extern enum rdr_error
 rdr_compute_projection_matrix
   (const struct rdr_view* view,
    struct aosf44* proj);
+
+/* Returned the list of instances registered against the world.
+ * The returned instances can be indexed by the draw id. */
+extern enum rdr_error
+rdr_get_world_model_instance_list
+  (struct rdr_world* world,
+   size_t* size,
+   struct rdr_model_instance** instance_list[]);
+                              
 
 #endif /* RDR_WORLD_C_H */
 

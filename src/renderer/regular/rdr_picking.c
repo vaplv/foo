@@ -5,6 +5,7 @@
 #include "renderer/regular/rdr_system_c.h"
 #include "renderer/regular/rdr_uniform.h"
 #include "renderer/regular/rdr_world_c.h"
+#include "renderer/rdr_model_instance.h"
 #include "render_backend/rbi.h"
 #include "renderer/rdr.h"
 #include "renderer/rdr_world.h"
@@ -19,7 +20,8 @@ enum { PICK_UNIFORM_MVP, PICK_UNIFORM_MDL_ID, NB_PICK_UNIFORMS };
 struct rdr_picking {
   struct rdr_picking_desc desc;
   struct result {
-    struct sl_vector* picked_model_instance_list; /* vector of draw id */
+    struct sl_vector* draw_id_list; /* vector of uint32 */
+    struct sl_vector* model_instance_list; /* vector of mdl instances. */
   } result;
   struct framebuffer {
     struct rb_framebuffer* buffer;
@@ -65,6 +67,172 @@ static const char* picking_fs_source =
  * Helper functions.
  *
  ******************************************************************************/
+static enum rdr_error
+draw_picked_world
+  (struct rdr_system* sys,
+   struct rdr_picking* picking,
+   struct rdr_world* world,
+   const struct rdr_view* view,
+   const unsigned int pos[2],
+   const unsigned int size[2],
+   enum rdr_pick pick_type)
+{
+  struct rdr_draw_desc draw_desc;
+  struct rdr_view pick_view;
+  float scale[2] = {0.f, 0.f}; /* scale factor from viewport to pick space. */
+  unsigned int viewport_pos[2] = {0, 0}; /* position in viewport space. */
+  unsigned int coord0[2] = {0, 0}; /* blit coordinate 0 */
+  unsigned int coord1[2] = {0, 0}; /* blit coordinate 1 */
+  memset(&draw_desc, 0, sizeof(struct rdr_draw_desc));
+
+  assert
+    (  sys
+    && pick_type
+    && world
+    && view
+    && pos
+    && size
+    && pick_type != RDR_PICK_NONE);
+
+  /* Adjust the input viewport to match the pick definition. */
+  memcpy(&pick_view, view, sizeof(struct rdr_view));
+  pick_view.x = pick_view.y = 0;
+  pick_view.width = picking->desc.width;
+  pick_view.height = picking->desc.height;
+
+  /* Compute the blit coordinates in pick space. */
+  scale[0] = (float)picking->desc.width / (float)(view->width - view->x);
+  scale[1] = (float)picking->desc.height / (float)(view->height - view->y);
+  viewport_pos[0] = pos[0] - view->x;
+  viewport_pos[1] = pos[1] - view->y;
+  coord0[0] = viewport_pos[0] * scale[0];
+  coord0[1] = viewport_pos[1] * scale[1];
+  coord1[0] = (viewport_pos[0] + size[0] - 1) * scale[0];
+  coord1[1] = (viewport_pos[1] + size[1] - 1) * scale[1];
+  coord1[0] = MIN(coord1[0], picking->desc.width);
+  coord1[1] = MIN(coord1[1], picking->desc.height);
+
+  /* Define the draw desc. */
+  if(pick_type == RDR_PICK_MODEL_INSTANCE) {
+    draw_desc.uniform_list = picking->shading.uniform_list;
+    draw_desc.nb_uniforms = NB_PICK_UNIFORMS;
+    draw_desc.draw_id_bias = 0;
+    draw_desc.bind_flag = RDR_BIND_ATTRIB_POSITION;
+  } else {
+    /* Unreachable code. */
+    assert(0);
+  }
+
+  /* Draw the world into the picking buffer. */
+  RBI(&sys->rb, bind_framebuffer(sys->ctxt, picking->framebuffer.buffer));
+  RBI(&sys->rb, bind_program(sys->ctxt, picking->shading.program));
+  RDR(draw_world(world, &pick_view, &draw_desc));
+  RBI(&sys->rb, bind_framebuffer(sys->ctxt, NULL));
+  RBI(&sys->rb, bind_program(sys->ctxt, NULL));
+
+  return RDR_NO_ERROR;
+}
+
+static enum rdr_error
+read_back_picking_buffer
+  (struct rdr_system* sys,
+   struct rdr_picking* picking,
+   const unsigned int pos[2],
+   const unsigned int size[2])
+{
+  uint32_t* buf = NULL;
+  size_t bufsize = 0;
+
+  /* Read back pick content. */
+  SL(clear_vector(picking->result.draw_id_list));
+  SL(vector_push_back_n
+    (picking->result.draw_id_list, size[0] * size[1], (uint32_t[]){0}));
+  SL(vector_buffer
+    (picking->result.draw_id_list, &bufsize, NULL, NULL, (void**)&buf));
+  #ifndef NDEBUG
+  {
+    size_t tmp = 0;
+    RBI(&sys->rb, read_back_framebuffer
+      (picking->framebuffer.buffer,
+       0, pos[0], pos[1], size[0], size[1], &tmp, NULL));
+    assert(tmp == bufsize);
+  }
+  #endif
+  RBI(&sys->rb, read_back_framebuffer
+    (picking->framebuffer.buffer,
+     0, pos[0], pos[1], size[0], size[1], NULL, buf));
+
+  return RDR_NO_ERROR;
+}
+
+static void
+cleanup_picked_objects
+  (struct rdr_system* sys UNUSED,
+   struct result* result,
+   enum rdr_pick pick_type UNUSED)
+{
+  struct rdr_model_instance** instance_list = NULL;
+  size_t nb_instances = 0;
+  size_t i = 0;
+
+  assert(sys && result && pick_type == RDR_PICK_MODEL_INSTANCE);
+
+  SL(vector_buffer
+     (result->model_instance_list,
+      &nb_instances,
+      NULL,
+      NULL,
+      (void**)&instance_list));
+  for(i = 0; i < nb_instances; ++i) {
+    RDR(model_instance_ref_put(instance_list[i]));
+  }
+  SL(clear_vector(result->model_instance_list));
+}
+
+static enum rdr_error
+select_picked_objects
+  (struct rdr_system* sys,
+   struct rdr_world* world,
+   struct result* result,
+   enum rdr_pick pick_type)
+{
+  struct rdr_model_instance** instance_list = NULL;
+  uint32_t* draw_id_list = NULL;
+  size_t nb_instances = 0;
+  size_t nb_draw_id = 0;
+  size_t i = 0;
+  enum rdr_error rdr_err = RDR_NO_ERROR;
+  enum sl_error sl_err = SL_NO_ERROR;
+  assert(sys && result && pick_type == RDR_PICK_MODEL_INSTANCE);
+
+  cleanup_picked_objects(sys, result, pick_type);
+
+  RDR(get_world_model_instance_list(world, &nb_instances, &instance_list));
+  SL(vector_buffer
+    (result->draw_id_list,
+     &nb_draw_id,
+     NULL,
+     NULL,
+     (void**)&draw_id_list));
+
+  for(i = 0; i < nb_draw_id; ++i) {
+    RDR(model_instance_ref_get(instance_list[i]));
+    assert(draw_id_list[i] < nb_instances);
+
+    sl_err = sl_vector_push_back
+      (result->model_instance_list, instance_list + draw_id_list[i]);
+    if(sl_err != SL_NO_ERROR) {
+      rdr_err = sl_to_rdr_error(sl_err);
+      goto error;
+    }
+  }
+exit:
+  return rdr_err;
+error:
+  cleanup_picked_objects(sys, result, pick_type);
+  goto exit;
+}
+
 static void
 release_framebuffer(struct rdr_system* sys, struct framebuffer* framebuffer)
 {
@@ -208,8 +376,12 @@ static void
 release_result(struct rdr_system* sys UNUSED, struct result* result)
 {
   assert(sys && result);
-  if(result->picked_model_instance_list)
-    SL(free_vector(result->picked_model_instance_list));
+  if(result->draw_id_list)
+    SL(free_vector(result->draw_id_list));
+
+  cleanup_picked_objects(sys, result, RDR_PICK_MODEL_INSTANCE);
+  if(result->model_instance_list)
+    SL(free_vector(result->model_instance_list));
   memset(result, 0, sizeof(struct result));
 }
 
@@ -224,7 +396,16 @@ init_result(struct rdr_system* sys, struct result* result)
     (sizeof(uint32_t),
      16,
      sys->allocator,
-     &result->picked_model_instance_list);
+     &result->draw_id_list);
+  if(sl_err != SL_NO_ERROR) {
+    rdr_err = sl_to_rdr_error(sl_err);
+    goto error;
+  }
+  sl_err = sl_create_vector
+    (sizeof(struct rdr_model_instance*),
+     ALIGNOF(struct rdr_model_instance*),
+     sys->allocator,
+     &result->model_instance_list);
   if(sl_err != SL_NO_ERROR) {
     rdr_err = sl_to_rdr_error(sl_err);
     goto error;
@@ -232,6 +413,7 @@ init_result(struct rdr_system* sys, struct result* result)
 exit:
   return rdr_err;
 error:
+  release_result(sys, result);
   goto exit;
 }
 
@@ -306,99 +488,37 @@ rdr_pick
    const unsigned int size[2],
    enum rdr_pick pick_type)
 {
-  struct rdr_draw_desc draw_desc;
-  struct rdr_view pick_view;
-  uint32_t* buf = NULL;
-  size_t bufsiz = 0;
-  float scale[2] = {0.f, 0.f}; /* scale factor from viewport to pick space. */
-  unsigned int viewport_pos[2] = {0, 0}; /* position in viewport space. */
-  unsigned int coord0[2] = {0, 0}; /* blit coordinate 0 */
-  unsigned int coord1[2] = {0, 0}; /* blit coordinate 1 */
   enum rdr_error rdr_err = RDR_NO_ERROR;
-  memset(&draw_desc, 0, sizeof(struct rdr_draw_desc));
 
   if(UNLIKELY(!picking || !world || !view || !pos || !size)) {
     rdr_err = RDR_INVALID_ARGUMENT;
     goto error;
   }
   if(pick_type == RDR_PICK_NONE
-  || pos[0] < view->x 
-  || pos[1] < view->y 
+  || pos[0] < view->x
+  || pos[1] < view->y
   || size[0] == 0
   || size[1] == 0)
     goto exit;
 
-  /* Adjust the input viewport to match the pick definition. */
-  memcpy(&pick_view, view, sizeof(struct rdr_view));
-  pick_view.x = pick_view.y = 0;
-  pick_view.width = picking->desc.width;
-  pick_view.height = picking->desc.height;
+  rdr_err = draw_picked_world(sys, picking, world, view, pos, size, pick_type);
+  if(rdr_err != RDR_NO_ERROR)
+    goto error;
 
-  /* Compute the blit coordinates in pick space. */
-  scale[0] = (float)picking->desc.width / (float)(view->width - view->x);
-  scale[1] = (float)picking->desc.height / (float)(view->height - view->y);
-  viewport_pos[0] = pos[0] - view->x; 
-  viewport_pos[1] = pos[1] - view->y;
-  coord0[0] = viewport_pos[0] * scale[0];
-  coord0[1] = viewport_pos[1] * scale[1];
-  coord1[0] = (viewport_pos[0] + size[0] - 1) * scale[0];
-  coord1[1] = (viewport_pos[1] + size[1] - 1) * scale[1];
-  coord1[0] = MIN(coord1[0], picking->desc.width);
-  coord1[1] = MIN(coord1[1], picking->desc.height);
+  rdr_err = read_back_picking_buffer(sys, picking, pos, size);
+  if(rdr_err != RDR_NO_ERROR)
+    goto error;
 
-  /* Define the draw desc. */
-  if(pick_type == RDR_PICK_MODEL_INSTANCE) {
-    draw_desc.uniform_list = picking->shading.uniform_list;
-    draw_desc.nb_uniforms = NB_PICK_UNIFORMS;
-    draw_desc.draw_id_bias = 0;
-    draw_desc.bind_flag = RDR_BIND_ATTRIB_POSITION;
-  }
-
-  /* Draw the world into the picking buffer. */
-  RBI(&sys->rb, bind_framebuffer(sys->ctxt, picking->framebuffer.buffer));
-  RBI(&sys->rb, bind_program(sys->ctxt, picking->shading.program));
-  RDR(draw_world(world, &pick_view, &draw_desc));
-  RBI(&sys->rb, bind_framebuffer(sys->ctxt, NULL));
-  RBI(&sys->rb, bind_program(sys->ctxt, NULL));
-
-  /* Read back pick texture content. */
-  SL(clear_vector(picking->result.picked_model_instance_list));
-  SL(vector_push_back_n
-    (picking->result.picked_model_instance_list, 
-     (coord1[0] - coord0[0]) * (coord1[1] - coord0[0]), 
-     (uint32_t[]){0}));
-  SL(vector_buffer
-    (picking->result.picked_model_instance_list, 
-     &bufsiz, NULL, NULL, (void**)&buf));
-
-  #ifndef NDEBUG
-  {
-    size_t tmp = 0;
-    RBI(&sys->rb, read_back_framebuffer
-      (picking->framebuffer.buffer,
-       0,
-       coord0[0], 
-       coord0[1],
-       coord1[0] - coord0[0], 
-       coord1[1] - coord1[1],
-       &tmp,
-       NULL));
-    assert(tmp == bufsiz);
-  }
-  #endif
-  RBI(&sys->rb, read_back_framebuffer
-    (picking->framebuffer.buffer,
-     0,
-     coord0[0], 
-     coord0[1],
-     coord1[0] - coord0[0], 
-     coord1[1] - coord1[1],
-     NULL,
-     buf));
+  rdr_err = select_picked_objects(sys, world, &picking->result, pick_type);
+  if(rdr_err != RDR_NO_ERROR)
+    goto error;
 
 exit:
   return rdr_err;
 error:
+  if(sys && picking) {
+    cleanup_picked_objects(sys, &picking->result, pick_type);
+  }
   goto exit;
 }
 

@@ -306,3 +306,16 @@ rdr_compute_projection_matrix(const struct rdr_view* view, struct aosf44* proj)
   return RDR_NO_ERROR;
 }
 
+enum rdr_error
+rdr_get_world_model_instance_list
+  (struct rdr_world* world,
+   size_t* size,
+   struct rdr_model_instance** instance_list[])
+{
+  if(UNLIKELY(!world || !size || !instance_list))
+    return RDR_INVALID_ARGUMENT;
+  SL(flat_set_buffer
+    (world->model_instance_list, size, NULL, NULL, (void**)instance_list));
+  return RDR_NO_ERROR;
+}
+
