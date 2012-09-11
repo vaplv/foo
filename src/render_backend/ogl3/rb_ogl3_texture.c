@@ -57,6 +57,10 @@ ogl3_internal_format(enum rb_tex_format fmt)
     case RB_RG_UINT16: ogl3_ifmt = GL_RG16UI; break;
     case RB_RGB_UINT16: ogl3_ifmt = GL_RGB16UI; break;
     case RB_RGBA_UINT16: ogl3_ifmt = GL_RGBA16UI; break;
+    case RB_R_UINT32: ogl3_ifmt = GL_R32UI; break;
+    case RB_RG_UINT32: ogl3_ifmt = GL_RG32UI; break;
+    case RB_RGB_UINT32: ogl3_ifmt = GL_RGB32UI; break;
+    case RB_RGBA_UINT32: ogl3_ifmt = GL_RGBA32UI; break;
     case RB_DEPTH_COMPONENT: ogl3_ifmt = GL_DEPTH_COMPONENT24; break;
     case RB_DEPTH_STENCIL: ogl3_ifmt = GL_DEPTH24_STENCIL8; break;
     default:
@@ -76,10 +80,22 @@ ogl3_format(enum rb_tex_format fmt)
     case RB_SRGB: ogl3_fmt = GL_RGB; break;
     case RB_RGBA: ogl3_fmt = GL_RGBA; break;
     case RB_SRGBA: ogl3_fmt = GL_RGBA; break;
-    case RB_R_UINT16: ogl3_fmt = GL_RED_INTEGER; break;
-    case RB_RG_UINT16: ogl3_fmt = GL_RG_INTEGER; break;
-    case RB_RGB_UINT16: ogl3_fmt = GL_RGB_INTEGER; break;
-    case RB_RGBA_UINT16: ogl3_fmt = GL_RGBA_INTEGER; break;
+    case RB_R_UINT16: 
+    case RB_R_UINT32: 
+      ogl3_fmt = GL_RED_INTEGER; 
+      break;
+    case RB_RG_UINT16: 
+    case RB_RG_UINT32: 
+      ogl3_fmt = GL_RG_INTEGER; 
+      break;
+    case RB_RGB_UINT16: 
+    case RB_RGB_UINT32: 
+      ogl3_fmt = GL_RGB_INTEGER; 
+      break;
+    case RB_RGBA_UINT16: 
+    case RB_RGBA_UINT32: 
+      ogl3_fmt = GL_RGBA_INTEGER; 
+      break;
     case RB_DEPTH_COMPONENT: ogl3_fmt = GL_DEPTH_COMPONENT; break;
     case RB_DEPTH_STENCIL: ogl3_fmt = GL_DEPTH_STENCIL; break;
     default: assert(0); break;
@@ -103,6 +119,10 @@ ogl3_type(enum rb_tex_format fmt)
     case RB_RG_UINT16:
     case RB_RGB_UINT16:
     case RB_RGBA_UINT16:
+    case RB_R_UINT32:
+    case RB_RG_UINT32:
+    case RB_RGB_UINT32:
+    case RB_RGBA_UINT32:
       type = GL_UNSIGNED_INT;
       break;
     case RB_DEPTH_COMPONENT:

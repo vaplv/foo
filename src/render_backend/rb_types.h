@@ -1,6 +1,7 @@
 #ifndef RB_TYPES
 #define RB_TYPES
 
+#include "sys/sys.h"
 #include <stddef.h>
 
 struct mem_allocator;
@@ -11,9 +12,9 @@ struct mem_allocator;
  *
  ******************************************************************************/
 enum {
-  RB_CLEAR_COLOR_BIT = 1<<0,
-  RB_CLEAR_DEPTH_BIT = 1<<1,
-  RB_CLEAR_STENCIL_BIT = 1<<2
+  RB_CLEAR_COLOR_BIT = BIT(0),
+  RB_CLEAR_DEPTH_BIT = BIT(1),
+  RB_CLEAR_STENCIL_BIT = BIT(2)
 };
 
 /*******************************************************************************
@@ -28,11 +29,16 @@ enum rb_tex_format {
   RB_RGBA,
   RB_SRGB,
   RB_SRGBA,
-  /* Unsigned int formats. */
+  /* Unsigned 16-bits integer formats. */
   RB_R_UINT16,
   RB_RG_UINT16,
   RB_RGB_UINT16,
   RB_RGBA_UINT16,
+  /* Unsigned 32-bits integer formats. */
+  RB_R_UINT32,
+  RB_RG_UINT32,
+  RB_RGB_UINT32,
+  RB_RGBA_UINT32,
   /* Special formats. */
   RB_DEPTH_COMPONENT,
   RB_DEPTH_STENCIL
@@ -266,6 +272,15 @@ struct rb_framebuffer_desc {
   unsigned int height;
   unsigned int sample_count;
   unsigned int buffer_count;
+};
+
+struct rb_clear_framebuffer_color_desc {
+  unsigned int index; /* Index of the color buffer to clear. */
+  union { /* Clear value. */
+    float rgba_f[4]; 
+    uint32_t rgba_ui32[4]; 
+    int32_t rgba_i32[4]; 
+  } val;
 };
 
 struct rb_render_target {

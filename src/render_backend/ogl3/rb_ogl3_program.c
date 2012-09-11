@@ -117,7 +117,7 @@ rb_detach_shader(struct rb_program* program, struct rb_shader* shader)
   if(!program || !shader || is_list_empty(&shader->attachment))
     return -1;
 
-  #ifndef NDEBUG
+#ifndef NDEBUG
   {
     struct list_node* node = NULL;
     int found = 0;
@@ -130,7 +130,7 @@ rb_detach_shader(struct rb_program* program, struct rb_shader* shader)
     if(!found)
       return -1;
   }
-  #endif
+#endif
   OGL(DetachShader(program->name, shader->name));
   list_del(&shader->attachment);
   RB(shader_ref_put(shader));
@@ -165,6 +165,9 @@ rb_link_program(struct rb_program* program)
 
     OGL(GetProgramInfoLog(program->name, log_length, NULL, program->log));
     err = -1;
+#ifndef NDEBUG
+    fprintf(stderr, "%s\n", program->log);
+#endif
   } else {
     MEM_FREE(program->ctxt->allocator, program->log);
     program->log = NULL;

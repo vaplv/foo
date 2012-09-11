@@ -59,7 +59,7 @@ attach_tex2d
   int err = 0;
 
   assert
-    (  buffer 
+    (  buffer
     && (attachment < 0 || (unsigned int)attachment < buffer->desc.buffer_count)
     && render_target);
 
@@ -82,7 +82,7 @@ attach_tex2d
         break;
     }
     rt = &buffer->depth_stencil;
-  } 
+  }
   if(!tex2d) {
     release_render_target_resource(rt);
     OGL(FramebufferTexture2D
@@ -115,7 +115,7 @@ attach_render_target
 {
   int err = 0;
   assert
-    (  buffer 
+    (  buffer
     && (attachment < 0 || (unsigned int)attachment < buffer->desc.buffer_count)
     && render_target);
 
@@ -137,7 +137,7 @@ error:
 
 static void
 get_ogl3_render_target_desc
-  (const struct rb_render_target* target, 
+  (const struct rb_render_target* target,
    struct ogl3_render_target_desc* ogl3_desc)
 {
   struct rb_tex2d* tex2d = NULL;
@@ -148,7 +148,7 @@ get_ogl3_render_target_desc
       tex2d = (struct rb_tex2d*)target->resource;
       ogl3_desc->format = tex2d->format;
       ogl3_desc->type = tex2d->type;
-      ogl3_desc->size = 
+      ogl3_desc->size =
         tex2d->mip_list[target->desc.tex2d.mip_level].width
       * tex2d->mip_list[target->desc.tex2d.mip_level].height;
       break;
@@ -248,7 +248,7 @@ rb_bind_framebuffer
   (struct rb_context* ctxt,
    struct rb_framebuffer* buffer)
 {
-  if(UNLIKELY(!ctxt || !buffer))
+  if(UNLIKELY(!ctxt))
     return -1;
   ctxt->state_cache.framebuffer_binding = buffer ? buffer->name : 0;
   OGL(BindFramebuffer(GL_FRAMEBUFFER, ctxt->state_cache.framebuffer_binding));
@@ -321,10 +321,8 @@ rb_framebuffer_render_targets
   }
 
 exit:
-  if(is_bound) {
-    OGL(BindFramebuffer
-      (GL_FRAMEBUFFER, buffer->ctxt->state_cache.framebuffer_binding));
-  }
+  OGL(BindFramebuffer
+    (GL_FRAMEBUFFER, buffer->ctxt->state_cache.framebuffer_binding));
   return err;
 error:
   err = -1;
@@ -336,7 +334,7 @@ rb_read_back_framebuffer
   (struct rb_framebuffer* buffer,
    int rt_id,
    size_t x,
-   size_t y, 
+   size_t y,
    size_t width,
    size_t height,
    size_t* read_size,
@@ -345,36 +343,103 @@ rb_read_back_framebuffer
   struct ogl3_render_target_desc desc;
   struct rb_render_target* render_target = NULL;
   int err = 0;
-  GLenum ogl3_attachment = GL_NONE;
   memset(&desc, 0, sizeof(struct ogl3_render_target_desc));
 
   if(UNLIKELY
-  (  !buffer 
+  (  !buffer
   || buffer->desc.sample_count > 1 /* read back is not supported on MS FBO. */
   || (unsigned int)rt_id >= buffer->desc.buffer_count))
     goto error;
 
-  if(rt_id > 0) {
-    render_target = buffer->render_target_list + rt_id;
-    ogl3_attachment = GL_COLOR_ATTACHMENT0 + rt_id;
-  } else {
-    render_target = &buffer->depth_stencil;
-    ogl3_attachment = GL_DEPTH_ATTACHMENT;
-  }
+  render_target =
+    rt_id >= 0 ? buffer->render_target_list + rt_id : &buffer->depth_stencil;
 
   get_ogl3_render_target_desc(render_target, &desc);
   if(read_size) {
-    *read_size = desc.size;
+    *read_size = width * height * rb_ogl3_sizeof_pixel(desc.format, desc.type);
   }
   if(read_data) {
     OGL(BindFramebuffer(GL_FRAMEBUFFER, buffer->name));
-    OGL(ReadBuffer(ogl3_attachment));
+    if(rt_id >= 0)
+      OGL(ReadBuffer(GL_COLOR_ATTACHMENT0 + rt_id));
+
     OGL(ReadPixels(x, y, width, height, desc.format, desc.type, read_data));
     OGL(BindFramebuffer
       (GL_FRAMEBUFFER, buffer->ctxt->state_cache.framebuffer_binding));
   }
 
 exit:
+  return err;
+error:
+  err = -1;
+  goto exit;
+}
+
+EXPORT_SYM int
+rb_clear_framebuffer_render_targets
+  (struct rb_framebuffer* buffer,
+   int clear_flag,
+   unsigned int count,
+   const struct rb_clear_framebuffer_color_desc* color_vals,
+   float depth_val,
+   char stencil_val)
+{
+  struct ogl3_render_target_desc rt_desc;
+  int err = 0;
+  int depth_stencil_flag = 0;
+  memset(&rt_desc, 0, sizeof(struct ogl3_render_target_desc));
+
+  if(UNLIKELY(!buffer))
+    goto error;
+
+  OGL(BindFramebuffer(GL_FRAMEBUFFER, buffer->name));
+
+  /* Clear the color render targets. */
+  if((clear_flag & RB_CLEAR_COLOR_BIT) != 0) {
+    unsigned int i = 0;
+    if(UNLIKELY(count && !color_vals))
+       goto error;
+    for(i = 0; i < count; ++i) {
+      const unsigned rt_id = color_vals[i].index;
+
+      if(UNLIKELY(rt_id >= buffer->desc.buffer_count))
+        goto error;
+
+      get_ogl3_render_target_desc(&buffer->render_target_list[rt_id], &rt_desc);
+      if(rt_desc.type == GL_UNSIGNED_INT) {
+        OGL(ClearBufferuiv(GL_COLOR, rt_id, color_vals[i].val.rgba_ui32));
+      } else if(rt_desc.type == GL_INT) {
+        OGL(ClearBufferiv(GL_COLOR, rt_id, color_vals[i].val.rgba_i32));
+      } else { /* float type */
+        OGL(ClearBufferfv(GL_COLOR, rt_id, color_vals[i].val.rgba_f));
+      }
+    }
+  }
+  /* Clear the depth stencil render target. */
+  depth_stencil_flag = clear_flag & (RB_CLEAR_DEPTH_BIT | RB_CLEAR_STENCIL_BIT);
+  if(depth_stencil_flag != 0) {
+    get_ogl3_render_target_desc(&buffer->depth_stencil, &rt_desc);
+
+    if(depth_stencil_flag == RB_CLEAR_DEPTH_BIT) {
+      GLfloat ogl3_depth_val = depth_val;
+      if(UNLIKELY(rt_desc.format != GL_DEPTH_COMPONENT))
+        goto error;
+      OGL(ClearBufferfv(GL_DEPTH, 0, (GLfloat[]){ogl3_depth_val}));
+    } else if(depth_stencil_flag == RB_CLEAR_STENCIL_BIT) {
+      GLint ogl3_stencil_val = stencil_val;
+      if(UNLIKELY(rt_desc.format != GL_DEPTH_STENCIL))
+        goto error;
+      OGL(ClearBufferiv(GL_STENCIL, 0, (GLint[]){ogl3_stencil_val}));
+    } else { /* depth_stencil_flag == RB_CLEAR_DEPTH_BIT|RB_CLEAR_STENCIL_BIT */
+      if(UNLIKELY(rt_desc.format != GL_DEPTH_STENCIL))
+        goto error;
+      OGL(ClearBufferfi(GL_DEPTH_STENCIL, 0, depth_val, (GLint)stencil_val));
+    }
+  }
+
+exit:
+  OGL(BindFramebuffer
+    (GL_FRAMEBUFFER, buffer->ctxt->state_cache.framebuffer_binding));
   return err;
 error:
   err = -1;

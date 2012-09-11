@@ -48,6 +48,12 @@ add_test(
   ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/librbnull.so)
 
 add_test(
+  rdr_frame_ogl3
+  ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/utest_rdr_frame
+  ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/librbogl3.so)
+
+
+add_test(
   rdr_material_null
   ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/utest_rdr_material
   ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/librbnull.so)
@@ -85,11 +91,6 @@ add_test(
 add_test(
   rdr_model_instance_ogl3
   ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/utest_rdr_model_instance
-  ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/librbogl3.so)
-
-add_test(
-  rdr_frame_ogl3
-  ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/utest_rdr_frame
   ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/librbogl3.so)
 
 add_test(

@@ -273,7 +273,7 @@ dispatch_uniform_data
   if(uniform_data_list == NULL) {
     for(i = 0; i < nb_uniforms; ++i) {
       /* TODO: cache the matrix transformation. */
-      switch(uniform_list[draw_id].usage) {
+      switch(uniform_list[i].usage) {
         case RDR_MODELVIEW_UNIFORM:
           aosf44_mulf44(&tmp_mat44, view_matrix, transform);
           aosf44_store(mat, &tmp_mat44);

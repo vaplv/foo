@@ -44,6 +44,7 @@ UNIFORM_VALUE(2fv)
 UNIFORM_VALUE(3fv)
 UNIFORM_VALUE(4fv)
 UNIFORM_VALUE(1iv)
+UNIFORM_VALUE(1uiv)
 UNIFORM_MATRIX_VALUE(2fv)
 UNIFORM_MATRIX_VALUE(3fv)
 UNIFORM_MATRIX_VALUE(4fv)
@@ -59,11 +60,15 @@ static void
     case GL_FLOAT_MAT2: return &uniform_matrix_2fv; break;
     case GL_FLOAT_MAT3: return &uniform_matrix_3fv; break;
     case GL_FLOAT_MAT4: return &uniform_matrix_4fv; break;
+    case GL_UNSIGNED_INT: return &uniform_1uiv; break;
     case GL_SAMPLER_1D:
     case GL_SAMPLER_2D:
+    case GL_UNSIGNED_INT_SAMPLER_1D:
+    case GL_UNSIGNED_INT_SAMPLER_2D:
       return &uniform_1iv;
       break;
     default:
+      assert(0);
       return NULL;
       break;
   }

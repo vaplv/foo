@@ -62,6 +62,7 @@ struct rdr_model {
   size_t sizeof_instance_attrib_data;
   size_t sizeof_uniform_data;
   /* Miscellaneous. */
+  bool hold_position;
   bool is_setuped;
   struct ref ref;
 };
@@ -160,7 +161,6 @@ bind_mtr_attrib_to_mesh_attrib
   enum rdr_error rdr_err = RDR_NO_ERROR;
   /* Used to manage errors. */
   bool is_vertex_array_updated = false;
-  bool is_vertex_pos_array_updated = false;
 
   assert(mtr_attr_desc
       && (!nb_mesh_attribs || mesh_attrib_list)
@@ -184,7 +184,6 @@ bind_mtr_attrib_to_mesh_attrib
         buffer_attrib.stride = mesh_attr->stride;
         buffer_attrib.offset = mesh_attr->offset;
         buffer_attrib.type = mesh_attr->type;
-
         err = model->sys->rb.vertex_attrib_array
           (model->vertex_array, mesh_data, 1, &buffer_attrib);
         if(err != 0) {
@@ -199,7 +198,6 @@ bind_mtr_attrib_to_mesh_attrib
             rdr_err = RDR_DRIVER_ERROR;
             goto error;
           }
-          is_vertex_pos_array_updated = true;
         }
         is_attr_bound = true;
         model->bound_attrib_index_list[mtr_attr_usage] = mtr_attr_desc->index;
@@ -214,10 +212,6 @@ error:
   if(is_vertex_array_updated) {
     RBI(&model->sys->rb, remove_vertex_attrib
       (model->vertex_array, 1, (const int[]){mtr_attr_desc->index}));
-  }
-  if(is_vertex_pos_array_updated) {
-    RBI(&model->sys->rb, remove_vertex_attrib
-    (model->vertex_pos_array, 1, (const int[]){mtr_attr_desc->index}));
   }
   goto exit;
 }
@@ -259,6 +253,7 @@ setup_model_vertex_array
     }
   }
 
+  /* Bind material attribs to mesh attribs. */
   for(i = 0; i < nb_mtr_attribs; ++i) {
     struct rb_attrib_desc mtr_attr_desc;
     struct rb_attrib* mtr_attr = mtr_attrib_list[i];
@@ -310,6 +305,57 @@ error:
   }
   sizeof_instance_attrib_data = 0;
 
+  goto exit;
+}
+
+static enum rdr_error
+setup_model_vertex_pos_array
+  (size_t nb_mesh_attribs,
+   struct rdr_mesh_attrib_desc* mesh_attrib_list,
+   struct rb_buffer* mesh_data,
+   struct rb_buffer* mesh_indices,
+   struct rdr_model* mdl)
+{
+  size_t i = 0;
+  int err = 0;
+  enum rdr_error rdr_err = RDR_NO_ERROR;
+  bool is_vertex_pos_array_updated = false;
+
+  assert((!nb_mesh_attribs || mesh_attrib_list) && mdl);
+
+  mdl->hold_position = false;
+  for(i = 0; i < nb_mesh_attribs && !mdl->hold_position; ++i) {
+    mdl->hold_position = (mesh_attrib_list[i].usage == RDR_ATTRIB_POSITION);
+    if(mdl->hold_position) {
+      struct rb_buffer_attrib buffer_attrib;
+
+      buffer_attrib.index = RDR_ATTRIB_POSITION_ID;
+      buffer_attrib.stride = mesh_attrib_list[i].stride;
+      buffer_attrib.offset = mesh_attrib_list[i].offset;
+      buffer_attrib.type = mesh_attrib_list[i].type;
+      err = mdl->sys->rb.vertex_attrib_array
+        (mdl->vertex_pos_array, mesh_data, 1, &buffer_attrib);
+      if(err != 0) {
+        rdr_err = RDR_DRIVER_ERROR;
+        goto error;
+      }
+      is_vertex_pos_array_updated = true;
+    }
+  }
+
+  err = mdl->sys->rb.vertex_index_array(mdl->vertex_pos_array, mesh_indices);
+  if(err != 0) {
+    rdr_err = RDR_DRIVER_ERROR;
+    goto error;
+  }
+
+exit:
+  return rdr_err;
+error:
+  if(is_vertex_pos_array_updated) {
+    RBI(&mdl->sys->rb, remove_vertex_attrib
+      (mdl->vertex_pos_array, 1, (const int[]){0}));
+  }
   goto exit;
 }
 
@@ -445,6 +491,12 @@ setup_model(struct rdr_model* model)
 
   rdr_err = setup_model_uniforms
     (mtr_desc.nb_uniforms, mtr_desc.uniform_list, model);
+  if(rdr_err != RDR_NO_ERROR)
+    goto error;
+
+  /* Setup the model position vertex array. */
+  rdr_err = setup_model_vertex_pos_array
+     (nb_mesh_attribs, mesh_attrib_list, mesh_data, mesh_indices, model);
   if(rdr_err != RDR_NO_ERROR)
     goto error;
 
@@ -856,6 +908,10 @@ rdr_bind_model
       vertex_array = model->vertex_array;
       mtr = model->material;
     } else if(flag == RDR_BIND_ATTRIB_POSITION) {
+      if(model->hold_position == false) {
+        rdr_err = RDR_INVALID_ARGUMENT;
+        goto error;
+      }
       vertex_array = model->vertex_pos_array;
     } else {
       rdr_err = RDR_INVALID_ARGUMENT;

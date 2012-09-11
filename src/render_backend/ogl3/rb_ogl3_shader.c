@@ -123,9 +123,9 @@ rb_shader_source(struct rb_shader* shader, const char* source, int length)
 
     OGL(GetShaderInfoLog(shader->name, log_length, NULL, shader->log));
     err = -1;
-    #ifndef NDEBUG
-    printf("%s\n", shader->log);
-    #endif
+#ifndef NDEBUG
+   fprintf(stderr, "%s\n", shader->log);
+#endif
   } else {
     MEM_FREE(shader->ctxt->allocator, shader->log);
     shader->log = NULL;

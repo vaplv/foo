@@ -756,13 +756,24 @@ rdr_flush_frame(struct rdr_frame* frame)
      0));
 
   /* Flush pick commands. */
-   LIST_FOR_EACH_SAFE(node, tmp, &frame->pick_model_instance_list) {
+  LIST_FOR_EACH_SAFE(node, tmp, &frame->pick_model_instance_list) {
     struct pick_node* pick_node = CONTAINER_OF(node, struct pick_node, node);
-    /* TODO */ 
+    RDR(pick
+      (frame->sys, 
+       frame->picking, 
+       pick_node->world, 
+       &pick_node->view,
+       pick_node->pos,
+       pick_node->size,
+       RDR_PICK_MODEL_INSTANCE));
     RDR(world_ref_put(pick_node->world));
     list_del(node);
   }
   frame->pick_node_id = 0;
+
+  /* FIXME for debug only
+  RDR(show_pick_buffer(frame->sys, frame->picking)); */
+
   /* Flush world rendering. */
   LIST_FOR_EACH_SAFE(node, tmp, &frame->draw_world_list) {
     struct world_node* world_node = CONTAINER_OF(node, struct world_node, node);

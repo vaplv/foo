@@ -39,5 +39,12 @@ rdr_pick
    const unsigned int size[2], /* in screen space pixels. */
    enum rdr_pick pick_type);
 
+/* Draw the pick buffer into the default framebuffer. */
+extern enum rdr_error
+rdr_show_pick_buffer
+  (struct rdr_system* sys,
+   struct rdr_picking* picking);
+
+
 #endif /* RDR_PICKING_H */
 

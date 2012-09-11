@@ -29,4 +29,12 @@ rb_ogl3_sizeof_pixel
   (GLenum format, 
    GLenum type);
 
+extern int
+rb_ogl3_is_uint_type
+  (GLenum type);
+
+extern int
+rb_ogl3_is_int_type
+  (GLenum type);
+
 #endif /* RB_OGL3_TEXTURE_H */

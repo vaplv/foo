@@ -451,6 +451,17 @@ RB_FUNC(
 
 RB_FUNC(
   int,
+  clear_framebuffer_render_targets,
+    struct rb_framebuffer* buffer,
+    int clear_flag,
+    unsigned int count,
+    const struct rb_clear_framebuffer_color_desc* color_vals,
+    float depth_val,
+    char stencil_val
+)
+
+RB_FUNC(
+  int,
   read_back_framebuffer,
     struct rb_framebuffer* buffer, 
     int rt_id, /* Id of the render target to read. < 0 <=> depth stencil */
@@ -458,7 +469,7 @@ RB_FUNC(
     size_t y, 
     size_t width,
     size_t height,
-    size_t* read_size, /* Size of the read data. May be NULL. */
+    size_t* read_size, /* Size in bytes of the read data. May be NULL. */
     void* read_data /* May be NULL. */
 )
 

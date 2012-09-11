@@ -25,7 +25,7 @@ struct rdr_picking {
   } result;
   struct framebuffer {
     struct rb_framebuffer* buffer;
-    struct rb_tex2d* picking_tex; /* TODO replace by a render buffer. */
+    struct rb_tex2d* picking_tex;
     struct rb_tex2d* depth_stencil_tex; /* TODO replace by a render buffer. */
   } framebuffer;
   struct shading {
@@ -34,6 +34,14 @@ struct rdr_picking {
     struct rb_shader* fragment_shader;
     struct rdr_uniform uniform_list[NB_PICK_UNIFORMS];
   } shading;
+  struct debug {
+    struct rb_program* program;
+    struct rb_shader* vertex_shader;
+    struct rb_shader* fragment_shader;
+    struct rb_uniform* scale_bias;
+    struct rb_uniform* pick_buffer;
+    struct rb_sampler* sampler;
+  } debug;
 };
 
 /*******************************************************************************
@@ -62,6 +70,29 @@ static const char* picking_fs_source =
   " out_id = id;\n"
   "}\n";
 
+static const char* show_picking_vs_source =
+  "#version 330\n"
+  "layout(location = 0) in vec2 pos;\n"
+  "void main()\n"
+  "{\n"
+  " gl_Position = vec4(pos * vec2(2.f) - vec2(1.f), vec2(0.f, 1.f));\n"
+  "}\n";
+
+static const char* show_picking_fs_source =
+  "#version 330\n"
+  "uniform usampler2D pick_buffer;\n"
+  "out vec4 color;\n"
+  "uniform vec4 scale_bias;\n"
+  "void main()\n"
+  "{\n"
+  "  vec2 uv = gl_FragCoord.xy * scale_bias.xy + scale_bias.zw;\n"
+  "  uint val = texture(pick_buffer, uv).r;\n"
+  "  color.r = val & 0xFFu;\n"
+  "  color.g = (val >> 8u) & 0xFFu;\n"
+  "  color.b = (val >> 16u) & 0xFFu;\n"
+  "  color.a = (val >> 24u) & 0xFFu;\n"
+  "}\n";
+
 /*******************************************************************************
  *
  * Helper functions.
@@ -77,6 +108,10 @@ draw_picked_world
    const unsigned int size[2],
    enum rdr_pick pick_type)
 {
+  const struct rb_clear_framebuffer_color_desc clear_desc = {
+    .index = 0,
+    .val = { .rgba_ui32 = { UINT32_MAX, UINT32_MAX, UINT32_MAX, UINT32_MAX } }
+  };
   struct rdr_draw_desc draw_desc;
   struct rdr_view pick_view;
   float scale[2] = {0.f, 0.f}; /* scale factor from viewport to pick space. */
@@ -87,7 +122,7 @@ draw_picked_world
 
   assert
     (  sys
-    && pick_type
+    && picking
     && world
     && view
     && pos
@@ -124,6 +159,11 @@ draw_picked_world
   }
 
   /* Draw the world into the picking buffer. */
+  RBI(&sys->rb, clear_framebuffer_render_targets
+    (picking->framebuffer.buffer,
+     RB_CLEAR_COLOR_BIT | RB_CLEAR_DEPTH_BIT,
+     1, &clear_desc, 0.f, 0));
+
   RBI(&sys->rb, bind_framebuffer(sys->ctxt, picking->framebuffer.buffer));
   RBI(&sys->rb, bind_program(sys->ctxt, picking->shading.program));
   RDR(draw_world(world, &pick_view, &draw_desc));
@@ -146,18 +186,18 @@ read_back_picking_buffer
   /* Read back pick content. */
   SL(clear_vector(picking->result.draw_id_list));
   SL(vector_push_back_n
-    (picking->result.draw_id_list, size[0] * size[1], (uint32_t[]){0}));
+    (picking->result.draw_id_list, size[0] * size[1],(uint32_t[]){UINT32_MAX}));
   SL(vector_buffer
     (picking->result.draw_id_list, &bufsize, NULL, NULL, (void**)&buf));
-  #ifndef NDEBUG
+#ifndef NDEBUG
   {
     size_t tmp = 0;
     RBI(&sys->rb, read_back_framebuffer
       (picking->framebuffer.buffer,
        0, pos[0], pos[1], size[0], size[1], &tmp, NULL));
-    assert(tmp == bufsize);
+    assert(tmp <= bufsize * sizeof(uint32_t));
   }
-  #endif
+#endif
   RBI(&sys->rb, read_back_framebuffer
     (picking->framebuffer.buffer,
      0, pos[0], pos[1], size[0], size[1], NULL, buf));
@@ -216,14 +256,18 @@ select_picked_objects
      (void**)&draw_id_list));
 
   for(i = 0; i < nb_draw_id; ++i) {
-    RDR(model_instance_ref_get(instance_list[i]));
-    assert(draw_id_list[i] < nb_instances);
+    if(draw_id_list[i] != UINT32_MAX) {
+      struct rdr_model_instance* instance = NULL;
+      assert(draw_id_list[i] < nb_instances);
 
-    sl_err = sl_vector_push_back
-      (result->model_instance_list, instance_list + draw_id_list[i]);
-    if(sl_err != SL_NO_ERROR) {
-      rdr_err = sl_to_rdr_error(sl_err);
-      goto error;
+      instance = instance_list[draw_id_list[i]];
+      RDR(model_instance_ref_get(instance));
+
+      sl_err = sl_vector_push_back(result->model_instance_list, instance);
+      if(sl_err != SL_NO_ERROR) {
+        rdr_err = sl_to_rdr_error(sl_err);
+        goto error;
+      }
     }
   }
 exit:
@@ -284,7 +328,7 @@ init_framebuffer
   tex2ddesc.width = width;
   tex2ddesc.height = height;
   tex2ddesc.mip_count = 1;
-  tex2ddesc.format = RB_R_UINT16;
+  tex2ddesc.format = RB_R_UINT32;
   tex2ddesc.usage = RB_USAGE_DEFAULT;
   tex2ddesc.compress = 0;
   CALL(sys->rb.create_tex2d
@@ -320,6 +364,8 @@ static void
 release_shading(struct rdr_system* sys, struct shading* shading)
 {
   size_t i = 0;
+  assert(sys && shading);
+
   if(shading->vertex_shader)
     RBI(&sys->rb, shader_ref_put(shading->vertex_shader));
   if(shading->fragment_shader)
@@ -368,6 +414,71 @@ init_shading(struct rdr_system* sys, struct shading* shading)
   RBI(&sys->rb, get_named_uniform
     (sys->ctxt, shading->program, "mvp",
      &shading->uniform_list[PICK_UNIFORM_MVP].uniform));
+
+  return RDR_NO_ERROR;
+}
+
+static void
+release_debug(struct rdr_system* sys, struct debug* debug)
+{
+  assert(sys && debug);
+
+  if(debug->vertex_shader)
+    RBI(&sys->rb, shader_ref_put(debug->vertex_shader));
+  if(debug->fragment_shader)
+    RBI(&sys->rb, shader_ref_put(debug->fragment_shader));
+  if(debug->program)
+    RBI(&sys->rb, program_ref_put(debug->program));
+  if(debug->scale_bias)
+    RBI(&sys->rb, uniform_ref_put(debug->scale_bias));
+  if(debug->pick_buffer)
+    RBI(&sys->rb, uniform_ref_put(debug->pick_buffer));
+  if(debug->sampler)
+    RBI(&sys->rb, sampler_ref_put(debug->sampler));
+  memset(debug, 0, sizeof(struct debug));
+}
+
+static enum rdr_error
+init_debug(struct rdr_system* sys, struct debug* debug)
+{
+  struct rb_sampler_desc sampler_desc;
+  memset(&sampler_desc, 0, sizeof(struct rb_sampler_desc));
+  assert(sys && debug);
+
+  /* Compile the shader sources. */
+  RBI(&sys->rb, create_shader
+    (sys->ctxt,
+     RB_VERTEX_SHADER,
+     show_picking_vs_source,
+     strlen(show_picking_vs_source),
+     &debug->vertex_shader));
+  RBI(&sys->rb, create_shader
+    (sys->ctxt,
+     RB_FRAGMENT_SHADER,
+     show_picking_fs_source,
+     strlen(show_picking_fs_source),
+     &debug->fragment_shader));
+
+  /* Link a shading program from the compiled shader source. */
+  RBI(&sys->rb, create_program(sys->ctxt, &debug->program));
+  RBI(&sys->rb, attach_shader(debug->program, debug->vertex_shader));
+  RBI(&sys->rb, attach_shader(debug->program, debug->fragment_shader));
+  RBI(&sys->rb, link_program(debug->program));
+  RBI(&sys->rb, get_named_uniform
+    (sys->ctxt, debug->program, "scale_bias", &debug->scale_bias));
+  RBI(&sys->rb, get_named_uniform
+    (sys->ctxt, debug->program, "pick_buffer", &debug->pick_buffer));
+
+  /* Create the sampler. */
+  sampler_desc.filter = RB_MIN_POINT_MAG_POINT_MIP_POINT;
+  sampler_desc.address_u = RB_ADDRESS_CLAMP;
+  sampler_desc.address_v = RB_ADDRESS_CLAMP;
+  sampler_desc.address_w = RB_ADDRESS_CLAMP;
+  sampler_desc.lod_bias = 0;
+  sampler_desc.min_lod = 0.f;
+  sampler_desc.max_lod = 1.f;
+  sampler_desc.max_anisotropy = 1;
+  RBI(&sys->rb, create_sampler(sys->ctxt, &sampler_desc, &debug->sampler));
 
   return RDR_NO_ERROR;
 }
@@ -450,6 +561,10 @@ rdr_create_picking
   if(rdr_err != RDR_NO_ERROR)
     goto error;
 
+  rdr_err = init_debug(sys, &picking->debug);
+  if(rdr_err != RDR_NO_ERROR)
+    goto error;
+
   rdr_err = init_result(sys, &picking->result);
   if(rdr_err != RDR_NO_ERROR)
     goto error;
@@ -473,6 +588,7 @@ rdr_free_picking(struct rdr_system* sys, struct rdr_picking* picking)
     return RDR_INVALID_ARGUMENT;
   release_framebuffer(sys, &picking->framebuffer);
   release_shading(sys, &picking->shading);
+  release_debug(sys, &picking->debug);
   release_result(sys, &picking->result);
   MEM_FREE(sys->allocator, picking);
   return RDR_NO_ERROR;
@@ -490,7 +606,7 @@ rdr_pick
 {
   enum rdr_error rdr_err = RDR_NO_ERROR;
 
-  if(UNLIKELY(!picking || !world || !view || !pos || !size)) {
+  if(UNLIKELY(!sys || !picking || !world || !view || !pos || !size)) {
     rdr_err = RDR_INVALID_ARGUMENT;
     goto error;
   }
@@ -522,4 +638,56 @@ error:
   goto exit;
 }
 
+extern enum rdr_error
+rdr_show_pick_buffer(struct rdr_system* sys, struct rdr_picking* picking)
+{
+  struct rb_depth_stencil_desc depth_stencil_desc;
+  struct rb_viewport_desc viewport_desc;
+  float scale_bias[4] = { 0.f, 0.f, 0.f, 0.f };
+  const int pick_buffer_tex_unit = 0;
+  enum rdr_error rdr_err = RDR_NO_ERROR;
+  memset(&depth_stencil_desc, 0, sizeof(struct rb_depth_stencil_desc));
+  memset(&viewport_desc, 0, sizeof(struct rb_viewport_desc));
+
+  if(UNLIKELY(!sys || !picking)) {
+    rdr_err = RDR_INVALID_ARGUMENT;
+    goto error;
+  }
+
+  depth_stencil_desc.enable_depth_test = 0;
+  depth_stencil_desc.enable_depth_write = 0;
+  depth_stencil_desc.enable_stencil_test = 0;
+  depth_stencil_desc.front_face_op.write_mask = 0;
+  depth_stencil_desc.back_face_op.write_mask = 0;
+  RBI(&sys->rb, depth_stencil(sys->ctxt, &depth_stencil_desc));
+
+  viewport_desc.x = 0;
+  viewport_desc.y = 0;
+  viewport_desc.width = picking->desc.width;
+  viewport_desc.height = picking->desc.height;
+  viewport_desc.min_depth = 0.f;
+  viewport_desc.max_depth = 1.f;
+  RBI(&sys->rb, viewport(sys->ctxt, &viewport_desc));
+
+  RBI(&sys->rb, bind_tex2d
+    (sys->ctxt, picking->framebuffer.picking_tex, pick_buffer_tex_unit));
+  RBI(&sys->rb, bind_sampler
+    (sys->ctxt, picking->debug.sampler, pick_buffer_tex_unit));
+  RBI(&sys->rb, bind_program(sys->ctxt, picking->debug.program));
+
+  scale_bias[0] = 1.f / (float)viewport_desc.width;
+  scale_bias[1] = 1.f / (float)viewport_desc.height;
+  scale_bias[2] = 0.f;
+  scale_bias[3] = 0.f;
+  RBI(&sys->rb, uniform_data(picking->debug.scale_bias, 1, (void*)scale_bias));
+  RBI(&sys->rb, uniform_data
+    (picking->debug.pick_buffer, 1, (void*)(int[]){pick_buffer_tex_unit}));
+  RBU(draw_geometry(&sys->rbu.quad));
+  RBI(&sys->rb, bind_program(sys->ctxt, NULL));
+
+exit:
+  return rdr_err;
+error:
+  goto exit;
+}
 
