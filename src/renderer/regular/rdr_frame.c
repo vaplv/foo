@@ -771,9 +771,6 @@ rdr_flush_frame(struct rdr_frame* frame)
   }
   frame->pick_node_id = 0;
 
-  /* FIXME for debug only
-  RDR(show_pick_buffer(frame->sys, frame->picking)); */
-
   /* Flush world rendering. */
   LIST_FOR_EACH_SAFE(node, tmp, &frame->draw_world_list) {
     struct world_node* world_node = CONTAINER_OF(node, struct world_node, node);

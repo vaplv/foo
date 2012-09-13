@@ -35,11 +35,13 @@ struct rdr_picking {
     struct rdr_uniform uniform_list[NB_PICK_UNIFORMS];
   } shading;
   struct debug {
+    unsigned int max_draw_id;  /* Max draw id potentilly drawn. */
     struct rb_program* program;
     struct rb_shader* vertex_shader;
     struct rb_shader* fragment_shader;
-    struct rb_uniform* scale_bias;
-    struct rb_uniform* pick_buffer;
+    struct rb_uniform* scale_bias_uniform;
+    struct rb_uniform* max_draw_id_uniform;
+    struct rb_uniform* pick_buffer_uniform;
     struct rb_sampler* sampler;
   } debug;
 };
@@ -83,14 +85,27 @@ static const char* show_picking_fs_source =
   "uniform usampler2D pick_buffer;\n"
   "out vec4 color;\n"
   "uniform vec4 scale_bias;\n"
+  "uniform uint max_draw_id;\n"
   "void main()\n"
   "{\n"
   "  vec2 uv = gl_FragCoord.xy * scale_bias.xy + scale_bias.zw;\n"
   "  uint val = texture(pick_buffer, uv).r;\n"
-  "  color.r = val & 0xFFu;\n"
-  "  color.g = (val >> 8u) & 0xFFu;\n"
-  "  color.b = (val >> 16u) & 0xFFu;\n"
-  "  color.a = (val >> 24u) & 0xFFu;\n"
+  "  uint max_id = max_draw_id;\n"
+  "\n"
+  "  uint norm = min(255u, max_id);\n"
+  "  color.r = (val & 0xFFu) / float(norm);\n"
+  "\n"
+  "  max_id -= norm;\n"
+  "  norm = min(255u, max_id);\n"
+  "  color.g = ((val >> 8u) & 0xFFu) / float(norm);\n"
+  "\n"
+  "  max_id -= norm;\n"
+  "  norm = min(255u, max_id);\n"
+  "  color.b = ((val >> 16u) & 0xFFu) / float(norm);\n"
+  "\n"
+  "  max_id -= norm;\n"
+  "  norm = min(255u, max_id);\n"
+  "  color.a = ((val >> 24u) & 0xFFu) / float(norm);\n"
   "}\n";
 
 /*******************************************************************************
@@ -114,11 +129,7 @@ draw_picked_world
   };
   struct rdr_draw_desc draw_desc;
   struct rdr_view pick_view;
-  float scale[2] = {0.f, 0.f}; /* scale factor from viewport to pick space. */
-  unsigned int viewport_pos[2] = {0, 0}; /* position in viewport space. */
-  unsigned int coord0[2] = {0, 0}; /* blit coordinate 0 */
-  unsigned int coord1[2] = {0, 0}; /* blit coordinate 1 */
-  memset(&draw_desc, 0, sizeof(struct rdr_draw_desc));
+    memset(&draw_desc, 0, sizeof(struct rdr_draw_desc));
 
   assert
     (  sys
@@ -135,18 +146,6 @@ draw_picked_world
   pick_view.width = picking->desc.width;
   pick_view.height = picking->desc.height;
 
-  /* Compute the blit coordinates in pick space. */
-  scale[0] = (float)picking->desc.width / (float)(view->width - view->x);
-  scale[1] = (float)picking->desc.height / (float)(view->height - view->y);
-  viewport_pos[0] = pos[0] - view->x;
-  viewport_pos[1] = pos[1] - view->y;
-  coord0[0] = viewport_pos[0] * scale[0];
-  coord0[1] = viewport_pos[1] * scale[1];
-  coord1[0] = (viewport_pos[0] + size[0] - 1) * scale[0];
-  coord1[1] = (viewport_pos[1] + size[1] - 1) * scale[1];
-  coord1[0] = MIN(coord1[0], picking->desc.width);
-  coord1[1] = MIN(coord1[1], picking->desc.height);
-
   /* Define the draw desc. */
   if(pick_type == RDR_PICK_MODEL_INSTANCE) {
     draw_desc.uniform_list = picking->shading.uniform_list;
@@ -162,7 +161,7 @@ draw_picked_world
   RBI(&sys->rb, clear_framebuffer_render_targets
     (picking->framebuffer.buffer,
      RB_CLEAR_COLOR_BIT | RB_CLEAR_DEPTH_BIT,
-     1, &clear_desc, 0.f, 0));
+     1, &clear_desc, 1.f, 0));
 
   RBI(&sys->rb, bind_framebuffer(sys->ctxt, picking->framebuffer.buffer));
   RBI(&sys->rb, bind_program(sys->ctxt, picking->shading.program));
@@ -177,16 +176,40 @@ static enum rdr_error
 read_back_picking_buffer
   (struct rdr_system* sys,
    struct rdr_picking* picking,
+   const struct rdr_view* view,
    const unsigned int pos[2],
    const unsigned int size[2])
 {
   uint32_t* buf = NULL;
   size_t bufsize = 0;
+  float scale[2] = {0.f, 0.f}; /* scale factor from viewport to pick space. */
+  unsigned int pick_pos[2] = {0, 0}; /* position in viewport space. */
+  unsigned int blit_pos0[2] = {0, 0};
+  unsigned int blit_pos1[2] = {0, 0};
+  unsigned int blit_size[2] = {0, 0};
+
+  /* Compute the viewport to pick spcae scale factor. */
+  scale[0] = (float)picking->desc.width / (float)(view->width - view->x);
+  scale[1] = (float)picking->desc.height / (float)(view->height - view->y);
+  /* Compute the pick position in pick space. */
+  pick_pos[0] = pos[0] - view->x;
+  pick_pos[1] = pos[1] - view->y;
+  /* Defint the blit rectangle in pick space. */
+  blit_pos0[0] = pick_pos[0] * scale[0];
+  blit_pos0[1] = pick_pos[1] * scale[1];
+  blit_pos1[0] = pick_pos[0] + size[0] * scale[0];
+  blit_pos1[1] = pick_pos[1] + size[1] * scale[1];
+  blit_pos1[0] = MIN(blit_pos1[0], picking->desc.width);
+  blit_pos1[1] = MIN(blit_pos1[1], picking->desc.height);
+  blit_size[0] = blit_pos1[0] - blit_pos0[0];
+  blit_size[1] = blit_pos1[1] - blit_pos0[1];
 
   /* Read back pick content. */
   SL(clear_vector(picking->result.draw_id_list));
   SL(vector_push_back_n
-    (picking->result.draw_id_list, size[0] * size[1],(uint32_t[]){UINT32_MAX}));
+    (picking->result.draw_id_list,
+     blit_size[0] * blit_size[1],
+     (uint32_t[]){UINT32_MAX}));
   SL(vector_buffer
     (picking->result.draw_id_list, &bufsize, NULL, NULL, (void**)&buf));
 #ifndef NDEBUG
@@ -194,13 +217,13 @@ read_back_picking_buffer
     size_t tmp = 0;
     RBI(&sys->rb, read_back_framebuffer
       (picking->framebuffer.buffer,
-       0, pos[0], pos[1], size[0], size[1], &tmp, NULL));
+       0, blit_pos0[0], blit_pos0[1], blit_size[0], blit_size[1], &tmp, NULL));
     assert(tmp <= bufsize * sizeof(uint32_t));
   }
 #endif
   RBI(&sys->rb, read_back_framebuffer
     (picking->framebuffer.buffer,
-     0, pos[0], pos[1], size[0], size[1], NULL, buf));
+     0, blit_pos0[0], blit_pos0[1], blit_size[0], blit_size[1], NULL, buf));
 
   return RDR_NO_ERROR;
 }
@@ -232,13 +255,12 @@ cleanup_picked_objects
 static enum rdr_error
 select_picked_objects
   (struct rdr_system* sys,
-   struct rdr_world* world,
+   const size_t nb_instances,
+   struct rdr_model_instance** instance_list, /* Can be indexed by the draw id. */
    struct result* result,
    enum rdr_pick pick_type)
 {
-  struct rdr_model_instance** instance_list = NULL;
   uint32_t* draw_id_list = NULL;
-  size_t nb_instances = 0;
   size_t nb_draw_id = 0;
   size_t i = 0;
   enum rdr_error rdr_err = RDR_NO_ERROR;
@@ -247,13 +269,8 @@ select_picked_objects
 
   cleanup_picked_objects(sys, result, pick_type);
 
-  RDR(get_world_model_instance_list(world, &nb_instances, &instance_list));
   SL(vector_buffer
-    (result->draw_id_list,
-     &nb_draw_id,
-     NULL,
-     NULL,
-     (void**)&draw_id_list));
+    (result->draw_id_list, &nb_draw_id, NULL, NULL, (void**)&draw_id_list));
 
   for(i = 0; i < nb_draw_id; ++i) {
     if(draw_id_list[i] != UINT32_MAX) {
@@ -263,7 +280,7 @@ select_picked_objects
       instance = instance_list[draw_id_list[i]];
       RDR(model_instance_ref_get(instance));
 
-      sl_err = sl_vector_push_back(result->model_instance_list, instance);
+      sl_err = sl_vector_push_back(result->model_instance_list, &instance);
       if(sl_err != SL_NO_ERROR) {
         rdr_err = sl_to_rdr_error(sl_err);
         goto error;
@@ -429,10 +446,12 @@ release_debug(struct rdr_system* sys, struct debug* debug)
     RBI(&sys->rb, shader_ref_put(debug->fragment_shader));
   if(debug->program)
     RBI(&sys->rb, program_ref_put(debug->program));
-  if(debug->scale_bias)
-    RBI(&sys->rb, uniform_ref_put(debug->scale_bias));
-  if(debug->pick_buffer)
-    RBI(&sys->rb, uniform_ref_put(debug->pick_buffer));
+  if(debug->scale_bias_uniform)
+    RBI(&sys->rb, uniform_ref_put(debug->scale_bias_uniform));
+  if(debug->max_draw_id_uniform)
+    RBI(&sys->rb, uniform_ref_put(debug->max_draw_id_uniform));
+  if(debug->pick_buffer_uniform)
+    RBI(&sys->rb, uniform_ref_put(debug->pick_buffer_uniform));
   if(debug->sampler)
     RBI(&sys->rb, sampler_ref_put(debug->sampler));
   memset(debug, 0, sizeof(struct debug));
@@ -465,9 +484,11 @@ init_debug(struct rdr_system* sys, struct debug* debug)
   RBI(&sys->rb, attach_shader(debug->program, debug->fragment_shader));
   RBI(&sys->rb, link_program(debug->program));
   RBI(&sys->rb, get_named_uniform
-    (sys->ctxt, debug->program, "scale_bias", &debug->scale_bias));
+    (sys->ctxt, debug->program, "scale_bias", &debug->scale_bias_uniform));
   RBI(&sys->rb, get_named_uniform
-    (sys->ctxt, debug->program, "pick_buffer", &debug->pick_buffer));
+    (sys->ctxt, debug->program, "max_draw_id", &debug->max_draw_id_uniform));
+  RBI(&sys->rb, get_named_uniform
+    (sys->ctxt, debug->program, "pick_buffer", &debug->pick_buffer_uniform));
 
   /* Create the sampler. */
   sampler_desc.filter = RB_MIN_POINT_MAG_POINT_MIP_POINT;
@@ -552,6 +573,7 @@ rdr_create_picking
     rdr_err = RDR_MEMORY_ERROR;
     goto error;
   }
+  picking->desc = *desc;
   rdr_err = init_framebuffer
     (sys, desc->width, desc->height, &picking->framebuffer);
   if(rdr_err != RDR_NO_ERROR)
@@ -604,6 +626,8 @@ rdr_pick
    const unsigned int size[2],
    enum rdr_pick pick_type)
 {
+  struct rdr_model_instance** instance_list = NULL;
+  size_t nb_instances = 0;
   enum rdr_error rdr_err = RDR_NO_ERROR;
 
   if(UNLIKELY(!sys || !picking || !world || !view || !pos || !size)) {
@@ -621,13 +645,17 @@ rdr_pick
   if(rdr_err != RDR_NO_ERROR)
     goto error;
 
-  rdr_err = read_back_picking_buffer(sys, picking, pos, size);
+  rdr_err = read_back_picking_buffer(sys, picking, view, pos, size);
   if(rdr_err != RDR_NO_ERROR)
     goto error;
 
-  rdr_err = select_picked_objects(sys, world, &picking->result, pick_type);
+  RDR(get_world_model_instance_list(world, &nb_instances, &instance_list));
+  rdr_err = select_picked_objects
+    (sys, nb_instances, instance_list, &picking->result, pick_type);
   if(rdr_err != RDR_NO_ERROR)
     goto error;
+
+  picking->debug.max_draw_id = nb_instances - 1;
 
 exit:
   return rdr_err;
@@ -644,7 +672,7 @@ rdr_show_pick_buffer(struct rdr_system* sys, struct rdr_picking* picking)
   struct rb_depth_stencil_desc depth_stencil_desc;
   struct rb_viewport_desc viewport_desc;
   float scale_bias[4] = { 0.f, 0.f, 0.f, 0.f };
-  const int pick_buffer_tex_unit = 0;
+  const unsigned int pick_buffer_tex_unit = 0;
   enum rdr_error rdr_err = RDR_NO_ERROR;
   memset(&depth_stencil_desc, 0, sizeof(struct rb_depth_stencil_desc));
   memset(&viewport_desc, 0, sizeof(struct rb_viewport_desc));
@@ -679,9 +707,14 @@ rdr_show_pick_buffer(struct rdr_system* sys, struct rdr_picking* picking)
   scale_bias[1] = 1.f / (float)viewport_desc.height;
   scale_bias[2] = 0.f;
   scale_bias[3] = 0.f;
-  RBI(&sys->rb, uniform_data(picking->debug.scale_bias, 1, (void*)scale_bias));
   RBI(&sys->rb, uniform_data
-    (picking->debug.pick_buffer, 1, (void*)(int[]){pick_buffer_tex_unit}));
+    (picking->debug.scale_bias_uniform, 1, (void*)scale_bias));
+  RBI(&sys->rb, uniform_data
+    (picking->debug.max_draw_id_uniform, 1,
+     (void*)(unsigned int[]){picking->debug.max_draw_id}));
+  RBI(&sys->rb, uniform_data
+    (picking->debug.pick_buffer_uniform, 1,
+     (void*)(unsigned int[]){pick_buffer_tex_unit}));
   RBU(draw_geometry(&sys->rbu.quad));
   RBI(&sys->rb, bind_program(sys->ctxt, NULL));
 

@@ -930,9 +930,11 @@ rdr_bind_model
     goto error;
   }
 
-  rdr_err = rdr_bind_material(sys, mtr);
-  if(rdr_err != RDR_NO_ERROR)
-    goto error;
+  if(mtr) {
+    rdr_err = rdr_bind_material(sys, mtr);
+    if(rdr_err != RDR_NO_ERROR)
+      goto error;
+  }
 
 exit:
   if(out_nb_indices)

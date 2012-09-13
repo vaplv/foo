@@ -4,15 +4,15 @@
  * macro mechanism. */
 
 EDIT_CVAR
-  (grid_ndiv, 
+  (grid_ndiv,
    APP_CVAR_INT_DESC(10, 0, 10000))
 
 EDIT_CVAR
-  (grid_nsubdiv, 
+  (grid_nsubdiv,
    APP_CVAR_INT_DESC(10, 0, 10000))
 
 EDIT_CVAR
-  (grid_size, 
+  (grid_size,
    APP_CVAR_FLOAT_DESC(1000.f, 0.f, FLT_MAX))
 
 EDIT_CVAR
@@ -20,14 +20,14 @@ EDIT_CVAR
    APP_CVAR_FLOAT_DESC(1.f, 0.01f, 10.f))
 
 EDIT_CVAR
-  (pivot_color, 
+  (pivot_color,
    APP_CVAR_FLOAT3_DESC(1.f, 1.f, 0.f, 0.f, 1.f, 0.f, 1.f, 0.f, 1.f))
 
 EDIT_CVAR
   (pivot_size,
    APP_CVAR_FLOAT_DESC(0.1f, FLT_MIN, FLT_MAX))
 
-EDIT_CVAR   
+EDIT_CVAR
   (project_path,
    APP_CVAR_STRING_DESC(NULL, NULL))
 

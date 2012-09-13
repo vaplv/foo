@@ -277,15 +277,6 @@ app_draw_world(struct app_world* world, const struct app_view* view)
   render_view.width = win_desc.width;
   render_view.height = win_desc.height;
 
-  /* FIXME for debug only
-  RDR(frame_pick_model_instance
-    (world->app->rdr.frame, 
-     world->render_world, 
-     &render_view,
-     (unsigned int[]){0, 0}, 
-     (unsigned int[]){1, 1}));
-  goto exit; */
-
   rdr_err = rdr_frame_draw_world
     (world->app->rdr.frame, world->render_world, &render_view);
   if(rdr_err != RDR_NO_ERROR) {
