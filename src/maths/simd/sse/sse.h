@@ -195,6 +195,34 @@ vf4_w(vf4_t v)
   return _VF4_GET_FLOAT(v, 3);
 }
 
+static FINLINE bool
+vf4_mask_x(vf4_t v)
+{
+  const union { float f; uint32_t ui32; } ucast = { .f = vf4_x(v) };
+  return ucast.ui32 != 0;
+}
+
+static FINLINE bool
+vf4_mask_y(vf4_t v)
+{
+  const union { float f; uint32_t ui32; } ucast = { .f = vf4_y(v) };
+  return ucast.ui32 != 0;
+}
+
+static FINLINE bool
+vf4_mask_z(vf4_t v)
+{
+  const union { float f; uint32_t ui32; } ucast = { .f = vf4_z(v) };
+  return ucast.ui32 != 0;
+}
+
+static FINLINE bool
+vf4_mask_w(vf4_t v)
+{
+  const union { float f; uint32_t ui32; } ucast = { .f = vf4_w(v) };
+  return ucast.ui32 != 0;
+}
+
 /* Bitwise operations. */
 static FINLINE vf4_t
 vf4_or(vf4_t v0, vf4_t v1)

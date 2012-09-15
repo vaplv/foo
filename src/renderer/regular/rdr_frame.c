@@ -107,8 +107,8 @@ setup_transform_cache
   bool update_proj = false;
   assert(cache && view);
 
-  update_view = 0 != memcmp
-    (view->transform, cache->view.transform, sizeof(cache->view.transform));
+  update_view = 0 != (memcmp
+    (view->transform, cache->view.transform, sizeof(cache->view.transform)));
   update_proj =
     (view->proj_ratio != cache->view.proj_ratio)
   | (view->fov_x != cache->view.fov_x)

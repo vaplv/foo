@@ -45,6 +45,12 @@
 #define STATIC_ASSERT(condition, msg) \
   char STATIC_ASSERT_##msg[1 -  2*(!(condition))] UNUSED
 
+#ifdef NDEBUG
+# define ASSERT(c) c
+#else
+# define ASSERT(c) assert(c)
+#endif
+
 #define FORMAT_PRINTF(a, b) \
   __attribute__((format(printf, a, b)))
 

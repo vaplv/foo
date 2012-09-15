@@ -97,7 +97,7 @@ app_look_at
   if(!view || !pos || !target || !up)
     return APP_INVALID_ARGUMENT;
 
-  aos_target = vf4_set(target[0], target[1], target[3], 0.f);
+  aos_target = vf4_set(target[0], target[1], target[2], 0.f);
   aos_pos = vf4_set(pos[0], pos[1], pos[2], 0.f);
   aos_up = vf4_set(up[0], up[1], up[2], 0.f);
 

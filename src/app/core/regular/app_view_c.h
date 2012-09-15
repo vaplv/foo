@@ -4,7 +4,7 @@
 #include "maths/simd/aosf44.h"
 #include "sys/ref_count.h"
 
-struct app_view {
+ALIGN(16) struct app_view {
   struct aosf44 transform;
   struct ref ref;
   struct app* app;

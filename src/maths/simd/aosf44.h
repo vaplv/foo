@@ -293,5 +293,21 @@ aosf44_invtrans(struct aosf44* out, const struct aosf44* a)
   return det;
 }
 
+static FINLINE vf4_t 
+aosf44_eq(const struct aosf44* a, const struct aosf44* b)
+{
+  if(a == b) {
+    return vf4_true();
+  } else {
+    const vf4_t eq_c0 = vf4_eq(a->c0, b->c0);
+    const vf4_t eq_c1 = vf4_eq(a->c1, b->c1);
+    const vf4_t eq_c2 = vf4_eq(a->c2, b->c2);
+    const vf4_t eq_c3 = vf4_eq(a->c3, b->c3);
+    const vf4_t eq = vf4_and(vf4_and(eq_c0, eq_c1), vf4_and(eq_c2, eq_c3));
+    const vf4_t ret = vf4_and(vf4_and(eq, vf4_yzwx(eq)), vf4_zwxy(eq));
+    return ret;
+  }
+}
+
 #endif /* AOSF44_H */
 

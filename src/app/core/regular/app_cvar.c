@@ -1,4 +1,3 @@
-#include "app/core/regular/app_builtin_cvars.h"
 #include "app/core/regular/app_c.h"
 #include "app/core/regular/app_cvar_c.h"
 #include "app/core/regular/app_error_c.h"
@@ -114,6 +113,58 @@ set_cvar_value
 exit:
   return app_err;
 error:
+  goto exit;
+}
+
+static enum app_error
+release_builtin_cvars(struct app* app)
+{
+  const struct app_cvar* cvar = NULL;
+  enum app_error app_err = APP_NO_ERROR;
+
+  if(UNLIKELY(!app)) {
+    app_err = APP_INVALID_ARGUMENT;
+    goto error;
+  }
+
+  #define APP_CVAR(name, desc) \
+    APP(get_cvar(app, STR(name), &cvar)); \
+    if(cvar != NULL) { \
+      APP(del_cvar(app, STR(name))); \
+    } \
+
+  #include "app/core/regular/app_cvars_decl.h"
+
+  #undef APP_CVAR
+
+exit:
+  return app_err;
+error:
+  goto exit;
+}
+
+static enum app_error
+setup_builtin_cvars(struct app* app)
+{
+  enum app_error app_err = APP_NO_ERROR;
+  assert(app);
+
+  #define APP_CVAR(name, desc) \
+    app_err = app_add_cvar(app, STR(name), desc); \
+    if(app_err != APP_NO_ERROR) goto error; \
+    app_err = app_get_cvar \
+      (app, STR(name), &app->cvar_system.name); \
+    if(app_err != APP_NO_ERROR) goto error; 
+
+  #include "app/core/regular/app_cvars_decl.h"
+
+  #undef APP_CVAR
+
+exit:
+  return app_err;
+error:
+  if(app)
+    ASSERT(release_builtin_cvars(app) == APP_NO_ERROR);
   goto exit;
 }
 
@@ -285,7 +336,7 @@ app_init_cvar_system(struct app* app)
   enum app_error app_err = APP_NO_ERROR;
   enum sl_error sl_err = SL_NO_ERROR;
 
-  if(!app) {
+  if(UNLIKELY(!app)) {
     app_err = APP_INVALID_ARGUMENT;
     goto error;
   }
@@ -301,7 +352,7 @@ app_init_cvar_system(struct app* app)
     app_err = sl_to_app_error(sl_err);
     goto error;
   }
-  app_err = app_setup_builtin_cvars(app);
+  app_err = setup_builtin_cvars(app);
   if(app_err != APP_NO_ERROR)
     goto error;
 exit:
@@ -317,9 +368,16 @@ app_shutdown_cvar_system(struct app* app)
   struct cvar** cvar_list = NULL;
   size_t len = 0;
   size_t i = 0;
+  enum app_error app_err = APP_NO_ERROR;
 
-  if(!app)
-    return APP_INVALID_ARGUMENT;
+  if(UNLIKELY(!app)) {
+    app_err = APP_INVALID_ARGUMENT;
+    goto error;
+  }
+
+  app_err = release_builtin_cvars(app);
+  if(app_err != APP_NO_ERROR)
+    goto error;
 
   if(app->cvar_system.map) {
     SL(flat_map_key_buffer
@@ -334,6 +392,10 @@ app_shutdown_cvar_system(struct app* app)
     }
     SL(free_flat_map(app->cvar_system.map));
   }
-  return APP_NO_ERROR;
+
+exit:
+  return app_err;
+error:
+  goto exit;
 }
 

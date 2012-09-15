@@ -156,7 +156,7 @@ edit_run(struct edit_context* ctxt)
   /* Process inputs. */
   if(ctxt->process_inputs) {
     struct app_view* view = NULL;
-      
+
     edit_err = edit_process_inputs(ctxt);
     if(edit_err != EDIT_NO_ERROR)
       goto error;

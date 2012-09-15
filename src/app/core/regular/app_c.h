@@ -1,6 +1,7 @@
 #ifndef APP_C_H
 #define APP_C_H
 
+#include "app/core/regular/app_cvar_c.h"
 #include "app/core/regular/app_object.h"
 #include "app/core/app.h"
 #include "renderer/rdr_attrib.h"
@@ -58,10 +59,7 @@ struct app {
     struct sl_flat_set* name_set;
   } cmd;
 
-  struct cvar_system {
-    struct sl_flat_map* map; /* Associative container name -> cvar. */
-    /* Put the builtin cvar here. */
-  } cvar_system;
+  struct app_cvar_system cvar_system;
 
   struct term {
     struct rdr_term* render_term;

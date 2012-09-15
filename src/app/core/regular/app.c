@@ -132,8 +132,8 @@ term_log_func(const char* msg, void* data)
   wchar_t buffer[BUFSIZ];
   struct app* app = data;
   struct rdr_term* term = NULL;
+  memset(buffer, 0, sizeof(wchar_t) * BUFSIZ);
 
-  buffer[BUFSIZ - 1] = L'\0';
   assert(app);
   term = app->term.render_term;
   if(!term)
