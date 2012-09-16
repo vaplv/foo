@@ -1,11 +1,11 @@
 #include "app/core/regular/app_c.h"
 #include "app/core/regular/app_command_c.h"
-#include "app/core/regular/app_cvar_c.h"
 #include "app/core/regular/app_error_c.h"
 #include "app/core/regular/app_term.h"
 #include "app/core/regular/app_world_c.h"
 #include "app/core/app.h"
 #include "app/core/app_command.h"
+#include "app/core/app_cvar.h"
 #include "app/core/app_model.h"
 #include "app/core/app_model_instance.h"
 #include "app/core/app_view.h"
@@ -457,7 +457,7 @@ init_renderer(struct app* app, const char* driver)
   struct rdr_frame_desc frame_desc;
   memset(&win_desc, 0, sizeof(win_desc));
   memset(&frame_desc, 0, sizeof(frame_desc));
-  
+
   assert(app != NULL);
 
   mem_init_proxy_allocator
@@ -769,8 +769,14 @@ app_run(struct app* app, bool* keep_running)
   if(app_err != APP_NO_ERROR)
     goto error;
 
-  if(app->term.is_enabled)
-    RDR(frame_draw_term(app->rdr.frame, app->term.render_term));
+  if(app->term.is_enabled) {
+    const enum rdr_error rdr_err = rdr_frame_draw_term
+      (app->rdr.frame, app->term.render_term);
+    if(rdr_err != RDR_NO_ERROR) {
+      app_err = rdr_to_app_error(rdr_err);
+      goto error;
+    }
+  }
 
   RDR(flush_frame(app->rdr.frame));
   WM(swap(app->wm.window));

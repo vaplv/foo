@@ -43,7 +43,10 @@ rdr_pick
 extern enum rdr_error
 rdr_show_pick_buffer
   (struct rdr_system* sys,
-   struct rdr_picking* picking);
+   struct rdr_picking* picking,
+   struct rdr_world* world,
+   const struct rdr_view* view,
+   enum rdr_pick pick_type);
 
 
 #endif /* RDR_PICKING_H */

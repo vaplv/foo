@@ -26,7 +26,7 @@ struct rdr_picking {
   struct framebuffer {
     struct rb_framebuffer* buffer;
     struct rb_tex2d* picking_tex;
-    struct rb_tex2d* depth_stencil_tex; /* TODO replace by a render buffer. */
+    struct rb_tex2d* depth_stencil_tex;
   } framebuffer;
   struct shading {
     struct rb_program* program;
@@ -35,13 +35,13 @@ struct rdr_picking {
     struct rdr_uniform uniform_list[NB_PICK_UNIFORMS];
   } shading;
   struct debug {
-    unsigned int max_draw_id;  /* Max draw id potentilly drawn. */
     struct rb_program* program;
     struct rb_shader* vertex_shader;
     struct rb_shader* fragment_shader;
     struct rb_uniform* scale_bias_uniform;
     struct rb_uniform* max_draw_id_uniform;
     struct rb_uniform* pick_buffer_uniform;
+    struct rb_uniform* depth_buffer_uniform;
     struct rb_sampler* sampler;
   } debug;
 };
@@ -83,6 +83,7 @@ static const char* show_picking_vs_source =
 static const char* show_picking_fs_source =
   "#version 330\n"
   "uniform usampler2D pick_buffer;\n"
+  "uniform sampler2D depth_buffer;\n"
   "out vec4 color;\n"
   "uniform vec4 scale_bias;\n"
   "uniform uint max_draw_id;\n"
@@ -106,6 +107,8 @@ static const char* show_picking_fs_source =
   "  max_id -= norm;\n"
   "  norm = min(255u, max_id);\n"
   "  color.a = ((val >> 24u) & 0xFFu) / float(norm);\n"
+  "\n"
+  "  gl_FragDepth = texture(depth_buffer, uv).x;\n"
   "}\n";
 
 /*******************************************************************************
@@ -119,8 +122,6 @@ draw_picked_world
    struct rdr_picking* picking,
    struct rdr_world* world,
    const struct rdr_view* view,
-   const unsigned int pos[2],
-   const unsigned int size[2],
    enum rdr_pick pick_type)
 {
   const struct rb_clear_framebuffer_color_desc clear_desc = {
@@ -136,8 +137,6 @@ draw_picked_world
     && picking
     && world
     && view
-    && pos
-    && size
     && pick_type != RDR_PICK_NONE);
 
   /* Adjust the input viewport to match the pick definition. */
@@ -255,7 +254,7 @@ cleanup_picked_objects
 static enum rdr_error
 select_picked_objects
   (struct rdr_system* sys,
-   const size_t nb_instances,
+   const size_t nb_instances UNUSED,
    struct rdr_model_instance** instance_list, /* Can be indexed by the draw id. */
    struct result* result,
    enum rdr_pick pick_type)
@@ -452,6 +451,8 @@ release_debug(struct rdr_system* sys, struct debug* debug)
     RBI(&sys->rb, uniform_ref_put(debug->max_draw_id_uniform));
   if(debug->pick_buffer_uniform)
     RBI(&sys->rb, uniform_ref_put(debug->pick_buffer_uniform));
+  if(debug->depth_buffer_uniform)
+    RBI(&sys->rb, uniform_ref_put(debug->depth_buffer_uniform));
   if(debug->sampler)
     RBI(&sys->rb, sampler_ref_put(debug->sampler));
   memset(debug, 0, sizeof(struct debug));
@@ -489,6 +490,8 @@ init_debug(struct rdr_system* sys, struct debug* debug)
     (sys->ctxt, debug->program, "max_draw_id", &debug->max_draw_id_uniform));
   RBI(&sys->rb, get_named_uniform
     (sys->ctxt, debug->program, "pick_buffer", &debug->pick_buffer_uniform));
+  RBI(&sys->rb, get_named_uniform
+    (sys->ctxt, debug->program, "depth_buffer", &debug->depth_buffer_uniform));
 
   /* Create the sampler. */
   sampler_desc.filter = RB_MIN_POINT_MAG_POINT_MIP_POINT;
@@ -641,7 +644,7 @@ rdr_pick
   || size[1] == 0)
     goto exit;
 
-  rdr_err = draw_picked_world(sys, picking, world, view, pos, size, pick_type);
+  rdr_err = draw_picked_world(sys, picking, world, view, pick_type);
   if(rdr_err != RDR_NO_ERROR)
     goto error;
 
@@ -655,8 +658,6 @@ rdr_pick
   if(rdr_err != RDR_NO_ERROR)
     goto error;
 
-  picking->debug.max_draw_id = nb_instances - 1;
-
 exit:
   return rdr_err;
 error:
@@ -667,26 +668,42 @@ error:
 }
 
 extern enum rdr_error
-rdr_show_pick_buffer(struct rdr_system* sys, struct rdr_picking* picking)
+rdr_show_pick_buffer
+  (struct rdr_system* sys,
+   struct rdr_picking* picking,
+   struct rdr_world* world,
+   const struct rdr_view* view,
+   enum rdr_pick pick_type)
 {
   struct rb_depth_stencil_desc depth_stencil_desc;
   struct rb_viewport_desc viewport_desc;
   float scale_bias[4] = { 0.f, 0.f, 0.f, 0.f };
-  const unsigned int pick_buffer_tex_unit = 0;
+  size_t nb_instances = 0; /* Used to map the pick id onto the dst dynamic. */
   enum rdr_error rdr_err = RDR_NO_ERROR;
+  enum { PICK_BUFFER_TEX_UNIT, DEPTH_BUFFER_TEX_UNIT };
   memset(&depth_stencil_desc, 0, sizeof(struct rb_depth_stencil_desc));
   memset(&viewport_desc, 0, sizeof(struct rb_viewport_desc));
 
-  if(UNLIKELY(!sys || !picking)) {
+  if(UNLIKELY
+  (  !sys
+  || !picking
+  || !world
+  || !view
+  || pick_type != RDR_PICK_MODEL_INSTANCE)) {
     rdr_err = RDR_INVALID_ARGUMENT;
     goto error;
   }
 
-  depth_stencil_desc.enable_depth_test = 0;
-  depth_stencil_desc.enable_depth_write = 0;
+  rdr_err = draw_picked_world(sys, picking, world, view, pick_type);
+  if(rdr_err != RDR_NO_ERROR)
+    goto error;
+
+  depth_stencil_desc.enable_depth_test = 1;
+  depth_stencil_desc.enable_depth_write = 1;
   depth_stencil_desc.enable_stencil_test = 0;
   depth_stencil_desc.front_face_op.write_mask = 0;
   depth_stencil_desc.back_face_op.write_mask = 0;
+  depth_stencil_desc.depth_func = RB_COMPARISON_ALWAYS;
   RBI(&sys->rb, depth_stencil(sys->ctxt, &depth_stencil_desc));
 
   viewport_desc.x = 0;
@@ -698,9 +715,13 @@ rdr_show_pick_buffer(struct rdr_system* sys, struct rdr_picking* picking)
   RBI(&sys->rb, viewport(sys->ctxt, &viewport_desc));
 
   RBI(&sys->rb, bind_tex2d
-    (sys->ctxt, picking->framebuffer.picking_tex, pick_buffer_tex_unit));
+    (sys->ctxt, picking->framebuffer.picking_tex, PICK_BUFFER_TEX_UNIT));
+  RBI(&sys->rb, bind_tex2d
+    (sys->ctxt, picking->framebuffer.depth_stencil_tex, DEPTH_BUFFER_TEX_UNIT));
   RBI(&sys->rb, bind_sampler
-    (sys->ctxt, picking->debug.sampler, pick_buffer_tex_unit));
+    (sys->ctxt, picking->debug.sampler, PICK_BUFFER_TEX_UNIT));
+  RBI(&sys->rb, bind_sampler
+    (sys->ctxt, picking->debug.sampler, DEPTH_BUFFER_TEX_UNIT));
   RBI(&sys->rb, bind_program(sys->ctxt, picking->debug.program));
 
   scale_bias[0] = 1.f / (float)viewport_desc.width;
@@ -709,13 +730,25 @@ rdr_show_pick_buffer(struct rdr_system* sys, struct rdr_picking* picking)
   scale_bias[3] = 0.f;
   RBI(&sys->rb, uniform_data
     (picking->debug.scale_bias_uniform, 1, (void*)scale_bias));
+  RDR(get_world_model_instance_list(world, &nb_instances, NULL));
   RBI(&sys->rb, uniform_data
     (picking->debug.max_draw_id_uniform, 1,
-     (void*)(unsigned int[]){picking->debug.max_draw_id}));
+     (void*)(unsigned int[]){nb_instances - 1}));
   RBI(&sys->rb, uniform_data
     (picking->debug.pick_buffer_uniform, 1,
-     (void*)(unsigned int[]){pick_buffer_tex_unit}));
+     (void*)(unsigned int[]){PICK_BUFFER_TEX_UNIT}));
+  RBI(&sys->rb, uniform_data
+    (picking->debug.depth_buffer_uniform, 1,
+     (void*)(unsigned int[]){DEPTH_BUFFER_TEX_UNIT}));
   RBU(draw_geometry(&sys->rbu.quad));
+
+  /* Reset states. */
+  depth_stencil_desc.depth_func = RB_COMPARISON_LESS_EQUAL;
+  RBI(&sys->rb, depth_stencil(sys->ctxt, &depth_stencil_desc));
+  RBI(&sys->rb, bind_tex2d(sys->ctxt, NULL, PICK_BUFFER_TEX_UNIT));
+  RBI(&sys->rb, bind_tex2d(sys->ctxt, NULL, DEPTH_BUFFER_TEX_UNIT));
+  RBI(&sys->rb, bind_sampler(sys->ctxt, NULL, PICK_BUFFER_TEX_UNIT));
+  RBI(&sys->rb, bind_sampler(sys->ctxt, NULL, DEPTH_BUFFER_TEX_UNIT));
   RBI(&sys->rb, bind_program(sys->ctxt, NULL));
 
 exit:

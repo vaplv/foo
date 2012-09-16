@@ -10,7 +10,8 @@ struct sl_flat_map;
 
 struct app_cvar_system {
   struct sl_flat_map* map; /* Associative container name -> cvar. */
-  /* Put the builtin cvar here. */
+
+  /* Builtin cvars. */
   #define APP_CVAR(name, desc) const struct app_cvar* name;
   #include "app/core/regular/app_cvars_decl.h"
   #undef APP_CVAR

@@ -25,8 +25,8 @@ rdr_compute_projection_matrix
 extern enum rdr_error
 rdr_get_world_model_instance_list
   (struct rdr_world* world,
-   size_t* size,
-   struct rdr_model_instance** instance_list[]);
+   size_t* size, /* Maye be NULL. */
+   struct rdr_model_instance** instance_list[]); /* May be NULL. */
                               
 
 #endif /* RDR_WORLD_C_H */

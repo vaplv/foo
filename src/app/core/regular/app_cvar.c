@@ -163,8 +163,10 @@ setup_builtin_cvars(struct app* app)
 exit:
   return app_err;
 error:
-  if(app)
-    ASSERT(release_builtin_cvars(app) == APP_NO_ERROR);
+  if(app) {
+    UNUSED const enum app_error tmp = release_builtin_cvars(app);
+    assert(tmp == APP_NO_ERROR);
+  }
   goto exit;
 }
 

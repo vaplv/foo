@@ -154,6 +154,10 @@ test_vf4(void)
   cast.f = vf4_y(i); CHECK(cast.i, (int)0x00000000);
   cast.f = vf4_z(i); CHECK(cast.i, (int)0x00000000);
   cast.f = vf4_w(i); CHECK(cast.i, (int)0xFFFFFFFF);
+  CHECK(vf4_mask_x(i), false);
+  CHECK(vf4_mask_y(i), false);
+  CHECK(vf4_mask_z(i), false);
+  CHECK(vf4_mask_w(i), true);
 
   i = vf4_mask(true, false, true, true);
   j = vf4_mask(false, false, false, true);
@@ -162,6 +166,10 @@ test_vf4(void)
   cast.f = vf4_y(k); CHECK(cast.i, (int)0x00000000);
   cast.f = vf4_z(k); CHECK(cast.i, (int)0xFFFFFFFF);
   cast.f = vf4_w(k); CHECK(cast.i, (int)0xFFFFFFFF);
+  CHECK(vf4_mask_x(i), true);
+  CHECK(vf4_mask_y(i), false);
+  CHECK(vf4_mask_z(i), true);
+  CHECK(vf4_mask_w(i), true);
 
   k = vf4_and(i, j);
   cast.f = vf4_x(k); CHECK(cast.i, (int)0x00000000);
@@ -615,7 +623,7 @@ test_vf4(void)
   i = vf4_xyz_to_rthetaphi(vf4_set(-4.53f, -7.2f, 3.1f, 0.f));
   CHECK(EQ_EPS(vf4_x(i), 9.053778f, 1.e-5f), true);
   CHECK(EQ_EPS(vf4_y(i), 1.221327f, 1.e-5f), true);
-  CHECK(EQ_EPS(vf4_z(i), -2.132386f, 1.e-5f) || 
+  CHECK(EQ_EPS(vf4_z(i), -2.132386f, 1.e-5f) ||
         EQ_EPS(vf4_z(i), 2*PI - 2.132386f, 1.e-5f), true);
   i = vf4_xyz_to_rthetaphi(vf4_set(4.53f, -7.2f, 3.1f, 0.f));
   CHECK(EQ_EPS(vf4_x(i), 9.053778f, 1.e-5f), true);
@@ -638,7 +646,7 @@ test_vf4(void)
   i = vf4_xyz_to_rthetaphi(vf4_set(-4.53f, -7.2f, -3.1f, 0.f));
   CHECK(EQ_EPS(vf4_x(i), 9.053778f, 1.e-5f), true);
   CHECK(EQ_EPS(vf4_y(i), 1.920264f, 1.e-5f), true);
-  CHECK(EQ_EPS(vf4_z(i), -2.132386f, 1.e-5f) || 
+  CHECK(EQ_EPS(vf4_z(i), -2.132386f, 1.e-5f) ||
         EQ_EPS(vf4_z(i), 2*PI - 2.132386f, 1.e-5f), true);
 }
 
@@ -1300,6 +1308,70 @@ test_aosf44(void)
      vf4_y(m.c0), vf4_y(m.c1), vf4_y(m.c2), vf4_y(m.c3),
      vf4_z(m.c0), vf4_z(m.c1), vf4_z(m.c2), vf4_z(m.c3),
      vf4_w(m.c0), vf4_w(m.c1), vf4_w(m.c2), vf4_w(m.c3));
+
+  aosf44_set
+    (&m,
+     vf4_set(0.f, 1.f, 2.f, 3.f),
+     vf4_set(5.f, 5.f, 6.f, 7.f),
+     vf4_set(8.f, 9.f, 10.f, 11.f),
+     vf4_set(12.f, 13.f, 14.f, 15.f));
+  aosf44_set
+    (&n,
+     vf4_set(0.f, 1.f, 2.f, 3.f),
+     vf4_set(5.f, 5.f, 6.f, 7.f),
+     vf4_set(8.f, 9.f, 10.f, 11.f),
+     vf4_set(12.f, 13.f, 14.f, 15.f));
+
+  v = aosf44_eq(&m, &n);
+  CHECK(vf4_mask_x(v), true);
+  CHECK(vf4_mask_y(v), true);
+  CHECK(vf4_mask_z(v), true);
+  CHECK(vf4_mask_w(v), true);
+
+  n.c0 = vf4_set(0.f, 1.0f, 2.f, 4.f);
+  v = aosf44_eq(&m, &n);
+  CHECK(vf4_mask_x(v), false);
+  CHECK(vf4_mask_y(v), false);
+  CHECK(vf4_mask_z(v), false);
+  CHECK(vf4_mask_w(v), false);
+  n.c0 = vf4_set(0.f, 1.0f, 2.f, 3.f);
+
+  n.c1 = vf4_set(4.f, 5.0f, 6.f, 7.f);
+  v = aosf44_eq(&m, &n);
+  CHECK(vf4_mask_x(v), false);
+  CHECK(vf4_mask_y(v), false);
+  CHECK(vf4_mask_z(v), false);
+  CHECK(vf4_mask_w(v), false);
+  n.c1 = vf4_set(5.f, 5.0f, 6.f, 7.f);
+
+  m.c2 = vf4_set(8.f, -9.0f, 10.f, 11.f);
+  v = aosf44_eq(&m, &n);
+  CHECK(vf4_mask_x(v), false);
+  CHECK(vf4_mask_y(v), false);
+  CHECK(vf4_mask_z(v), false);
+  CHECK(vf4_mask_w(v), false);
+  m.c2 = vf4_set(8.f, 9.0f, 10.f, 11.f);
+
+  n.c3 = vf4_set(12.f, 13.1f, 14.f, 15.f);
+  v = aosf44_eq(&m, &n);
+  CHECK(vf4_mask_x(v), false);
+  CHECK(vf4_mask_y(v), false);
+  CHECK(vf4_mask_z(v), false);
+  CHECK(vf4_mask_w(v), false);
+
+  v = aosf44_eq(&m, &m);
+  CHECK(vf4_mask_x(v), true);
+  CHECK(vf4_mask_y(v), true);
+  CHECK(vf4_mask_z(v), true);
+  CHECK(vf4_mask_w(v), true);
+
+  n.c3 = vf4_set(12.f, 13.0f, 14.f, 15.f);
+
+  v = aosf44_eq(&m, &n);
+  CHECK(vf4_mask_x(v), true);
+  CHECK(vf4_mask_y(v), true);
+  CHECK(vf4_mask_z(v), true);
+  CHECK(vf4_mask_w(v), true);
 }
 
 static void

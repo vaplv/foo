@@ -312,7 +312,7 @@ rdr_get_world_model_instance_list
    size_t* size,
    struct rdr_model_instance** instance_list[])
 {
-  if(UNLIKELY(!world || !size || !instance_list))
+  if(UNLIKELY(!world))
     return RDR_INVALID_ARGUMENT;
   SL(flat_set_buffer
     (world->model_instance_list, size, NULL, NULL, (void**)instance_list));

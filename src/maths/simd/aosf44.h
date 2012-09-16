@@ -15,9 +15,9 @@ aosf44_store(float dst[16], const struct aosf44* m)
 {
   assert(IS_ALIGNED(dst, 16));
   vf4_store(dst + 0, m->c0);
-  vf4_store(dst + 4, m->c1); 
-  vf4_store(dst + 8, m->c2); 
-  vf4_store(dst + 12, m->c3); 
+  vf4_store(dst + 4, m->c1);
+  vf4_store(dst + 8, m->c2);
+  vf4_store(dst + 12, m->c3);
 }
 
 static FINLINE void
@@ -31,7 +31,7 @@ aosf44_load(struct aosf44* m, const float src[16])
 }
 
 static FINLINE void
-aosf44_set(struct aosf44* m, vf4_t c0, vf4_t c1, vf4_t c2, vf4_t c3) 
+aosf44_set(struct aosf44* m, vf4_t c0, vf4_t c1, vf4_t c2, vf4_t c3)
 {
   m->c0 = c0;
   m->c1 = c1;
@@ -48,7 +48,7 @@ aosf44_identity(struct aosf44* m) {
 }
 
 static FINLINE void
-aosf44_zero(struct aosf44* m) 
+aosf44_zero(struct aosf44* m)
 {
   m->c0 = vf4_zero();
   m->c1 = vf4_zero();
@@ -57,7 +57,7 @@ aosf44_zero(struct aosf44* m)
 }
 
 static FINLINE void
-aosf44_set_row0(struct aosf44* m, vf4_t v) 
+aosf44_set_row0(struct aosf44* m, vf4_t v)
 {
   const vf4_t xyzw = v;
   const vf4_t yyww = vf4_yyww(v);
@@ -71,7 +71,7 @@ aosf44_set_row0(struct aosf44* m, vf4_t v)
 }
 
 static FINLINE void
-aosf44_set_row1(struct aosf44* m, vf4_t v) 
+aosf44_set_row1(struct aosf44* m, vf4_t v)
 {
   m->c0 = vf4_xbzw(m->c0, vf4_xxyy(v));
   m->c1 = vf4_xbzw(m->c1, v);
@@ -80,7 +80,7 @@ aosf44_set_row1(struct aosf44* m, vf4_t v)
 }
 
 static FINLINE void
-aosf44_set_row2(struct aosf44* m, vf4_t v) 
+aosf44_set_row2(struct aosf44* m, vf4_t v)
 {
   m->c0 = vf4_xycw(m->c0, vf4_xyxy(v));
   m->c1 = vf4_xycw(m->c1, vf4_xxyy(v));
@@ -89,7 +89,7 @@ aosf44_set_row2(struct aosf44* m, vf4_t v)
 }
 
 static FINLINE void
-aosf44_set_row3(struct aosf44* m, vf4_t v) 
+aosf44_set_row3(struct aosf44* m, vf4_t v)
 {
   m->c0 = vf4_xyzd(m->c0, vf4_xxxx(v));
   m->c1 = vf4_xyzd(m->c1, vf4_xxyy(v));
@@ -98,7 +98,7 @@ aosf44_set_row3(struct aosf44* m, vf4_t v)
 }
 
 static FINLINE void
-aosf44_set_row(struct aosf44* m, vf4_t v, int id) 
+aosf44_set_row(struct aosf44* m, vf4_t v, int id)
 {
   assert(id >= 0 && id <= 3);
 
@@ -118,35 +118,35 @@ aosf44_set_col(struct aosf44* m, vf4_t v, int id)
 
 /* Get operations. */
 static FINLINE vf4_t
-aosf44_row0(const struct aosf44* m) 
+aosf44_row0(const struct aosf44* m)
 {
   return vf4_048C
     (vf4_xxxx(m->c0), vf4_xxxx(m->c1), vf4_xxxx(m->c2), vf4_xxxx(m->c3));
 }
 
 static FINLINE vf4_t
-aosf44_row1(const struct aosf44* m) 
+aosf44_row1(const struct aosf44* m)
 {
   return vf4_048C
     (vf4_yyyy(m->c0), vf4_yyyy(m->c1), vf4_yyyy(m->c2), vf4_yyyy(m->c3));
 }
 
 static FINLINE vf4_t
-aosf44_row2(const struct aosf44* m) 
+aosf44_row2(const struct aosf44* m)
 {
   return vf4_048C
     (vf4_zzzz(m->c0), vf4_zzzz(m->c1), vf4_zzzz(m->c2), vf4_zzzz(m->c3));
 }
 
 static FINLINE vf4_t
-aosf44_row3(const struct aosf44* m) 
+aosf44_row3(const struct aosf44* m)
 {
   return vf4_048C
     (vf4_wwww(m->c0), vf4_wwww(m->c1), vf4_wwww(m->c2), vf4_wwww(m->c3));
 }
 
 static FINLINE vf4_t
-aosf44_row(const struct aosf44* m, int id) 
+aosf44_row(const struct aosf44* m, int id)
 {
   assert(id >= 0 && id <= 3);
 
@@ -162,7 +162,7 @@ aosf44_row(const struct aosf44* m, int id)
 }
 
 static FINLINE vf4_t
-aosf44_col(const struct aosf44* m, int id) 
+aosf44_col(const struct aosf44* m, int id)
 {
   assert(id >= 0 && id <= 3);
   return (&m->c0)[id];
@@ -179,7 +179,7 @@ aosf44_add(struct aosf44* res, const struct aosf44* m0, const struct aosf44* m1)
 }
 
 static FINLINE void
-aosf44_sub(struct aosf44* res, const struct aosf44* m0, const struct aosf44* m1) 
+aosf44_sub(struct aosf44* res, const struct aosf44* m0, const struct aosf44* m1)
 {
   res->c0 = vf4_sub(m0->c0, m1->c0);
   res->c1 = vf4_sub(m0->c1, m1->c1);
@@ -188,7 +188,7 @@ aosf44_sub(struct aosf44* res, const struct aosf44* m0, const struct aosf44* m1)
 }
 
 static FINLINE void
-aosf44_minus(struct aosf44* res, const struct aosf44* m) 
+aosf44_minus(struct aosf44* res, const struct aosf44* m)
 {
   res->c0 = vf4_minus(m->c0);
   res->c1 = vf4_minus(m->c1);
@@ -197,7 +197,7 @@ aosf44_minus(struct aosf44* res, const struct aosf44* m)
 }
 
 static FINLINE void
-aosf44_abs(struct aosf44* res, const struct aosf44* m) 
+aosf44_abs(struct aosf44* res, const struct aosf44* m)
 {
   res->c0 = vf4_abs(m->c0);
   res->c1 = vf4_abs(m->c1);
@@ -206,7 +206,7 @@ aosf44_abs(struct aosf44* res, const struct aosf44* m)
 }
 
 static FINLINE void
-aosf44_mul(struct aosf44* res, const struct aosf44* m, vf4_t v) 
+aosf44_mul(struct aosf44* res, const struct aosf44* m, vf4_t v)
 {
   res->c0 = vf4_mul(m->c0, v);
   res->c1 = vf4_mul(m->c1, v);
@@ -215,7 +215,7 @@ aosf44_mul(struct aosf44* res, const struct aosf44* m, vf4_t v)
 }
 
 static FINLINE vf4_t
-aosf44_mulf4(const struct aosf44* m, vf4_t v) 
+aosf44_mulf4(const struct aosf44* m, vf4_t v)
 {
   const vf4_t r0 = vf4_mul(m->c0, vf4_xxxx(v));
   const vf4_t r1 = vf4_madd(m->c1, vf4_yyyy(v), r0);
@@ -224,12 +224,12 @@ aosf44_mulf4(const struct aosf44* m, vf4_t v)
 }
 
 static FINLINE vf4_t
-aosf4_mulf44(vf4_t v, const struct aosf44* m) 
+aosf4_mulf44(vf4_t v, const struct aosf44* m)
 {
-  const vf4_t xxxx = vf4_dot(v, m->c0); 
-  const vf4_t yyyy = vf4_dot(v, m->c1); 
-  const vf4_t zzzz = vf4_dot(v, m->c2); 
-  const vf4_t wwww = vf4_dot(v, m->c3); 
+  const vf4_t xxxx = vf4_dot(v, m->c0);
+  const vf4_t yyyy = vf4_dot(v, m->c1);
+  const vf4_t zzzz = vf4_dot(v, m->c2);
+  const vf4_t wwww = vf4_dot(v, m->c3);
   const vf4_t xyxy = vf4_xayb(xxxx, yyyy);
   const vf4_t zwzw = vf4_xayb(zzzz, wwww);
   return vf4_xyab(xyxy, zwzw);
@@ -250,7 +250,7 @@ aosf44_mulf44
 }
 
 static FINLINE void
-aosf44_transpose(struct aosf44* res, const struct aosf44* m) 
+aosf44_transpose(struct aosf44* res, const struct aosf44* m)
 {
   const vf4_t in_c0 = m->c0;
   const vf4_t in_c1 = m->c1;
@@ -267,7 +267,7 @@ aosf44_transpose(struct aosf44* res, const struct aosf44* m)
 }
 
 static FINLINE vf4_t
-aosf44_det(const struct aosf44* m) 
+aosf44_det(const struct aosf44* m)
 {
   const struct aosf33 f33_012_012 = { m->c0, m->c1, m->c2 };
   const struct aosf33 f33_012_013 = { m->c0, m->c1, m->c3 };
@@ -293,7 +293,7 @@ aosf44_invtrans(struct aosf44* out, const struct aosf44* a)
   return det;
 }
 
-static FINLINE vf4_t 
+static FINLINE vf4_t
 aosf44_eq(const struct aosf44* a, const struct aosf44* b)
 {
   if(a == b) {
@@ -304,7 +304,8 @@ aosf44_eq(const struct aosf44* a, const struct aosf44* b)
     const vf4_t eq_c2 = vf4_eq(a->c2, b->c2);
     const vf4_t eq_c3 = vf4_eq(a->c3, b->c3);
     const vf4_t eq = vf4_and(vf4_and(eq_c0, eq_c1), vf4_and(eq_c2, eq_c3));
-    const vf4_t ret = vf4_and(vf4_and(eq, vf4_yzwx(eq)), vf4_zwxy(eq));
+    const vf4_t tmp = vf4_and(vf4_xzxz(eq), vf4_ywyw(eq));
+    const vf4_t ret = vf4_and(tmp, vf4_yxwz(tmp));
     return ret;
   }
 }

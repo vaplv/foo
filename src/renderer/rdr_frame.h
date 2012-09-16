@@ -3,6 +3,7 @@
 
 #include "renderer/rdr_error.h"
 #include "renderer/rdr_imdraw.h"
+#include <stdbool.h>
 
 struct rdr_frame;
 struct rdr_system;
@@ -127,6 +128,12 @@ rdr_frame_pick_model_instance
    const struct rdr_view* view,
    const unsigned int pos[2], /* In pixels. */
    const unsigned int size[2]); /* In pixels. */
+
+extern enum rdr_error
+rdr_frame_show_pick_buffer
+  (struct rdr_frame* frame,
+   struct rdr_world* world,
+   const struct rdr_view* view);
 
 #endif /* RDR_FRAME_H */
 

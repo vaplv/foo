@@ -1,4 +1,5 @@
 #include "app/core/regular/app_c.h"
+#include "app/core/regular/app_cvar_c.h"
 #include "app/core/regular/app_error_c.h"
 #include "app/core/regular/app_model_instance_c.h"
 #include "app/core/regular/app_view_c.h"
@@ -277,11 +278,20 @@ app_draw_world(struct app_world* world, const struct app_view* view)
   render_view.width = win_desc.width;
   render_view.height = win_desc.height;
 
-  rdr_err = rdr_frame_draw_world
-    (world->app->rdr.frame, world->render_world, &render_view);
-  if(rdr_err != RDR_NO_ERROR) {
-    app_err = rdr_to_app_error(rdr_err);
-    goto error;
+  if(world->app->cvar_system.rdr_show_picking->value.boolean == false) {
+    rdr_err = rdr_frame_draw_world
+      (world->app->rdr.frame, world->render_world, &render_view);
+    if(rdr_err != RDR_NO_ERROR) {
+      app_err = rdr_to_app_error(rdr_err);
+      goto error;
+    }
+  } else {
+    rdr_err = rdr_frame_show_pick_buffer
+      (world->app->rdr.frame, world->render_world, &render_view);
+    if(rdr_err != RDR_NO_ERROR) {
+      app_err = rdr_to_app_error(rdr_err);
+      goto error;
+    }
   }
 
 exit:
