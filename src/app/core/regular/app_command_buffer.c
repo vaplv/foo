@@ -1,4 +1,4 @@
-#include "app/core/regular/app_c.h"
+#include "app/core/regular/app_core_c.h"
 #include "app/core/regular/app_command_c.h"
 #include "app/core/regular/app_command_buffer_c.h"
 #include "app/core/regular/app_error_c.h"
@@ -139,7 +139,7 @@ error:
  * Command buffer functions.
  *
  ******************************************************************************/
-EXPORT_SYM enum app_error
+enum app_error
 app_create_command_buffer
   (struct app* app,
    struct app_command_buffer** cmdbuf)
@@ -155,7 +155,7 @@ error:
   goto exit;
 }
 
-EXPORT_SYM enum app_error
+enum app_error
 app_command_buffer_ref_get(struct app_command_buffer* buf)
 {
   if(!buf)
@@ -164,7 +164,7 @@ app_command_buffer_ref_get(struct app_command_buffer* buf)
   return APP_NO_ERROR;
 }
 
-EXPORT_SYM enum app_error
+enum app_error
 app_command_buffer_ref_put(struct app_command_buffer* buf)
 {
   if(!buf)
@@ -173,7 +173,7 @@ app_command_buffer_ref_put(struct app_command_buffer* buf)
   return APP_NO_ERROR;
 }
 
-EXPORT_SYM enum app_error
+enum app_error
 app_command_buffer_write_string
   (struct app_command_buffer* buf,
    const char* str)
@@ -198,7 +198,7 @@ error:
   goto exit;
 }
 
-EXPORT_SYM enum app_error
+enum app_error
 app_command_buffer_write_char(struct app_command_buffer* buf, char ch)
 {
   enum app_error app_err = APP_NO_ERROR;
@@ -221,7 +221,7 @@ error:
   goto exit;
 }
 
-EXPORT_SYM enum app_error
+enum app_error
 app_command_buffer_write_backspace(struct app_command_buffer* buf)
 {
   enum app_error app_err = APP_NO_ERROR;
@@ -240,7 +240,7 @@ error:
   goto exit;
 }
 
-EXPORT_SYM enum app_error
+enum app_error
 app_command_buffer_write_suppr(struct app_command_buffer* buf)
 {
   size_t len = 0;
@@ -261,7 +261,7 @@ error:
   goto exit;
 }
 
-EXPORT_SYM enum app_error
+enum app_error
 app_command_buffer_move_cursor(struct app_command_buffer* buf, int i)
 {
   if(!buf)
@@ -279,7 +279,7 @@ app_command_buffer_move_cursor(struct app_command_buffer* buf, int i)
   return APP_NO_ERROR;
 }
 
-EXPORT_SYM enum app_error
+enum app_error
 app_clear_command_buffer(struct app_command_buffer* buf)
 {
   if(!buf)
@@ -291,7 +291,7 @@ app_clear_command_buffer(struct app_command_buffer* buf)
   return APP_NO_ERROR;
 }
 
-EXPORT_SYM enum app_error
+enum app_error
 app_execute_command_buffer(struct app_command_buffer* buf)
 {
   const char* cstr = NULL;
@@ -317,7 +317,7 @@ error:
   goto exit;
 }
 
-EXPORT_SYM enum app_error
+enum app_error
 app_command_buffer_history_next(struct app_command_buffer* buf)
 {
   if(!buf)
@@ -332,7 +332,7 @@ app_command_buffer_history_next(struct app_command_buffer* buf)
   return APP_NO_ERROR;
 }
 
-EXPORT_SYM enum app_error
+enum app_error
 app_command_buffer_history_prev(struct app_command_buffer* buf)
 {
   if(!buf)
@@ -347,7 +347,7 @@ app_command_buffer_history_prev(struct app_command_buffer* buf)
   return APP_NO_ERROR;
 }
 
-EXPORT_SYM enum app_error
+enum app_error
 app_command_buffer_clear_history(struct app_command_buffer* buf)
 {
   struct list_node* head = NULL;
@@ -375,7 +375,7 @@ app_command_buffer_clear_history(struct app_command_buffer* buf)
   return APP_NO_ERROR;
 }
 
-EXPORT_SYM enum app_error
+enum app_error
 app_dump_command_buffer
   (struct app_command_buffer* buf,
    size_t* len,
@@ -395,7 +395,7 @@ app_dump_command_buffer
   return APP_NO_ERROR;
 }
 
-EXPORT_SYM enum app_error
+enum app_error
 app_command_buffer_completion
   (struct app_command_buffer* buf,
    size_t* out_len,

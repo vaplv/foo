@@ -295,7 +295,7 @@ release_geometry(struct ref* ref)
  * Implementation of the primitive list functions.
  *
  ******************************************************************************/
-EXPORT_SYM enum rsrc_error
+enum rsrc_error
 rsrc_create_geometry
   (struct rsrc_context* ctxt,
    struct rsrc_geometry** out_geom)
@@ -358,7 +358,7 @@ error:
   goto exit;
 }
 
-EXPORT_SYM enum rsrc_error
+enum rsrc_error
 rsrc_geometry_ref_get(struct rsrc_geometry* geom)
 {
   if(!geom)
@@ -367,7 +367,7 @@ rsrc_geometry_ref_get(struct rsrc_geometry* geom)
   return RSRC_NO_ERROR;
 }
 
-EXPORT_SYM enum rsrc_error
+enum rsrc_error
 rsrc_geometry_ref_put(struct rsrc_geometry* geom)
 {
   if(!geom)
@@ -376,7 +376,7 @@ rsrc_geometry_ref_put(struct rsrc_geometry* geom)
   return RSRC_NO_ERROR;
 }
 
-EXPORT_SYM enum rsrc_error
+enum rsrc_error
 rsrc_clear_geometry(struct rsrc_geometry* geom)
 {
   struct primitive_set* prim_set = NULL;
@@ -440,7 +440,7 @@ error:
   goto exit;
 }
 
-EXPORT_SYM enum rsrc_error
+enum rsrc_error
 rsrc_geometry_from_wavefront_obj
   (struct rsrc_geometry* geom,
    const struct rsrc_wavefront_obj* wobj)
@@ -528,7 +528,7 @@ error:
   goto exit;
 }
 
-EXPORT_SYM enum rsrc_error
+enum rsrc_error
 rsrc_get_primitive_set_count
   (const struct rsrc_geometry* geom,
    size_t* out_nb_prim_list)
@@ -545,7 +545,7 @@ rsrc_get_primitive_set_count
   return RSRC_NO_ERROR;
 }
 
-EXPORT_SYM enum rsrc_error
+enum rsrc_error
 rsrc_get_primitive_set
   (const struct rsrc_geometry* geom,
    size_t id,

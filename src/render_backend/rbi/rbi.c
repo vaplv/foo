@@ -12,7 +12,7 @@ void set_rbi_to_null(struct rbi* driver)
     memset(driver, 0, sizeof(struct rbi));
 }
 
-EXPORT_SYM int
+int
 rbi_init(const char* library, struct rbi* driver)
 {
   int err = 0;
@@ -30,8 +30,8 @@ rbi_init(const char* library, struct rbi* driver)
     goto error;
   }
 
-  #define RB_FUNC(ret_type, func_name, ...)\
-    driver->func_name = (ret_type (*)(__VA_ARGS__))(intptr_t) \
+  #define RB_FUNC(func_name, ...)\
+    driver->func_name = (int (*)(__VA_ARGS__))(intptr_t) \
       dlsym(driver->handle, "rb_"#func_name); \
     if((err_msg=dlerror())) \
       goto error;
@@ -53,7 +53,7 @@ error:
   goto exit;
 }
 
-EXPORT_SYM int
+int
 rbi_shutdown(struct rbi* driver)
 {
   if(!driver)

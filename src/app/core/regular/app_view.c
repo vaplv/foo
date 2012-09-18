@@ -1,4 +1,4 @@
-#include "app/core/regular/app_c.h"
+#include "app/core/regular/app_core_c.h"
 #include "app/core/regular/app_view_c.h"
 #include "app/core/app_view.h"
 #include "sys/math.h"
@@ -26,7 +26,7 @@ release_view(struct ref* ref)
  * View functions.
  *
  ******************************************************************************/
-EXPORT_SYM enum app_error
+enum app_error
 app_create_view(struct app* app, struct app_view** out_view)
 {
   struct app_view* view = NULL;
@@ -64,7 +64,7 @@ error:
   goto exit;
 }
 
-EXPORT_SYM enum app_error
+enum app_error
 app_view_ref_get(struct app_view* view)
 {
   if(!view)
@@ -73,7 +73,7 @@ app_view_ref_get(struct app_view* view)
   return APP_NO_ERROR;
 }
 
-EXPORT_SYM enum app_error
+enum app_error
 app_view_ref_put(struct app_view* view)
 {
   if(!view)
@@ -82,7 +82,7 @@ app_view_ref_put(struct app_view* view)
   return APP_NO_ERROR;
 }
 
-EXPORT_SYM enum app_error
+enum app_error
 app_look_at
   (struct app_view* view,
    float pos[3],
@@ -115,7 +115,7 @@ app_look_at
   return APP_NO_ERROR;
 }
 
-EXPORT_SYM enum app_error
+enum app_error
 app_perspective
   (struct app_view* view,
    float fov_x,
@@ -132,7 +132,7 @@ app_perspective
   return APP_NO_ERROR;
 }
 
-EXPORT_SYM enum app_error
+enum app_error
 app_view_translate
   (struct app_view* view,
    float x,
@@ -147,7 +147,7 @@ app_view_translate
 }
 
 /* XYZ norm. */
-EXPORT_SYM enum app_error
+enum app_error
 app_view_rotate
   (struct app_view* view,
    float pitch,
@@ -168,7 +168,7 @@ app_view_rotate
   return APP_NO_ERROR;
 }
 
-EXPORT_SYM enum app_error
+enum app_error
 app_raw_view_transform(struct app_view* view, const struct aosf44* transform)
 {
   if(UNLIKELY(!view || !transform))
@@ -177,7 +177,7 @@ app_raw_view_transform(struct app_view* view, const struct aosf44* transform)
   return APP_NO_ERROR;
 }
 
-EXPORT_SYM enum app_error
+enum app_error
 app_get_view_basis
   (struct app_view* view,
    float pos[3],
@@ -220,7 +220,7 @@ app_get_view_basis
   return APP_NO_ERROR;
 }
 
-EXPORT_SYM enum app_error
+enum app_error
 app_get_raw_view_transform
   (const struct app_view* view,
    const struct aosf44** transform)
@@ -231,7 +231,7 @@ app_get_raw_view_transform
   return APP_NO_ERROR;
 }
 
-EXPORT_SYM enum app_error
+enum app_error
 app_get_view_projection
   (struct app_view* view,
    float* fov_x,

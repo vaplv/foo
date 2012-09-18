@@ -137,7 +137,7 @@ release_attrib(struct ref* ref)
  * Attrib implementation.
  *
  ******************************************************************************/
-EXPORT_SYM int
+int
 rb_get_attribs
   (struct rb_context* ctxt,
    struct rb_program* prog,
@@ -198,7 +198,7 @@ error:
   goto exit;
 }
 
-EXPORT_SYM int
+int
 rb_get_named_attrib
   (struct rb_context* ctxt,
    struct rb_program* prog,
@@ -246,7 +246,7 @@ error:
 }
 
 
-EXPORT_SYM int
+int
 rb_attrib_ref_get(struct rb_attrib* attr)
 {
   if(!attr)
@@ -255,7 +255,7 @@ rb_attrib_ref_get(struct rb_attrib* attr)
   return 0;
 }
 
-EXPORT_SYM int
+int
 rb_attrib_ref_put(struct rb_attrib* attr)
 {
   if(!attr)
@@ -264,7 +264,7 @@ rb_attrib_ref_put(struct rb_attrib* attr)
   return 0;
 }
 
-EXPORT_SYM int
+int
 rb_attrib_data(struct rb_attrib* attr, const void* data)
 {
   if(!attr || !data)
@@ -277,7 +277,7 @@ rb_attrib_data(struct rb_attrib* attr, const void* data)
   return 0;
 }
 
-EXPORT_SYM int
+int
 rb_get_attrib_desc(const struct rb_attrib* attr, struct rb_attrib_desc* desc)
 {
   if(!attr || !desc)

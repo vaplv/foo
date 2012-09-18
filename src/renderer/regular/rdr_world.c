@@ -72,7 +72,7 @@ release_world(struct ref* ref)
  * Implementation of the render world functions.
  *
  ******************************************************************************/
-EXPORT_SYM enum rdr_error
+enum rdr_error
 rdr_create_world(struct rdr_system* sys, struct rdr_world** out_world)
 {
   struct rdr_world* world = NULL;
@@ -117,7 +117,7 @@ error:
   goto exit;
 }
 
-EXPORT_SYM enum rdr_error
+enum rdr_error
 rdr_world_ref_get(struct rdr_world* world)
 {
   if(!world)
@@ -126,7 +126,7 @@ rdr_world_ref_get(struct rdr_world* world)
   return RDR_NO_ERROR;
 }
 
-EXPORT_SYM enum rdr_error
+enum rdr_error
 rdr_world_ref_put(struct rdr_world* world)
 {
   if(!world)
@@ -135,7 +135,7 @@ rdr_world_ref_put(struct rdr_world* world)
   return RDR_NO_ERROR;
 }
 
-EXPORT_SYM enum rdr_error
+enum rdr_error
 rdr_add_model_instance
   (struct rdr_world* world,
    struct rdr_model_instance* instance)
@@ -173,7 +173,7 @@ error:
   goto exit;
 }
 
-EXPORT_SYM enum rdr_error
+enum rdr_error
 rdr_remove_model_instance
   (struct rdr_world* world,
    struct rdr_model_instance* instance)

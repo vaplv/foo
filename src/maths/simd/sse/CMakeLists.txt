@@ -2,5 +2,7 @@ cmake_minimum_required(VERSION 2.6)
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -msse3")
 
+add_definitions(-DSIMD_BUILD_SHARED_LIBRARY)
+
 file(GLOB MATHS_FILES *.c ../regular/*.c)
 add_library(mathssse SHARED ${MATHS_FILES})

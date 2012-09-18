@@ -17,7 +17,7 @@ struct rsrc_context {
   size_t errbuf_id;
 };
 
-extern enum rsrc_error
+LOCAL_SYM enum rsrc_error
 rsrc_print_error
   (struct rsrc_context* ctxt,
    const char* fmt,

@@ -744,7 +744,7 @@ release_model_instance(struct ref* ref)
  * Implementation of the render model instance functions.
  *
  ******************************************************************************/
-EXPORT_SYM enum rdr_error
+enum rdr_error
 rdr_create_model_instance
   (struct rdr_system* sys,
    struct rdr_model* model,
@@ -820,7 +820,7 @@ error:
   goto exit;
 }
 
-EXPORT_SYM enum rdr_error
+enum rdr_error
 rdr_model_instance_ref_get(struct rdr_model_instance* instance)
 {
   if(!instance)
@@ -829,7 +829,7 @@ rdr_model_instance_ref_get(struct rdr_model_instance* instance)
   return RDR_NO_ERROR;
 }
 
-EXPORT_SYM enum rdr_error
+enum rdr_error
 rdr_model_instance_ref_put(struct rdr_model_instance* instance)
 {
   if(!instance)
@@ -838,7 +838,7 @@ rdr_model_instance_ref_put(struct rdr_model_instance* instance)
   return RDR_NO_ERROR;
 }
 
-EXPORT_SYM enum rdr_error
+enum rdr_error
 rdr_get_model_instance_uniforms
   (struct rdr_model_instance* instance,
    size_t* out_nb_uniforms,
@@ -874,7 +874,7 @@ error:
   goto exit;
 }
 
-EXPORT_SYM enum rdr_error
+enum rdr_error
 rdr_get_model_instance_attribs
   (struct rdr_model_instance* instance,
    size_t* out_nb_attribs,
@@ -909,7 +909,7 @@ error:
   goto exit;
 }
 
-EXPORT_SYM enum rdr_error
+enum rdr_error
 rdr_model_instance_transform
   (struct rdr_model_instance* instance,
    const float mat[16])
@@ -923,7 +923,7 @@ rdr_model_instance_transform
   return RDR_NO_ERROR;
 }
 
-EXPORT_SYM enum rdr_error
+enum rdr_error
 rdr_get_model_instance_transform
   (const struct rdr_model_instance* instance,
    float transform[16])
@@ -937,7 +937,7 @@ rdr_get_model_instance_transform
   return RDR_NO_ERROR;
 }
 
-EXPORT_SYM enum rdr_error
+enum rdr_error
 rdr_translate_model_instances
   (struct rdr_model_instance* instance_list[],
    size_t nb_instances,
@@ -967,7 +967,7 @@ rdr_translate_model_instances
   return RDR_NO_ERROR;
 }
 
-EXPORT_SYM enum rdr_error
+enum rdr_error
 rdr_rotate_model_instances
   (struct rdr_model_instance* instance_list[],
    size_t nb_instances,
@@ -1014,7 +1014,7 @@ rdr_rotate_model_instances
   return RDR_NO_ERROR;
 }
 
-EXPORT_SYM enum rdr_error
+enum rdr_error
 rdr_scale_model_instances
   (struct rdr_model_instance* instance_list[],
    size_t nb_instances,
@@ -1061,7 +1061,7 @@ rdr_scale_model_instances
   return RDR_NO_ERROR;
 }
 
-EXPORT_SYM enum rdr_error
+enum rdr_error
 rdr_move_model_instances
   (struct rdr_model_instance* instance_list[],
    size_t nb_instances,
@@ -1078,7 +1078,7 @@ rdr_move_model_instances
   return RDR_NO_ERROR;
 }
 
-EXPORT_SYM enum rdr_error
+enum rdr_error
 rdr_transform_model_instances
   (struct rdr_model_instance* instance_list[],
    size_t nb_instances,
@@ -1104,7 +1104,7 @@ rdr_transform_model_instances
   return RDR_NO_ERROR;
 }
 
-EXPORT_SYM enum rdr_error
+enum rdr_error
 rdr_model_instance_material_density
   (struct rdr_model_instance* instance,
    enum rdr_material_density density)
@@ -1115,7 +1115,7 @@ rdr_model_instance_material_density
   return RDR_NO_ERROR;
 }
 
-EXPORT_SYM enum rdr_error
+enum rdr_error
 rdr_get_model_instance_material_density
   (const struct rdr_model_instance* instance,
    enum rdr_material_density* out_density)
@@ -1126,7 +1126,7 @@ rdr_get_model_instance_material_density
   return RDR_NO_ERROR;
 }
 
-EXPORT_SYM enum rdr_error
+enum rdr_error
 rdr_model_instance_rasterizer
   (struct rdr_model_instance* instance,
    const struct rdr_rasterizer_desc* rasterizer_desc)
@@ -1140,7 +1140,7 @@ rdr_model_instance_rasterizer
   return RDR_NO_ERROR;
 }
 
-EXPORT_SYM enum rdr_error
+enum rdr_error
 rdr_get_model_instance_rasterizer
   (const struct rdr_model_instance* instance,
    struct rdr_rasterizer_desc* out_rasterizer_desc)
@@ -1154,7 +1154,7 @@ rdr_get_model_instance_rasterizer
   return RDR_NO_ERROR;
 }
 
-EXPORT_SYM enum rdr_error
+enum rdr_error
 rdr_get_model_instance_model
   (struct rdr_model_instance* instance,
    struct rdr_model** mdl)
@@ -1165,7 +1165,7 @@ rdr_get_model_instance_model
   return RDR_NO_ERROR;
 }
 
-EXPORT_SYM enum rdr_error
+enum rdr_error
 rdr_get_model_instance_aabb
   (const struct rdr_model_instance* instance,
    float min_bound[3],
@@ -1219,7 +1219,7 @@ rdr_get_model_instance_aabb
   return RDR_NO_ERROR;
 }
 
-EXPORT_SYM enum rdr_error
+enum rdr_error
 rdr_get_model_instance_obb
   (const struct rdr_model_instance* instance,
    float position[3],
@@ -1253,7 +1253,7 @@ rdr_get_model_instance_obb
   return RDR_NO_ERROR;
 }
 
-EXPORT_SYM enum rdr_error
+enum rdr_error
 rdr_attach_model_instance_callback
   (struct rdr_model_instance* instance,
    void (*func)(struct rdr_model_instance*, void*),
@@ -1266,7 +1266,7 @@ rdr_attach_model_instance_callback
   return RDR_NO_ERROR;
 }
 
-EXPORT_SYM enum rdr_error
+enum rdr_error
 rdr_detach_model_instance_callback
   (struct rdr_model_instance* instance,
    void (*func)(struct rdr_model_instance*, void*),
@@ -1285,7 +1285,7 @@ rdr_detach_model_instance_callback
   return RDR_NO_ERROR;
 }
 
-EXPORT_SYM enum rdr_error
+enum rdr_error
 rdr_is_model_instance_callback_attached
   (struct rdr_model_instance* instance,
    void (*func)(struct rdr_model_instance*, void* data),

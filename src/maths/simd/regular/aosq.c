@@ -2,7 +2,7 @@
 #include "maths/simd/aosf33.h"
 #include "sys/sys.h"
 
-EXPORT_SYM vf4_t
+vf4_t
 aosq_slerp(vf4_t from, vf4_t to, vf4_t vvvv)
 {
   const float vf = vf4_x(vvvv);
@@ -32,7 +32,7 @@ aosq_slerp(vf4_t from, vf4_t to, vf4_t vvvv)
   return vf4_madd(from, scale0, vf4_mul(tmp0, scale1));
 }
 
-EXPORT_SYM void
+void
 aosq_to_aosf33(vf4_t q, struct aosf33* out)
 {
   const vf4_t i2j2k2_ = vf4_add(q, q);

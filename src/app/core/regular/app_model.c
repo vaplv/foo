@@ -1,4 +1,4 @@
-#include "app/core/regular/app_c.h"
+#include "app/core/regular/app_core_c.h"
 #include "app/core/regular/app_error_c.h"
 #include "app/core/regular/app_model_c.h"
 #include "app/core/regular/app_model_instance_c.h"
@@ -239,7 +239,7 @@ release_model_object(struct app_object* obj)
  *  Implementation of the app_model functions.
  *
  ******************************************************************************/
-EXPORT_SYM enum app_error
+enum app_error
 app_create_model
   (struct app* app,
    const char* path,
@@ -324,7 +324,7 @@ error:
   goto exit;
 }
 
-EXPORT_SYM enum app_error
+enum app_error
 app_clear_model(struct app_model* model)
 {
   enum app_error app_err = APP_NO_ERROR;
@@ -353,7 +353,7 @@ error:
   goto exit;
 }
 
-EXPORT_SYM enum app_error
+enum app_error
 app_remove_model(struct app_model* model)
 {
   struct list_node* node = NULL;
@@ -379,7 +379,7 @@ app_remove_model(struct app_model* model)
   return APP_NO_ERROR;
 }
 
-EXPORT_SYM enum app_error
+enum app_error
 app_model_ref_get(struct app_model* model)
 {
   if(!model)
@@ -388,7 +388,7 @@ app_model_ref_get(struct app_model* model)
   return APP_NO_ERROR;
 }
 
-EXPORT_SYM enum app_error
+enum app_error
 app_model_ref_put(struct app_model* model)
 {
   if(!model)
@@ -397,7 +397,7 @@ app_model_ref_put(struct app_model* model)
   return APP_NO_ERROR;
 }
 
-EXPORT_SYM enum app_error
+enum app_error
 app_load_model(const char* path, struct app_model* model)
 {
   const char* str_err = NULL;
@@ -453,7 +453,7 @@ error:
   goto exit;
 }
 
-EXPORT_SYM enum app_error
+enum app_error
 app_model_path
   (const struct app_model* model,
    const char** path)
@@ -477,7 +477,7 @@ error:
   goto exit;
 }
 
-EXPORT_SYM enum app_error
+enum app_error
 app_set_model_name(struct app_model* model, const char* name)
 {
   if(!model)
@@ -485,7 +485,7 @@ app_set_model_name(struct app_model* model, const char* name)
   return app_set_object_name(model->app, &model->obj, name);
 }
 
-EXPORT_SYM enum app_error
+enum app_error
 app_model_name(const struct app_model* model, const char** name)
 {
   if(!model)
@@ -493,7 +493,7 @@ app_model_name(const struct app_model* model, const char** name)
   return app_object_name(model->app, &model->obj, name);
 }
 
-EXPORT_SYM enum app_error
+enum app_error
 app_is_model_instantiated(const struct app_model* model, bool* b)
 {
   if(!model || !b)
@@ -502,7 +502,7 @@ app_is_model_instantiated(const struct app_model* model, bool* b)
   return APP_NO_ERROR;
 }
 
-EXPORT_SYM enum app_error
+enum app_error
 app_get_model_aabb
   (const struct app_model* mdl,
    float min_bound[3],
@@ -519,7 +519,7 @@ app_get_model_aabb
   return APP_NO_ERROR;
 }
 
-EXPORT_SYM enum app_error
+enum app_error
 app_get_model_spawned_instance_list_begin
   (struct app_model* mdl,
    struct app_model_spawned_instance_it* it,
@@ -537,7 +537,7 @@ app_get_model_spawned_instance_list_begin
   return APP_NO_ERROR;
 }
 
-EXPORT_SYM enum app_error
+enum app_error
 app_model_spawned_instance_it_next
   (struct app_model_spawned_instance_it* it,
    bool* is_end_reached)
@@ -553,7 +553,7 @@ app_model_spawned_instance_it_next
   return APP_NO_ERROR;
 }
 
-EXPORT_SYM enum app_error
+enum app_error
 app_get_model(struct app* app, const char* mdl_name, struct app_model** mdl)
 {
   struct app_object* obj = NULL;
@@ -578,7 +578,7 @@ error:
   goto exit;
 }
 
-EXPORT_SYM enum app_error
+enum app_error
 app_get_model_list_begin
   (struct app* app,
    struct app_model_it* it,
@@ -599,7 +599,7 @@ app_get_model_list_begin
   return APP_NO_ERROR;
 }
 
-EXPORT_SYM enum app_error
+enum app_error
 app_model_it_next(struct app_model_it* it, bool* is_end_reached)
 {
   struct app_object** obj_list = NULL;
@@ -617,7 +617,7 @@ app_model_it_next(struct app_model_it* it, bool* is_end_reached)
   return APP_NO_ERROR;
 }
 
-EXPORT_SYM enum app_error
+enum app_error
 app_get_model_list_length(struct app* app, size_t* len)
 {
   if(UNLIKELY(!app || !len))
@@ -626,7 +626,7 @@ app_get_model_list_length(struct app* app, size_t* len)
   return APP_NO_ERROR;
 }
 
-EXPORT_SYM enum app_error
+enum app_error
 app_model_name_completion
   (struct app* app,
    const char* mdl_name,
@@ -660,7 +660,7 @@ app_object_to_model(struct app_object* obj)
  * Model instance function(s).
  *
  ******************************************************************************/
-EXPORT_SYM enum app_error
+enum app_error
 app_instantiate_model
   (struct app* app,
    struct app_model* model,

@@ -2,10 +2,11 @@
 #define APP_BUILTIN_COMMANDS_H
 
 #include "app/core/app_error.h"
+#include "sys/sys.h"
 
 struct app;
 
-extern enum app_error
+LOCAL_SYM enum app_error
 app_setup_builtin_commands
   (struct app* app);
 

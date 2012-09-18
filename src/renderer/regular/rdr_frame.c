@@ -432,7 +432,7 @@ release_frame(struct ref* ref)
  * Frame functions.
  *
  ******************************************************************************/
-EXPORT_SYM enum rdr_error
+enum rdr_error
 rdr_create_frame
   (struct rdr_system* sys,
    const struct rdr_frame_desc* desc,
@@ -488,7 +488,7 @@ error:
   goto exit;
 }
 
-EXPORT_SYM enum rdr_error
+enum rdr_error
 rdr_frame_ref_get(struct rdr_frame* frame)
 {
   if(!frame)
@@ -497,7 +497,7 @@ rdr_frame_ref_get(struct rdr_frame* frame)
   return RDR_NO_ERROR;
 }
 
-EXPORT_SYM enum rdr_error
+enum rdr_error
 rdr_frame_ref_put(struct rdr_frame* frame)
 {
   if(!frame)
@@ -506,7 +506,7 @@ rdr_frame_ref_put(struct rdr_frame* frame)
   return RDR_NO_ERROR;
 }
 
-EXPORT_SYM enum rdr_error
+enum rdr_error
 rdr_background_color(struct rdr_frame* frame, const float rgb[3])
 {
   if(!frame || !rgb)
@@ -515,7 +515,7 @@ rdr_background_color(struct rdr_frame* frame, const float rgb[3])
   return RDR_NO_ERROR;
 }
 
-EXPORT_SYM enum rdr_error
+enum rdr_error
 rdr_frame_draw_world
   (struct rdr_frame* frame,
    struct rdr_world* world,
@@ -535,7 +535,7 @@ rdr_frame_draw_world
   }
 }
 
-EXPORT_SYM enum rdr_error
+enum rdr_error
 rdr_frame_draw_term(struct rdr_frame* frame, struct rdr_term* term)
 {
   struct term_node* term_node = NULL;
@@ -554,7 +554,7 @@ rdr_frame_draw_term(struct rdr_frame* frame, struct rdr_term* term)
   return RDR_NO_ERROR;
 }
 
-EXPORT_SYM enum rdr_error
+enum rdr_error
 rdr_frame_imdraw_parallelepiped
   (struct rdr_frame* frame,
    const struct rdr_view* rview,
@@ -584,7 +584,7 @@ error:
   goto exit;
 }
 
-EXPORT_SYM enum rdr_error
+enum rdr_error
 rdr_frame_imdraw_transformed_parallelepiped
   (struct rdr_frame* frame,
    const struct rdr_view* rview,
@@ -622,7 +622,7 @@ error:
   goto exit;
 }
 
-EXPORT_SYM enum rdr_error
+enum rdr_error
 rdr_frame_imdraw_ellipse
   (struct rdr_frame* frame,
    const struct rdr_view* rview,
@@ -643,7 +643,7 @@ rdr_frame_imdraw_ellipse
   return rdr_err;
 }
 
-EXPORT_SYM enum rdr_error
+enum rdr_error
 rdr_frame_imdraw_vector
   (struct rdr_frame* frame,
    const struct rdr_view* rview,
@@ -673,7 +673,7 @@ rdr_frame_imdraw_vector
   return rdr_err;
 }
 
-EXPORT_SYM enum rdr_error
+enum rdr_error
 rdr_frame_imdraw_grid
   (struct rdr_frame* frame,
    const struct rdr_view* rview,
@@ -721,7 +721,7 @@ rdr_frame_imdraw_grid
   return rdr_err;
 }
 
-EXPORT_SYM enum rdr_error
+enum rdr_error
 rdr_frame_pick_model_instance
   (struct rdr_frame* frame,
    struct rdr_world* world,
@@ -748,7 +748,7 @@ rdr_frame_pick_model_instance
   return RDR_NO_ERROR;
 }
 
-EXPORT_SYM enum rdr_error
+enum rdr_error
 rdr_frame_show_pick_buffer
   (struct rdr_frame* frame,
    struct rdr_world* world,
@@ -768,7 +768,7 @@ rdr_frame_show_pick_buffer
   }
 }
 
-EXPORT_SYM enum rdr_error
+enum rdr_error
 rdr_flush_frame(struct rdr_frame* frame)
 {
   const struct rb_depth_stencil_desc depth_stencil_desc = {

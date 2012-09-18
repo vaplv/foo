@@ -22,36 +22,36 @@ struct rdr_material_desc {
   size_t nb_uniforms;
 };
 
-extern enum rdr_error
+LOCAL_SYM enum rdr_error
 rdr_bind_material
   (struct rdr_system* sys,
    struct rdr_material* mtr);
 
-extern enum rdr_error
+LOCAL_SYM enum rdr_error
 rdr_get_material_desc
   (struct rdr_material* mtr,
    struct rdr_material_desc* desc);
 
-extern enum rdr_error
+LOCAL_SYM enum rdr_error
 rdr_is_material_linked
   (struct rdr_material* mtr,
    bool* is_linked);
 
-extern enum rdr_error
+LOCAL_SYM enum rdr_error
 rdr_attach_material_callback
   (struct rdr_material* mtr,
    enum rdr_material_signal sig,
    void (*func)(struct rdr_material*, void*),
    void* data);
 
-extern enum rdr_error
+LOCAL_SYM enum rdr_error
 rdr_detach_material_callback
   (struct rdr_material* mtr,
    enum rdr_material_signal sig,
    void (*func)(struct rdr_material*, void*),
    void* data);
 
-extern enum rdr_error
+LOCAL_SYM enum rdr_error
 rdr_is_material_callback_attached
   (struct rdr_material* mtr,
    enum rdr_material_signal sig,

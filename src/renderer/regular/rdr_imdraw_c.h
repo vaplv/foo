@@ -64,11 +64,11 @@ struct rdr_system;
  * Im rendering system function prototypes.
  *
  ******************************************************************************/
-extern enum rdr_error
+LOCAL_SYM enum rdr_error
 rdr_init_im_rendering
   (struct rdr_system* sys);
 
-extern enum rdr_error
+LOCAL_SYM enum rdr_error
 rdr_shutdown_im_rendering
   (struct rdr_system* sys);
 
@@ -77,31 +77,31 @@ rdr_shutdown_im_rendering
  * Im draw command buffer function prototypes.
  *
  ******************************************************************************/
-extern enum rdr_error
+LOCAL_SYM enum rdr_error
 rdr_create_imdraw_command_buffer
   (struct rdr_system* sys,
    size_t max_command_count,
    struct rdr_imdraw_command_buffer** out_cmdbuf);
 
-extern enum rdr_error
+LOCAL_SYM enum rdr_error
 rdr_imdraw_command_buffer_ref_get
   (struct rdr_imdraw_command_buffer* cmdbuf);
 
-extern enum rdr_error
+LOCAL_SYM enum rdr_error
 rdr_imdraw_command_buffer_ref_put
   (struct rdr_imdraw_command_buffer* cmdbuf);
 
-extern enum rdr_error
+LOCAL_SYM enum rdr_error
 rdr_get_imdraw_command
   (struct rdr_imdraw_command_buffer* cmdbuf,
    struct rdr_imdraw_command** cmd);
 
-extern enum rdr_error
+LOCAL_SYM enum rdr_error
 rdr_emit_imdraw_command
   (struct rdr_imdraw_command_buffer* cmdbuf,
    struct rdr_imdraw_command* cmd);
 
-extern enum rdr_error
+LOCAL_SYM enum rdr_error
 rdr_flush_imdraw_command_buffer
   (struct rdr_imdraw_command_buffer* cmdbuf);
 

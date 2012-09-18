@@ -24,14 +24,14 @@ struct rb_ogl3_buffer_desc {
   enum rb_usage usage;
 };
 
-extern int
+LOCAL_SYM int
 rb_ogl3_create_buffer
   (struct rb_context* ctxt, 
    const struct rb_ogl3_buffer_desc* desc, 
    const void* init_data, 
    struct rb_buffer** buffer);
 
-extern int
+LOCAL_SYM int
 rb_ogl3_bind_buffer
   (struct rb_context* ctxt,
    struct rb_buffer* buffer, 

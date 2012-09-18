@@ -1,6 +1,7 @@
 #ifndef APP_COMMAND_H
 #define APP_COMMAND_H
 
+#include "app/core/app.h"
 #include "app/core/app_error.h"
 #include <stdbool.h>
 #include <stddef.h>
@@ -116,7 +117,7 @@ struct app_cmdarg {
  *
  ******************************************************************************/
 /* Multi syntax is supported by adding several commands with the same name. */
-extern enum app_error
+APP_API enum app_error
 app_add_command
   (struct app* app,
    const char* name,
@@ -127,23 +128,23 @@ app_add_command
    const struct app_cmdarg_desc argv_desc[],
    const char* description); /* May be NULL. */
 
-extern enum app_error
+APP_API enum app_error
 app_del_command
   (struct app* app,
    const char* name);
 
-extern enum app_error
+APP_API enum app_error
 app_has_command
   (struct app* app,
    const char* name,
    bool* has_command);
 
-extern enum app_error
+APP_API enum app_error
 app_execute_command
   (struct app* app,
    const char* command);
 
-extern enum app_error
+APP_API enum app_error
 app_man_command
   (struct app* app,
    const char* command,
@@ -151,7 +152,7 @@ app_man_command
    size_t max_buf_len,
    char* buffer); /* May be NULL. */
 
-extern enum app_error
+APP_API enum app_error
 app_command_arg_completion
   (struct app* app,
    const char* cmd_name,
@@ -163,7 +164,7 @@ app_command_arg_completion
    const char** completion_list[]);
 
 /* The returned list is valid until the add/del command function is called. */
-extern enum app_error
+APP_API enum app_error
 app_command_name_completion
   (struct app* app,
    const char* cmd_name,

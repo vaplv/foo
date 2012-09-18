@@ -2,6 +2,7 @@
 #define APP_CVAR_C_H
 
 #include "app/core/app_error.h"
+#include "sys/sys.h"
 
 struct app;
 struct app_cvar;
@@ -17,11 +18,11 @@ struct app_cvar_system {
   #undef APP_CVAR
 };
 
-extern enum app_error
+LOCAL_SYM enum app_error
 app_init_cvar_system
   (struct app* app);
 
-extern enum app_error
+LOCAL_SYM enum app_error
 app_shutdown_cvar_system
   (struct app* app);
 

@@ -6,6 +6,7 @@
 #include "maths/simd/aosf44.h"
 #include "sys/list.h"
 #include "sys/ref_count.h"
+#include "sys/sys.h"
 #include <stdbool.h>
 
 struct app_model_instance;
@@ -18,11 +19,11 @@ enum app_model_instance_it_type {
 
 /* Data of app_model_instance. */
 struct app_model_instance {
+  ALIGN(16) struct aosf44 transform;
   struct app_object obj;
   struct ref ref;
   struct list_node model_node; /* Linked the instance against its model.*/
   struct list_node world_node; /* Linked the instance against its world. */
-  ALIGN(16) struct aosf44 transform;
   struct app* app;
   struct app_model* model;
   struct app_world* world;
@@ -30,18 +31,18 @@ struct app_model_instance {
   bool invoke_clbk; /* Help for error management. For internal use nly. */
 };
 
-extern enum app_error
+LOCAL_SYM enum app_error
 app_create_model_instance
   (struct app* app,
    const char* name,
    struct app_model_instance** instance);
 
-extern enum app_error
+LOCAL_SYM enum app_error
 app_is_model_instance_registered
   (struct  app_model_instance* instance,
    bool* is_registered);
 
-struct app_model_instance*
+LOCAL_SYM struct app_model_instance*
 app_object_to_model_instance
   (struct app_object* obj);
 

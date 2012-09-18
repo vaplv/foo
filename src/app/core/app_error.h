@@ -1,6 +1,8 @@
 #ifndef APP_ERROR_H
 #define APP_ERROR_H
 
+#include "app/core/app.h"
+
 enum app_error {
   APP_ALIGNMENT_ERROR,
   APP_COMMAND_ERROR,
@@ -14,7 +16,7 @@ enum app_error {
   APP_UNKNOWN_ERROR
 };
 
-extern const char*
+APP_API const char*
 app_error_string
   (enum app_error err);
 

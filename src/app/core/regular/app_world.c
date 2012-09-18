@@ -1,4 +1,4 @@
-#include "app/core/regular/app_c.h"
+#include "app/core/regular/app_core_c.h"
 #include "app/core/regular/app_cvar_c.h"
 #include "app/core/regular/app_error_c.h"
 #include "app/core/regular/app_model_instance_c.h"
@@ -60,7 +60,7 @@ release_world(struct ref* ref)
  * Implementation of the app_world functions.
  *
  ******************************************************************************/
-EXPORT_SYM enum app_error
+enum app_error
 app_create_world(struct app* app, struct app_world** out_world)
 {
   struct app_world* world = NULL;
@@ -99,7 +99,7 @@ error:
   goto exit;
 }
 
-EXPORT_SYM enum app_error
+enum app_error
 app_world_ref_get(struct app_world* world)
 {
   if(!world)
@@ -108,7 +108,7 @@ app_world_ref_get(struct app_world* world)
   return APP_NO_ERROR;
 }
 
-EXPORT_SYM enum app_error
+enum app_error
 app_world_ref_put(struct app_world* world)
 {
   if(!world)
@@ -117,7 +117,7 @@ app_world_ref_put(struct app_world* world)
   return APP_NO_ERROR;
 }
 
-EXPORT_SYM enum app_error
+enum app_error
 app_world_add_model_instances
   (struct app_world* world,
    size_t nb_model_instances,
@@ -179,7 +179,7 @@ error:
   goto exit;
 }
 
-EXPORT_SYM enum app_error
+enum app_error
 app_world_remove_model_instances
   (struct app_world* world,
    size_t nb_model_instances,

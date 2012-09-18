@@ -1179,7 +1179,7 @@ release_term(struct ref* ref)
  * Console functions.
  *
  ******************************************************************************/
-EXPORT_SYM enum rdr_error
+enum rdr_error
 rdr_create_term
   (struct rdr_system* sys,
    struct rdr_font* font,
@@ -1227,7 +1227,7 @@ error:
   goto exit;
 }
 
-EXPORT_SYM enum rdr_error
+enum rdr_error
 rdr_term_ref_get(struct rdr_term* term)
 {
   if(!term)
@@ -1236,7 +1236,7 @@ rdr_term_ref_get(struct rdr_term* term)
   return RDR_NO_ERROR;
 }
 
-EXPORT_SYM enum rdr_error
+enum rdr_error
 rdr_term_ref_put(struct rdr_term* term)
 {
   if(!term)
@@ -1245,7 +1245,7 @@ rdr_term_ref_put(struct rdr_term* term)
   return RDR_NO_ERROR;
 }
 
-EXPORT_SYM enum rdr_error
+enum rdr_error
 rdr_term_font(struct rdr_term* term, struct rdr_font* font)
 {
   enum rdr_error rdr_err = RDR_NO_ERROR;
@@ -1284,7 +1284,7 @@ error:
   goto exit;
 }
 
-EXPORT_SYM enum rdr_error
+enum rdr_error
 rdr_term_translate_cursor(struct rdr_term* term, int trans)
 {
   enum rdr_error rdr_err = RDR_NO_ERROR;
@@ -1310,7 +1310,7 @@ error:
   goto exit;
 }
 
-EXPORT_SYM enum rdr_error
+enum rdr_error
 rdr_term_print_wstring
   (struct rdr_term* term,
    enum rdr_term_output output,
@@ -1322,7 +1322,7 @@ rdr_term_print_wstring
      wstring_insert, wstring_append, tokenize, str_len);
 }
 
-EXPORT_SYM enum rdr_error
+enum rdr_error
 rdr_term_print_string
   (struct rdr_term* term,
    enum rdr_term_output output,
@@ -1334,7 +1334,7 @@ rdr_term_print_string
      wstring_insert_cstr, wstring_append_cstr, tokenize_cstr, str_len_cstr);
 }
 
-EXPORT_SYM enum rdr_error
+enum rdr_error
 rdr_term_print_wchar
   (struct rdr_term* term,
    enum rdr_term_output output,
@@ -1390,7 +1390,7 @@ error:
   goto exit;
 }
 
-EXPORT_SYM enum rdr_error
+enum rdr_error
 rdr_clear_term(struct rdr_term* term, enum rdr_term_output output)
 {
   size_t len = 0;
@@ -1432,7 +1432,7 @@ rdr_clear_term(struct rdr_term* term, enum rdr_term_output output)
   return RDR_NO_ERROR;
 }
 
-EXPORT_SYM enum rdr_error
+enum rdr_error
 rdr_term_write_backspace(struct rdr_term* term)
 {
   enum rdr_error rdr_err = RDR_NO_ERROR;
@@ -1459,14 +1459,14 @@ error:
   goto exit;
 }
 
-EXPORT_SYM enum rdr_error
+enum rdr_error
 rdr_term_write_tab(struct rdr_term* term)
 {
   return rdr_term_print_wchar
     (term, RDR_TERM_CMDOUT, L'\t', RDR_TERM_COLOR_BLACK);
 }
 
-EXPORT_SYM enum rdr_error
+enum rdr_error
 rdr_term_write_return(struct rdr_term* term)
 {
   if(!term)
@@ -1475,7 +1475,7 @@ rdr_term_write_return(struct rdr_term* term)
   return RDR_NO_ERROR;
 }
 
-EXPORT_SYM enum rdr_error
+enum rdr_error
 rdr_term_write_suppr(struct rdr_term* term)
 {
   size_t len = 0;
@@ -1497,7 +1497,7 @@ error:
   goto exit;
 }
 
-EXPORT_SYM enum rdr_error
+enum rdr_error
 rdr_term_dump(struct rdr_term* term, size_t* out_len, wchar_t* buffer)
 {
   if(!term)

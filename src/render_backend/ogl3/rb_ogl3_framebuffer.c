@@ -183,7 +183,7 @@ release_framebuffer(struct ref* ref)
  * Framebuffer functions.
  *
  ******************************************************************************/
-EXPORT_SYM int
+int
 rb_create_framebuffer
   (struct rb_context* ctxt,
     const struct rb_framebuffer_desc* desc,
@@ -225,7 +225,7 @@ error:
   goto exit;
 }
 
-EXPORT_SYM int
+int
 rb_framebuffer_ref_get(struct rb_framebuffer* buffer)
 {
   if(UNLIKELY(!buffer))
@@ -234,7 +234,7 @@ rb_framebuffer_ref_get(struct rb_framebuffer* buffer)
   return 0;
 }
 
-EXPORT_SYM int
+int
 rb_framebuffer_ref_put(struct rb_framebuffer* buffer)
 {
   if(UNLIKELY(!buffer))
@@ -243,7 +243,7 @@ rb_framebuffer_ref_put(struct rb_framebuffer* buffer)
   return 0;
 }
 
-EXPORT_SYM int
+int
 rb_bind_framebuffer
   (struct rb_context* ctxt,
    struct rb_framebuffer* buffer)
@@ -255,7 +255,7 @@ rb_bind_framebuffer
   return 0;
 }
 
-EXPORT_SYM int
+int
 rb_framebuffer_render_targets
   (struct rb_framebuffer* buffer,
    unsigned int count,
@@ -329,7 +329,7 @@ error:
   goto exit;
 }
 
-EXPORT_SYM int
+int
 rb_read_back_framebuffer
   (struct rb_framebuffer* buffer,
    int rt_id,
@@ -375,7 +375,7 @@ error:
   goto exit;
 }
 
-EXPORT_SYM int
+int
 rb_clear_framebuffer_render_targets
   (struct rb_framebuffer* buffer,
    int clear_flag,

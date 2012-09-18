@@ -369,7 +369,7 @@ release_mesh(struct ref* ref)
  * Render mesh functions.
  *
  ******************************************************************************/
-EXPORT_SYM enum rdr_error
+enum rdr_error
 rdr_create_mesh(struct rdr_system* sys, struct rdr_mesh** out_mesh)
 {
   struct rdr_mesh* mesh = NULL;
@@ -418,7 +418,7 @@ error:
   goto exit;
 }
 
-EXPORT_SYM enum rdr_error
+enum rdr_error
 rdr_mesh_ref_get(struct rdr_mesh* mesh)
 {
   if(!mesh)
@@ -427,7 +427,7 @@ rdr_mesh_ref_get(struct rdr_mesh* mesh)
   return RDR_NO_ERROR;
 }
 
-EXPORT_SYM enum rdr_error
+enum rdr_error
 rdr_mesh_ref_put(struct rdr_mesh* mesh)
 {
   if(!mesh)
@@ -436,7 +436,7 @@ rdr_mesh_ref_put(struct rdr_mesh* mesh)
   return RDR_NO_ERROR;
 }
 
-EXPORT_SYM enum rdr_error
+enum rdr_error
 rdr_mesh_data
   (struct rdr_mesh* mesh,
    size_t nb_attribs,
@@ -493,7 +493,7 @@ error:
   goto exit;
 }
 
-EXPORT_SYM enum rdr_error
+enum rdr_error
 rdr_mesh_indices
   (struct rdr_mesh* mesh,
    size_t nb_indices,
@@ -532,7 +532,7 @@ error:
   goto exit;
 }
 
-EXPORT_SYM enum rdr_error
+enum rdr_error
 rdr_get_mesh_aabb
   (const struct rdr_mesh* mesh,
    float min_bound[3],

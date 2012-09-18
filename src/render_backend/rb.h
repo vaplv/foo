@@ -10,10 +10,18 @@
   #define RB(func) rb_##func
 #endif
 
+#if defined(RB_BUILD_SHARED_LIBRARY)
+  #define RB_API EXPORT_SYM
+#elif defined(RB_USE_SHARED_LIBRARY)
+  #define RB_API IMPORT_SYM
+#else
+  #define RB_API extern
+#endif
+
 /* Define the prototypes of the render backend functions. The generated
- * prototypes are prefixed by rb. */
-#define RB_FUNC(ret_type, func_name, ...) \
-  extern ret_type rb_##func_name(__VA_ARGS__);
+ * prototypes are prefixed by rb. The returned type is an integer. */
+#define RB_FUNC(func_name, ...) \
+  RB_API int rb_##func_name(__VA_ARGS__);
 
 #include "render_backend/rb_func.h"
 

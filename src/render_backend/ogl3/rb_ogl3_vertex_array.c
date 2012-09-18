@@ -59,7 +59,7 @@ release_vertex_array(struct ref* ref)
  * Vertex array functions.
  *
  ******************************************************************************/
-EXPORT_SYM int
+int
 rb_create_vertex_array
   (struct rb_context* ctxt,
    struct rb_vertex_array** out_array)
@@ -81,7 +81,7 @@ rb_create_vertex_array
   return 0;
 }
 
-EXPORT_SYM int
+int
 rb_vertex_array_ref_get(struct rb_vertex_array* array)
 {
   if(!array)
@@ -90,7 +90,7 @@ rb_vertex_array_ref_get(struct rb_vertex_array* array)
   return 0;
 }
 
-EXPORT_SYM int
+int
 rb_vertex_array_ref_put(struct rb_vertex_array* array)
 {
   if(!array)
@@ -99,7 +99,7 @@ rb_vertex_array_ref_put(struct rb_vertex_array* array)
   return 0;
 }
 
-EXPORT_SYM int
+int
 rb_bind_vertex_array(struct rb_context* ctxt, struct rb_vertex_array* array)
 {
   if(!ctxt)
@@ -109,7 +109,7 @@ rb_bind_vertex_array(struct rb_context* ctxt, struct rb_vertex_array* array)
   return 0;
 }
 
-EXPORT_SYM int
+int
 rb_vertex_attrib_array
   (struct rb_vertex_array* array,
    struct rb_buffer* buffer,
@@ -162,7 +162,7 @@ error:
   goto exit;
 }
 
-EXPORT_SYM int
+int
 rb_remove_vertex_attrib
   (struct rb_vertex_array* array,
    int count,
@@ -190,7 +190,7 @@ rb_remove_vertex_attrib
   return err;
 }
 
-EXPORT_SYM int
+int
 rb_vertex_index_array(struct rb_vertex_array* array, struct rb_buffer* buffer)
 {
   if(!array || (buffer && buffer->target != GL_ELEMENT_ARRAY_BUFFER))

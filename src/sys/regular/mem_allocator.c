@@ -7,16 +7,6 @@
 #include <string.h>
 #include <stdio.h>
 
-EXPORT_SYM void
-mem_sys_info(struct mem_sys_info* mem_info)
-{
-  const struct mallinfo info = mallinfo();
-
-  assert(mem_info != NULL);
-  mem_info->total_size = info.arena;
-  mem_info->used_size = info.usmblks + info.uordblks;
-}
-
 /*******************************************************************************
  *
  * Default allocator functions.
@@ -418,7 +408,7 @@ proxy_dump
          "%s: %zu bytes allocated at %s:%u%s",
          proxy_data->name,
          malloc_usable_size(node),
-         node->filename ? node->filename : "none", 
+         node->filename ? node->filename : "none",
          node->fileline,
          node->next ? ".\n" : ".");
       assert(len >= 0);
@@ -462,7 +452,7 @@ EXPORT_SYM struct mem_allocator mem_default_allocator = {
  * Proxy allocator.
  *
  ******************************************************************************/
-EXPORT_SYM void
+void
 mem_init_proxy_allocator
   (const char* name,
    struct mem_allocator* proxy_allocator,
@@ -499,7 +489,7 @@ error:
   goto exit;
 }
 
-EXPORT_SYM void
+void
 mem_shutdown_proxy_allocator(struct mem_allocator* proxy)
 {
   struct proxy_data* proxy_data = NULL;

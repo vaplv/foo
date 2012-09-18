@@ -3,7 +3,7 @@
 
 #include "app/core/regular/app_cvar_c.h"
 #include "app/core/regular/app_object.h"
-#include "app/core/app.h"
+#include "app/core/app_core.h"
 #include "renderer/rdr_attrib.h"
 #include "resources/rsrc.h"
 #include "resources/rsrc_geometry.h"
@@ -11,6 +11,7 @@
 #include "stdlib/sl_logger.h"
 #include "sys/mem_allocator.h"
 #include "sys/ref_count.h"
+#include "sys/sys.h"
 #include <stdbool.h>
 
 #define APP_PRINT_MSG(logger, ...) \
@@ -93,7 +94,7 @@ struct app {
 
 /* Factorize the completion process of data structure stored into a flat map
  * with respect to their name. */
-extern enum app_error
+LOCAL_SYM enum app_error
 app_mapped_name_completion
   (struct sl_flat_map* map, /* Assume that the map key type is char* */
    const char* name,
@@ -101,17 +102,17 @@ app_mapped_name_completion
    size_t* completion_list_len,
    const char** completion_list[]);
 
-extern enum app_error
+LOCAL_SYM enum app_error
 app_invoke_callbacks
   (struct app* app,
    enum app_signal signal,
    ...);
 
-extern enum rdr_attrib_usage
+LOCAL_SYM enum rdr_attrib_usage
 rsrc_to_rdr_attrib_usage
   (enum rsrc_attrib_usage usage);
 
-extern enum rdr_type
+LOCAL_SYM enum rdr_type
 rsrc_to_rdr_type
   (enum rsrc_type type);
 

@@ -1,4 +1,4 @@
-#include "app/core/regular/app_c.h"
+#include "app/core/regular/app_core_c.h"
 #include "app/core/regular/app_error_c.h"
 #include "app/core/regular/app_model_instance_c.h"
 #include "app/core/app_model.h"
@@ -125,7 +125,7 @@ release_model_instance_object(struct app_object* obj)
  * Implementation of the public model instance functions.
  *
  ******************************************************************************/
-EXPORT_SYM enum app_error
+enum app_error
 app_remove_model_instance(struct app_model_instance* instance)
 {
   bool is_registered = false;
@@ -146,7 +146,7 @@ app_remove_model_instance(struct app_model_instance* instance)
   return APP_NO_ERROR;
 }
 
-EXPORT_SYM enum app_error
+enum app_error
 app_model_instance_ref_get(struct app_model_instance* instance)
 {
   if(!instance)
@@ -155,7 +155,7 @@ app_model_instance_ref_get(struct app_model_instance* instance)
   return APP_NO_ERROR;
 }
 
-EXPORT_SYM enum app_error
+enum app_error
 app_model_instance_ref_put(struct app_model_instance* instance)
 {
   if(!instance)
@@ -164,7 +164,7 @@ app_model_instance_ref_put(struct app_model_instance* instance)
   return APP_NO_ERROR;
 }
 
-EXPORT_SYM enum app_error
+enum app_error
 app_model_instance_get_model
   (struct app_model_instance* instance,
    struct app_model** out_model)
@@ -175,7 +175,7 @@ app_model_instance_get_model
   return APP_NO_ERROR;
 }
 
-EXPORT_SYM enum app_error
+enum app_error
 app_get_raw_model_instance_transform
   (const struct app_model_instance* instance,
    const struct aosf44** transform)
@@ -186,7 +186,7 @@ app_get_raw_model_instance_transform
   return APP_NO_ERROR;
 }
 
-EXPORT_SYM enum app_error
+enum app_error
 app_model_instance_name
   (const struct app_model_instance* instance,
    const char** name)
@@ -196,7 +196,7 @@ app_model_instance_name
   return app_object_name(instance->app, &instance->obj, name);
 }
 
-EXPORT_SYM enum app_error
+enum app_error
 app_set_model_instance_name
   (struct app_model_instance* instance,
    const char* name)
@@ -206,7 +206,7 @@ app_set_model_instance_name
   return app_set_object_name(instance->app, &instance->obj, name);
 }
 
-EXPORT_SYM enum app_error
+enum app_error
 app_translate_model_instances
   (struct app_model_instance* instance_list[],
    size_t nb_instances,
@@ -264,7 +264,7 @@ app_translate_model_instances
   return APP_NO_ERROR;
 }
 
-EXPORT_SYM enum app_error
+enum app_error
 app_rotate_model_instances
   (struct app_model_instance* instance_list[],
    size_t nb_instances,
@@ -340,7 +340,7 @@ app_rotate_model_instances
   return APP_NO_ERROR;
 }
 
-EXPORT_SYM enum app_error
+enum app_error
 app_scale_model_instances
   (struct app_model_instance* instance_list[],
    size_t nb_instances,
@@ -415,7 +415,7 @@ app_scale_model_instances
   return APP_NO_ERROR;
 }
 
-EXPORT_SYM enum app_error
+enum app_error
 app_move_model_instances
   (struct app_model_instance* instance_list[],
    size_t nb_instances,
@@ -443,7 +443,7 @@ app_move_model_instances
   return APP_NO_ERROR;
 }
 
-EXPORT_SYM enum app_error
+enum app_error
 app_transform_model_instances
   (struct app_model_instance* instance_list[],
    size_t nb_instances,
@@ -497,7 +497,7 @@ app_transform_model_instances
   return APP_NO_ERROR;
 }
 
-EXPORT_SYM enum app_error
+enum app_error
 app_model_instance_world
   (struct app_model_instance* instance,
    struct app_world** world)
@@ -508,7 +508,7 @@ app_model_instance_world
   return APP_NO_ERROR;
 }
 
-EXPORT_SYM enum app_error
+enum app_error
 app_get_model_instance_aabb
   (const struct app_model_instance* instance,
    float min_bound[3],
@@ -561,7 +561,7 @@ app_get_model_instance_aabb
   return APP_NO_ERROR;
 }
 
-EXPORT_SYM enum app_error
+enum app_error
 app_get_model_instance_obb
   (const struct app_model_instance* instance,
    float position[3],
@@ -595,7 +595,7 @@ app_get_model_instance_obb
   return APP_NO_ERROR;
 }
 
-EXPORT_SYM enum app_error
+enum app_error
 app_get_model_instance_list_begin
   (struct app* app,
    struct app_model_instance_it* it,
@@ -616,7 +616,7 @@ app_get_model_instance_list_begin
   return APP_NO_ERROR;
 }
 
-EXPORT_SYM enum app_error
+enum app_error
 app_model_instance_it_next
   (struct app_model_instance_it* it,
    bool* is_end_reached)
@@ -636,7 +636,7 @@ app_model_instance_it_next
   return APP_NO_ERROR;
 }
 
-EXPORT_SYM enum app_error
+enum app_error
 app_get_model_instance_list_length(struct app* app, size_t* len)
 {
   if(UNLIKELY(!app || !len))
@@ -645,7 +645,7 @@ app_get_model_instance_list_length(struct app* app, size_t* len)
   return APP_NO_ERROR;
 }
 
-EXPORT_SYM enum app_error
+enum app_error
 app_get_model_instance
   (struct app* app,
    const char* name,
@@ -673,7 +673,7 @@ error:
   goto exit;
 }
 
-EXPORT_SYM enum app_error
+enum app_error
 app_model_instance_name_completion
   (struct app* app,
    const char* instance_name,

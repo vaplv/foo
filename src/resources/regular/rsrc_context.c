@@ -32,7 +32,7 @@ release_context(struct ref* ref)
  * Context functions.
  *
  ******************************************************************************/
-EXPORT_SYM enum rsrc_error
+enum rsrc_error
 rsrc_create_context
   (struct mem_allocator* specific_allocator, 
    struct rsrc_context** out_ctxt)
@@ -71,7 +71,7 @@ error:
   goto exit;
 }
 
-EXPORT_SYM enum rsrc_error
+enum rsrc_error
 rsrc_context_ref_get(struct rsrc_context* ctxt)
 {
   if(!ctxt)
@@ -80,7 +80,7 @@ rsrc_context_ref_get(struct rsrc_context* ctxt)
   return RSRC_NO_ERROR;
 }
 
-EXPORT_SYM enum rsrc_error
+enum rsrc_error
 rsrc_context_ref_put(struct rsrc_context* ctxt)
 {
   if(!ctxt)
@@ -89,7 +89,7 @@ rsrc_context_ref_put(struct rsrc_context* ctxt)
   return RSRC_NO_ERROR;
 }
 
-EXPORT_SYM enum rsrc_error
+enum rsrc_error
 rsrc_get_error_string(struct rsrc_context* ctxt, const char** str_err)
 {
   if(!ctxt || !str_err)
@@ -98,7 +98,7 @@ rsrc_get_error_string(struct rsrc_context* ctxt, const char** str_err)
   return RSRC_NO_ERROR;
 }
 
-EXPORT_SYM enum rsrc_error
+enum rsrc_error
 rsrc_flush_error(struct rsrc_context* ctxt)
 {
   if(!ctxt)

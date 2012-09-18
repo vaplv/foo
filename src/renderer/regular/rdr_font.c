@@ -466,7 +466,7 @@ release_font(struct ref* ref)
  * Font functions.
  *
  ******************************************************************************/
-EXPORT_SYM enum rdr_error
+enum rdr_error
 rdr_create_font(struct rdr_system* sys, struct rdr_font** out_font)
 {
   struct rdr_font* font = NULL;
@@ -526,7 +526,7 @@ error:
   goto exit;
 }
 
-EXPORT_SYM enum rdr_error
+enum rdr_error
 rdr_font_ref_get(struct rdr_font* font)
 {
   if(!font)
@@ -535,7 +535,7 @@ rdr_font_ref_get(struct rdr_font* font)
   return RDR_NO_ERROR;
 }
 
-EXPORT_SYM enum rdr_error
+enum rdr_error
 rdr_font_ref_put(struct rdr_font* font)
 {
   if(!font)
@@ -544,7 +544,7 @@ rdr_font_ref_put(struct rdr_font* font)
   return RDR_NO_ERROR;
 }
 
-EXPORT_SYM enum rdr_error
+enum rdr_error
 rdr_font_data
   (struct rdr_font* font,
    size_t line_space,
@@ -730,7 +730,7 @@ error:
   goto exit;
 }
 
-EXPORT_SYM enum rdr_error
+enum rdr_error
 rdr_get_font_metrics(struct rdr_font* font, struct rdr_font_metrics* metrics)
 {
   if(!font || !metrics)
@@ -741,7 +741,7 @@ rdr_get_font_metrics(struct rdr_font* font, struct rdr_font_metrics* metrics)
   return RDR_NO_ERROR;
 }
 
-EXPORT_SYM enum rdr_error
+enum rdr_error
 rdr_font_bitmap_cache
   (const struct rdr_font* font,
    size_t* width,

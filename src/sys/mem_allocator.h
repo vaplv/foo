@@ -1,17 +1,8 @@
 #ifndef MEM_ALLOCATOR_H
 #define MEM_ALLOCATOR_H
 
-#include "sys/ref_count.h"
+#include "sys/sys.h"
 #include <stddef.h>
-
-struct mem_sys_info {
-  size_t total_size;
-  size_t used_size;
-};
-
-extern void
-mem_sys_info
-  (struct mem_sys_info* info);
 
 /*******************************************************************************
  *
@@ -100,13 +91,13 @@ extern struct mem_allocator mem_default_allocator;
  * Proxy allocator.
  *
  ******************************************************************************/
-extern void
+SYS_API void
 mem_init_proxy_allocator
   (const char* proxy_name,
    struct mem_allocator* proxy,
    struct mem_allocator* allocator);
 
-extern void
+SYS_API void
 mem_shutdown_proxy_allocator
   (struct mem_allocator* proxy_allocator);
 

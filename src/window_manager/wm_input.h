@@ -1,6 +1,7 @@
 #ifndef WM_INPUT_H
 #define WM_INPUT_H
 
+#include "window_manager/wm.h"
 #include "window_manager/wm_error.h"
 #include <stdbool.h>
 #include <wchar.h>
@@ -121,118 +122,118 @@ enum wm_key {
 
 struct wm_device;
 
-extern enum wm_error
+WM_API enum wm_error
 wm_get_key_state
   (struct wm_device* device,
    enum wm_key key,
    enum wm_state* state);
 
-extern enum wm_error
+WM_API enum wm_error
 wm_get_mouse_button_state
   (struct wm_device* device,
    enum wm_mouse_button button,
    enum wm_state* state);
 
-extern enum wm_error
+WM_API enum wm_error
 wm_get_mouse_position
   (struct wm_device* device,
    int* x, /* May be NULL. */
    int* y); /* May be NULL. */
 
-extern enum wm_error
+WM_API enum wm_error
 wm_get_mouse_wheel
   (struct wm_device* device,
    int* pos);
 
-extern enum wm_error
+WM_API enum wm_error
 wm_attach_key_callback
   (struct wm_device* device,
    void (*func)(enum wm_key, enum wm_state, void* data),
    void* data); /* May be NULL. */
 
-extern enum wm_error
+WM_API enum wm_error
 wm_detach_key_callback
   (struct wm_device* device,
    void (*func)(enum wm_key, enum wm_state, void* data),
    void* data); /* May be NULL. */
 
-extern enum wm_error
+WM_API enum wm_error
 wm_is_key_callback_attached
   (struct wm_device* device,
    void (*func)(enum wm_key, enum wm_state, void* data),
    void* data, /* May be NULL. */
    bool* is_attached);
 
-extern enum wm_error
+WM_API enum wm_error
 wm_attach_char_callback
   (struct wm_device* device,
    void (*func)(wchar_t, enum wm_state, void* data),
    void* data); /* May be NULL. */
 
-extern enum wm_error
+WM_API enum wm_error
 wm_detach_char_callback
   (struct wm_device* device,
    void (*func)(wchar_t, enum wm_state, void* data),
    void* data); /* May be NULL. */
 
-extern enum wm_error
+WM_API enum wm_error
 wm_is_char_callback_attached
   (struct wm_device* device,
    void (*func)(wchar_t, enum wm_state, void* data),
    void* data, /* May be NULL. */
    bool* is_attached);
 
-extern enum wm_error
+WM_API enum wm_error
 wm_attach_mouse_button_callback
   (struct wm_device* device,
    void (*func)(enum wm_mouse_button, enum wm_state, void* data),
    void* data); /* May be NULL. */
 
-extern enum wm_error
+WM_API enum wm_error
 wm_detach_mouse_button_callback
   (struct wm_device* device,
    void (*func)(enum wm_mouse_button, enum wm_state, void* data),
    void* data); /* May be NULL. */
 
-extern enum wm_error
+WM_API enum wm_error
 wm_is_mouse_button_callback_attached
   (struct wm_device* device,
    void (*func)(enum wm_mouse_button, enum wm_state, void* data),
    void* data, /* May be NULL. */
    bool* is_attached);
 
-extern enum wm_error
+WM_API enum wm_error
 wm_attach_mouse_motion_callback
   (struct wm_device* device,
    void (*func)(int x, int y, void* data),
    void* data); /* May be NULL. */
 
-extern enum wm_error
+WM_API enum wm_error
 wm_detach_mouse_motion_callback
   (struct wm_device* device,
    void (*func)(int x, int y, void* data),
    void* data); /* May be NULL. */
 
-extern enum wm_error
+WM_API enum wm_error
 wm_is_mouse_motion_callback_attached
   (struct wm_device* device,
    void (*func)(int x, int y, void* data),
    void* data, /* May be NULL. */
    bool* is_attached);
 
-extern enum wm_error
+WM_API enum wm_error
 wm_attach_mouse_wheel_callback
   (struct wm_device* device,
    void (*func)(int pos, void* data),
    void* data); /* May be NULL. */
 
-extern enum wm_error
+WM_API enum wm_error
 wm_detach_mouse_wheel_callback
   (struct wm_device* device,
    void (*func)(int pos, void* data),
    void* data); /* May be NULL. */
 
-extern enum wm_error
+WM_API enum wm_error
 wm_is_mouse_wheel_callback_attached
   (struct wm_device* device,
    void (*func)(int pos, void* data),

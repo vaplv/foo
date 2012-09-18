@@ -1,4 +1,4 @@
-#include "app/core/regular/app_c.h"
+#include "app/core/regular/app_core_c.h"
 #include "app/core/regular/app_error_c.h"
 #include "app/core/regular/app_view_c.h"
 #include "app/core/app_imdraw.h"
@@ -77,7 +77,7 @@ setup_render_view(struct app* app, struct rdr_view* render_view)
  * Im draw functions.
  *
  ******************************************************************************/
-EXPORT_SYM enum app_error
+enum app_error
 app_imdraw_parallelepiped
   (struct app* app,
    int flag,
@@ -116,7 +116,7 @@ error:
   goto exit;
 }
 
-EXPORT_SYM enum app_error
+enum app_error
 app_imdraw_ellipse
   (struct app* app,
    int flag,
@@ -153,7 +153,7 @@ error:
   goto exit;
 }
 
-EXPORT_SYM enum app_error
+enum app_error
 app_imdraw_grid
   (struct app* app,
    int flag,
@@ -210,7 +210,7 @@ error:
   goto exit;
 }
 
-EXPORT_SYM enum app_error
+enum app_error
 app_imdraw_vector
   (struct app* app,
    int flag,

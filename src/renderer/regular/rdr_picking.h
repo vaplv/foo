@@ -18,18 +18,18 @@ enum rdr_pick {
   RDR_PICK_NONE
 };
 
-extern enum rdr_error
+LOCAL_SYM enum rdr_error
 rdr_create_picking
   (struct rdr_system* sys,
    const struct rdr_picking_desc* desc,
    struct rdr_picking** picking);
 
-extern enum rdr_error
+LOCAL_SYM enum rdr_error
 rdr_free_picking
   (struct rdr_system* sys,
    struct rdr_picking* picking);
 
-extern enum rdr_error
+LOCAL_SYM enum rdr_error
 rdr_pick
   (struct rdr_system* sys,
    struct rdr_picking* picking,
@@ -40,7 +40,7 @@ rdr_pick
    enum rdr_pick pick_type);
 
 /* Draw the pick buffer into the default framebuffer. */
-extern enum rdr_error
+LOCAL_SYM enum rdr_error
 rdr_show_pick_buffer
   (struct rdr_system* sys,
    struct rdr_picking* picking,

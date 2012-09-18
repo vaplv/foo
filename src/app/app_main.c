@@ -1,5 +1,5 @@
 #include "app/editor/edit_context.h"
-#include "app/core/app.h"
+#include "app/core/app_core.h"
 #include "app/game/game.h"
 #include "sys/mem_allocator.h"
 #include "window_manager/wm_input.h"
@@ -121,16 +121,6 @@ process_inputs(struct main* app_main)
 static void
 app_exit(void)
 {
-  struct mem_sys_info mem_info;
-
-  mem_sys_info(&mem_info);
-  printf
-    ("Heap summary:\n"
-     "  total heap size: %zu bytes\n"
-     "  in use size at exit: %zu bytes\n",
-     mem_info.total_size,
-     mem_info.used_size);
-
   if(MEM_ALLOCATED_SIZE(&mem_default_allocator) != 0) {
     char dump[BUFSIZ];
     MEM_DUMP(&mem_default_allocator, dump, BUFSIZ);

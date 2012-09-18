@@ -100,7 +100,7 @@ release_buffer(struct ref* ref)
  * Buffer functions.
  *
  ******************************************************************************/
-EXPORT_SYM int
+int
 rb_create_buffer
   (struct rb_context* ctxt,
    const struct rb_buffer_desc* public_desc,
@@ -115,7 +115,7 @@ rb_create_buffer
   return rb_ogl3_create_buffer(ctxt, &private_desc,init_data, out_buffer);
 }
 
-EXPORT_SYM int
+int
 rb_buffer_ref_get(struct rb_buffer* buffer)
 {
   if(!buffer)
@@ -124,7 +124,7 @@ rb_buffer_ref_get(struct rb_buffer* buffer)
   return 0;
 }
 
-EXPORT_SYM int
+int
 rb_buffer_ref_put(struct rb_buffer* buffer)
 {
   if(!buffer)
@@ -133,7 +133,7 @@ rb_buffer_ref_put(struct rb_buffer* buffer)
   return 0;
 }
 
-EXPORT_SYM int
+int
 rb_bind_buffer
   (struct rb_context* ctxt,
    struct rb_buffer* buffer, 
@@ -142,7 +142,7 @@ rb_bind_buffer
   return rb_ogl3_bind_buffer(ctxt, buffer, public_to_private_rb_target(target));
 }
 
-EXPORT_SYM int
+int
 rb_buffer_data
   (struct rb_buffer* buffer,
    int offset,

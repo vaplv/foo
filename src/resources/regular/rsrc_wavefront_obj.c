@@ -1048,7 +1048,7 @@ release_wavefront_obj(struct ref* ref)
  * Implementation of the public functions of the wavefront obj data structure.
  *
  ******************************************************************************/
-EXPORT_SYM enum rsrc_error
+enum rsrc_error
 rsrc_create_wavefront_obj
   (struct rsrc_context* ctxt,
    struct rsrc_wavefront_obj** out_wobj)
@@ -1108,7 +1108,7 @@ error:
   goto exit;
 }
 
-EXPORT_SYM enum rsrc_error
+enum rsrc_error
 rsrc_wavefront_obj_ref_get(struct rsrc_wavefront_obj* wobj)
 {
   if(!wobj)
@@ -1117,7 +1117,7 @@ rsrc_wavefront_obj_ref_get(struct rsrc_wavefront_obj* wobj)
   return RSRC_NO_ERROR;
 }
 
-EXPORT_SYM enum rsrc_error
+enum rsrc_error
 rsrc_wavefront_obj_ref_put(struct rsrc_wavefront_obj* wobj)
 {
   if(!wobj)
@@ -1126,7 +1126,7 @@ rsrc_wavefront_obj_ref_put(struct rsrc_wavefront_obj* wobj)
   return RSRC_NO_ERROR;
 }
 
-EXPORT_SYM enum rsrc_error
+enum rsrc_error
 rsrc_load_wavefront_obj
   (struct rsrc_wavefront_obj* wobj,
    const char* path)

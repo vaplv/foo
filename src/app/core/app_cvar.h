@@ -1,6 +1,7 @@
 #ifndef APP_CVAR_H
 #define APP_CVAR_H
 
+#include "app/core/app_core.h"
 #include "app/core/app_error.h"
 #include <stdbool.h>
 #include <stddef.h>
@@ -97,31 +98,31 @@ struct app_cvar_desc {
  * Cvar function prototypes.
  *
  ******************************************************************************/
-extern enum app_error
+APP_API enum app_error
 app_add_cvar
   (struct app* app,
    const char* name,
    const struct app_cvar_desc* desc);
 
-extern enum app_error
+APP_API enum app_error
 app_del_cvar
   (struct app* app,
    const char* name);
 
-extern enum app_error
+APP_API enum app_error
 app_set_cvar
   (struct app* app,
    const char* name,
    union app_cvar_value value);
 
-extern enum app_error
+APP_API enum app_error
 app_get_cvar
   (struct app* app,
    const char* name,
    const struct app_cvar** cvar); /* Set to NULL if the cvar does not exist. */
 
 /* The returned list is valid until the add/del command function is called. */
-extern enum app_error
+APP_API enum app_error
 app_cvar_name_completion
   (struct app* app,
    const char* cvar_name,

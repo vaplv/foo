@@ -4,7 +4,7 @@
 #include <string.h>
 #include <assert.h>
 
-EXPORT_SYM enum rsrc_error
+enum rsrc_error
 rsrc_write_ppm
   (struct rsrc_context* ctxt,
    const char* path,

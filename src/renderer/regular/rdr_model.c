@@ -660,7 +660,7 @@ mesh_callback_func(struct rdr_mesh* mesh UNUSED, void* data)
  * Public render model functions.
  *
  ******************************************************************************/
-EXPORT_SYM enum rdr_error
+enum rdr_error
 rdr_create_model
   (struct rdr_system* sys,
    struct rdr_mesh* mesh,
@@ -741,7 +741,7 @@ error:
   goto exit;
 }
 
-EXPORT_SYM enum rdr_error
+enum rdr_error
 rdr_model_ref_get(struct rdr_model* mdl)
 {
   if(!mdl)
@@ -750,7 +750,7 @@ rdr_model_ref_get(struct rdr_model* mdl)
   return RDR_NO_ERROR;
 }
 
-EXPORT_SYM enum rdr_error
+enum rdr_error
 rdr_model_ref_put(struct rdr_model* mdl)
 {
   if(!mdl)
@@ -759,7 +759,7 @@ rdr_model_ref_put(struct rdr_model* mdl)
   return RDR_NO_ERROR;
 }
 
-EXPORT_SYM enum rdr_error
+enum rdr_error
 rdr_model_mesh
   (struct rdr_model* model,
    struct rdr_mesh* mesh)
@@ -808,7 +808,7 @@ error:
   goto exit;
 }
 
-EXPORT_SYM enum rdr_error
+enum rdr_error
 rdr_get_model_mesh(struct rdr_model* model, struct rdr_mesh** mesh)
 {
   if(UNLIKELY(!model || !mesh))
@@ -817,7 +817,7 @@ rdr_get_model_mesh(struct rdr_model* model, struct rdr_mesh** mesh)
   return RDR_NO_ERROR;
 }
 
-EXPORT_SYM enum rdr_error
+enum rdr_error
 rdr_model_material
   (struct rdr_model* model,
    struct rdr_material* material)
@@ -876,7 +876,7 @@ error:
   goto exit;
 }
 
-EXPORT_SYM enum rdr_error
+enum rdr_error
 rdr_get_model_material(struct rdr_model* model, struct rdr_material** mtr)
 {
   if(UNLIKELY(!model || !mtr))
@@ -885,7 +885,7 @@ rdr_get_model_material(struct rdr_model* model, struct rdr_material** mtr)
   return RDR_NO_ERROR;
 }
 
-EXPORT_SYM enum rdr_error
+enum rdr_error
 rdr_bind_model
   (struct rdr_system* sys,
    struct rdr_model* model,

@@ -1,4 +1,4 @@
-#include "app/core/regular/app_c.h"
+#include "app/core/regular/app_core_c.h"
 #include "app/core/regular/app_command_c.h"
 #include "app/core/regular/app_error_c.h"
 #include "app/core/regular/app_term.h"
@@ -672,7 +672,7 @@ release_app(struct ref* ref)
  * Core application functions.
  *
  ******************************************************************************/
-EXPORT_SYM enum app_error
+enum app_error
 app_init(struct app_args* args, struct app** out_app)
 {
   struct app* app = NULL;
@@ -737,7 +737,7 @@ error:
   goto exit;
 }
 
-EXPORT_SYM enum app_error
+enum app_error
 app_ref_get(struct app* app)
 {
   if(!app)
@@ -746,7 +746,7 @@ app_ref_get(struct app* app)
   return APP_NO_ERROR;
 }
 
-EXPORT_SYM enum app_error
+enum app_error
 app_ref_put(struct app* app)
 {
   if(!app)
@@ -755,7 +755,7 @@ app_ref_put(struct app* app)
   return APP_NO_ERROR;
 }
 
-EXPORT_SYM enum app_error
+enum app_error
 app_run(struct app* app, bool* keep_running)
 {
   enum app_error app_err = APP_NO_ERROR;
@@ -790,7 +790,7 @@ error:
   goto exit;
 }
 
-EXPORT_SYM enum app_error
+enum app_error
 app_flush_events(struct app* app)
 {
   enum wm_error wm_err = WM_NO_ERROR;
@@ -798,7 +798,7 @@ app_flush_events(struct app* app)
   return wm_to_app_error(wm_err);
 }
 
-EXPORT_SYM enum app_error
+enum app_error
 app_log(struct app* app, enum app_log_type type, const char* fmt, ...)
 {
   va_list vargs_list;
@@ -856,13 +856,13 @@ error:
   goto exit;
 }
 
-EXPORT_SYM enum app_error
+enum app_error
 app_cleanup(struct app* app)
 {
   return app_clear_object_system(app);
 }
 
-EXPORT_SYM enum app_error
+enum app_error
 app_terminal_font(struct app* app, const char* path)
 {
   struct rdr_glyph_desc* glyph_desc_list = NULL;
@@ -956,7 +956,7 @@ error:
   goto exit;
 }
 
-EXPORT_SYM enum app_error
+enum app_error
 app_get_window_manager_device(struct app* app, struct wm_device** out_wm)
 {
   if(!app || !out_wm)
@@ -965,7 +965,7 @@ app_get_window_manager_device(struct app* app, struct wm_device** out_wm)
   return APP_NO_ERROR;
 }
 
-EXPORT_SYM enum app_error
+enum app_error
 app_get_active_window(struct app* app, struct wm_window** window)
 {
   if(!app || !window)
@@ -974,7 +974,7 @@ app_get_active_window(struct app* app, struct wm_window** window)
   return APP_NO_ERROR;
 }
 
-EXPORT_SYM enum app_error
+enum app_error
 app_get_main_view(struct app* app, struct app_view** out_view)
 {
   if(!app || !out_view)
@@ -983,7 +983,7 @@ app_get_main_view(struct app* app, struct app_view** out_view)
   return APP_NO_ERROR;
 }
 
-EXPORT_SYM enum app_error
+enum app_error
 app_get_main_world(struct app* app, struct app_world** out_world)
 {
   if(!app || !out_world)
@@ -992,7 +992,7 @@ app_get_main_world(struct app* app, struct app_world** out_world)
   return APP_NO_ERROR;
 }
 
-EXPORT_SYM enum app_error
+enum app_error
 app_is_callback_attached
   (struct app* app,
    enum app_signal signal,
@@ -1031,7 +1031,7 @@ error:
   goto exit;
 }
 
-EXPORT_SYM enum app_error
+enum app_error
 app_attach_callback
   (struct app* app,
    enum app_signal signal,
@@ -1042,7 +1042,7 @@ app_attach_callback
     (app, signal, callback, data, CALLBACK_ATTACH);
 }
 
-EXPORT_SYM enum app_error
+enum app_error
 app_detach_callback
   (struct app* app,
    enum app_signal signal,
@@ -1053,7 +1053,7 @@ app_detach_callback
     (app, signal, callback, data, CALLBACK_DETACH);
 }
 
-EXPORT_SYM enum app_error
+enum app_error
 app_enable_term(struct app* app, bool enable)
 {
   if(!app)
@@ -1061,7 +1061,7 @@ app_enable_term(struct app* app, bool enable)
   return app_setup_term(app, enable);
 }
 
-EXPORT_SYM enum app_error
+enum app_error
 app_is_term_enabled(struct app* app, bool* is_enabled)
 {
   if(!app || !is_enabled)

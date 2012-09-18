@@ -388,7 +388,7 @@ release_material(struct ref* ref)
  * Public render material functions.
  *
  ******************************************************************************/
-EXPORT_SYM enum rdr_error
+enum rdr_error
 rdr_create_material(struct rdr_system* sys, struct rdr_material** out_mtr)
 {
   struct rdr_material* mtr = NULL;
@@ -443,7 +443,7 @@ error:
   goto exit;
 }
 
-EXPORT_SYM enum rdr_error
+enum rdr_error
 rdr_material_ref_get(struct rdr_material* mtr)
 {
   if(!mtr)
@@ -452,7 +452,7 @@ rdr_material_ref_get(struct rdr_material* mtr)
   return RDR_NO_ERROR;
 }
 
-EXPORT_SYM enum rdr_error
+enum rdr_error
 rdr_material_ref_put(struct rdr_material* mtr)
 {
   if(!mtr)
@@ -461,7 +461,7 @@ rdr_material_ref_put(struct rdr_material* mtr)
   return RDR_NO_ERROR;
 }
 
-EXPORT_SYM enum rdr_error
+enum rdr_error
 rdr_get_material_log(struct rdr_material* mtr, const char** out_log)
 {
   if(!mtr || !out_log)
@@ -470,7 +470,7 @@ rdr_get_material_log(struct rdr_material* mtr, const char** out_log)
   return RDR_NO_ERROR;
 }
 
-EXPORT_SYM enum rdr_error
+enum rdr_error
 rdr_material_program
   (struct rdr_material* mtr,
    const char* shader_sources[RDR_NB_SHADER_USAGES])

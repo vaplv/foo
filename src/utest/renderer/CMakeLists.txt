@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 2.6)
 
+add_definitions(-DRB_USE_SHARED_LIBRARY)
+
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY
   ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/utest/renderer)
 

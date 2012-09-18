@@ -5,11 +5,11 @@
 
 struct app;
 
-extern enum app_error
+LOCAL_SYM enum app_error
 app_init_command_system
   (struct app* app);
 
-extern enum app_error
+LOCAL_SYM enum app_error
 app_shutdown_command_system
   (struct app* app);
 

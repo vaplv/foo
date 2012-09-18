@@ -55,7 +55,7 @@ release_shader(struct ref* ref)
  * Shader functions.
  *
  ******************************************************************************/
-EXPORT_SYM int
+int
 rb_create_shader
   (struct rb_context* ctxt,
    enum rb_shader_type type,
@@ -99,7 +99,7 @@ error:
   goto exit;
 }
 
-EXPORT_SYM int
+int
 rb_shader_source(struct rb_shader* shader, const char* source, int length)
 {
   int err = 0;
@@ -139,7 +139,7 @@ error:
   goto exit;
 }
 
-EXPORT_SYM int
+int
 rb_shader_ref_get(struct rb_shader* shader)
 {
   if(!shader)
@@ -148,7 +148,7 @@ rb_shader_ref_get(struct rb_shader* shader)
   return 0;
 }
 
-EXPORT_SYM int
+int
 rb_shader_ref_put(struct rb_shader* shader)
 {
   if(!shader)
@@ -157,7 +157,7 @@ rb_shader_ref_put(struct rb_shader* shader)
   return 0;
 }
 
-EXPORT_SYM int
+int
 rb_get_shader_log(struct rb_shader* shader, const char** out_log)
 {
   if(!shader || !out_log)
@@ -166,7 +166,7 @@ rb_get_shader_log(struct rb_shader* shader, const char** out_log)
   return 0;
 }
 
-EXPORT_SYM int
+int
 rb_is_shader_attached(struct rb_shader* shader, int* out_is_attached)
 {
   if(!shader || !out_is_attached)

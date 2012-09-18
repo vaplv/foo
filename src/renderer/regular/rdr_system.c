@@ -73,7 +73,7 @@ release_system(struct ref* ref)
  * Render system functions.
  *
  ******************************************************************************/
-EXPORT_SYM enum rdr_error
+enum rdr_error
 rdr_create_system
   (const char* graphic_driver,
    struct mem_allocator* specific_allocator,
@@ -189,7 +189,7 @@ error:
   goto exit;
 }
 
-EXPORT_SYM enum rdr_error
+enum rdr_error
 rdr_system_ref_get(struct rdr_system* sys)
 {
   if(UNLIKELY(!sys))
@@ -198,7 +198,7 @@ rdr_system_ref_get(struct rdr_system* sys)
   return RDR_NO_ERROR;
 }
 
-EXPORT_SYM enum rdr_error
+enum rdr_error
 rdr_system_ref_put(struct rdr_system* sys)
 {
   if(UNLIKELY(!sys))
@@ -207,7 +207,7 @@ rdr_system_ref_put(struct rdr_system* sys)
   return RDR_NO_ERROR;
 }
 
-EXPORT_SYM enum rdr_error
+enum rdr_error
 rdr_system_attach_log_stream
   (struct rdr_system* sys,
    void (*stream_func)(const char*, void* stream_data),
@@ -232,7 +232,7 @@ error:
   goto exit;
 }
 
-EXPORT_SYM enum rdr_error
+enum rdr_error
 rdr_system_detach_log_stream
   (struct rdr_system* sys,
    void (*stream_func)(const char*, void* stream_data),

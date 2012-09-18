@@ -24,16 +24,16 @@ struct rb_tex2d {
   GLuint name;
 };
 
-extern size_t
+LOCAL_SYM size_t
 rb_ogl3_sizeof_pixel
   (GLenum format, 
    GLenum type);
 
-extern int
+LOCAL_SYM int
 rb_ogl3_is_uint_type
   (GLenum type);
 
-extern int
+LOCAL_SYM int
 rb_ogl3_is_int_type
   (GLenum type);
 

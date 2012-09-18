@@ -81,10 +81,10 @@ aosq_nlerp(vf4_t from, vf4_t to, vf4_t aaaa)
   return vf4_normalize(vf4_lerp(from, to, aaaa));
 }
 
-extern vf4_t aosq_slerp(vf4_t from, vf4_t to, vf4_t aaaa);
+SIMD_API vf4_t aosq_slerp(vf4_t from, vf4_t to, vf4_t aaaa);
 
 /* Conversion operations. */
-extern void aosq_to_aosf33(vf4_t q, struct aosf33* out);
+SIMD_API void aosq_to_aosf33(vf4_t q, struct aosf33* out);
 
 #endif /* AOSQ_H */
 

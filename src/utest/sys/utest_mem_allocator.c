@@ -72,7 +72,6 @@ int
 main(int argc UNUSED, char** argv UNUSED)
 {
   struct mem_allocator allocator;
-  struct mem_sys_info mem_info;
 
   printf("Default allocator:\n");
   regular_test(&mem_default_allocator);
@@ -81,14 +80,6 @@ main(int argc UNUSED, char** argv UNUSED)
   mem_init_proxy_allocator("utest", &allocator, &mem_default_allocator);
   regular_test(&allocator);
   mem_shutdown_proxy_allocator(&allocator);
-
-  mem_sys_info(&mem_info);
-  printf
-    ("\nHeap summary:\n"
-     "  total heap size: %zu bytes\n"
-     "  in use size: %zu bytes\n",
-     mem_info.total_size,
-     mem_info.used_size);
 
   CHECK(MEM_ALLOCATED_SIZE(&mem_default_allocator), 0);
 

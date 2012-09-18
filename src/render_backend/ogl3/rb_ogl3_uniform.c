@@ -166,7 +166,7 @@ release_uniform(struct ref* ref)
  * Uniform implementation.
  *
  ******************************************************************************/
-EXPORT_SYM int
+int
 rb_get_named_uniform
   (struct rb_context* ctxt,
    struct rb_program* program,
@@ -213,7 +213,7 @@ error:
   goto exit;
 }
 
-EXPORT_SYM int
+int
 rb_get_uniforms
   (struct rb_context* ctxt,
    struct rb_program* prog,
@@ -276,7 +276,7 @@ error:
   goto exit;
 }
 
-EXPORT_SYM int
+int
 rb_uniform_ref_get(struct rb_uniform* uniform)
 {
   if(!uniform)
@@ -285,7 +285,7 @@ rb_uniform_ref_get(struct rb_uniform* uniform)
   return 0;
 }
 
-EXPORT_SYM int
+int
 rb_uniform_ref_put(struct rb_uniform* uniform)
 {
   if(!uniform)
@@ -294,7 +294,7 @@ rb_uniform_ref_put(struct rb_uniform* uniform)
   return 0;
 }
 
-EXPORT_SYM int
+int
 rb_uniform_data(struct rb_uniform* uniform, int nb, const void* data)
 {
   if(!uniform || !data)
@@ -309,7 +309,7 @@ rb_uniform_data(struct rb_uniform* uniform, int nb, const void* data)
   return 0;
 }
 
-EXPORT_SYM int
+int
 rb_get_uniform_desc(struct rb_uniform* uniform, struct rb_uniform_desc* desc)
 {
   if(!uniform || !desc)

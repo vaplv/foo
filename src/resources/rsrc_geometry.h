@@ -37,34 +37,34 @@ struct rsrc_primitive_set {
   enum rsrc_primitive_type primitive_type;
 };
 
-extern enum rsrc_error
+RSRC_API enum rsrc_error
 rsrc_create_geometry
   (struct rsrc_context* ctxt,
    struct rsrc_geometry** out_geom);
 
-extern enum rsrc_error
+RSRC_API enum rsrc_error
 rsrc_geometry_ref_get
   (struct rsrc_geometry* geom);
 
-extern enum rsrc_error
+RSRC_API enum rsrc_error
 rsrc_geometry_ref_put
   (struct rsrc_geometry* geom);
 
-extern enum rsrc_error
+RSRC_API enum rsrc_error
 rsrc_clear_geometry
   (struct rsrc_geometry* geom);
 
-extern enum rsrc_error
+RSRC_API enum rsrc_error
 rsrc_geometry_from_wavefront_obj
   (struct rsrc_geometry* geom,
    const struct rsrc_wavefront_obj* wobj);
 
-extern enum rsrc_error
+RSRC_API enum rsrc_error
 rsrc_get_primitive_set_count
   (const struct rsrc_geometry* geom,
    size_t* out_nb_prim_set);
 
-extern enum rsrc_error
+RSRC_API enum rsrc_error
 rsrc_get_primitive_set
   (const struct rsrc_geometry* geom,
    size_t prim_list_id,

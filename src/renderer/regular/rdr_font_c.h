@@ -22,32 +22,32 @@ struct rdr_glyph {
 struct rb_tex2d;
 struct rdr_font;
 
-extern enum rdr_error
+LOCAL_SYM enum rdr_error
 rdr_get_font_glyph
   (struct rdr_font* font,
    wchar_t character,
    struct rdr_glyph* desc);
 
-extern enum rdr_error
+LOCAL_SYM enum rdr_error
 rdr_get_font_texture
   (struct rdr_font* font,
    struct rb_tex2d** tex);
 
-extern enum rdr_error
+LOCAL_SYM enum rdr_error
 rdr_font_attach_callback
   (const struct rdr_font* font,
    enum rdr_font_signal signal,
    void (*callback)(struct rdr_font*, void*),
    void* data); /* May be NULL. */
 
-extern enum rdr_error
+LOCAL_SYM enum rdr_error
 rdr_font_detach_callback
   (const struct rdr_font* font,
    enum rdr_font_signal signal,
    void (*callback)(struct rdr_font*, void*),
    void* data); /* May be NULL. */
 
-extern enum rdr_error
+LOCAL_SYM enum rdr_error
 rdr_is_font_callback_attached
   (const struct rdr_font* font,
    enum rdr_font_signal signal,

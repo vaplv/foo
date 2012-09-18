@@ -2,6 +2,7 @@
 #define WM_GLFW_DEVICE_C_H
 
 #include "sys/ref_count.h"
+#include "sys/sys.h"
 
 struct mem_allocator;
 struct sl_flat_set;
@@ -27,6 +28,6 @@ struct wm_device {
 };
 
 /* Required by GLFW. */
-extern struct wm_device* g_device;
+LOCAL_SYM struct wm_device* g_device;
 
 #endif

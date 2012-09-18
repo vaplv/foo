@@ -488,10 +488,10 @@ vf4_normalize3(vf4_t v)
 }
 
 /* Trigonometric operations. */
-extern vf4_t vf4_sin(vf4_t v);
-extern vf4_t vf4_cos(vf4_t v);
-extern vf4_t vf4_acos(vf4_t v);
-extern void vf4_sincos(vf4_t v, vf4_t* restrict s, vf4_t* restrict c);
+SIMD_API vf4_t vf4_sin(vf4_t v);
+SIMD_API vf4_t vf4_cos(vf4_t v);
+SIMD_API vf4_t vf4_acos(vf4_t v);
+SIMD_API void vf4_sincos(vf4_t v, vf4_t* restrict s, vf4_t* restrict c);
 
 static FINLINE vf4_t
 vf4_tan(vf4_t v)

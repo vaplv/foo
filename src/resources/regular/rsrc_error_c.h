@@ -3,8 +3,9 @@
 
 #include "resources/rsrc_error.h"
 #include "stdlib/sl_error.h"
+#include "sys/sys.h"
 
-extern enum rsrc_error
+LOCAL_SYM enum rsrc_error
 sl_to_rsrc_error
   (enum sl_error sl_err);
 

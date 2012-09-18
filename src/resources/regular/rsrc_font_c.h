@@ -5,11 +5,11 @@
 
 struct rsrc_font_library;
 
-extern enum rsrc_error
+LOCAL_SYM enum rsrc_error
 rsrc_init_font_library
   (struct rsrc_context* ctxt);
 
-extern enum rsrc_error
+LOCAL_SYM enum rsrc_error
 rsrc_shutdown_font_library
   (struct rsrc_context* ctxt);
 

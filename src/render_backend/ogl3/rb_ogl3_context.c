@@ -38,7 +38,7 @@ release_context(struct ref* ref)
  * Render backend context functions.
  *
  ******************************************************************************/
-EXPORT_SYM int
+int
 rb_create_context
   (struct mem_allocator* specific_allocator,
    struct rb_context** out_ctxt)
@@ -73,7 +73,7 @@ error:
   goto exit;
 }
 
-EXPORT_SYM int
+int
 rb_context_ref_get(struct rb_context* ctxt)
 {
   if(!ctxt)
@@ -82,7 +82,7 @@ rb_context_ref_get(struct rb_context* ctxt)
   return 0;
 }
 
-EXPORT_SYM int
+int
 rb_context_ref_put(struct rb_context* ctxt)
 {
   if(!ctxt)

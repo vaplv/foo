@@ -9,7 +9,7 @@ struct rdr_draw_desc;
 struct rdr_model_instance;
 struct rdr_system;
 
-extern enum rdr_error
+LOCAL_SYM enum rdr_error
 rdr_draw_instances
   (struct rdr_system* sys,
    const struct aosf44* view_matrix,

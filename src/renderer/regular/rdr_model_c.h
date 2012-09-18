@@ -24,33 +24,33 @@ struct rdr_model_desc {
   size_t sizeof_uniform_data;
 };
 
-extern enum rdr_error
+LOCAL_SYM enum rdr_error
 rdr_bind_model
   (struct rdr_system* sys,
    struct rdr_model* model,
    size_t* out_nb_indices,
    int flag); /* Combination of enum rdr_bind_flag */
 
-extern enum rdr_error
+LOCAL_SYM enum rdr_error
 rdr_get_model_desc
   (struct rdr_model* model,
    struct rdr_model_desc* desc);
 
-extern enum rdr_error
+LOCAL_SYM enum rdr_error
 rdr_attach_model_callback
   (struct rdr_model* model,
    enum rdr_model_signal signal,
    void (*func)(struct rdr_model*, void*),
    void* data);
 
-extern enum rdr_error
+LOCAL_SYM enum rdr_error
 rdr_detach_model_callback
   (struct rdr_model* model,
    enum rdr_model_signal signal,
    void (*func)(struct rdr_model*,void*),
    void* data);
 
-extern enum rdr_error
+LOCAL_SYM enum rdr_error
 rdr_is_model_callback_attached
   (struct rdr_model* model,
    enum rdr_model_signal signal,

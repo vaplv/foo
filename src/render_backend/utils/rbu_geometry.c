@@ -53,7 +53,7 @@ init_geometry
  * Geometry building functions.
  *
  ******************************************************************************/
-EXPORT_SYM int
+int
 rbu_init_quad
   (const struct rbi* rbi,
    struct rb_context* ctxt,
@@ -111,7 +111,7 @@ error:
   goto exit;
 }
 
-EXPORT_SYM int
+int
 rbu_init_circle
   (const struct rbi* rbi,
    struct rb_context* ctxt,
@@ -187,7 +187,7 @@ error:
   goto exit;
 }
 
-EXPORT_SYM int
+int
 rbu_init_parallelepiped
   (const struct rbi* rbi,
    struct rb_context* ctxt,
@@ -285,7 +285,7 @@ error:
   goto exit;
 }
 
-EXPORT_SYM int
+int
 rbu_init_cylinder
   (const struct rbi* rbi,
    struct rb_context* ctxt,
@@ -416,7 +416,7 @@ error:
  * Geometry functions.
  *
  ******************************************************************************/
-EXPORT_SYM int
+int
 rbu_geometry_ref_get(struct rbu_geometry* geom)
 {
   if(UNLIKELY(geom == NULL))
@@ -425,7 +425,7 @@ rbu_geometry_ref_get(struct rbu_geometry* geom)
   return 0;
 }
 
-EXPORT_SYM int
+int
 rbu_geometry_ref_put(struct rbu_geometry* geom)
 {
   if(UNLIKELY(geom == NULL))
@@ -434,7 +434,7 @@ rbu_geometry_ref_put(struct rbu_geometry* geom)
   return 0;
 }
 
-EXPORT_SYM int
+int
 rbu_draw_geometry(struct rbu_geometry* geom)
 {
   if(UNLIKELY(geom == NULL))

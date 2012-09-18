@@ -12,7 +12,10 @@
 #define EXPORT_SYM \
   __attribute__((visibility("default")))
 
-#define HIDE_SYM \
+#define IMPORT_SYM \
+  __attribute__((visibility("default")))
+
+#define LOCAL_SYM \
   __attribute__((visibility("hidden")))
 
 #define FINLINE \
@@ -85,6 +88,14 @@
 
 #define STR__(x) #x
 #define STR(x) STR__(x)
- 
+
+#if defined(SYS_BUILD_SHARED_LIBRARY)
+  #define SYS_API EXPORT_SYM
+#elif defined(SYS_USE_SHARED_LIBRARY)
+  #define SYS_API IMPORT_SYM
+#else
+  #define SYS_API extern
+#endif
+
 #endif /* SYS_H */
 

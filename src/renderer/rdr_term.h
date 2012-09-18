@@ -1,6 +1,7 @@
 #ifndef RDR_TERM_H
 #define RDR_TERM_H
 
+#include "renderer/rdr.h"
 #include "renderer/rdr_error.h"
 #include <stddef.h>
 
@@ -32,7 +33,7 @@ enum rdr_term_output {
   RDR_TERM_PROMPT
 };
 
-extern enum rdr_error
+RDR_API enum rdr_error
 rdr_create_term
   (struct rdr_system* sys,
    struct rdr_font* font,
@@ -40,67 +41,67 @@ rdr_create_term
    size_t height,
    struct rdr_term** term);
 
-extern enum rdr_error
+RDR_API enum rdr_error
 rdr_term_ref_get
   (struct rdr_term* term);
 
-extern enum rdr_error
+RDR_API enum rdr_error
 rdr_term_ref_put
   (struct rdr_term* console);
 
-extern enum rdr_error
+RDR_API enum rdr_error
 rdr_term_font
   (struct rdr_term* term,
    struct rdr_font* font);
 
-extern enum rdr_error
+RDR_API enum rdr_error
 rdr_term_translate_cursor
   (struct rdr_term* term,
    int x);
 
-extern enum rdr_error
+RDR_API enum rdr_error
 rdr_term_print_wstring
   (struct rdr_term* term,
    enum rdr_term_output output,
    const wchar_t* str,
    const unsigned char color[3]);
 
-extern enum rdr_error
+RDR_API enum rdr_error
 rdr_term_print_string
   (struct rdr_term* term,
    enum rdr_term_output output,
    const char* str,
    const unsigned char color[3]);
 
-extern enum rdr_error
+RDR_API enum rdr_error
 rdr_term_print_wchar
   (struct rdr_term* term,
    enum rdr_term_output output,
    wchar_t ch,
    const unsigned char color[3]);
 
-extern enum rdr_error
+RDR_API enum rdr_error
 rdr_clear_term
   (struct rdr_term* term,
    enum rdr_term_output output);
 
-extern enum rdr_error
+RDR_API enum rdr_error
 rdr_term_write_backspace
   (struct rdr_term* term);
 
-extern enum rdr_error
+RDR_API enum rdr_error
 rdr_term_write_tab
   (struct rdr_term* term);
 
-extern enum rdr_error
+RDR_API enum rdr_error
 rdr_term_write_return
   (struct rdr_term* term);
 
-extern enum rdr_error
+RDR_API enum rdr_error
 rdr_term_write_suppr
   (struct rdr_term* term);
 
-extern enum rdr_error
+RDR_API enum rdr_error
 rdr_term_dump
   (struct rdr_term* term,
    size_t* len, /* May be NULL. Do not include the null. */

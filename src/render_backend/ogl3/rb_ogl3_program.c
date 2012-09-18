@@ -46,7 +46,7 @@ release_program(struct ref* ref)
  * Program functions.
  *
  ******************************************************************************/
-EXPORT_SYM int
+int
 rb_create_program(struct rb_context* ctxt, struct rb_program** out_program)
 {
   int err = 0;
@@ -81,7 +81,7 @@ error:
   goto exit;
 }
 
-EXPORT_SYM int
+int
 rb_program_ref_get(struct rb_program* program)
 {
   if(!program)
@@ -90,7 +90,7 @@ rb_program_ref_get(struct rb_program* program)
   return 0;
 }
 
-EXPORT_SYM int
+int
 rb_program_ref_put(struct rb_program* program)
 {
   if(!program)
@@ -99,7 +99,7 @@ rb_program_ref_put(struct rb_program* program)
   return 0;
 }
 
-EXPORT_SYM int
+int
 rb_attach_shader(struct rb_program* program, struct rb_shader* shader)
 {
   if(!program || !shader || !is_list_empty(&shader->attachment))
@@ -111,7 +111,7 @@ rb_attach_shader(struct rb_program* program, struct rb_shader* shader)
   return 0;
 }
 
-EXPORT_SYM int
+int
 rb_detach_shader(struct rb_program* program, struct rb_shader* shader)
 {
   if(!program || !shader || is_list_empty(&shader->attachment))
@@ -137,7 +137,7 @@ rb_detach_shader(struct rb_program* program, struct rb_shader* shader)
   return 0;
 }
 
-EXPORT_SYM int
+int
 rb_link_program(struct rb_program* program)
 {
   int err = 0;
@@ -181,7 +181,7 @@ error:
   goto exit;
 }
 
-EXPORT_SYM int
+int
 rb_get_program_log(struct rb_program* program, const char** out_log)
 {
   if(!program || !out_log)
@@ -190,7 +190,7 @@ rb_get_program_log(struct rb_program* program, const char** out_log)
   return 0;
 }
 
-EXPORT_SYM int
+int
 rb_bind_program(struct rb_context* ctxt, struct rb_program* program)
 {
   if(!ctxt)

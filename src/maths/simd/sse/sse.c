@@ -12,7 +12,7 @@
 #define SC2 vf4_set1(-0.1666665247f)
 #define ONE vf4_set1(1.f)
 
-EXPORT_SYM vf4_t
+vf4_t
 vf4_sin(vf4_t v)
 {
   const vi4_t zeroi = vi4_zero();
@@ -41,7 +41,7 @@ vf4_sin(vf4_t v)
   return vf4_sel(vf4_minus(res), res, mask1);
 }
 
-EXPORT_SYM vf4_t
+vf4_t
 vf4_cos(vf4_t v)
 {
   const vi4_t zeroi = vi4_zero();
@@ -70,7 +70,7 @@ vf4_cos(vf4_t v)
   return vf4_sel(vf4_minus(res), res, mask1);
 }
 
-EXPORT_SYM void
+void
 vf4_sincos(vf4_t v, vf4_t* restrict s, vf4_t* restrict c)
 {
   const vi4_t zeroi = vi4_zero();
@@ -105,7 +105,7 @@ vf4_sincos(vf4_t v, vf4_t* restrict s, vf4_t* restrict c)
   *c = vf4_sel(vf4_minus(cres), cres, cmask1);
 }
 
-EXPORT_SYM vf4_t
+vf4_t
 vf4_acos(vf4_t v)
 {
   const vf4_t absv = vf4_abs(v);

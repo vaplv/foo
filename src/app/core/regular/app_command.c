@@ -1,5 +1,5 @@
 #include "app/core/regular/app_builtin_commands.h"
-#include "app/core/regular/app_c.h"
+#include "app/core/regular/app_core_c.h"
 #include "app/core/regular/app_command_c.h"
 #include "app/core/regular/app_error_c.h"
 #include "app/core/app_command.h"
@@ -414,7 +414,7 @@ del_all_commands(struct app* app)
  * Command functions
  *
  ******************************************************************************/
-EXPORT_SYM enum app_error
+enum app_error
 app_add_command
   (struct app* app,
    const char* name,
@@ -557,7 +557,7 @@ error:
   goto exit;
 }
 
-EXPORT_SYM enum app_error
+enum app_error
 app_del_command(struct app* app, const char* name)
 {
   struct sl_pair pair;
@@ -611,7 +611,7 @@ error:
   goto exit;
 }
 
-EXPORT_SYM enum app_error
+enum app_error
 app_has_command(struct app* app, const char* name, bool* has_command)
 {
   void* ptr = NULL;
@@ -622,7 +622,7 @@ app_has_command(struct app* app, const char* name, bool* has_command)
   return APP_NO_ERROR;
 }
 
-EXPORT_SYM enum app_error
+enum app_error
 app_execute_command(struct app* app, const char* command)
 {
   #define MAX_ARG_COUNT 128
@@ -722,7 +722,7 @@ error:
   goto exit;
 }
 
-EXPORT_SYM enum app_error
+enum app_error
 app_man_command
   (struct app* app,
    const char* name,
@@ -785,7 +785,7 @@ error:
   goto exit;
 }
 
-EXPORT_SYM enum app_error
+enum app_error
 app_command_arg_completion
   (struct app* app,
    const char* cmd_name,
@@ -878,7 +878,7 @@ error:
   goto exit;
 }
 
-EXPORT_SYM enum app_error
+enum app_error
 app_command_name_completion
   (struct app* app,
    const char* cmd_name,

@@ -7,7 +7,7 @@
  * Error public functions.
  *
  ******************************************************************************/
-EXPORT_SYM const char*
+const char*
 app_error_string(enum app_error err)
 {
   const char* out_str = NULL;

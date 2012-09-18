@@ -12,6 +12,14 @@
   #define RBU(func) rbu_##func
 #endif
 
+#if defined(RBU_BUILD_SHARED_LIBRARY)
+  #define RBU_API EXPORT_SYM
+#elif defined(RBU_USE_SHARED_LIBRARY)
+  #define RBU_API IMPORT_SYM
+#else
+  #define RBU_API extern
+#endif
+
 /*******************************************************************************
  *
  * Forward declaration
@@ -44,7 +52,7 @@ struct rbu_geometry {
  *
  ******************************************************************************/
 /* Create a non textured 2D quad. The vertex position is bound to location 0. */
-extern int
+RBU_API int
 rbu_init_quad
   (const struct rbi* rbi,
    struct rb_context* ctxt,
@@ -55,7 +63,7 @@ rbu_init_quad
    struct rbu_geometry* quad);
 
 /* Create a 2D circle. The vertex position is bound to location 0. */
-extern int
+RBU_API int
 rbu_init_circle
   (const struct rbi* rbi,
    struct rb_context* ctxt,
@@ -65,7 +73,7 @@ rbu_init_circle
    struct rbu_geometry* circle);
 
 /* Create a parallelepiped. The vertex position is bound to location 0. */
-extern int
+RBU_API int
 rbu_init_parallelepiped
   (const struct rbi* rbi,
    struct rb_context* ctxt,
@@ -75,7 +83,7 @@ rbu_init_parallelepiped
    struct rbu_geometry* cube);
 
 /* Create a closed cylinder. The vertex position is bound to location 0. */
-extern int
+RBU_API int
 rbu_init_cylinder
   (const struct rbi* rbi,
    struct rb_context* ctxt,
@@ -86,15 +94,15 @@ rbu_init_cylinder
    float pos[3],
    struct rbu_geometry* cylinder);
 
-extern int
+RBU_API int
 rbu_geometry_ref_get
   (struct rbu_geometry* geom);
 
-extern int
+RBU_API int
 rbu_geometry_ref_put
   (struct rbu_geometry* geom);
 
-extern int
+RBU_API int
 rbu_draw_geometry
   (struct rbu_geometry* geom);
 

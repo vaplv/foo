@@ -2,6 +2,7 @@
 #define RSRC_H
 
 #include "resources/rsrc_error.h"
+#include "sys/sys.h"
 #include <stddef.h>
 
 struct rsrc_context;
@@ -13,6 +14,14 @@ struct rsrc_context;
   #define RSRC(func) rsrc_##func
 #endif
 
+#if defined(RSRC_BUILD_SHARED_LIBRARY)
+  #define RSRC_API EXPORT_SYM
+#elif defined(RSRC_USE_SHARED_LIBRARY)
+  #define RSRC_API IMPORT_SYM
+#else
+  #define RSRC_API extern
+#endif
+
 enum rsrc_type {
   RSRC_FLOAT,
   RSRC_FLOAT2,
@@ -21,7 +30,7 @@ enum rsrc_type {
 };
 
 /* Basic image saving function. */
-extern enum rsrc_error
+RSRC_API enum rsrc_error
 rsrc_write_ppm
   (struct rsrc_context* ctxt,
    const char* path,

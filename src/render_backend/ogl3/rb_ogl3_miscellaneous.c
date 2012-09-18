@@ -73,7 +73,7 @@ static const GLenum rb_to_ogl3_face_orientation[] = {
   [RB_ORIENTATION_CCW] = GL_CCW
 };
 
-EXPORT_SYM int
+int
 rb_draw_indexed
   (struct rb_context* ctxt,
    enum rb_primitive_type prim_type,
@@ -86,7 +86,7 @@ rb_draw_indexed
   return 0;
 }
 
-EXPORT_SYM int
+int
 rb_draw
   (struct rb_context* ctxt,
    enum rb_primitive_type prim_type,
@@ -98,7 +98,7 @@ rb_draw
   return 0;
 }
 
-EXPORT_SYM int
+int
 rb_clear
   (struct rb_context* ctxt,
    int flag,
@@ -130,7 +130,7 @@ rb_clear
   return 0;
 }
 
-EXPORT_SYM int
+int
 rb_flush(struct rb_context* ctxt)
 {
   if(!ctxt)
@@ -140,7 +140,7 @@ rb_flush(struct rb_context* ctxt)
   return 0;
 }
 
-EXPORT_SYM int
+int
 rb_viewport(struct rb_context* ctxt, const struct rb_viewport_desc* vp)
 {
   if(!ctxt || !vp)
@@ -151,7 +151,7 @@ rb_viewport(struct rb_context* ctxt, const struct rb_viewport_desc* vp)
   return 0;
 }
 
-EXPORT_SYM int
+int
 rb_blend(struct rb_context* ctxt, const struct rb_blend_desc* blend)
 {
   if(!ctxt || !blend)
@@ -173,7 +173,7 @@ rb_blend(struct rb_context* ctxt, const struct rb_blend_desc* blend)
   return 0;
 }
 
-EXPORT_SYM int
+int
 rb_depth_stencil
   (struct rb_context* ctxt, const struct rb_depth_stencil_desc* desc)
 {
@@ -218,7 +218,7 @@ rb_depth_stencil
   return 0;
 }
 
-EXPORT_SYM int
+int
 rb_rasterizer(struct rb_context* ctxt, const struct rb_rasterizer_desc* desc)
 {
   if(!ctxt || !desc)
@@ -236,7 +236,7 @@ rb_rasterizer(struct rb_context* ctxt, const struct rb_rasterizer_desc* desc)
   return 0;
 }
 
-EXPORT_SYM int
+int
 rb_get_config(struct rb_context* ctxt, struct rb_config* config)
 {
   if(!ctxt || !config)

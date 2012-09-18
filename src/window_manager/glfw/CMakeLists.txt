@@ -11,6 +11,8 @@ if(NOT GLFW_LIB_PATH)
   message(FATAL_ERROR "Can't find glfw.")
 endif()
 
+add_definitions(-DWM_BUILD_SHARED_LIBRARY)
+
 file(GLOB WMGLFW_FILES *.c)
 add_library(wmglfw SHARED ${WMGLFW_FILES})
 

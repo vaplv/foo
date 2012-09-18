@@ -113,7 +113,7 @@ release_sampler(struct ref* ref)
  * Sampler function.
  *
  ******************************************************************************/
-EXPORT_SYM int
+int
 rb_create_sampler
   (struct rb_context* ctxt,
    const struct rb_sampler_desc* desc,
@@ -151,7 +151,7 @@ error:
   goto exit;
 }
 
-EXPORT_SYM int
+int
 rb_sampler_ref_get(struct rb_sampler* sampler)
 {
   if(!sampler)
@@ -160,7 +160,7 @@ rb_sampler_ref_get(struct rb_sampler* sampler)
   return 0;
 }
 
-EXPORT_SYM int
+int
 rb_sampler_ref_put(struct rb_sampler* sampler)
 {
   if(!sampler)
@@ -169,7 +169,7 @@ rb_sampler_ref_put(struct rb_sampler* sampler)
   return 0;
 }
 
-EXPORT_SYM int
+int
 rb_sampler_parameters
   (struct rb_sampler* sampler,
    const struct rb_sampler_desc* desc)
@@ -215,7 +215,7 @@ error:
   goto exit;
 }
 
-EXPORT_SYM int
+int
 rb_bind_sampler
   (struct rb_context* ctxt,
    struct rb_sampler* sampler,

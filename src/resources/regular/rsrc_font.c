@@ -164,7 +164,7 @@ release_glyph(struct ref* ref)
  * Public functions.
  *
  ******************************************************************************/
-EXPORT_SYM enum rsrc_error
+enum rsrc_error
 rsrc_create_font
   (struct rsrc_context* ctxt,
    const char* path,
@@ -205,7 +205,7 @@ error:
   goto exit;
 }
 
-EXPORT_SYM enum rsrc_error
+enum rsrc_error
 rsrc_font_ref_get(struct rsrc_font* font)
 {
   if(!font)
@@ -214,7 +214,7 @@ rsrc_font_ref_get(struct rsrc_font* font)
   return RSRC_NO_ERROR;
 }
 
-EXPORT_SYM enum rsrc_error
+enum rsrc_error
 rsrc_font_ref_put(struct rsrc_font* font)
 {
   if(!font)
@@ -223,7 +223,7 @@ rsrc_font_ref_put(struct rsrc_font* font)
   return RSRC_NO_ERROR;
 }
 
-EXPORT_SYM enum rsrc_error
+enum rsrc_error
 rsrc_load_font(struct rsrc_font* font, const char* path)
 {
   FT_Error ft_err = 0;
@@ -248,7 +248,7 @@ error:
   goto exit;
 }
 
-EXPORT_SYM enum rsrc_error
+enum rsrc_error
 rsrc_font_size(struct rsrc_font* font, size_t width, size_t height)
 {
   if(!font || !width || !height)
@@ -259,7 +259,7 @@ rsrc_font_size(struct rsrc_font* font, size_t width, size_t height)
   return RSRC_NO_ERROR;
 }
 
-EXPORT_SYM enum rsrc_error
+enum rsrc_error
 rsrc_font_line_space(const struct rsrc_font* font, size_t* line_space)
 {
   if(!font || !line_space)
@@ -274,7 +274,7 @@ rsrc_font_line_space(const struct rsrc_font* font, size_t* line_space)
   return RSRC_NO_ERROR;
 }
 
-EXPORT_SYM enum rsrc_error
+enum rsrc_error
 rsrc_is_font_scalable(const struct rsrc_font* font, bool* is_scalable)
 {
   if(!font || !is_scalable)
@@ -283,7 +283,7 @@ rsrc_is_font_scalable(const struct rsrc_font* font, bool* is_scalable)
   return RSRC_NO_ERROR;
 }
 
-EXPORT_SYM enum rsrc_error
+enum rsrc_error
 rsrc_font_glyph
   (struct rsrc_font* font, 
    wchar_t ch, 
@@ -334,7 +334,7 @@ error:
   goto exit;
 }
 
-EXPORT_SYM enum rsrc_error
+enum rsrc_error
 rsrc_glyph_ref_get(struct rsrc_glyph* glyph)
 {
   if(!glyph)
@@ -343,7 +343,7 @@ rsrc_glyph_ref_get(struct rsrc_glyph* glyph)
   return RSRC_NO_ERROR;
 }
 
-EXPORT_SYM enum rsrc_error
+enum rsrc_error
 rsrc_glyph_ref_put(struct rsrc_glyph* glyph)
 {
   if(!glyph)
@@ -352,7 +352,7 @@ rsrc_glyph_ref_put(struct rsrc_glyph* glyph)
   return RSRC_NO_ERROR;
 }
 
-EXPORT_SYM enum rsrc_error
+enum rsrc_error
 rsrc_glyph_bitmap
   (struct rsrc_glyph* glyph,
    bool antialiasing,
@@ -400,7 +400,7 @@ error:
   goto exit;
 }
 
-EXPORT_SYM enum rsrc_error
+enum rsrc_error
 rsrc_glyph_desc(const struct rsrc_glyph* glyph, struct rsrc_glyph_desc* desc)
 {
   if(!glyph || !desc)

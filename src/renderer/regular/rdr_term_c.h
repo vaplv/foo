@@ -5,7 +5,7 @@
 
 struct rdr_term;
 
-extern enum rdr_error
+LOCAL_SYM enum rdr_error
 rdr_draw_term
   (struct rdr_term* term);
 

@@ -1,4 +1,4 @@
-#include "app/core/regular/app_c.h"
+#include "app/core/regular/app_core_c.h"
 #include "app/core/regular/app_cvar_c.h"
 #include "app/core/regular/app_error_c.h"
 #include "app/core/app_cvar.h"
@@ -175,7 +175,7 @@ error:
  * cvar functions.
  *
  ******************************************************************************/
-EXPORT_SYM enum app_error
+enum app_error
 app_add_cvar
   (struct app* app,
    const char* cvar_name,
@@ -243,7 +243,7 @@ error:
   goto exit;
 }
 
-EXPORT_SYM enum app_error
+enum app_error
 app_del_cvar(struct app* app, const char* name)
 {
   struct sl_pair pair = { NULL, NULL };
@@ -267,7 +267,7 @@ app_del_cvar(struct app* app, const char* name)
   return APP_NO_ERROR;
 }
 
-EXPORT_SYM enum app_error
+enum app_error
 app_set_cvar(struct app* app, const char* name, union app_cvar_value val)
 {
   struct cvar** cvar = NULL;
@@ -291,7 +291,7 @@ error:
   goto exit;
 }
 
-EXPORT_SYM enum app_error
+enum app_error
 app_get_cvar
   (struct app* app,
    const char* name,
@@ -311,7 +311,7 @@ app_get_cvar
   return APP_NO_ERROR;
 }
 
-EXPORT_SYM enum app_error
+enum app_error
 app_cvar_name_completion
   (struct app* app,
    const char* cvar_name,

@@ -1,5 +1,5 @@
 #include "app/core/regular/app_builtin_commands.h"
-#include "app/core/regular/app_c.h"
+#include "app/core/regular/app_core_c.h"
 #include "app/core/app_command.h"
 #include "app/core/app_cvar.h"
 #include "app/core/app_model.h"

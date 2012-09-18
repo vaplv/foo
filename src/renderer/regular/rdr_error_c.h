@@ -7,11 +7,11 @@
 
 struct rdr_system;
 
-extern enum rdr_error
+LOCAL_SYM enum rdr_error
 sl_to_rdr_error
   (enum sl_error sl_err);
 
-extern enum rdr_error
+LOCAL_SYM enum rdr_error
 rdr_print_error
   (struct rdr_system* sys,
    const char* fmt,

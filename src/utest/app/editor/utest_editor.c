@@ -1,4 +1,4 @@
-#include "app/core/app.h"
+#include "app/core/app_core.h"
 #include "app/editor/edit_context.h"
 #include "sys/mem_allocator.h"
 #include "utest/utest.h"

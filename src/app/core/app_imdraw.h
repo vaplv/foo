@@ -1,6 +1,7 @@
 #ifndef APP_IMDRAW_H
 #define APP_IMDRAW_H
 
+#include "app/core/app.h"
 #include "app/core/app_error.h"
 
 struct app;
@@ -18,7 +19,7 @@ enum app_im_vector_marker {
   APP_IM_VECTOR_MARKER_NONE
 };
 
-extern enum app_error
+APP_API enum app_error
 app_imdraw_parallelepiped
   (struct app* app,
    int flag,
@@ -28,7 +29,7 @@ app_imdraw_parallelepiped
    const float solid_color[4], /* May be NULL <=> No solid parallelepiped. */
    const float wire_color[4]); /* May be NULL <=> No wire parallelepiped. */
 
-extern enum app_error
+APP_API enum app_error
 app_imdraw_ellipse
   (struct app* app,
    int flag,
@@ -37,7 +38,7 @@ app_imdraw_ellipse
    const float rotation[3],
    const float color[4]);
 
-extern enum app_error
+APP_API enum app_error
 app_imdraw_grid
   (struct app* app,
    int flag,
@@ -51,7 +52,7 @@ app_imdraw_grid
    const float vaxis_color[3],
    const float haxis_color[3]);
 
-extern enum app_error
+APP_API enum app_error
 app_imdraw_vector
   (struct app* app,
    int flag,

@@ -40,6 +40,7 @@
   #define SL_STRING_STD string
   #define SL_STRING_WIDE wstring
 #else
+  #include "stdlib/sl.h"
   #include "stdlib/sl_error.h"
   #include <sys/sys.h>
   #include <stdbool.h>
@@ -67,74 +68,74 @@
 struct mem_allocator;
 SL_STRING(SL_STRING_TYPE);
 
-extern enum sl_error
+SL_API enum sl_error
 SL_CREATE_STRING(SL_STRING_TYPE)
   (const SL_STRING_CHAR(SL_STRING_TYPE)* val,
    struct mem_allocator* allocator, /* May be NULL. */
    SL_STRING(SL_STRING_TYPE)** str); /* May be NULL. */
 
-extern enum sl_error
+SL_API enum sl_error
 SL_FREE_STRING(SL_STRING_TYPE)
   (SL_STRING(SL_STRING_TYPE)* str);
 
-extern enum sl_error
+SL_API enum sl_error
 SL_CLEAR_STRING(SL_STRING_TYPE)
   (SL_STRING(SL_STRING_TYPE)* str);
 
-extern enum sl_error
+SL_API enum sl_error
 SL_IS_STRING_EMPTY(SL_STRING_TYPE)
   (SL_STRING(SL_STRING_TYPE)* str,
    bool* is_empty);
 
-extern enum sl_error
+SL_API enum sl_error
 SL_STRING_SET(SL_STRING_TYPE)
   (SL_STRING(SL_STRING_TYPE)* str,
    const SL_STRING_CHAR(SL_STRING_TYPE)* val);
 
-extern enum sl_error
+SL_API enum sl_error
 SL_STRING_GET(SL_STRING_TYPE)
   (const SL_STRING(SL_STRING_TYPE)* str,
    const SL_STRING_CHAR(SL_STRING_TYPE)** cstr);
 
-extern enum sl_error
+SL_API enum sl_error
 SL_STRING_LENGTH(SL_STRING_TYPE)
   (SL_STRING(SL_STRING_TYPE)* str,
    size_t* len);
 
-extern enum sl_error
+SL_API enum sl_error
 SL_STRING_INSERT(SL_STRING_TYPE)
   (SL_STRING(SL_STRING_TYPE)* str,
    size_t id,
    const SL_STRING_CHAR(SL_STRING_TYPE)* cstr);
 
-extern enum sl_error
+SL_API enum sl_error
 SL_STRING_INSERT_CHAR(SL_STRING_TYPE)
   (SL_STRING(SL_STRING_TYPE)* str,
    size_t id,
    SL_STRING_CHAR(SL_STRING_TYPE) ch);
 
-extern enum sl_error
+SL_API enum sl_error
 SL_STRING_APPEND(SL_STRING_TYPE)
   (SL_STRING(SL_STRING_TYPE)* str,
    const SL_STRING_CHAR(SL_STRING_TYPE)* cstr);
 
-extern enum sl_error
+SL_API enum sl_error
 SL_STRING_APPEND_CHAR(SL_STRING_TYPE)
   (SL_STRING(SL_STRING_TYPE)* str,
    SL_STRING_CHAR(SL_STRING_TYPE) ch);
 
-extern enum sl_error
+SL_API enum sl_error
 SL_STRING_ERASE(SL_STRING_TYPE)
   (SL_STRING(SL_STRING_TYPE)* str,
    size_t id,
    size_t len);
 
-extern enum sl_error
+SL_API enum sl_error
 SL_STRING_ERASE_CHAR(SL_STRING_TYPE)
   (SL_STRING(SL_STRING_TYPE)* str,
    size_t id);
 
-extern enum sl_error
+SL_API enum sl_error
 SL_STRING_CAPACITY(SL_STRING_TYPE)
   (SL_STRING(SL_STRING_TYPE)* str,
    size_t capacity);

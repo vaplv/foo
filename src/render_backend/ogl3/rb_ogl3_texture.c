@@ -168,7 +168,7 @@ release_tex2d(struct ref* ref)
  * Texture 2D functions.
  *
  ******************************************************************************/
-EXPORT_SYM int
+int
 rb_create_tex2d
   (struct rb_context* ctxt,
    const struct rb_tex2d_desc* desc,
@@ -255,7 +255,7 @@ error:
   goto exit;
 }
 
-EXPORT_SYM int
+int
 rb_tex2d_ref_get(struct rb_tex2d* tex)
 {
   if(!tex)
@@ -264,7 +264,7 @@ rb_tex2d_ref_get(struct rb_tex2d* tex)
   return 0;
 }
 
-EXPORT_SYM int
+int
 rb_tex2d_ref_put(struct rb_tex2d* tex)
 {
   if(!tex)
@@ -273,7 +273,7 @@ rb_tex2d_ref_put(struct rb_tex2d* tex)
   return 0;
 }
 
-EXPORT_SYM int
+int
 rb_bind_tex2d
   (struct rb_context* ctxt,
    struct rb_tex2d* tex,
@@ -293,7 +293,7 @@ rb_bind_tex2d
   return 0;
 }
 
-EXPORT_SYM int
+int
 rb_tex2d_data(struct rb_tex2d* tex, unsigned int level, const void* data)
 {
   struct state_cache* state_cache = NULL;

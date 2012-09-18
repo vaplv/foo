@@ -9,7 +9,7 @@
 #define NSEC_PER_HOUR (60L * NSEC_PER_MIN)
 #define NSEC_PER_DAY (24L * NSEC_PER_HOUR)
 
-EXPORT_SYM int64_t
+int64_t
 time_val(const struct time* time, enum time_unit unit)
 {
   int64_t val = TIME_TO_NSEC__(time);
@@ -40,7 +40,7 @@ time_val(const struct time* time, enum time_unit unit)
   return val;
 }
 
-EXPORT_SYM void
+void
 time_dump
   (const struct time* time,
    int flag,

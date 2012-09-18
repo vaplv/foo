@@ -1,7 +1,7 @@
 #include "maths/simd/aosf44.h"
 #include "sys/sys.h"
 
-EXPORT_SYM vf4_t
+vf4_t
 aosf44_inverse(struct aosf44* res, const struct aosf44* m)
 {
   /* Retrieve the columns 0, 1, 2 and 3 and the row 3 of the "m" matrix. */

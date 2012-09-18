@@ -1,4 +1,4 @@
-#include "app/core/app.h"
+#include "app/core/app_core.h"
 #include "app/core/app_view.h"
 #include "app/game/regular/game_c.h"
 #include "app/game/regular/game_error_c.h"

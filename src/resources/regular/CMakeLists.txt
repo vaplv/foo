@@ -6,6 +6,8 @@ pkg_check_modules(FREETYPE REQUIRED freetype2)
 include_directories(${FREETYPE_INCLUDE_DIRS})
 link_directories(${FREETYPE_LIBRARY_DIRS})
 
+add_definitions(-DRSRC_BUILD_SHARED_LIBRARY)
+
 file(GLOB RSRC_FILES *.c)
 add_library(rsrc SHARED ${RSRC_FILES})
 

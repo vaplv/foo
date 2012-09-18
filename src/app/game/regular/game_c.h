@@ -1,6 +1,8 @@
 #ifndef GAME_C_H
 #define GAME_C_H
 
+#include <stdbool.h>
+
 #ifndef NDEBUG
   #include <assert.h>
   #define APP(func) assert(APP_NO_ERROR == app_##func)

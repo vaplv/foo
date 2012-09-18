@@ -82,12 +82,12 @@ time_add(struct time* res, const struct time* a, const struct time* b)
   }
 }
 
-extern int64_t
+SYS_API int64_t
 time_val
   (const struct time* time,
    enum time_unit unit);
 
-extern void
+SYS_API void
 time_dump
   (const struct time* time,
    int flag,
