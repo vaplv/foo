@@ -2,6 +2,7 @@
 #define RB_H
 
 #include "render_backend/rb_types.h"
+#include "sys/sys.h"
 
 #ifndef NDEBUG
   #include <assert.h>
@@ -10,12 +11,10 @@
   #define RB(func) rb_##func
 #endif
 
-#if defined(RB_BUILD_SHARED_LIBRARY)
+#if defined(BUILD_RB)
   #define RB_API EXPORT_SYM
-#elif defined(RB_USE_SHARED_LIBRARY)
-  #define RB_API IMPORT_SYM
 #else
-  #define RB_API extern
+  #define RB_API IMPORT_SYM
 #endif
 
 /* Define the prototypes of the render backend functions. The generated

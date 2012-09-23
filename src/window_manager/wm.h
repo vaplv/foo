@@ -11,12 +11,10 @@
   #define WM(func) wm_##func
 #endif /* NDEBUG */
 
-#if defined(WM_BUILD_SHARED_LIBRARY)
+#if defined(BUILD_WM)
   #define WM_API EXPORT_SYM
-#elif defined(WM_USE_SHARED_LIBRARY)
-  #define WM_API IMPORT_SYM
 #else
-  #define WM_API extern
+  #define WM_API IMPORT_SYM
 #endif
 
 #endif /* WM_H */

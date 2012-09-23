@@ -3,12 +3,10 @@
 
 #include "sys/sys.h"
 
-#if defined(SIMD_BUILD_SHARED_LIBRARY)
+#if defined(BUILD_SIMD)
   #define SIMD_API EXPORT_SYM
-#elif defined(SIMD_USE_SHARED_LIBRARY)
-  #define SIMD_API IMPORT_SYM
 #else
-  #define SIMD_API extern
+  #define SIMD_API IMPORT_SYM
 #endif
 
 #ifdef __SSE__

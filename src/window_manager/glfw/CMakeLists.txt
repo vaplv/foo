@@ -17,3 +17,4 @@ file(GLOB WMGLFW_FILES *.c)
 add_library(wmglfw SHARED ${WMGLFW_FILES})
 
 target_link_libraries(wmglfw glfw sl sys)
+set_target_properties(wmglfw PROPERTIES DEFINE_SYMBOL BUILD_WM)

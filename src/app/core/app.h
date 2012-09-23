@@ -10,12 +10,10 @@
   #define APP(func) app_##func
 #endif /* NDEBUG */
 
-#if defined(APP_BUILD_SHARED_LIBRARY)
+#if defined(BUILD_APP)
   #define APP_API EXPORT_SYM
-#elif defined(APP_USE_SHARED_LIBRARY)
-  #define APP_API IMPORT_SYM
 #else
-  #define APP_API extern
+  #define APP_API IMPORT_SYM
 #endif
 
 #endif /* APP_H */

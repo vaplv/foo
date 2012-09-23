@@ -11,12 +11,10 @@
   #define SL(func) sl_##func
 #endif
 
-#if defined(SL_BUILD_SHARED_LIBRARY)
+#if defined(BUILD_SL)
   #define SL_API EXPORT_SYM
-#elif defined(SL_USE_SHARED_LIBRARY)
+#else 
   #define SL_API IMPORT_SYM
-#else
-  #define SL_API extern
 #endif
 
 #endif /* SL_H */

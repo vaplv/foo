@@ -3,12 +3,10 @@
 
 #include "render_backend/rb_types.h"
 
-#if defined(RBI_BUILD_SHARED_LIBRARY)
+#if defined(BUILD_RBI)
   #define RBI_API EXPORT_SYM
-#elif defined(RBI_USE_SHARED_LIBRARY)
-  #define RBI_API IMPORT_SYM
 #else
-  #define RBI_API extern
+  #define RBI_API IMPORT_SYM
 #endif
 
 /* Define the render backend interface data structure; list of function

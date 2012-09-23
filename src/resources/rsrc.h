@@ -14,12 +14,10 @@ struct rsrc_context;
   #define RSRC(func) rsrc_##func
 #endif
 
-#if defined(RSRC_BUILD_SHARED_LIBRARY)
+#if defined(BUILD_RSRC)
   #define RSRC_API EXPORT_SYM
-#elif defined(RSRC_USE_SHARED_LIBRARY)
-  #define RSRC_API IMPORT_SYM
 #else
-  #define RSRC_API extern
+  #define RSRC_API IMPORT_SYM
 #endif
 
 enum rsrc_type {

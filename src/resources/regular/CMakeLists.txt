@@ -12,3 +12,5 @@ file(GLOB RSRC_FILES *.c)
 add_library(rsrc SHARED ${RSRC_FILES})
 
 target_link_libraries(rsrc sl sys ${FREETYPE_LIBRARIES})
+set_target_properties(rsrc PROPERTIES DEFINE_SYMBOL BUILD_RSRC)
+

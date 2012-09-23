@@ -2,6 +2,7 @@
 #define RBU_H
 
 #include "sys/ref_count.h"
+#include "sys/sys.h"
 #include <stdbool.h>
 #include <stddef.h>
 
@@ -12,12 +13,10 @@
   #define RBU(func) rbu_##func
 #endif
 
-#if defined(RBU_BUILD_SHARED_LIBRARY)
+#if defined(BUILD_RBU)
   #define RBU_API EXPORT_SYM
-#elif defined(RBU_USE_SHARED_LIBRARY)
-  #define RBU_API IMPORT_SYM
 #else
-  #define RBU_API extern
+  #define RBU_API IMPORT_SYM
 #endif
 
 /*******************************************************************************

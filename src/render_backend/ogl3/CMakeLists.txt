@@ -11,10 +11,11 @@ if(NOT GL_LIB_PATH)
   message(FATAL_ERROR "Can't find the OpenGL libraries.")
 endif()
 
-add_definitions(-DGL_GLEXT_PROTOTYPES -DRB_BUILD_SHARED_LIBRARY)
+add_definitions(-DGL_GLEXT_PROTOTYPES)
 
 file(GLOB RBOGL3_FILES *.c)
 add_library(rbogl3 SHARED ${RBOGL3_FILES})
+set_target_properties(rbogl3 PROPERTIES DEFINE_SYMBOL BUILD_RB)
 
 target_link_libraries(rbogl3 GL GLU)
 

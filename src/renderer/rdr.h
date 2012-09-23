@@ -11,12 +11,10 @@
   #define RDR(func) rdr_##func
 #endif
 
-#if defined(RDR_BUILD_SHARED_LIBRARY)
+#if defined(BUILD_RDR)
   #define RDR_API EXPORT_SYM
-#elif defined(RDR_USE_SHARED_LIBRARY)
-  #define RDR_API IMPORT_SYM
 #else
-  #define RDR_API extern
+  #define RDR_API IMPORT_SYM
 #endif
 
 #endif /* RDR_H */
