@@ -3,6 +3,7 @@
 
 #include "render_backend/ogl3/rb_ogl3.h"
 #include "sys/ref_count.h"
+#include "sys/sys.h"
 
 struct rb_context;
 struct rb_buffer;

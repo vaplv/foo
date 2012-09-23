@@ -2,6 +2,7 @@
 #define RDR_FONT_C_H
 
 #include "renderer/rdr_error.h"
+#include "sys/sys.h"
 #include <stdbool.h>
 #include <stddef.h>
 #include <wchar.h>

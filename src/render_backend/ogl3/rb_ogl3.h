@@ -2,6 +2,7 @@
 #define RB_OGL3_H
 
 #include "render_backend/rb_types.h"
+#include "sys/sys.h"
 #include <GL/gl.h>
 #include <GL/glext.h>
 #include <assert.h>

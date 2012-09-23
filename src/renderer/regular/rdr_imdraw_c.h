@@ -5,6 +5,7 @@
 #include "renderer/rdr_imdraw.h"
 #include "sys/list.h"
 #include "sys/ref_count.h"
+#include "sys/sys.h"
 
 #define RDR_IMGRID_NSUBDIV 32
 

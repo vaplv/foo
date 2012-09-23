@@ -4,6 +4,7 @@
 #include "render_backend/ogl3/rb_ogl3.h"
 #include "render_backend/rb_types.h"
 #include "sys/ref_count.h"
+#include "sys/sys.h"
 #include <GL/gl.h>
 
 struct rb_context;

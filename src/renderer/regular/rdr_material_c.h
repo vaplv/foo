@@ -3,6 +3,7 @@
 
 #include "renderer/rdr_attrib.h"
 #include "renderer/rdr_error.h"
+#include "sys/sys.h"
 #include <stdbool.h>
 
 enum rdr_material_signal {

@@ -2,6 +2,7 @@
 #define APP_COMMAND_C_H
 
 #include "app/core/app_error.h"
+#include "sys/sys.h"
 
 struct app;
 
