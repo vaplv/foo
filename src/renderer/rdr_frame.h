@@ -7,6 +7,7 @@
 #include <stdbool.h>
 
 struct rdr_frame;
+struct rdr_model_instance;
 struct rdr_system;
 struct rdr_term;
 struct rdr_view;
@@ -129,6 +130,12 @@ rdr_frame_pick_model_instance
    const struct rdr_view* view,
    const unsigned int pos[2], /* In pixels. */
    const unsigned int size[2]); /* In pixels. */
+
+RDR_API enum rdr_error
+rdr_frame_poll_picked_model_instance
+  (struct rdr_frame* frame,
+   size_t* count,
+   const struct rdr_model_instance** picked_instance_list);
 
 RDR_API enum rdr_error
 rdr_frame_show_pick_buffer

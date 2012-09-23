@@ -37,7 +37,16 @@ rdr_pick
    const struct rdr_view* view,
    const unsigned int pos[2], /* in screen space pixels. */
    const unsigned int size[2], /* in screen space pixels. */
-   enum rdr_pick pick_type);
+   const enum rdr_pick pick_type);
+
+/* Retrieve current picked model instances. */
+LOCAL_SYM enum rdr_error
+rdr_pick_poll
+  (struct rdr_system* sys,
+   struct rdr_picking* picking,
+   const enum rdr_pick pick_type,
+   size_t* count,
+   const void** out_list);
 
 /* Draw the pick buffer into the default framebuffer. */
 LOCAL_SYM enum rdr_error
@@ -46,8 +55,7 @@ rdr_show_pick_buffer
    struct rdr_picking* picking,
    struct rdr_world* world,
    const struct rdr_view* view,
-   enum rdr_pick pick_type);
-
+   const enum rdr_pick pick_type);
 
 #endif /* RDR_PICKING_H */
 

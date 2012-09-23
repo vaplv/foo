@@ -21,7 +21,7 @@ struct rdr_picking {
   struct rdr_picking_desc desc;
   struct result {
     struct sl_vector* draw_id_list; /* vector of uint32 */
-    struct sl_vector* model_instance_list; /* vector of mdl instances. */
+    struct sl_vector* model_instance_list; /* vector of picked mdl instances. */
   } result;
   struct framebuffer {
     struct rb_framebuffer* buffer;
@@ -627,7 +627,7 @@ rdr_pick
    const struct rdr_view* view,
    const unsigned int pos[2],
    const unsigned int size[2],
-   enum rdr_pick pick_type)
+   const enum rdr_pick pick_type)
 {
   struct rdr_model_instance** instance_list = NULL;
   size_t nb_instances = 0;
@@ -668,12 +668,38 @@ error:
 }
 
 extern enum rdr_error
+rdr_pick_poll
+  (struct rdr_system* sys,
+   struct rdr_picking* picking,
+   const enum rdr_pick pick_type,
+   size_t *count,
+   const void** out_list)
+{
+  enum rdr_error rdr_err = RDR_NO_ERROR;
+
+  if(UNLIKELY
+  (  !sys
+  || !picking
+  || !count 
+  || !out_list
+  || pick_type != RDR_PICK_MODEL_INSTANCE)) {
+    rdr_err = RDR_INVALID_ARGUMENT;
+    goto error;
+  }
+  /* TODO */
+exit:
+  return rdr_err;
+error:
+  goto exit;
+}
+
+extern enum rdr_error
 rdr_show_pick_buffer
   (struct rdr_system* sys,
    struct rdr_picking* picking,
    struct rdr_world* world,
    const struct rdr_view* view,
-   enum rdr_pick pick_type)
+   const enum rdr_pick pick_type)
 {
   struct rb_depth_stencil_desc depth_stencil_desc;
   struct rb_viewport_desc viewport_desc;

@@ -749,6 +749,34 @@ rdr_frame_pick_model_instance
 }
 
 enum rdr_error
+rdr_frame_poll_picked_model_instance
+  (struct rdr_frame* frame,
+   size_t *count,
+   const struct rdr_model_instance** picked_instance_list)
+{
+  enum rdr_error rdr_err = RDR_NO_ERROR;
+
+  if(UNLIKELY(!frame)) {
+    rdr_err = RDR_INVALID_ARGUMENT;
+    goto error;
+  }
+
+  rdr_err = rdr_pick_poll
+    (frame->sys,
+     frame->picking,
+     RDR_PICK_MODEL_INSTANCE,
+     count,
+     (const void**)picked_instance_list);
+  if(rdr_err != RDR_NO_ERROR)
+    goto error;
+
+exit:
+  return rdr_err;
+error:
+  goto exit;
+}
+
+enum rdr_error
 rdr_frame_show_pick_buffer
   (struct rdr_frame* frame,
    struct rdr_world* world,
