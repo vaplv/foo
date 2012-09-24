@@ -20,8 +20,7 @@ enum { PICK_UNIFORM_MVP, PICK_UNIFORM_MDL_ID, NB_PICK_UNIFORMS };
 struct rdr_picking {
   struct rdr_picking_desc desc;
   struct result {
-    struct sl_vector* draw_id_list; /* vector of uint32 */
-    struct sl_vector* model_instance_list; /* vector of picked mdl instances. */
+    struct sl_vector* pick_id_list; /* vector of uint32 */
   } result;
   struct framebuffer {
     struct rb_framebuffer* buffer;
@@ -39,7 +38,7 @@ struct rdr_picking {
     struct rb_shader* vertex_shader;
     struct rb_shader* fragment_shader;
     struct rb_uniform* scale_bias_uniform;
-    struct rb_uniform* max_draw_id_uniform;
+    struct rb_uniform* max_pick_id_uniform;
     struct rb_uniform* pick_buffer_uniform;
     struct rb_uniform* depth_buffer_uniform;
     struct rb_sampler* sampler;
@@ -121,8 +120,7 @@ draw_picked_world
   (struct rdr_system* sys,
    struct rdr_picking* picking,
    struct rdr_world* world,
-   const struct rdr_view* view,
-   enum rdr_pick pick_type)
+   const struct rdr_view* view)
 {
   const struct rb_clear_framebuffer_color_desc clear_desc = {
     .index = 0,
@@ -132,12 +130,7 @@ draw_picked_world
   struct rdr_view pick_view;
     memset(&draw_desc, 0, sizeof(struct rdr_draw_desc));
 
-  assert
-    (  sys
-    && picking
-    && world
-    && view
-    && pick_type != RDR_PICK_NONE);
+  assert(sys && picking && world && view);
 
   /* Adjust the input viewport to match the pick definition. */
   memcpy(&pick_view, view, sizeof(struct rdr_view));
@@ -146,15 +139,9 @@ draw_picked_world
   pick_view.height = picking->desc.height;
 
   /* Define the draw desc. */
-  if(pick_type == RDR_PICK_MODEL_INSTANCE) {
-    draw_desc.uniform_list = picking->shading.uniform_list;
-    draw_desc.nb_uniforms = NB_PICK_UNIFORMS;
-    draw_desc.draw_id_bias = 0;
-    draw_desc.bind_flag = RDR_BIND_ATTRIB_POSITION;
-  } else {
-    /* Unreachable code. */
-    assert(0);
-  }
+  draw_desc.uniform_list = picking->shading.uniform_list;
+  draw_desc.nb_uniforms = NB_PICK_UNIFORMS;
+  draw_desc.bind_flag = RDR_BIND_ATTRIB_POSITION;
 
   /* Draw the world into the picking buffer. */
   RBI(&sys->rb, clear_framebuffer_render_targets
@@ -204,13 +191,13 @@ read_back_picking_buffer
   blit_size[1] = blit_pos1[1] - blit_pos0[1];
 
   /* Read back pick content. */
-  SL(clear_vector(picking->result.draw_id_list));
+  SL(clear_vector(picking->result.pick_id_list));
   SL(vector_push_back_n
-    (picking->result.draw_id_list,
+    (picking->result.pick_id_list,
      blit_size[0] * blit_size[1],
      (uint32_t[]){UINT32_MAX}));
   SL(vector_buffer
-    (picking->result.draw_id_list, &bufsize, NULL, NULL, (void**)&buf));
+    (picking->result.pick_id_list, &bufsize, NULL, NULL, (void**)&buf));
 #ifndef NDEBUG
   {
     size_t tmp = 0;
@@ -225,72 +212,6 @@ read_back_picking_buffer
      0, blit_pos0[0], blit_pos0[1], blit_size[0], blit_size[1], NULL, buf));
 
   return RDR_NO_ERROR;
-}
-
-static void
-cleanup_picked_objects
-  (struct rdr_system* sys UNUSED,
-   struct result* result,
-   enum rdr_pick pick_type UNUSED)
-{
-  struct rdr_model_instance** instance_list = NULL;
-  size_t nb_instances = 0;
-  size_t i = 0;
-
-  assert(sys && result && pick_type == RDR_PICK_MODEL_INSTANCE);
-
-  SL(vector_buffer
-     (result->model_instance_list,
-      &nb_instances,
-      NULL,
-      NULL,
-      (void**)&instance_list));
-  for(i = 0; i < nb_instances; ++i) {
-    RDR(model_instance_ref_put(instance_list[i]));
-  }
-  SL(clear_vector(result->model_instance_list));
-}
-
-static enum rdr_error
-select_picked_objects
-  (struct rdr_system* sys,
-   const size_t nb_instances UNUSED,
-   struct rdr_model_instance** instance_list, /* Can be indexed by the draw id. */
-   struct result* result,
-   enum rdr_pick pick_type)
-{
-  uint32_t* draw_id_list = NULL;
-  size_t nb_draw_id = 0;
-  size_t i = 0;
-  enum rdr_error rdr_err = RDR_NO_ERROR;
-  enum sl_error sl_err = SL_NO_ERROR;
-  assert(sys && result && pick_type == RDR_PICK_MODEL_INSTANCE);
-
-  cleanup_picked_objects(sys, result, pick_type);
-
-  SL(vector_buffer
-    (result->draw_id_list, &nb_draw_id, NULL, NULL, (void**)&draw_id_list));
-
-  for(i = 0; i < nb_draw_id; ++i) {
-    if(draw_id_list[i] != UINT32_MAX) {
-      struct rdr_model_instance* instance = NULL;
-      assert(draw_id_list[i] < nb_instances);
-
-      instance = instance_list[draw_id_list[i]];
-      RDR(model_instance_ref_get(instance));
-
-      sl_err = sl_vector_push_back(result->model_instance_list, &instance);
-      if(sl_err != SL_NO_ERROR) {
-        rdr_err = sl_to_rdr_error(sl_err);
-        goto error;
-      }
-    }
-  }
-exit:
-  return rdr_err;
-error:
-  cleanup_picked_objects(sys, result, pick_type);
-  goto exit;
 }
 
 static void
@@ -422,7 +343,7 @@ init_shading(struct rdr_system* sys, struct shading* shading)
   RBI(&sys->rb, link_program(shading->program));
 
   /* Retrieve the uniform of the shading program. */
-  shading->uniform_list[PICK_UNIFORM_MDL_ID].usage = RDR_DRAW_ID_UNIFORM;
+  shading->uniform_list[PICK_UNIFORM_MDL_ID].usage = RDR_PICK_ID_UNIFORM;
   RBI(&sys->rb, get_named_uniform
     (sys->ctxt, shading->program, "in_id",
      &shading->uniform_list[PICK_UNIFORM_MDL_ID].uniform));
@@ -447,8 +368,8 @@ release_debug(struct rdr_system* sys, struct debug* debug)
     RBI(&sys->rb, program_ref_put(debug->program));
   if(debug->scale_bias_uniform)
     RBI(&sys->rb, uniform_ref_put(debug->scale_bias_uniform));
-  if(debug->max_draw_id_uniform)
-    RBI(&sys->rb, uniform_ref_put(debug->max_draw_id_uniform));
+  if(debug->max_pick_id_uniform)
+    RBI(&sys->rb, uniform_ref_put(debug->max_pick_id_uniform));
   if(debug->pick_buffer_uniform)
     RBI(&sys->rb, uniform_ref_put(debug->pick_buffer_uniform));
   if(debug->depth_buffer_uniform)
@@ -487,7 +408,7 @@ init_debug(struct rdr_system* sys, struct debug* debug)
   RBI(&sys->rb, get_named_uniform
     (sys->ctxt, debug->program, "scale_bias", &debug->scale_bias_uniform));
   RBI(&sys->rb, get_named_uniform
-    (sys->ctxt, debug->program, "max_draw_id", &debug->max_draw_id_uniform));
+    (sys->ctxt, debug->program, "max_draw_id", &debug->max_pick_id_uniform));
   RBI(&sys->rb, get_named_uniform
     (sys->ctxt, debug->program, "pick_buffer", &debug->pick_buffer_uniform));
   RBI(&sys->rb, get_named_uniform
@@ -511,12 +432,8 @@ static void
 release_result(struct rdr_system* sys UNUSED, struct result* result)
 {
   assert(sys && result);
-  if(result->draw_id_list)
-    SL(free_vector(result->draw_id_list));
-
-  cleanup_picked_objects(sys, result, RDR_PICK_MODEL_INSTANCE);
-  if(result->model_instance_list)
-    SL(free_vector(result->model_instance_list));
+  if(result->pick_id_list)
+    SL(free_vector(result->pick_id_list));
   memset(result, 0, sizeof(struct result));
 }
 
@@ -531,16 +448,7 @@ init_result(struct rdr_system* sys, struct result* result)
     (sizeof(uint32_t),
      16,
      sys->allocator,
-     &result->draw_id_list);
-  if(sl_err != SL_NO_ERROR) {
-    rdr_err = sl_to_rdr_error(sl_err);
-    goto error;
-  }
-  sl_err = sl_create_vector
-    (sizeof(struct rdr_model_instance*),
-     ALIGNOF(struct rdr_model_instance*),
-     sys->allocator,
-     &result->model_instance_list);
+     &result->pick_id_list);
   if(sl_err != SL_NO_ERROR) {
     rdr_err = sl_to_rdr_error(sl_err);
     goto error;
@@ -619,32 +527,25 @@ rdr_free_picking(struct rdr_system* sys, struct rdr_picking* picking)
   return RDR_NO_ERROR;
 }
 
-extern enum rdr_error
+enum rdr_error
 rdr_pick
   (struct rdr_system* sys,
    struct rdr_picking* picking,
    struct rdr_world* world,
    const struct rdr_view* view,
    const unsigned int pos[2],
-   const unsigned int size[2],
-   const enum rdr_pick pick_type)
+   const unsigned int size[2])
 {
-  struct rdr_model_instance** instance_list = NULL;
-  size_t nb_instances = 0;
   enum rdr_error rdr_err = RDR_NO_ERROR;
 
   if(UNLIKELY(!sys || !picking || !world || !view || !pos || !size)) {
     rdr_err = RDR_INVALID_ARGUMENT;
     goto error;
   }
-  if(pick_type == RDR_PICK_NONE
-  || pos[0] < view->x
-  || pos[1] < view->y
-  || size[0] == 0
-  || size[1] == 0)
+  if(pos[0] < view->x || pos[1] < view->y || size[0] == 0 || size[1] == 0)
     goto exit;
 
-  rdr_err = draw_picked_world(sys, picking, world, view, pick_type);
+  rdr_err = draw_picked_world(sys, picking, world, view);
   if(rdr_err != RDR_NO_ERROR)
     goto error;
 
@@ -652,75 +553,64 @@ rdr_pick
   if(rdr_err != RDR_NO_ERROR)
     goto error;
 
-  RDR(get_world_model_instance_list(world, &nb_instances, &instance_list));
-  rdr_err = select_picked_objects
-    (sys, nb_instances, instance_list, &picking->result, pick_type);
-  if(rdr_err != RDR_NO_ERROR)
-    goto error;
-
 exit:
   return rdr_err;
 error:
   if(sys && picking) {
-    cleanup_picked_objects(sys, &picking->result, pick_type);
+    SL(clear_vector(picking->result.pick_id_list));
   }
   goto exit;
 }
 
-extern enum rdr_error
-rdr_pick_poll
+enum rdr_error
+rdr_get_pick_result
   (struct rdr_system* sys,
    struct rdr_picking* picking,
-   const enum rdr_pick pick_type,
    size_t *count,
-   const void** out_list)
+   const uint32_t* out_list[])
 {
+  void* list = NULL;
   enum rdr_error rdr_err = RDR_NO_ERROR;
 
-  if(UNLIKELY
-  (  !sys
-  || !picking
-  || !count 
-  || !out_list
-  || pick_type != RDR_PICK_MODEL_INSTANCE)) {
+  if(UNLIKELY(!sys || !picking || !count || !out_list)) {
     rdr_err = RDR_INVALID_ARGUMENT;
     goto error;
   }
-  /* TODO */
+  SL(vector_buffer
+    (picking->result.pick_id_list,
+     count,
+     NULL,
+     NULL,
+     &list));
+  *out_list = list;
 exit:
   return rdr_err;
 error:
   goto exit;
 }
 
-extern enum rdr_error
+enum rdr_error
 rdr_show_pick_buffer
   (struct rdr_system* sys,
    struct rdr_picking* picking,
    struct rdr_world* world,
-   const struct rdr_view* view,
-   const enum rdr_pick pick_type)
+   const struct rdr_view* view)
 {
   struct rb_depth_stencil_desc depth_stencil_desc;
   struct rb_viewport_desc viewport_desc;
   float scale_bias[4] = { 0.f, 0.f, 0.f, 0.f };
-  size_t nb_instances = 0; /* Used to map the pick id onto the dst dynamic. */
+  const size_t nb_instances = 16; /* FIXME Used to map the pick id onto the dst dynamic. */
   enum rdr_error rdr_err = RDR_NO_ERROR;
   enum { PICK_BUFFER_TEX_UNIT, DEPTH_BUFFER_TEX_UNIT };
   memset(&depth_stencil_desc, 0, sizeof(struct rb_depth_stencil_desc));
   memset(&viewport_desc, 0, sizeof(struct rb_viewport_desc));
 
-  if(UNLIKELY
-  (  !sys
-  || !picking
-  || !world
-  || !view
-  || pick_type != RDR_PICK_MODEL_INSTANCE)) {
+  if(UNLIKELY(!sys || !picking || !world || !view)) {
     rdr_err = RDR_INVALID_ARGUMENT;
     goto error;
   }
 
-  rdr_err = draw_picked_world(sys, picking, world, view, pick_type);
+  rdr_err = draw_picked_world(sys, picking, world, view);
   if(rdr_err != RDR_NO_ERROR)
     goto error;
 
@@ -756,9 +646,8 @@ rdr_show_pick_buffer
   scale_bias[3] = 0.f;
   RBI(&sys->rb, uniform_data
     (picking->debug.scale_bias_uniform, 1, (void*)scale_bias));
-  RDR(get_world_model_instance_list(world, &nb_instances, NULL));
   RBI(&sys->rb, uniform_data
-    (picking->debug.max_draw_id_uniform, 1,
+    (picking->debug.max_pick_id_uniform, 1,
      (void*)(unsigned int[]){nb_instances - 1}));
   RBI(&sys->rb, uniform_data
     (picking->debug.pick_buffer_uniform, 1,

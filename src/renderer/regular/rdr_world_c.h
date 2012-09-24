@@ -20,14 +20,5 @@ rdr_compute_projection_matrix
   (const struct rdr_view* view,
    struct aosf44* proj);
 
-/* Returned the list of instances registered against the world.
- * The returned instances can be indexed by the draw id. */
-LOCAL_SYM enum rdr_error
-rdr_get_world_model_instance_list
-  (struct rdr_world* world,
-   size_t* size, /* Maye be NULL. */
-   struct rdr_model_instance** instance_list[]); /* May be NULL. */
-                              
-
 #endif /* RDR_WORLD_C_H */
 

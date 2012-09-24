@@ -1,9 +1,12 @@
 #include "app/core/regular/app_core_c.h"
 #include "app/core/regular/app_view_c.h"
 #include "app/core/app_view.h"
+#include "renderer/rdr_world.h"
 #include "sys/math.h"
 #include "sys/mem_allocator.h"
 #include "sys/sys.h"
+#include "window_manager/wm.h"
+#include "window_manager/wm_window.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -254,4 +257,35 @@ app_get_view_projection
   return APP_NO_ERROR;
 }
 
+/*******************************************************************************
+ *
+ * Private functions
+ *
+ ******************************************************************************/
+enum app_error
+app_to_rdr_view
+  (const struct app* app,
+   const struct app_view* view, 
+   struct rdr_view* render_view)
+{
+  struct wm_window_desc win_desc;
 
+  if(UNLIKELY(!app || !view || !render_view))
+    return APP_INVALID_ARGUMENT;
+
+  WM(get_window_desc(app->wm.window, &win_desc));
+
+  assert(sizeof(view->transform) == sizeof(render_view->transform));
+  aosf44_store(render_view->transform, &view->transform);
+
+  render_view->proj_ratio = view->ratio;
+  render_view->fov_x = view->fov_x;
+  render_view->znear = view->znear;
+  render_view->zfar = view->zfar;
+  render_view->x = 0;
+  render_view->y = 0;
+  render_view->width = win_desc.width;
+  render_view->height = win_desc.height;
+
+  return APP_NO_ERROR;
+}

@@ -596,6 +596,36 @@ app_get_model_instance_obb
 }
 
 enum app_error
+app_set_model_instance_pick_id
+  (struct app_model_instance* instance,
+   const uint32_t pick_id)
+{
+  struct rdr_model_instance** instance_list = NULL;
+  size_t nb_instances = 0;
+  size_t i = 0;
+  enum app_error app_err = APP_NO_ERROR;
+
+  if(UNLIKELY(!instance)) {
+    app_err = APP_INVALID_ARGUMENT;
+    goto error;
+  }
+  SL(vector_buffer
+    (instance->model_instance_list, &nb_instances, NULL, NULL, &instance_list));
+  for(i = 0; i < nb_instances; ++i) {
+    const enum rdr_error rdr_err  = rdr_set_model_instance_pick_id
+      (instance_list[i], pick_id);
+    if(rdr_err != RDR_NO_ERROR) {
+      app_err = rdr_to_app_error(rdr_err);
+      goto error;
+    }
+  }
+exit:
+  return app_err;
+error:
+  goto exit;
+}
+
+enum app_error
 app_get_model_instance_list_begin
   (struct app* app,
    struct app_model_instance_it* it,

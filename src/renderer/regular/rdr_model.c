@@ -35,7 +35,7 @@ builtin_uniform_name_list[] = {
   [RDR_PROJECTION_UNIFORM] = "rdr_projection",
   [RDR_MODELVIEWPROJ_UNIFORM] = "rdr_modelviewproj",
   [RDR_MODELVIEW_INVTRANS_UNIFORM] = "rdr_modelview_invtrans",
-  [RDR_DRAW_ID_UNIFORM] = "rdr_draw_id"
+  [RDR_PICK_ID_UNIFORM] = "rdr_pick_id"
 };
 
 struct rdr_model {

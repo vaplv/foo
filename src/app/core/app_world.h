@@ -35,5 +35,12 @@ app_world_remove_model_instances
    size_t nb_model_instances,
    struct app_model_instance* instance_list[]);
 
+APP_API enum app_error
+app_world_pick
+  (struct app_world* world,
+   const struct app_view* view,
+   const unsigned int pos[2],
+   const unsigned int size[2]);
+
 #endif /* APP_WORLD_H */
 

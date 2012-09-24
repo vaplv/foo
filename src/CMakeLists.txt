@@ -10,7 +10,7 @@ if(NOT CMAKE_COMPILER_IS_GNUCC)
 endif(NOT CMAKE_COMPILER_IS_GNUCC)
 
 set(CMAKE_C_FLAGS 
-  "-pedantic -std=c99 -Wall -Wextra -Wcast-align -Wmissing-declarations -Wmissing-prototypes -ffast-math -fvisibility=hidden -msse3")
+  "-pedantic -std=c99 -Wall -Wextra -Wcast-align -Wmissing-declarations -Wmissing-prototypes -ffast-math -fvisibility=hidden -msse3 -Wl,-z,defs")
 set(CMAKE_C_FLAGS_DEBUG "-g -DDEBUG")
 set(CMAKE_C_FLAGS_RELEASE "-O3 -DNDEBUG")
 

@@ -105,6 +105,7 @@ struct rdr_model_instance {
   struct rdr_rasterizer_desc rasterizer_desc;
   struct ref ref;
   struct rdr_system* sys;
+  uint32_t pick_id;
 };
 
 /*******************************************************************************
@@ -242,7 +243,7 @@ dispatch_uniform_data
    const struct aosf44* transform,
    const struct aosf44* view_matrix,
    const struct aosf44* proj_matrix,
-   const size_t draw_id)
+   const size_t pick_id)
 {
   struct aosf44 tmp_mat44;
   ALIGN(16) float mat[16];
@@ -262,7 +263,7 @@ dispatch_uniform_data
         goto error; \
       } \
     } while(0)
-  #define CHECK_DRAW_ID_UNFORM(id) \
+  #define CHECK_PICK_ID_UNFORM(id) \
     do { \
       if(id > UINT32_MAX) { \
         rdr_err = RDR_OVERFLOW_ERROR; \
@@ -295,10 +296,10 @@ dispatch_uniform_data
           aosf44_store(mat, &tmp_mat44);
           CALL(sys->rb.uniform_data(uniform_list[i].uniform, 1, mat));
           break;
-        case RDR_DRAW_ID_UNIFORM:
-          CHECK_DRAW_ID_UNFORM(draw_id);
+        case RDR_PICK_ID_UNIFORM:
+          CHECK_PICK_ID_UNFORM(pick_id);
           CALL(sys->rb.uniform_data
-            (uniform_list[i].uniform, 1, (uint32_t[]){(uint32_t)draw_id}));
+            (uniform_list[i].uniform, 1, (uint32_t[]){(uint32_t)pick_id}));
           break;
         case RDR_REGULAR_UNIFORM: /* nothing */ break;
         default: assert(false); break;
@@ -332,9 +333,9 @@ dispatch_uniform_data
           aosf44_store(mat, &tmp_mat44);
           memcpy(data, mat, sizeof(mat));
           break;
-        case RDR_DRAW_ID_UNIFORM:
-          CHECK_DRAW_ID_UNFORM(draw_id);
-          memcpy(data, (uint32_t[]){(uint32_t)draw_id}, sizeof(uint32_t));
+        case RDR_PICK_ID_UNIFORM:
+          CHECK_PICK_ID_UNFORM(pick_id);
+          memcpy(data, (uint32_t[]){(uint32_t)pick_id}, sizeof(uint32_t));
           break;
         case RDR_REGULAR_UNIFORM: /* nothing */ break;
         default: assert(false); break;
@@ -570,7 +571,7 @@ regular_draw_instances
        &instance->transform,
        view_matrix,
        proj_matrix,
-       draw_id);
+       instance->pick_id);
     if(rdr_err != RDR_NO_ERROR)
       goto error;
 
@@ -666,7 +667,7 @@ draw_instances
        &instance->transform,
        view_matrix,
        proj_matrix,
-       draw_desc->draw_id_bias + draw_id);
+       instance->pick_id);
     if(rdr_err != RDR_NO_ERROR)
       goto error;
 
@@ -1250,6 +1251,17 @@ rdr_get_model_instance_obb
   extend_z[0] = tmp[0];
   extend_z[1] = tmp[1];
   extend_z[2] = tmp[2];
+  return RDR_NO_ERROR;
+}
+
+enum rdr_error
+rdr_set_model_instance_pick_id
+  (struct rdr_model_instance* instance,
+   const uint32_t pick_id)
+{
+  if(UNLIKELY(!instance))
+    return RDR_INVALID_ARGUMENT;
+  instance->pick_id = pick_id;
   return RDR_NO_ERROR;
 }
 

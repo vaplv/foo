@@ -132,10 +132,10 @@ rdr_frame_pick_model_instance
    const unsigned int size[2]); /* In pixels. */
 
 RDR_API enum rdr_error
-rdr_frame_poll_picked_model_instance
+rdr_frame_get_picked_ids
   (struct rdr_frame* frame,
    size_t* count,
-   const struct rdr_model_instance** picked_instance_list);
+   const uint32_t* picked_ids_list[]);
 
 RDR_API enum rdr_error
 rdr_frame_show_pick_buffer

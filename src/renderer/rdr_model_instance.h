@@ -151,6 +151,11 @@ rdr_get_model_instance_obb
    float extend_z[3]);
 
 RDR_API enum rdr_error
+rdr_set_model_instance_pick_id
+  (struct rdr_model_instance* instance,
+   const uint32_t pick_id);
+
+RDR_API enum rdr_error
 rdr_attach_model_instance_callback
   (struct rdr_model_instance* instance,
    void (*func)(struct rdr_model_instance*, void*), 

@@ -749,10 +749,10 @@ rdr_frame_pick_model_instance
 }
 
 enum rdr_error
-rdr_frame_poll_picked_model_instance
+rdr_frame_get_picked_ids
   (struct rdr_frame* frame,
    size_t *count,
-   const struct rdr_model_instance** picked_instance_list)
+   const uint32_t* picked_id_list[])
 {
   enum rdr_error rdr_err = RDR_NO_ERROR;
 
@@ -761,12 +761,8 @@ rdr_frame_poll_picked_model_instance
     goto error;
   }
 
-  rdr_err = rdr_pick_poll
-    (frame->sys,
-     frame->picking,
-     RDR_PICK_MODEL_INSTANCE,
-     count,
-     (const void**)picked_instance_list);
+  rdr_err = rdr_get_pick_result
+    (frame->sys, frame->picking, count, picked_id_list);
   if(rdr_err != RDR_NO_ERROR)
     goto error;
 
@@ -838,8 +834,7 @@ rdr_flush_frame(struct rdr_frame* frame)
        pick_node->world,
        &pick_node->view,
        pick_node->pos,
-       pick_node->size,
-       RDR_PICK_MODEL_INSTANCE));
+       pick_node->size));
     RDR(world_ref_put(pick_node->world));
     list_del(node);
   }
@@ -858,8 +853,7 @@ rdr_flush_frame(struct rdr_frame* frame)
       (frame->sys,
        frame->picking,
        world_node->world,
-       &world_node->view,
-       RDR_PICK_MODEL_INSTANCE));
+       &world_node->view));
     RDR(world_ref_put(world_node->world));
     list_del(node);
   }

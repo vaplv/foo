@@ -4,6 +4,7 @@
 #include "renderer/rdr_error.h"
 #include "sys/sys.h"
 
+struct rdr_model_instance;
 struct rdr_picking;
 struct rdr_system;
 struct rdr_view;
@@ -11,11 +12,6 @@ struct rdr_world;
 
 struct rdr_picking_desc {
   unsigned int width, height; /* definition in pixels */
-};
-
-enum rdr_pick {
-  RDR_PICK_MODEL_INSTANCE,
-  RDR_PICK_NONE
 };
 
 LOCAL_SYM enum rdr_error
@@ -36,17 +32,16 @@ rdr_pick
    struct rdr_world* world,
    const struct rdr_view* view,
    const unsigned int pos[2], /* in screen space pixels. */
-   const unsigned int size[2], /* in screen space pixels. */
-   const enum rdr_pick pick_type);
+   const unsigned int size[2]); /* in screen space pixels. */
 
-/* Retrieve current picked model instances. */
+/* Retrieve current picked model instances. Is invalidate by any rdr_pick
+ * invocation. */
 LOCAL_SYM enum rdr_error
-rdr_pick_poll
+rdr_get_pick_result
   (struct rdr_system* sys,
    struct rdr_picking* picking,
-   const enum rdr_pick pick_type,
    size_t* count,
-   const void** out_list);
+   const uint32_t* out_list[]);
 
 /* Draw the pick buffer into the default framebuffer. */
 LOCAL_SYM enum rdr_error
@@ -54,8 +49,7 @@ rdr_show_pick_buffer
   (struct rdr_system* sys,
    struct rdr_picking* picking,
    struct rdr_world* world,
-   const struct rdr_view* view,
-   const enum rdr_pick pick_type);
+   const struct rdr_view* view);
 
 #endif /* RDR_PICKING_H */
 

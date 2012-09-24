@@ -17,8 +17,6 @@
 #include "sys/mem_allocator.h"
 #include "sys/ref_count.h"
 #include "sys/sys.h"
-#include "window_manager/wm.h"
-#include "window_manager/wm_window.h"
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
@@ -246,6 +244,40 @@ error:
   goto exit;
 }
 
+enum app_error
+app_world_pick
+  (struct app_world* world,
+   const struct app_view* view,
+   const unsigned int pos[2],
+   const unsigned int size[2])
+{
+  struct rdr_view render_view;
+  enum app_error app_err = APP_NO_ERROR;
+  enum rdr_error rdr_err = RDR_NO_ERROR;
+
+  if(UNLIKELY(!world || !view || !pos || !size)) {
+    app_err = APP_INVALID_ARGUMENT;
+    goto error;
+  }
+
+  APP(to_rdr_view(world->app, view, &render_view));
+  rdr_err = rdr_frame_pick_model_instance
+    (world->app->rdr.frame,
+     world->render_world,
+     &render_view,
+     pos,
+     size);
+  if(rdr_err != RDR_NO_ERROR) {
+    app_err = rdr_to_app_error(rdr_err);
+    goto error;
+  }
+
+exit:
+  return app_err;
+error:
+  goto exit;
+}
+
 /*******************************************************************************
  *
  * Private world functions.
@@ -254,7 +286,6 @@ error:
 enum app_error
 app_draw_world(struct app_world* world, const struct app_view* view)
 {
-  struct wm_window_desc win_desc;
   struct rdr_view render_view;
   enum app_error app_err = APP_NO_ERROR;
   enum rdr_error rdr_err = RDR_NO_ERROR;
@@ -264,19 +295,7 @@ app_draw_world(struct app_world* world, const struct app_view* view)
     goto error;
   }
 
-  WM(get_window_desc(world->app->wm.window, &win_desc));
-
-  assert(sizeof(view->transform) == sizeof(render_view.transform));
-
-  aosf44_store(render_view.transform, &view->transform);
-  render_view.proj_ratio = view->ratio;
-  render_view.fov_x = view->fov_x;
-  render_view.znear = view->znear;
-  render_view.zfar = view->zfar;
-  render_view.x = 0;
-  render_view.y = 0;
-  render_view.width = win_desc.width;
-  render_view.height = win_desc.height;
+  APP(to_rdr_view(world->app, view, &render_view));
 
   if(world->app->cvar_system.rdr_show_picking->value.boolean == false) {
     rdr_err = rdr_frame_draw_world
