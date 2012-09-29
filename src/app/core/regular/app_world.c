@@ -252,12 +252,21 @@ app_world_pick
    const unsigned int size[2])
 {
   struct rdr_view render_view;
+  struct list_node* node = NULL;
+  uint32_t pick_id = 0;
   enum app_error app_err = APP_NO_ERROR;
   enum rdr_error rdr_err = RDR_NO_ERROR;
 
   if(UNLIKELY(!world || !view || !pos || !size)) {
     app_err = APP_INVALID_ARGUMENT;
     goto error;
+  }
+
+  /* Setup the pick id of the instances. */
+  LIST_FOR_EACH(node, &world->instance_list) {
+    struct app_model_instance* instance =
+      CONTAINER_OF(node, struct app_model_instance, world_node);
+    APP(set_model_instance_pick_id(instance, pick_id++));
   }
 
   APP(to_rdr_view(world->app, view, &render_view));
