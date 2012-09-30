@@ -49,7 +49,8 @@ rdr_show_pick_buffer
   (struct rdr_system* sys,
    struct rdr_picking* picking,
    struct rdr_world* world,
-   const struct rdr_view* view);
+   const struct rdr_view* view,
+   const uint32_t max_pick_id);
 
 #endif /* RDR_PICKING_H */
 

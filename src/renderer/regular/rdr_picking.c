@@ -85,13 +85,12 @@ static const char* show_picking_fs_source =
   "uniform sampler2D depth_buffer;\n"
   "out vec4 color;\n"
   "uniform vec4 scale_bias;\n"
-  "uniform uint max_draw_id;\n"
+  "uniform uint max_pick_id;\n"
   "void main()\n"
   "{\n"
   "  vec2 uv = gl_FragCoord.xy * scale_bias.xy + scale_bias.zw;\n"
   "  uint val = texture(pick_buffer, uv).r;\n"
-  "  uint max_id = max_draw_id;\n"
-  "  float normed_val = val / float(max_id);\n"
+  "  float normed_val = val / float(max_pick_id);\n"
   "  float depth = texture(depth_buffer, uv).x;\n"
   "\n"
   "  if(depth == 1.f) {\n"
@@ -408,7 +407,7 @@ init_debug(struct rdr_system* sys, struct debug* debug)
   RBI(&sys->rb, get_named_uniform
     (sys->ctxt, debug->program, "scale_bias", &debug->scale_bias_uniform));
   RBI(&sys->rb, get_named_uniform
-    (sys->ctxt, debug->program, "max_draw_id", &debug->max_pick_id_uniform));
+    (sys->ctxt, debug->program, "max_pick_id", &debug->max_pick_id_uniform));
   RBI(&sys->rb, get_named_uniform
     (sys->ctxt, debug->program, "pick_buffer", &debug->pick_buffer_uniform));
   RBI(&sys->rb, get_named_uniform
@@ -594,12 +593,12 @@ rdr_show_pick_buffer
   (struct rdr_system* sys,
    struct rdr_picking* picking,
    struct rdr_world* world,
-   const struct rdr_view* view)
+   const struct rdr_view* view,
+   const uint32_t max_pick_id)
 {
   struct rb_depth_stencil_desc depth_stencil_desc;
   struct rb_viewport_desc viewport_desc;
   float scale_bias[4] = { 0.f, 0.f, 0.f, 0.f };
-  const size_t nb_instances = 16; /* FIXME Used to map the pick id onto the dst dynamic. */
   enum rdr_error rdr_err = RDR_NO_ERROR;
   enum { PICK_BUFFER_TEX_UNIT, DEPTH_BUFFER_TEX_UNIT };
   memset(&depth_stencil_desc, 0, sizeof(struct rb_depth_stencil_desc));
@@ -648,7 +647,7 @@ rdr_show_pick_buffer
     (picking->debug.scale_bias_uniform, 1, (void*)scale_bias));
   RBI(&sys->rb, uniform_data
     (picking->debug.max_pick_id_uniform, 1,
-     (void*)(unsigned int[]){nb_instances - 1}));
+     (void*)(unsigned int[]){max_pick_id}));
   RBI(&sys->rb, uniform_data
     (picking->debug.pick_buffer_uniform, 1,
      (void*)(unsigned int[]){PICK_BUFFER_TEX_UNIT}));

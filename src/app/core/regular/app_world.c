@@ -26,6 +26,8 @@ struct app_world {
   struct list_node instance_list; /* Linked list of app_model_instance. */
   struct app* app;
   struct rdr_world* render_world;
+  bool is_picking_setuped;
+  uint32_t max_pick_id;
 };
 
 /*******************************************************************************
@@ -33,6 +35,25 @@ struct app_world {
  * World functions.
  *
  ******************************************************************************/
+static void
+setup_picking(struct app_world* world)
+{
+
+  if(world->is_picking_setuped == false) {
+    struct list_node* node = NULL;
+    uint32_t pick_id = 0;
+
+    /* Setup the pick id of the instances. */
+    LIST_FOR_EACH(node, &world->instance_list) {
+      struct app_model_instance* instance =
+        CONTAINER_OF(node, struct app_model_instance, world_node);
+      APP(set_model_instance_pick_id(instance, pick_id++));
+    }
+    world->is_picking_setuped = true;
+    world->max_pick_id = pick_id - 1;
+  }
+}
+
 static void
 release_world(struct ref* ref)
 {
@@ -134,6 +155,9 @@ app_world_add_model_instances
     app_err = APP_INVALID_ARGUMENT;
     goto error;
   }
+
+  world->is_picking_setuped = false;
+
   for(i = 0; i < nb_model_instances; ++i) {
     /* Link the instance against the world linked list. */
     if(instance_list[i]->world != NULL) {
@@ -197,6 +221,9 @@ app_world_remove_model_instances
     app_err = APP_INVALID_ARGUMENT;
     goto error;
   }
+
+  world->is_picking_setuped = false;
+
   for(i = 0; i < nb_model_instances; ++i) {
     if(instance_list[i]->world != world) {
       app_err = APP_INVALID_ARGUMENT;
@@ -252,8 +279,6 @@ app_world_pick
    const unsigned int size[2])
 {
   struct rdr_view render_view;
-  struct list_node* node = NULL;
-  uint32_t pick_id = 0;
   enum app_error app_err = APP_NO_ERROR;
   enum rdr_error rdr_err = RDR_NO_ERROR;
 
@@ -263,11 +288,7 @@ app_world_pick
   }
 
   /* Setup the pick id of the instances. */
-  LIST_FOR_EACH(node, &world->instance_list) {
-    struct app_model_instance* instance =
-      CONTAINER_OF(node, struct app_model_instance, world_node);
-    APP(set_model_instance_pick_id(instance, pick_id++));
-  }
+  setup_picking(world);
 
   APP(to_rdr_view(world->app, view, &render_view));
   rdr_err = rdr_frame_pick_model_instance
@@ -314,8 +335,12 @@ app_draw_world(struct app_world* world, const struct app_view* view)
       goto error;
     }
   } else {
+    setup_picking(world);
     rdr_err = rdr_frame_show_pick_buffer
-      (world->app->rdr.frame, world->render_world, &render_view);
+      (world->app->rdr.frame,
+       world->render_world,
+       &render_view,
+       world->max_pick_id);
     if(rdr_err != RDR_NO_ERROR) {
       app_err = rdr_to_app_error(rdr_err);
       goto error;

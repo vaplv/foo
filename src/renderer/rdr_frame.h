@@ -141,7 +141,8 @@ RDR_API enum rdr_error
 rdr_frame_show_pick_buffer
   (struct rdr_frame* frame,
    struct rdr_world* world,
-   const struct rdr_view* view);
+   const struct rdr_view* view,
+   const uint32_t max_pick_id); /* Used to map ids in the RGB dynamic */
 
 #endif /* RDR_FRAME_H */
 

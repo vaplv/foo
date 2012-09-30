@@ -12,61 +12,61 @@
 #include "renderer/rdr_system.h"
 #include "renderer/rdr_term.h"
 #include "renderer/rdr_world.h"
-#include "sys/list.h"
 #include "sys/mem_allocator.h"
 #include "sys/sys.h"
 #include <assert.h>
 #include <stddef.h>
 #include <string.h>
 
-#define MAX_TERM_NODES 4 /* Maximum number of "draw term" call */
-#define MAX_WORLD_NODES 4 /* Maximum number of draw world" call */
+#define MAX_DRAW_TERM_COMMANDS 4
+#define MAX_DRAW_WORLD_COMMANDS 4
 #define MAX_IMDRAW_COMMANDS 512
-#define MAX_PICK_NODES 4
+#define MAX_PICK_COMMANDS 4
+#define MAX_SHOW_PICK_COMMANDS 1
 
-struct term_node {
-  struct list_node node;
+struct draw_term_command {
   struct rdr_term* term;
 };
 
-struct world_node {
-  struct list_node node;
+ALIGN(16) struct draw_world_command {
   struct rdr_view view;
   struct rdr_world* world;
 };
 
-struct pick_node {
-  struct list_node node;
+ALIGN(16) struct pick_command {
   struct rdr_view view;
   struct rdr_world* world;
   unsigned int pos[2];
   unsigned int size[2];
 };
 
+ALIGN(16) struct show_pick_command {
+  struct rdr_view view;
+  struct rdr_world* world;
+  uint32_t max_pick_id;
+};
+
 /* im draw system. */
-struct imdraw {
-  struct rdr_imdraw_command_buffer* cmdbuf;
+ALIGN(16) struct imdraw {
   struct transform_cache {
     struct rdr_view view;
     struct aosf44 proj_matrix;
     struct aosf44 view_matrix;
     struct aosf44 viewproj_matrix;
   } transform_cache;
+  struct rdr_imdraw_command_buffer* cmdbuf;
 };
 
-struct rdr_frame {
-  /* Raw memory of draw command nodes. */
-  ALIGN(16) struct term_node term_node_list[MAX_TERM_NODES];
-  struct world_node world_node_list[MAX_WORLD_NODES];
-  struct pick_node pick_node_list[MAX_PICK_NODES];
-  /* Command management. */
-  size_t term_node_id;
-  size_t world_node_id;
-  size_t pick_node_id;
-  struct list_node draw_term_list;
-  struct list_node draw_world_list;
-  struct list_node show_pick_list; /* Be carefull: list of world_node! */
-  struct list_node pick_list;
+ALIGN(16) struct rdr_frame {
+  /* Raw draw commands. */
+  struct draw_term_command draw_term_cmd_list[MAX_DRAW_TERM_COMMANDS];
+  struct draw_world_command draw_world_cmd_list[MAX_DRAW_WORLD_COMMANDS];
+  struct pick_command pick_cmd_list[MAX_PICK_COMMANDS];
+  struct show_pick_command show_pick_cmd_list[MAX_SHOW_PICK_COMMANDS];
+  size_t draw_term_cmd_id;
+  size_t draw_world_cmd_id;
+  size_t show_pick_cmd_id;
+  size_t pick_cmd_id;
   /* Miscellaneous */
   struct rdr_picking* picking;
   struct imdraw imdraw; /* im draw system. */
@@ -369,53 +369,26 @@ error:
 }
 
 static void
-setup_world_node
-  (struct rdr_frame* frame,
-   struct rdr_world* world,
-   const struct rdr_view* view,
-   struct world_node** out_node)
-{
-  struct world_node* world_node = NULL;
-  assert(frame && world && view && out_node);
-
-  if(frame->world_node_id >= MAX_WORLD_NODES) {
-    *out_node = NULL;
-  } else {
-    world_node = frame->world_node_list + frame->world_node_id;
-    ++frame->world_node_id;
-
-    RDR(world_ref_get(world));
-    world_node->world = world;
-    memcpy(&world_node->view, view, sizeof(struct rdr_view));
-    *out_node = world_node;
-  }
-}
-
-static void
 release_frame(struct ref* ref)
 {
-  struct list_node* node = NULL;
   struct rdr_frame* frame = NULL;
   struct rdr_system* sys = NULL;
+  size_t cmd_id = 0;
   assert(ref);
 
   frame = CONTAINER_OF(ref, struct rdr_frame, ref);
 
-  LIST_FOR_EACH(node, &frame->draw_term_list) {
-    struct term_node* term_node = CONTAINER_OF(node, struct term_node, node);
-    RDR(term_ref_put(term_node->term));
+  for(cmd_id = 0; cmd_id < frame->draw_term_cmd_id; ++cmd_id) {
+    RDR(term_ref_put(frame->draw_term_cmd_list[cmd_id].term));
   }
-  LIST_FOR_EACH(node, &frame->draw_world_list) {
-    struct world_node* world_node = CONTAINER_OF(node, struct world_node, node);
-    RDR(world_ref_put(world_node->world));
+  for(cmd_id = 0; cmd_id < frame->draw_world_cmd_id; ++cmd_id) {
+    RDR(world_ref_put(frame->draw_world_cmd_list[cmd_id].world));
   }
-  LIST_FOR_EACH(node, &frame->show_pick_list) {
-    struct world_node* world_node = CONTAINER_OF(node, struct world_node, node);
-    RDR(world_ref_put(world_node->world));
+  for(cmd_id = 0; cmd_id < frame->show_pick_cmd_id; ++cmd_id) {
+    RDR(world_ref_put(frame->show_pick_cmd_list[cmd_id].world));
   }
-  LIST_FOR_EACH(node, &frame->pick_list) {
-    struct pick_node* pick_node = CONTAINER_OF(node, struct pick_node, node);
-    RDR(world_ref_put(pick_node->world));
+  for(cmd_id = 0; cmd_id < frame->pick_cmd_id; ++cmd_id) {
+    RDR(world_ref_put(frame->pick_cmd_list[cmd_id].world));
   }
   if(frame->imdraw.cmdbuf)
     RDR(imdraw_command_buffer_ref_put(frame->imdraw.cmdbuf));
@@ -441,7 +414,6 @@ rdr_create_frame
   struct rdr_frame* frame = NULL;
   struct rdr_picking_desc picking_desc;
   enum rdr_error rdr_err = RDR_NO_ERROR;
-  size_t i = 0;
   memset(&picking_desc, 0, sizeof(struct rdr_picking_desc));
 
   if(UNLIKELY(!sys || !desc || !out_frame)) {
@@ -457,13 +429,6 @@ rdr_create_frame
   ref_init(&frame->ref);
   RDR(system_ref_get(sys));
   frame->sys = sys;
-  list_init(&frame->draw_world_list);
-  list_init(&frame->draw_term_list);
-  list_init(&frame->show_pick_list);
-  list_init(&frame->pick_list);
-  for(i=0; i < MAX_TERM_NODES; list_init(&frame->term_node_list[i].node), ++i);
-  for(i=0; i < MAX_WORLD_NODES; list_init(&frame->world_node_list[i].node),++i);
-  for(i=0; i < MAX_PICK_NODES; list_init(&frame->pick_node_list[i].node), ++i);
 
   rdr_err = rdr_create_imdraw_command_buffer
     (sys, MAX_IMDRAW_COMMANDS, &frame->imdraw.cmdbuf);
@@ -521,36 +486,37 @@ rdr_frame_draw_world
    struct rdr_world* world,
    const struct rdr_view* view)
 {
-  struct world_node* world_node = NULL;
+  struct draw_world_command* draw_cmd = NULL;
 
   if(UNLIKELY(!frame || !world || !view))
     return RDR_INVALID_ARGUMENT;
-              
-  setup_world_node(frame, world, view, &world_node);
-  if(!world_node) {
+
+  if(frame->draw_world_cmd_id >= MAX_DRAW_WORLD_COMMANDS)
     return RDR_MEMORY_ERROR;
-  } else {
-    list_add(&frame->draw_world_list, &world_node->node);
-    return RDR_NO_ERROR;
-  }
+
+  draw_cmd = frame->draw_world_cmd_list + frame->draw_world_cmd_id;
+  ++frame->draw_world_cmd_id;
+  RDR(world_ref_get(world));
+  draw_cmd->world = world;
+  memcpy(&draw_cmd->view, view, sizeof(struct rdr_view));
+  return RDR_NO_ERROR;
 }
 
 enum rdr_error
 rdr_frame_draw_term(struct rdr_frame* frame, struct rdr_term* term)
 {
-  struct term_node* term_node = NULL;
+  struct draw_term_command* draw_cmd = NULL;
 
-  if(!frame || !term)
+  if(UNLIKELY(!frame || !term))
     return RDR_INVALID_ARGUMENT;
-  if(frame->term_node_id >= MAX_TERM_NODES)
+
+  if(frame->draw_term_cmd_id >= MAX_DRAW_TERM_COMMANDS)
     return RDR_MEMORY_ERROR;
 
-  term_node = frame->term_node_list + frame->term_node_id;
-  ++frame->term_node_id;
+  draw_cmd = frame->draw_term_cmd_list + frame->draw_term_cmd_id;
+  ++frame->draw_term_cmd_id;
   RDR(term_ref_get(term));
-  term_node->term = term;
-  list_add(&frame->draw_term_list, &term_node->node);
-
+  draw_cmd->term = term;
   return RDR_NO_ERROR;
 }
 
@@ -729,21 +695,21 @@ rdr_frame_pick_model_instance
    const unsigned int pos[2],
    const unsigned int size[2])
 {
-  struct pick_node* pick_node = NULL;
+  struct pick_command* pick_cmd = NULL;
 
   if(UNLIKELY(!frame || !world || !view || !pos || !size))
     return RDR_INVALID_ARGUMENT;
-  if(frame->pick_node_id >= MAX_PICK_NODES)
+  if(frame->pick_cmd_id >= MAX_PICK_COMMANDS)
     return RDR_MEMORY_ERROR;
 
-  pick_node = frame->pick_node_list + frame->pick_node_id;
-  ++frame->pick_node_id;
+  pick_cmd = frame->pick_cmd_list + frame->pick_cmd_id;
+  ++frame->pick_cmd_id;
+
   RDR(world_ref_get(world));
-  pick_node->world = world;
-  memcpy(&pick_node->view, view, sizeof(struct rdr_view));
-  memcpy(pick_node->pos, pos, sizeof(unsigned int) * 2);
-  memcpy(pick_node->size, size, sizeof(unsigned int) * 2);
-  list_add(&frame->pick_list, &pick_node->node);
+  pick_cmd->world = world;
+  memcpy(&pick_cmd->view, view, sizeof(struct rdr_view));
+  memcpy(pick_cmd->pos, pos, sizeof(unsigned int) * 2);
+  memcpy(pick_cmd->size, size, sizeof(unsigned int) * 2);
 
   return RDR_NO_ERROR;
 }
@@ -776,20 +742,25 @@ enum rdr_error
 rdr_frame_show_pick_buffer
   (struct rdr_frame* frame,
    struct rdr_world* world,
-   const struct rdr_view* view)
+   const struct rdr_view* view,
+   const uint32_t max_pick_id)
 {
-  struct world_node* world_node = NULL;
-  setup_world_node(frame, world, view, &world_node);
+  struct show_pick_command* show_pick_cmd = NULL;
 
   if(UNLIKELY(!frame || !world || !view))
     return RDR_INVALID_ARGUMENT;
-
-  if(!world_node) {
+  if(frame->show_pick_cmd_id >= MAX_SHOW_PICK_COMMANDS)
     return RDR_MEMORY_ERROR;
-  } else {
-    list_add(&frame->show_pick_list, &world_node->node);
-    return RDR_NO_ERROR;
-  }
+
+  show_pick_cmd = frame->show_pick_cmd_list + frame->show_pick_cmd_id;
+  ++frame->show_pick_cmd_id;
+
+  memcpy(&show_pick_cmd->view, view, sizeof(struct rdr_view));
+  RDR(world_ref_get(world));
+  show_pick_cmd->world = world;
+  show_pick_cmd->max_pick_id = max_pick_id;
+
+  return RDR_NO_ERROR;
 }
 
 enum rdr_error
@@ -807,8 +778,7 @@ rdr_flush_frame(struct rdr_frame* frame)
     .cull_mode = RB_CULL_BACK,
     .front_facing = RB_ORIENTATION_CCW
   };
-  struct list_node* node = NULL;
-  struct list_node* tmp = NULL;
+  size_t cmd_id = 0;
   enum rdr_error rdr_err = RDR_NO_ERROR;
 
   if(UNLIKELY(frame==NULL)) {
@@ -826,52 +796,51 @@ rdr_flush_frame(struct rdr_frame* frame)
      0));
 
   /* Flush pick commands. */
-  LIST_FOR_EACH_SAFE(node, tmp, &frame->pick_list) {
-    struct pick_node* pick_node = CONTAINER_OF(node, struct pick_node, node);
+  for(cmd_id = 0; cmd_id < frame->pick_cmd_id; ++cmd_id) {
+    struct pick_command* pick_cmd = frame->pick_cmd_list + cmd_id;
     RDR(pick
       (frame->sys,
        frame->picking,
-       pick_node->world,
-       &pick_node->view,
-       pick_node->pos,
-       pick_node->size));
-    RDR(world_ref_put(pick_node->world));
-    list_del(node);
+       pick_cmd->world,
+       &pick_cmd->view,
+       pick_cmd->pos,
+       pick_cmd->size));
+    RDR(world_ref_put(pick_cmd->world));
   }
   /* Flush draw world commands. */
-  LIST_FOR_EACH_SAFE(node, tmp, &frame->draw_world_list) {
-    struct world_node* world_node = CONTAINER_OF(node, struct world_node, node);
-    if(is_list_empty(&frame->show_pick_list) == true)
-      RDR(draw_world(world_node->world, &world_node->view, NULL));
-    RDR(world_ref_put(world_node->world));
-    list_del(node);
+  for(cmd_id = 0; cmd_id < frame->draw_world_cmd_id; ++cmd_id) {
+    struct draw_world_command* draw_cmd = frame->draw_world_cmd_list + cmd_id;
+    if(frame->show_pick_cmd_id == 0) {
+      RDR(draw_world(draw_cmd->world, &draw_cmd->view, NULL));
+    }
+    RDR(world_ref_put(draw_cmd->world));
   }
   /* Flush "show pick buffer" command. */
-  LIST_FOR_EACH_SAFE(node, tmp, &frame->show_pick_list) {
-    struct world_node* world_node = CONTAINER_OF(node, struct world_node, node);
+  for(cmd_id = 0; cmd_id < frame->show_pick_cmd_id; ++cmd_id) {
+    struct show_pick_command* show_pick_cmd = frame->show_pick_cmd_list + cmd_id;
     RDR(show_pick_buffer
       (frame->sys,
        frame->picking,
-       world_node->world,
-       &world_node->view));
-    RDR(world_ref_put(world_node->world));
-    list_del(node);
+       show_pick_cmd->world,
+       &show_pick_cmd->view,
+       show_pick_cmd->max_pick_id));
+    RDR(world_ref_put(show_pick_cmd->world));
   }
   /* Flush im draw commands. */
   RDR(flush_imdraw_command_buffer(frame->imdraw.cmdbuf));
   /* Flush draw terminal commands. */
-  LIST_FOR_EACH_SAFE(node, tmp, &frame->draw_term_list) {
-    struct term_node* term_node = CONTAINER_OF(node, struct term_node, node);
-    RDR(draw_term(term_node->term));
-    RDR(term_ref_put(term_node->term));
-    list_del(node);
+  for(cmd_id = 0; cmd_id < frame->draw_term_cmd_id; ++cmd_id) {
+    struct draw_term_command* draw_cmd = frame->draw_term_cmd_list + cmd_id;
+    RDR(draw_term(draw_cmd->term));
+    RDR(term_ref_put(draw_cmd->term));
   }
   /* Flush render backend. */
   RBI(&frame->sys->rb, flush(frame->sys->ctxt));
 
-  frame->world_node_id = 0;
-  frame->term_node_id = 0;
-  frame->pick_node_id = 0;
+  frame->draw_world_cmd_id = 0;
+  frame->draw_term_cmd_id = 0;
+  frame->pick_cmd_id = 0;
+  frame->show_pick_cmd_id = 0;
 
 exit:
   return rdr_err;
