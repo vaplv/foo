@@ -17,10 +17,13 @@
 
 enum { PICK_UNIFORM_MVP, PICK_UNIFORM_MDL_ID, NB_PICK_UNIFORMS };
 
+#define NB_RESULT_BUFFERS 2
+
 struct rdr_picking {
   struct rdr_picking_desc desc;
   struct result {
-    struct sl_vector* pick_id_list; /* vector of uint32 */
+    struct sl_vector* buffer_list[NB_RESULT_BUFFERS]; /* vectors of uint32 */
+    uint8_t buffer_id;
   } result;
   struct framebuffer {
     struct rb_framebuffer* buffer;
@@ -157,6 +160,21 @@ draw_picked_world
   return RDR_NO_ERROR;
 }
 
+static FINLINE void
+result_swap_buffer(struct result* result)
+{
+  assert(result);
+  result->buffer_id  = (result->buffer_id + 1) % NB_RESULT_BUFFERS;
+  SL(clear_vector(result->buffer_list[result->buffer_id]));
+}
+
+static FINLINE struct sl_vector*
+result_get_buffer(struct result* result)
+{
+  assert(result);
+  return result->buffer_list[result->buffer_id];
+}
+
 static enum rdr_error
 read_back_picking_buffer
   (struct rdr_system* sys,
@@ -165,6 +183,7 @@ read_back_picking_buffer
    const unsigned int pos[2],
    const unsigned int size[2])
 {
+  struct sl_vector* pick_id_list = NULL;
   uint32_t* buf = NULL;
   size_t bufsize = 0;
   float scale[2] = {0.f, 0.f}; /* scale factor from viewport to pick space. */
@@ -172,6 +191,8 @@ read_back_picking_buffer
   unsigned int blit_pos0[2] = {0, 0};
   unsigned int blit_pos1[2] = {0, 0};
   unsigned int blit_size[2] = {0, 0};
+
+  assert(sys && picking && view && pos && size);
 
   /* Compute the viewport to pick spcae scale factor. */
   scale[0] = (float)picking->desc.width / (float)(view->width - view->x);
@@ -190,13 +211,13 @@ read_back_picking_buffer
   blit_size[1] = blit_pos1[1] - blit_pos0[1];
 
   /* Read back pick content. */
-  SL(clear_vector(picking->result.pick_id_list));
+  pick_id_list = result_get_buffer(&picking->result);
+  SL(clear_vector(pick_id_list));
   SL(vector_push_back_n
-    (picking->result.pick_id_list,
+    (pick_id_list,
      blit_size[0] * blit_size[1],
      (uint32_t[]){UINT32_MAX}));
-  SL(vector_buffer
-    (picking->result.pick_id_list, &bufsize, NULL, NULL, (void**)&buf));
+  SL(vector_buffer(pick_id_list, &bufsize, NULL, NULL, (void**)&buf));
 #ifndef NDEBUG
   {
     size_t tmp = 0;
@@ -430,9 +451,15 @@ init_debug(struct rdr_system* sys, struct debug* debug)
 static void
 release_result(struct rdr_system* sys UNUSED, struct result* result)
 {
+  uint8_t i = 0;
+  STATIC_ASSERT( NB_RESULT_BUFFERS < 255, Unexpected_value );
+
   assert(sys && result);
-  if(result->pick_id_list)
-    SL(free_vector(result->pick_id_list));
+  for(i = 0; i < NB_RESULT_BUFFERS; ++i) {
+    if(result->buffer_list[i]) {
+      SL(free_vector(result->buffer_list[i]));
+    }
+  }
   memset(result, 0, sizeof(struct result));
 }
 
@@ -441,16 +468,20 @@ init_result(struct rdr_system* sys, struct result* result)
 {
   enum rdr_error rdr_err = RDR_NO_ERROR;
   enum sl_error sl_err = SL_NO_ERROR;
+  uint8_t i = 0;
   assert(sys && result);
+  STATIC_ASSERT( NB_RESULT_BUFFERS < 255, Unexpected_value );
 
-  sl_err = sl_create_vector
-    (sizeof(uint32_t),
-     16,
-     sys->allocator,
-     &result->pick_id_list);
-  if(sl_err != SL_NO_ERROR) {
-    rdr_err = sl_to_rdr_error(sl_err);
-    goto error;
+  for(i = 0; i < NB_RESULT_BUFFERS; ++i) {
+    sl_err = sl_create_vector
+      (sizeof(uint32_t),
+       16,
+       sys->allocator,
+       &result->buffer_list[i]);
+    if(sl_err != SL_NO_ERROR) {
+      rdr_err = sl_to_rdr_error(sl_err);
+      goto error;
+    }
   }
 exit:
   return rdr_err;
@@ -556,13 +587,13 @@ exit:
   return rdr_err;
 error:
   if(sys && picking) {
-    SL(clear_vector(picking->result.pick_id_list));
+    SL(clear_vector(result_get_buffer(&picking->result)));
   }
   goto exit;
 }
 
 enum rdr_error
-rdr_get_pick_result
+rdr_pick_poll
   (struct rdr_system* sys,
    struct rdr_picking* picking,
    size_t *count,
@@ -576,12 +607,11 @@ rdr_get_pick_result
     goto error;
   }
   SL(vector_buffer
-    (picking->result.pick_id_list,
-     count,
-     NULL,
-     NULL,
-     &list));
+    (result_get_buffer(&picking->result), count, NULL, NULL, &list));
   *out_list = list;
+
+  result_swap_buffer(&picking->result);
+
 exit:
   return rdr_err;
 error:

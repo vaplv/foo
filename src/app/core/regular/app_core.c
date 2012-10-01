@@ -1070,6 +1070,24 @@ app_is_term_enabled(struct app* app, bool* is_enabled)
   return APP_NO_ERROR;
 }
 
+enum app_error
+app_poll_picking
+  (struct app* app,
+   size_t* count,
+   const uint32_t* model_instance_id_list[])
+{
+  enum rdr_error rdr_err = RDR_NO_ERROR;
+  if(UNLIKELY(!app || !count || !model_instance_id_list))
+    return APP_INVALID_ARGUMENT;
+
+  rdr_err = rdr_frame_poll_picking
+    (app->rdr.frame, count, model_instance_id_list);
+  if(rdr_err != RDR_NO_ERROR)
+    return rdr_to_app_error(rdr_err);
+
+  return APP_NO_ERROR;
+}
+
 /*******************************************************************************
  *
  * Private functions.

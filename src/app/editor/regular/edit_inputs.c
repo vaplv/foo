@@ -1,6 +1,7 @@
 #include "app/core/app.h"
 #include "app/core/app_cvar.h"
 #include "app/core/app_view.h"
+#include "app/core/app_world.h"
 #include "app/editor/regular/edit_context_c.h"
 #include "app/editor/regular/edit_error_c.h"
 #include "app/editor/regular/edit_inputs.h"
@@ -19,30 +20,59 @@
  *
  ******************************************************************************/
 static void
+invoke_picking(struct edit_context* ctxt)
+{
+  struct wm_device* wm = NULL;
+  struct app_view* view = NULL;
+  struct app_world* world = NULL;
+  int x = 0, y = 0;
+
+  assert(ctxt);
+  APP(get_window_manager_device(ctxt->app, &wm));
+  APP(get_main_world(ctxt->app, &world));
+  APP(get_main_view(ctxt->app, &view));
+  WM(get_mouse_position(wm, &x, &y));
+  APP(world_pick
+    (world, 
+     view, 
+     (const unsigned int[]){x, y},
+     (const unsigned int[]){1, 1}));
+}
+
+static void
 key_clbk(enum wm_key key, enum wm_state state, void* data)
 {
   struct edit_context* ctxt = data;
   assert(data);
 
-  if(state != WM_PRESS)
-    return;
-
-  switch(key) {
-    case WM_KEY_R:
-      ctxt->states.entity_transform_flag = EDIT_TRANSFORM_ROTATE;
-      break;
-    case WM_KEY_T:
-      ctxt->states.entity_transform_flag = EDIT_TRANSFORM_TRANSLATE;
-      break;
-    case WM_KEY_E:
-      ctxt->states.entity_transform_flag = EDIT_TRANSFORM_SCALE;
-      break;
-    case WM_KEY_P:
-      ctxt->states.entity_transform_flag = EDIT_TRANSFORM_NONE;
-      break;
-    default:
-      /* Do nothing */
-      break;
+  if(state == WM_RELEASE) {
+    switch(key) {
+      case WM_KEY_LCTRL:
+      case WM_KEY_RCTRL:
+        ctxt->states.in_selection = false;
+        break;
+      default: /* Do nothing */ break;
+    }
+  } else {
+    switch(key) {
+      case WM_KEY_R:
+        ctxt->states.entity_transform_flag = EDIT_TRANSFORM_ROTATE;
+        break;
+      case WM_KEY_T:
+        ctxt->states.entity_transform_flag = EDIT_TRANSFORM_TRANSLATE;
+        break;
+      case WM_KEY_E:
+        ctxt->states.entity_transform_flag = EDIT_TRANSFORM_SCALE;
+        break;
+      case WM_KEY_P:
+        ctxt->states.entity_transform_flag = EDIT_TRANSFORM_NONE;
+        break;
+      case WM_KEY_LCTRL:
+      case WM_KEY_RCTRL:
+        ctxt->states.in_selection = true;
+        break;
+      default: /* Do nothing */ break;
+    }
   }
 }
 
@@ -102,17 +132,32 @@ mouse_button_clbk(enum wm_mouse_button button, enum wm_state state, void* data)
   struct edit_context* ctxt = data;
   assert(ctxt);
 
-  #define SETUP_CAMERA_FLAG(flag) \
+  if(ctxt->states.in_selection == true) {
+    switch(button) {
+      case WM_MOUSE_BUTTON_0:
+        invoke_picking(ctxt);
+        break;
+      default: /* Do nothing */ break;
+    }
+  } else {
+    #define SETUP_CAMERA_FLAG(flag) \
     do { \
       if(state == WM_PRESS) ctxt->states.view_transform_flag |= flag; \
       else ctxt->states.view_transform_flag &= ~flag; \
     } while(0)
-  switch(button) {
-    case WM_MOUSE_BUTTON_0: SETUP_CAMERA_FLAG(EDIT_TRANSFORM_ROTATE); break;
-    case WM_MOUSE_BUTTON_1: SETUP_CAMERA_FLAG(EDIT_TRANSFORM_TRANSLATE); break;
-    default: /* Do nothing */ break;
+
+    switch(button) {
+      case WM_MOUSE_BUTTON_0: 
+        SETUP_CAMERA_FLAG(EDIT_TRANSFORM_ROTATE);
+        break;
+      case WM_MOUSE_BUTTON_1: 
+        SETUP_CAMERA_FLAG(EDIT_TRANSFORM_TRANSLATE); 
+        break;
+      default: /* Do nothing */ break;
+    }
+
+    #undef SETUP_CAMERA_FLAG
   }
-  #undef SETUP_CAMERA_FLAG
 }
 
 static void

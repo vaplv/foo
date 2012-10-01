@@ -39,6 +39,10 @@ static void
 setup_picking(struct app_world* world)
 {
 
+  /* Actually, the pick id is setuped with respect to the position of the
+   * instance into the instance list buffer. This is efficient excepted when
+   * the list is often updated. On have to use a hash table if this naive
+   * mechanism becomes too inefficient. */
   if(world->is_picking_setuped == false) {
     struct list_node* node = NULL;
     uint32_t pick_id = 0;
@@ -156,7 +160,7 @@ app_world_add_model_instances
     goto error;
   }
 
-  world->is_picking_setuped = false;
+  world->is_picking_setuped = false; /* Reset picking */
 
   for(i = 0; i < nb_model_instances; ++i) {
     /* Link the instance against the world linked list. */
@@ -222,7 +226,7 @@ app_world_remove_model_instances
     goto error;
   }
 
-  world->is_picking_setuped = false;
+  world->is_picking_setuped = false; /* reset picking */
 
   for(i = 0; i < nb_model_instances; ++i) {
     if(instance_list[i]->world != world) {

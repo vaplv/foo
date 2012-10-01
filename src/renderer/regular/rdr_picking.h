@@ -34,10 +34,9 @@ rdr_pick
    const unsigned int pos[2], /* in screen space pixels. */
    const unsigned int size[2]); /* in screen space pixels. */
 
-/* Retrieve current picked model instances. Is invalidate by any rdr_pick
- * invocation. */
+/* Retrieve current picked id. */
 LOCAL_SYM enum rdr_error
-rdr_get_pick_result
+rdr_pick_poll
   (struct rdr_system* sys,
    struct rdr_picking* picking,
    size_t* count,

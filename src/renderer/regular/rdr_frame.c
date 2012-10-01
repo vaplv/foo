@@ -715,7 +715,7 @@ rdr_frame_pick_model_instance
 }
 
 enum rdr_error
-rdr_frame_get_picked_ids
+rdr_frame_poll_picking
   (struct rdr_frame* frame,
    size_t *count,
    const uint32_t* picked_id_list[])
@@ -726,12 +726,10 @@ rdr_frame_get_picked_ids
     rdr_err = RDR_INVALID_ARGUMENT;
     goto error;
   }
-
-  rdr_err = rdr_get_pick_result
+  rdr_err = rdr_pick_poll
     (frame->sys, frame->picking, count, picked_id_list);
   if(rdr_err != RDR_NO_ERROR)
     goto error;
-
 exit:
   return rdr_err;
 error:

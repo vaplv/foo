@@ -120,6 +120,8 @@ EXPORT_SYM enum edit_error
 edit_run(struct edit_context* ctxt)
 {
   enum edit_error edit_err = EDIT_NO_ERROR;
+  const uint32_t* pick_id_list = NULL;
+  size_t nb_pick_ids = 0;
 
   if(UNLIKELY(!ctxt)) {
     edit_err = EDIT_INVALID_ARGUMENT;
@@ -165,6 +167,13 @@ edit_run(struct edit_context* ctxt)
     APP(raw_view_transform(view, &ctxt->view.transform));
   }
 
+  /* Process picking */
+  APP(poll_picking(ctxt->app, &nb_pick_ids, &pick_id_list));
+  if(nb_pick_ids) {
+    /* TODO */
+    assert(nb_pick_ids == 1);
+    printf("%d\n", pick_id_list[0]);
+  }
 exit:
   return edit_err;
 error:

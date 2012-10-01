@@ -43,6 +43,7 @@ ALIGN(16) struct edit_context {
     int view_transform_flag;
     int mouse_cursor[2];
     int mouse_wheel;
+    bool in_selection;
   } states;
   struct inputs {
     float view_translation[3];

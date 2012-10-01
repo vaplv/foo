@@ -610,7 +610,11 @@ app_set_model_instance_pick_id
     goto error;
   }
   SL(vector_buffer
-    (instance->model_instance_list, &nb_instances, NULL, NULL, &instance_list));
+    (instance->model_instance_list, 
+     &nb_instances, 
+     NULL, 
+     NULL, 
+     (void**)&instance_list));
   for(i = 0; i < nb_instances; ++i) {
     const enum rdr_error rdr_err  = rdr_set_model_instance_pick_id
       (instance_list[i], pick_id);
