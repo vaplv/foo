@@ -10,6 +10,7 @@
 #include "app/editor/regular/edit_model_instance_selection_c.h"
 #include "app/editor/regular/edit_move_commands.h"
 #include "app/editor/regular/edit_object_management_commands.h"
+#include "app/editor/regular/edit_picking.h"
 #include "app/editor/edit_context.h"
 #include "app/editor/edit_model_instance_selection.h"
 #include "sys/math.h"
@@ -120,8 +121,6 @@ EXPORT_SYM enum edit_error
 edit_run(struct edit_context* ctxt)
 {
   enum edit_error edit_err = EDIT_NO_ERROR;
-  const uint32_t* pick_id_list = NULL;
-  size_t nb_pick_ids = 0;
 
   if(UNLIKELY(!ctxt)) {
     edit_err = EDIT_INVALID_ARGUMENT;
@@ -167,13 +166,10 @@ edit_run(struct edit_context* ctxt)
     APP(raw_view_transform(view, &ctxt->view.transform));
   }
 
-  /* Process picking */
-  APP(poll_picking(ctxt->app, &nb_pick_ids, &pick_id_list));
-  if(nb_pick_ids) {
-    /* TODO */
-    assert(nb_pick_ids == 1);
-    printf("%d\n", pick_id_list[0]);
-  }
+  edit_err = edit_process_picking(ctxt);
+  if(edit_err != EDIT_NO_ERROR)
+    goto error;
+
 exit:
   return edit_err;
 error:

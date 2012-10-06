@@ -133,6 +133,9 @@ mouse_button_clbk(enum wm_mouse_button button, enum wm_state state, void* data)
   assert(ctxt);
 
   if(ctxt->states.in_selection == true) {
+    if(state == WM_RELEASE)
+      return;
+
     switch(button) {
       case WM_MOUSE_BUTTON_0:
         invoke_picking(ctxt);

@@ -131,11 +131,13 @@ app_is_term_enabled
   (struct app* app,
    bool* is_enabled);
 
+/* Retrieve the picked id of the main world */
 APP_API enum app_error
 app_poll_picking
   (struct app* app,
    size_t* count,
    const uint32_t* model_instance_id_list[]);
+
 
 #endif /* APP_CORE_H */
 

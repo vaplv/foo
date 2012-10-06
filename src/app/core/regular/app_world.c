@@ -41,7 +41,7 @@ setup_picking(struct app_world* world)
 
   /* Actually, the pick id is setuped with respect to the position of the
    * instance into the instance list buffer. This is efficient excepted when
-   * the list is often updated. On have to use a hash table if this naive
+   * the list is often updated. One have to use a hash table if this naive
    * mechanism becomes too inefficient. */
   if(world->is_picking_setuped == false) {
     struct list_node* node = NULL;
@@ -305,6 +305,42 @@ app_world_pick
     app_err = rdr_to_app_error(rdr_err);
     goto error;
   }
+
+exit:
+  return app_err;
+error:
+  goto exit;
+}
+
+enum app_error
+app_world_picked_model_instance
+  (struct app_world* world,
+   const uint32_t pick_id,
+   struct app_model_instance** instance)
+{
+  struct list_node* node = NULL;
+  uint32_t i = 0;
+  enum app_error app_err = APP_NO_ERROR;
+
+  if(UNLIKELY
+  (  !world 
+  || !instance 
+  || !world->is_picking_setuped
+  || world->max_pick_id < pick_id)) {
+    app_err = APP_INVALID_ARGUMENT;
+    goto error;
+  }
+
+  /* Look for the instance corresponding to the pick_id */
+  i = 0;
+  LIST_FOR_EACH(node, &world->instance_list) {
+    if(i == pick_id) {
+      *instance = 
+        CONTAINER_OF(node, struct app_model_instance, world_node);
+      break;
+    }
+    ++i;
+  } 
 
 exit:
   return app_err;

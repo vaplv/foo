@@ -17,6 +17,7 @@
 #include "sys/ref_count.h"
 #include "sys/sys.h"
 #include <assert.h>
+#include <float.h>
 #include <string.h>
 
 struct edit_model_instance_selection {
@@ -565,9 +566,11 @@ edit_draw_model_instance_selection
 {
   struct sl_hash_table_it it;
   float pivot[3] = { 0.f, 0.f, 0.f };
-  float rcp_nb_selected_instances = 0.f;
-  size_t nb_selected_instances = 0;
+  float size[3] = { 0.f, 0.f, 0.f };
+  float selection_max_bound[3] = { FLT_MIN, FLT_MIN, FLT_MIN };
+  float selection_min_bound[3] = { FLT_MAX, FLT_MAX, FLT_MAX };
   enum edit_error edit_err = EDIT_NO_ERROR;
+  short i = 0;
   bool is_end_reached = false;
   memset(&it, 0, sizeof(it));
 
@@ -575,41 +578,46 @@ edit_draw_model_instance_selection
     edit_err = EDIT_INVALID_ARGUMENT;
     goto error;
   }
-  /* Draw the aabb of the selected instances. */
-  pivot[0] = pivot[1] = pivot[2] = 0.f;
-  nb_selected_instances = 0;
+  /* Define the aabb of the selected instances. */
   SL(hash_table_begin(selection->instance_htbl, &it, &is_end_reached));
   while(is_end_reached == false) {
+    float pos[3] = { 0.f, 0.f, 0.f };
     float min_bound[3] = {0.f, 0.f, 0.f};
     float max_bound[3] = {0.f, 0.f, 0.f};
-    float size[3] = {0.f, 0.f, 0.f};
-    float pos[3] = {0.f, 0.f, 0.f};
     const struct app_model_instance* instance =
       *(struct app_model_instance**)it.pair.data;
 
     APP(get_model_instance_aabb(instance, min_bound, max_bound));
-    pivot[0] += pos[0] = (min_bound[0] + max_bound[0]) * 0.5f;
-    pivot[1] += pos[1] = (min_bound[1] + max_bound[1]) * 0.5f;
-    pivot[2] += pos[2] = (min_bound[2] + max_bound[2]) * 0.5f;
-    size[0] = max_bound[0] - min_bound[0];
-    size[1] = max_bound[1] - min_bound[1];
-    size[2] = max_bound[2] - min_bound[2];
+
+    for(i = 0; i < 3; ++i) {
+      selection_max_bound[i] = MAX(selection_max_bound[i], max_bound[i]);
+      selection_min_bound[i] = MIN(selection_min_bound[i], min_bound[i]);
+      pos[i] = (min_bound[i] + max_bound[i]) * 0.5f;
+      size[i] = max_bound[i] - min_bound[i];
+    }
     APP(imdraw_parallelepiped
       (selection->ctxt->app,
        APP_IMDRAW_FLAG_NONE,
        pos,
        size,
        (float[]){0.f, 0.f, 0.f}, /* Rotation */
-       (float[]){0.5f, 0.5f, 0.5f, 0.15f}, /* Solid color */
-       (float[]){0.75f, 0.75f, 0.75f, 1.f})); /* Wire color */
+       (float[]){0.75f, 0.75f, 0.0f, 0.15f}, /* Solid color */
+       (float[]){1.f, 1.f, 0.f, 1.f})); /* Wire color */
     SL(hash_table_it_next(&it, &is_end_reached));
-    ++nb_selected_instances;
   }
+  for(i = 0; i < 3; ++i) {
+    pivot[i] = (selection_min_bound[i] + selection_max_bound[i]) * 0.5f;
+    size[i] = selection_max_bound[i] - selection_min_bound[i];
+  }
+  APP(imdraw_parallelepiped
+    (selection->ctxt->app,
+     APP_IMDRAW_FLAG_NONE,
+     pivot,
+     size,
+     (float[]){0.f, 0.f, 0.f}, /* Rotation */
+     (float[]){0.f, 0.f, 0.f, 0.f}, /* Solid color */
+     (float[]){0.75f, 0.75f, 0.75f, 1.f})); /* Wire color */
 
-  rcp_nb_selected_instances = 1.f / (float) nb_selected_instances;
-  pivot[0] *= rcp_nb_selected_instances;
-  pivot[1] *= rcp_nb_selected_instances;
-  pivot[2] *= rcp_nb_selected_instances;
   draw_tool(selection->ctxt, pivot);
 
 exit:
