@@ -33,8 +33,8 @@ invoke_picking(struct edit_context* ctxt)
   APP(get_main_view(ctxt->app, &view));
   WM(get_mouse_position(wm, &x, &y));
   APP(world_pick
-    (world, 
-     view, 
+    (world,
+     view,
      (const unsigned int[]){x, y},
      (const unsigned int[]){1, 1}));
 }
@@ -150,11 +150,11 @@ mouse_button_clbk(enum wm_mouse_button button, enum wm_state state, void* data)
     } while(0)
 
     switch(button) {
-      case WM_MOUSE_BUTTON_0: 
+      case WM_MOUSE_BUTTON_0:
         SETUP_CAMERA_FLAG(EDIT_TRANSFORM_ROTATE);
         break;
-      case WM_MOUSE_BUTTON_1: 
-        SETUP_CAMERA_FLAG(EDIT_TRANSFORM_TRANSLATE); 
+      case WM_MOUSE_BUTTON_1:
+        SETUP_CAMERA_FLAG(EDIT_TRANSFORM_TRANSLATE);
         break;
       default: /* Do nothing */ break;
     }

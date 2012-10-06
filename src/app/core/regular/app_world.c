@@ -13,6 +13,7 @@
 #include "renderer/rdr_frame.h"
 #include "renderer/rdr_world.h"
 #include "stdlib/sl.h"
+#include "stdlib/sl_hash_table.h"
 #include "stdlib/sl_vector.h"
 #include "sys/mem_allocator.h"
 #include "sys/ref_count.h"
@@ -24,6 +25,7 @@
 struct app_world {
   struct ref ref;
   struct list_node instance_list; /* Linked list of app_model_instance. */
+  struct sl_hash_table* picking_htbl;
   struct app* app;
   struct rdr_world* render_world;
   bool is_picking_setuped;
@@ -32,30 +34,56 @@ struct app_world {
 
 /*******************************************************************************
  *
- * World functions.
+ * Helper functions.
  *
  ******************************************************************************/
-static void
+static size_t
+hash_pick_id(const void* ptr)
+{
+  return sl_hash(ptr, sizeof(uint32_t));
+}
+
+static bool
+eq_pick_id(const void* ptr0, const void* ptr1)
+{
+  const uint32_t id0 = *(uint32_t*)ptr0;
+  const uint32_t id1 = *(uint32_t*)ptr1;
+  return id0 == id1;
+}
+
+static enum app_error
 setup_picking(struct app_world* world)
 {
+  enum app_error app_err = APP_NO_ERROR;
 
-  /* Actually, the pick id is setuped with respect to the position of the
-   * instance into the instance list buffer. This is efficient excepted when
-   * the list is often updated. One have to use a hash table if this naive
-   * mechanism becomes too inefficient. */
   if(world->is_picking_setuped == false) {
     struct list_node* node = NULL;
     uint32_t pick_id = 0;
+    enum sl_error sl_err = SL_NO_ERROR;
 
     /* Setup the pick id of the instances. */
     LIST_FOR_EACH(node, &world->instance_list) {
       struct app_model_instance* instance =
         CONTAINER_OF(node, struct app_model_instance, world_node);
-      APP(set_model_instance_pick_id(instance, pick_id++));
+      APP(set_model_instance_pick_id(instance, pick_id));
+
+      sl_err = sl_hash_table_insert(world->picking_htbl, &pick_id, &instance);
+      if(sl_err != SL_NO_ERROR) {
+        app_err = sl_to_app_error(sl_err);
+        goto error;
+      }
+      ++pick_id;
     }
     world->is_picking_setuped = true;
     world->max_pick_id = pick_id - 1;
   }
+exit:
+  return app_err;
+error:
+  SL(hash_table_clear(world->picking_htbl));
+  world->is_picking_setuped = false;
+  world->max_pick_id = 0;
+  goto exit;
 }
 
 static void
@@ -75,6 +103,8 @@ release_world(struct ref* ref)
   }
   if(world->render_world)
     RDR(world_ref_put(world->render_world));
+  if(world->picking_htbl)
+    SL(free_hash_table(world->picking_htbl));
   MEM_FREE(world->app->allocator, world);
 }
 
@@ -89,6 +119,7 @@ app_create_world(struct app* app, struct app_world** out_world)
   struct app_world* world = NULL;
   enum app_error err = APP_NO_ERROR;
   enum rdr_error rdr_err = RDR_NO_ERROR;
+  enum sl_error sl_err = SL_NO_ERROR;
 
   if(!app || !out_world) {
     err = APP_INVALID_ARGUMENT;
@@ -107,6 +138,19 @@ app_create_world(struct app* app, struct app_world** out_world)
   rdr_err = rdr_create_world(app->rdr.system, &world->render_world);
   if(rdr_err != RDR_NO_ERROR) {
     err = rdr_to_app_error(rdr_err);
+    goto error;
+  }
+  sl_err = sl_create_hash_table
+    (sizeof(uint32_t),
+     ALIGNOF(uint32_t),
+     sizeof(void*),
+     ALIGNOF(void*),
+     hash_pick_id,
+     eq_pick_id,
+     app->allocator,
+     &world->picking_htbl);
+  if(sl_err != SL_NO_ERROR) {
+    err = sl_to_app_error(sl_err);
     goto error;
   }
 
@@ -292,7 +336,9 @@ app_world_pick
   }
 
   /* Setup the pick id of the instances. */
-  setup_picking(world);
+  app_err = setup_picking(world);
+  if(app_err != APP_NO_ERROR)
+    goto error;
 
   APP(to_rdr_view(world->app, view, &render_view));
   rdr_err = rdr_frame_pick_model_instance
@@ -316,15 +362,14 @@ enum app_error
 app_world_picked_model_instance
   (struct app_world* world,
    const uint32_t pick_id,
-   struct app_model_instance** instance)
+   struct app_model_instance** out_instance)
 {
-  struct list_node* node = NULL;
-  uint32_t i = 0;
+  struct app_model_instance** instance = NULL;
   enum app_error app_err = APP_NO_ERROR;
 
   if(UNLIKELY
-  (  !world 
-  || !instance 
+  (  !world
+  || !out_instance
   || !world->is_picking_setuped
   || world->max_pick_id < pick_id)) {
     app_err = APP_INVALID_ARGUMENT;
@@ -332,15 +377,10 @@ app_world_picked_model_instance
   }
 
   /* Look for the instance corresponding to the pick_id */
-  i = 0;
-  LIST_FOR_EACH(node, &world->instance_list) {
-    if(i == pick_id) {
-      *instance = 
-        CONTAINER_OF(node, struct app_model_instance, world_node);
-      break;
-    }
-    ++i;
-  } 
+  SL(hash_table_find
+    (world->picking_htbl, (void*)&pick_id, (void**)&instance));
+  assert(instance != NULL);
+  *out_instance = *instance;
 
 exit:
   return app_err;
