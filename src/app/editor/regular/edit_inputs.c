@@ -133,14 +133,13 @@ mouse_button_clbk(enum wm_mouse_button button, enum wm_state state, void* data)
   assert(ctxt);
 
   if(ctxt->states.in_selection == true) {
-    if(state == WM_RELEASE)
-      return;
-
-    switch(button) {
-      case WM_MOUSE_BUTTON_0:
-        invoke_picking(ctxt);
-        break;
-      default: /* Do nothing */ break;
+    if(state == WM_PRESS) {
+      switch(button) {
+        case WM_MOUSE_BUTTON_0:
+          invoke_picking(ctxt);
+          break;
+        default: /* Do nothing */ break;
+      }
     }
   } else {
     #define SETUP_CAMERA_FLAG(flag) \
@@ -316,7 +315,6 @@ edit_process_inputs(struct edit_context* ctxt)
 {
   struct aosf33 pitch_roll_rot, yaw_rot, rot, inv_rot;
   vf4_t view_pos;
-
 
   if(UNLIKELY(!ctxt))
     return EDIT_INVALID_ARGUMENT;

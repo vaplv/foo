@@ -87,8 +87,8 @@ release_regular_model_instance_selection(struct ref* ref)
 
 static void
 draw_basis_circles
-  (struct edit_context* ctxt, 
-   const float pos[3], 
+  (struct edit_context* ctxt,
+   const float pos[3],
    float size,
    const float col_x[3],
    const float col_y[3],
@@ -160,22 +160,22 @@ draw_tool(struct edit_context* ctxt, float pos[3])
 
   if(ctxt->states.entity_transform_flag & EDIT_TRANSFORM_SCALE) {
     draw_basis(ctxt, pos, size, APP_IM_VECTOR_CUBE_MARKER);
-  } 
+  }
   if(ctxt->states.entity_transform_flag & EDIT_TRANSFORM_TRANSLATE) {
     draw_basis(ctxt, pos, size, APP_IM_VECTOR_CONE_MARKER);
-  } 
+  }
   if(ctxt->states.entity_transform_flag & EDIT_TRANSFORM_ROTATE) {
     draw_basis_circles
-      (ctxt, 
-       pos, 
+      (ctxt,
+       pos,
        size,
        (float[]){1.f, 0.f, 0.f},
        (float[]){0.f, 1.f, 0.f},
        (float[]){0.f, 0.f, 1.f});
-  } 
+  }
   if(ctxt->states.entity_transform_flag == EDIT_TRANSFORM_NONE) {
     draw_basis_circles
-      (ctxt, 
+      (ctxt,
        pos,
        0.05,
        ctxt->cvars.pivot_color->value.real3,
@@ -580,7 +580,10 @@ edit_draw_model_instance_selection
   }
   /* Define the aabb of the selected instances. */
   SL(hash_table_begin(selection->instance_htbl, &it, &is_end_reached));
-  while(is_end_reached == false) {
+  if(is_end_reached == true)
+    goto exit;
+
+  do {
     float pos[3] = { 0.f, 0.f, 0.f };
     float min_bound[3] = {0.f, 0.f, 0.f};
     float max_bound[3] = {0.f, 0.f, 0.f};
@@ -604,7 +607,8 @@ edit_draw_model_instance_selection
        (float[]){0.75f, 0.75f, 0.0f, 0.15f}, /* Solid color */
        (float[]){1.f, 1.f, 0.f, 1.f})); /* Wire color */
     SL(hash_table_it_next(&it, &is_end_reached));
-  }
+  } while(is_end_reached == false);
+
   for(i = 0; i < 3; ++i) {
     pivot[i] = (selection_min_bound[i] + selection_max_bound[i]) * 0.5f;
     size[i] = selection_max_bound[i] - selection_min_bound[i];

@@ -30,20 +30,21 @@ edit_process_picking(struct edit_context* ctxt)
       edit_err = app_to_edit_error(app_err);
       goto error;
     }
-
+    #define CALL(func) if(EDIT_NO_ERROR != (edit_err = func)) goto error
     for(i = 0; i < nb_pick_ids; ++i) {
       struct app_model_instance* instance = NULL;
       bool is_selected = false;
 
-      if(pick_id_list[i] != UINT32_MAX) {
+      if(pick_id_list[i] == UINT32_MAX) {
+        if(nb_pick_ids == 1)
+          CALL(edit_clear_model_instance_selection(ctxt->instance_selection));
+      } else {
         app_err = app_world_picked_model_instance
           (world, pick_id_list[i], &instance);
         if(app_err != APP_NO_ERROR) {
           edit_err = app_to_edit_error(app_err);
           goto error;
         }
-
-        #define CALL(func) if(EDIT_NO_ERROR != (edit_err = func)) goto error
         CALL(edit_is_model_instance_selected
           (ctxt->instance_selection, instance, &is_selected));
         if(is_selected) {
@@ -51,9 +52,9 @@ edit_process_picking(struct edit_context* ctxt)
         } else {
           CALL(edit_select_model_instance(ctxt->instance_selection, instance));
         }
-        #undef CALL
       }
     }
+    #undef CALL
   }
 
 exit:

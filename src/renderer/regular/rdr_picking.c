@@ -203,8 +203,8 @@ read_back_picking_buffer
   /* Defint the blit rectangle in pick space. */
   blit_pos0[0] = pick_pos[0] * scale[0];
   blit_pos0[1] = pick_pos[1] * scale[1];
-  blit_pos1[0] = pick_pos[0] + size[0] * scale[0];
-  blit_pos1[1] = pick_pos[1] + size[1] * scale[1];
+  blit_pos1[0] = blit_pos0[0] + MAX(size[0] * scale[0], 1);
+  blit_pos1[1] = blit_pos0[1] + MAX(size[1] * scale[1], 1);
   blit_pos1[0] = MIN(blit_pos1[0], picking->desc.width);
   blit_pos1[1] = MIN(blit_pos1[1], picking->desc.height);
   blit_size[0] = blit_pos1[0] - blit_pos0[0];
