@@ -347,9 +347,13 @@ rb_read_back_framebuffer
 
   if(UNLIKELY
   (  !buffer
-  || buffer->desc.sample_count > 1 /* read back is not supported on MS FBO. */
+  || buffer->desc.sample_count > 1 /* not supported on mutli sampled FBO. */
   || (unsigned int)rt_id >= buffer->desc.buffer_count))
     goto error;
+
+  /* Map the (x, y) coordinates from 'upper left' origin to OpenGL convention
+   * (bottom left) */
+  y = buffer->desc.height < y ? 0.f : buffer->desc.height - y;
 
   render_target =
     rt_id >= 0 ? buffer->render_target_list + rt_id : &buffer->depth_stencil;

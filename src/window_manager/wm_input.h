@@ -134,6 +134,7 @@ wm_get_mouse_button_state
    enum wm_mouse_button button,
    enum wm_state* state);
 
+/* (0, 0) is the upper left corner */
 WM_API enum wm_error
 wm_get_mouse_position
   (struct wm_device* device,

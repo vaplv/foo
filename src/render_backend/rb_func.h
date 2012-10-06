@@ -346,6 +346,7 @@ RB_FUNC( clear_framebuffer_render_targets,
   char stencil_val
 )
 
+/* The framebuffer origin is the upper left corner */
 RB_FUNC( read_back_framebuffer,
   struct rb_framebuffer* buffer,
   int rt_id, /* Id of the render target to read. < 0 <=> depth stencil */
