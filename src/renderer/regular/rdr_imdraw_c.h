@@ -27,18 +27,18 @@ struct rdr_imdraw_command {
   unsigned int viewport[4]; /* { x, y, width, height } */
   int flag;
   union {
-    struct {
+    struct rdr_im_circle {
       float transform[16]; /* column major */
       float color[4]; /* RGBA. TODO transform in RGB */
     } circle;
-    struct {
+    struct rdr_im_vector {
       float transform[16]; /* column major */
       float vector[3];
       float color[3];/*RGB */
       enum rdr_im_vector_marker start_marker;
       enum rdr_im_vector_marker end_marker;
     } vector;
-    struct {
+    struct rdr_im_grid {
       float transform[16]; /* column major */
       struct rdr_im_grid_desc {
         float div_color[3]; /* RGB */
@@ -49,7 +49,7 @@ struct rdr_imdraw_command {
         unsigned int ndiv[2]; /* XY */
       } desc;
     } grid;
-    struct {
+    struct rdr_im_parallelepiped {
       float transform[16]; /* column major */
       float solid_color[4]; /* RGBA */
       float wire_color[4]; /* RGBA */

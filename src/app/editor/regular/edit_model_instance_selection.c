@@ -567,7 +567,7 @@ edit_draw_model_instance_selection
   struct sl_hash_table_it it;
   float pivot[3] = { 0.f, 0.f, 0.f };
   float size[3] = { 0.f, 0.f, 0.f };
-  float selection_max_bound[3] = { FLT_MIN, FLT_MIN, FLT_MIN };
+  float selection_max_bound[3] = {-FLT_MAX,-FLT_MAX,-FLT_MAX };
   float selection_min_bound[3] = { FLT_MAX, FLT_MAX, FLT_MAX };
   enum edit_error edit_err = EDIT_NO_ERROR;
   short i = 0;
@@ -596,7 +596,10 @@ edit_draw_model_instance_selection
       selection_max_bound[i] = MAX(selection_max_bound[i], max_bound[i]);
       selection_min_bound[i] = MIN(selection_min_bound[i], min_bound[i]);
       pos[i] = (min_bound[i] + max_bound[i]) * 0.5f;
-      size[i] = max_bound[i] - min_bound[i];
+      size[i] =
+        max_bound[i]
+      - min_bound[i]
+      + 1.f; /* epsilon avoiding Z fight if the selected inst is an AABB */
     }
     APP(imdraw_parallelepiped
       (selection->ctxt->app,

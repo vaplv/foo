@@ -67,9 +67,10 @@ static const char* imdraw_fs_source =
   " color = im_color;\n"
   "}\n";
 
+
 /******************************************************************************
  *
- * Helper functions.
+ * Helper functions
  *
  ******************************************************************************/
 static void
@@ -148,29 +149,30 @@ invoke_imdraw_circle(struct rdr_system* sys, struct rdr_imdraw_command* cmd)
   RBU(draw_geometry(&sys->rbu.circle));
 }
 
-static void
-invoke_imdraw_vector(struct rdr_system* sys, struct rdr_imdraw_command* cmd)
+/* Return the length of the im vector */
+static vf4_t
+setup_im_vector_matrix(struct rdr_imdraw_command* cmd, struct aosf44* mat)
 {
-  struct aosf44 f44;
   ALIGN(16) float array[16];
-  struct aosf33 f33;
   const vf4_t vec = vf4_set
     (cmd->data.vector.vector[0],
      cmd->data.vector.vector[1],
      cmd->data.vector.vector[2],
      0.f);
   const vf4_t sqr_len = vf4_dot3(vec, vec);
-
-  vf4_t len = vf4_zero();
+  vf4_t vec_len;
 
   if(vf4_x(sqr_len) <= 0.f) {
     memcpy(array, cmd->data.vector.transform, 16 * sizeof(float));
+    aosf44_load(mat, array);
+    vec_len = vf4_zero();
   } else {
+    struct aosf33 f33;
     const vf4_t rcp_len = vf4_rsqrt(sqr_len);
     vf4_t nvec, tvec, bvec, tmp, xxxx, yyyy, zzzz;
 
-    len = vf4_mul(sqr_len, rcp_len);
     nvec = vf4_mul(vec, rcp_len);
+    vec_len = vf4_mul(sqr_len, rcp_len);
 
     /* Build an orthonormal basis from the vector to draw. This orthogonal
      * basis is then used to build a rotation matrix to transform the reference
@@ -186,17 +188,30 @@ invoke_imdraw_vector(struct rdr_system* sys, struct rdr_imdraw_command* cmd)
     bvec = vf4_cross3(nvec, tvec);
 
     if(IS_ALIGNED(cmd->data.vector.transform, 16)) {
-      aosf44_load(&f44, cmd->data.vector.transform);
+      aosf44_load(mat, cmd->data.vector.transform);
     } else {
       memcpy(array, cmd->data.vector.transform, 16 * sizeof(float));
-      aosf44_load(&f44, array);
+      aosf44_load(mat, array);
     }
-    /* transform the rotation matrix by the object to world transform matrix */
+    /* transform the rotation matrix by the `object to world' matrix */
     aosf33_mulf33
       (&f33,
-       (struct aosf33[]){{f44.c0, f44.c1, f44.c2}},
+       (struct aosf33[]){{mat->c0, mat->c1, mat->c2}},
        (struct aosf33[]){{bvec, nvec, tvec}});
+    mat->c0 = f33.c0;
+    mat->c1 = f33.c1;
+    mat->c2 = f33.c2;
   }
+  return vec_len;
+}
+
+static void
+invoke_imdraw_vector(struct rdr_system* sys, struct rdr_imdraw_command* cmd)
+{
+  struct aosf44 transform;
+  struct aosf44 f44;
+  ALIGN(16) float array[16];
+  vf4_t len = setup_im_vector_matrix(cmd, &transform);
 
   RBI(&sys->rb, bind_program(sys->ctxt, sys->im.draw3d.shading_program));
   RBI(&sys->rb, uniform_data
@@ -205,9 +220,10 @@ invoke_imdraw_vector(struct rdr_system* sys, struct rdr_imdraw_command* cmd)
 
   /* Stretch the line to the correct size by scaling the matrix by the vector
    * length */
-  f44.c0 = vf4_mul(f33.c0, len);
-  f44.c1 = vf4_mul(f33.c1, len);
-  f44.c2 = vf4_mul(f33.c2, len);
+  f44.c0 = vf4_mul(transform.c0, len);
+  f44.c1 = vf4_mul(transform.c1, len);
+  f44.c2 = vf4_mul(transform.c2, len);
+  f44.c3 = transform.c3;
   aosf44_store(array, &f44);
   RBI(&sys->rb, uniform_data(sys->im.draw3d.transform, 1, array));
   RBI(&sys->rb, draw(sys->ctxt, RB_LINES, 2));
@@ -233,15 +249,15 @@ invoke_imdraw_vector(struct rdr_system* sys, struct rdr_imdraw_command* cmd)
       const vf4_t marker_scale = vf4_set1(0.05f);
       const vf4_t rcp_marker_scale = vf4_rcp(marker_scale);
 
-      f44.c0 = vf4_mul(f33.c0, marker_scale);
-      f44.c1 = vf4_mul(f33.c1, marker_scale);
-      f44.c2 = vf4_mul(f33.c2, marker_scale);
+      f44.c0 = vf4_mul(transform.c0, marker_scale);
+      f44.c1 = vf4_mul(transform.c1, marker_scale);
+      f44.c2 = vf4_mul(transform.c2, marker_scale);
+      f44.c3 = transform.c3;
       len = vf4_mul(len, rcp_marker_scale);
     } else {
-      f44.c0 = f33.c0;
-      f44.c1 = f33.c1;
-      f44.c2 = f33.c2;
+      f44 = transform;
     }
+
     if(cmd->data.vector.end_marker != RDR_IM_VECTOR_MARKER_NONE) {
       const vf4_t saved_c3 = f44.c3;
 
