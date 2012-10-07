@@ -67,8 +67,8 @@ sl_create_logger
     goto error;
 
   logger->allocator = allocator;
-  logger->buffer_len = BUFSIZ;
-  logger->buffer = MEM_ALLOC(allocator, sizeof(char) * BUFSIZ);
+  logger->buffer_len = 256;
+  logger->buffer = MEM_ALLOC(allocator, sizeof(char) * logger->buffer_len);
   if(!logger->buffer) {
     sl_err = SL_MEMORY_ERROR;
     goto error;
@@ -191,8 +191,8 @@ sl_logger_print(struct sl_logger* logger, const char* fmt, ...)
 EXPORT_SYM enum sl_error
 sl_logger_vprint(struct sl_logger* logger, const char* fmt, va_list list)
 {
-  void* buffer = NULL;
-  size_t len = 0;
+  void* stream_list = NULL;
+  size_t nb_streams = 0;
   enum sl_error sl_err = SL_NO_ERROR;
 
   if(!logger || !fmt || fmt[0] == '\0') {
@@ -201,33 +201,39 @@ sl_logger_vprint(struct sl_logger* logger, const char* fmt, va_list list)
   }
 
   sl_err = sl_flat_set_buffer
-    (logger->stream_list, &len, NULL, NULL, &buffer);
+    (logger->stream_list, &nb_streams, NULL, NULL, &stream_list);
   if(sl_err != SL_NO_ERROR)
     goto error;
 
-  if(len > 0) {
+  if(nb_streams > 0) {
     size_t stream_id = 0;
+    va_list tmp_list;
     int i = 0;
 
-    i = vsnprintf(logger->buffer, logger->buffer_len, fmt, list);
+    va_copy(tmp_list, list);
+    i = vsnprintf(logger->buffer, logger->buffer_len, fmt, tmp_list);
+    va_end(tmp_list);
+
     assert(i > 0);
     if((size_t)i >= logger->buffer_len) {
-      len = i + 1; /* +1 <=> null terminated character. */
-      buffer = MEM_ALLOC(logger->allocator, len * sizeof(char));
+      const size_t new_len = i + 1; /* +1 <=> null terminated character. */
+      void* buffer = MEM_ALLOC(logger->allocator, new_len * sizeof(char));
       if(!buffer) {
         sl_err = SL_MEMORY_ERROR;
         goto error;
       }
       MEM_FREE(logger->allocator, logger->buffer);
       logger->buffer = buffer;
-      logger->buffer_len = len;
-      i = vsnprintf(logger->buffer, logger->buffer_len, fmt, list);
+      logger->buffer_len = new_len;
+      va_copy(tmp_list, list);
+      i = vsnprintf(logger->buffer, logger->buffer_len, fmt, tmp_list);
+      va_end(tmp_list);
       assert((size_t)i < logger->buffer_len);
     }
 
-    for(stream_id = 0; stream_id < len; ++stream_id) {
+    for(stream_id = 0; stream_id < nb_streams; ++stream_id) {
       const struct sl_log_stream* stream =
-        (const struct sl_log_stream*)buffer + stream_id;
+        (const struct sl_log_stream*)stream_list + stream_id;
       stream->func(logger->buffer, stream->data);
     }
   }
