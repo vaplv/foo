@@ -3,6 +3,7 @@
 #include "app/core/app_command_buffer.h"
 #include "sys/mem_allocator.h"
 #include "utest/utest.h"
+#include <assert.h>
 #include <limits.h>
 #include <stddef.h>
 #include <stdio.h>

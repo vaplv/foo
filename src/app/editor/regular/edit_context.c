@@ -134,6 +134,7 @@ edit_run(struct edit_context* ctxt)
     APP(imdraw_grid
       (ctxt->app,
        APP_IMDRAW_FLAG_NONE,
+       UINT32_MAX, /* invalid pick_id */
        (float[]){0.f, 0.f, 0.f}, /* pos */
        (float[]){
           ctxt->cvars.grid_size->value.real,

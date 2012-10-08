@@ -80,7 +80,8 @@ setup_render_view(struct app* app, struct rdr_view* render_view)
 enum app_error
 app_imdraw_parallelepiped
   (struct app* app,
-   int flag,
+   const int flag,
+   const uint32_t pick_id,
    const float pos[3],
    const float size[3],
    const float rotation[3],
@@ -119,7 +120,8 @@ error:
 enum app_error
 app_imdraw_ellipse
   (struct app* app,
-   int flag,
+   const int flag,
+   const uint32_t pick_id,
    const float pos[3],
    const float size[2],
    const float rotation[3],
@@ -156,7 +158,8 @@ error:
 enum app_error
 app_imdraw_grid
   (struct app* app,
-   int flag,
+   const int flag,
+   const uint32_t pick_id,
    const float pos[3],
    const float size[2],
    const float rotation[3],
@@ -213,9 +216,10 @@ error:
 enum app_error
 app_imdraw_vector
   (struct app* app,
-   int flag,
-   enum app_im_vector_marker start_marker,
-   enum app_im_vector_marker end_marker,
+   const int flag,
+   const uint32_t pick_id,
+   const enum app_im_vector_marker start_marker,
+   const enum app_im_vector_marker end_marker,
    const float start[3],
    const float end[3],
    const float color[3])

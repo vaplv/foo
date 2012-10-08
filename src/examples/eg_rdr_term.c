@@ -11,6 +11,7 @@
 #include "window_manager/wm_input.h"
 #include "window_manager/wm_window.h"
 #include "sys/mem_allocator.h"
+#include <assert.h>
 #include <limits.h>
 
 #define FIRST_CHAR 32

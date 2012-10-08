@@ -321,8 +321,10 @@ rb_framebuffer_render_targets
   }
 
 exit:
-  OGL(BindFramebuffer
-    (GL_FRAMEBUFFER, buffer->ctxt->state_cache.framebuffer_binding));
+  if(is_bound) {
+    OGL(BindFramebuffer
+      (GL_FRAMEBUFFER, buffer->ctxt->state_cache.framebuffer_binding));
+  }
   return err;
 error:
   err = -1;
@@ -428,12 +430,12 @@ rb_clear_framebuffer_render_targets
       GLfloat ogl3_depth_val = depth_val;
       if(UNLIKELY(rt_desc.format != GL_DEPTH_COMPONENT))
         goto error;
-      OGL(ClearBufferfv(GL_DEPTH, 0, (GLfloat[]){ogl3_depth_val}));
+      OGL(ClearBufferfv(GL_DEPTH, 0, &ogl3_depth_val));
     } else if(depth_stencil_flag == RB_CLEAR_STENCIL_BIT) {
       GLint ogl3_stencil_val = stencil_val;
       if(UNLIKELY(rt_desc.format != GL_DEPTH_STENCIL))
         goto error;
-      OGL(ClearBufferiv(GL_STENCIL, 0, (GLint[]){ogl3_stencil_val}));
+      OGL(ClearBufferiv(GL_STENCIL, 0, &ogl3_stencil_val));
     } else { /* depth_stencil_flag == RB_CLEAR_DEPTH_BIT|RB_CLEAR_STENCIL_BIT */
       if(UNLIKELY(rt_desc.format != GL_DEPTH_STENCIL))
         goto error;

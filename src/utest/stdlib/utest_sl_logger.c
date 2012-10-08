@@ -1,6 +1,7 @@
 #include "stdlib/sl_logger.h"
 #include "sys/mem_allocator.h"
 #include "utest/utest.h"
+#include <assert.h>
 #include <string.h>
 
 #define BAD_ARG SL_INVALID_ARGUMENT

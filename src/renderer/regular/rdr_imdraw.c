@@ -766,6 +766,7 @@ rdr_get_imdraw_command
     *cmd = CONTAINER_OF(node, struct rdr_imdraw_command, node);
     (*cmd)->type = RDR_NB_IMDRAW_TYPES;
     (*cmd)->flag = RDR_IMDRAW_FLAG_NONE;
+    (*cmd)->pick_id = UINT32_MAX;
   }
 exit:
   return rdr_err;

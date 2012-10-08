@@ -593,8 +593,8 @@ vf4_xyz_to_rthetaphi(vf4_t v)
   const vf4_t tmp_phi = vf4_sel
     (vf4_asin(vf4_div(vf4_yyyy(v), len2)), zero, vf4_eq(len2, zero));
   const vf4_t phi = vf4_sel
-    (vf4_sub(vf4_set1(3.14159265358979323846f), tmp_phi), 
-     tmp_phi, 
+    (vf4_sub(vf4_set1(3.14159265358979323846f), tmp_phi),
+     tmp_phi,
      vf4_ge(vf4_xxxx(v), zero));
 
   return vf4_xyab(vf4_xayb(len3, theta), phi);

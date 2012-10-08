@@ -100,6 +100,7 @@ draw_basis_circles
     APP(imdraw_ellipse \
       (ctxt->app, \
        APP_IMDRAW_FLAG_UPPERMOST_LAYER | APP_IMDRAW_FLAG_FIXED_SCREEN_SIZE, \
+       UINT32_MAX, \
        pos, \
        (float[]){size, size}, \
        (float[]){(pitch), (yaw), (roll)}, \
@@ -125,6 +126,7 @@ draw_basis
    APP(imdraw_vector \
       (ctxt->app, \
        APP_IMDRAW_FLAG_FIXED_SCREEN_SIZE | APP_IMDRAW_FLAG_UPPERMOST_LAYER, \
+       UINT32_MAX, \
        APP_IM_VECTOR_MARKER_NONE, \
        end_marker, \
        pos, \
@@ -144,6 +146,7 @@ draw_basis
   APP(imdraw_parallelepiped
     (ctxt->app,
      APP_IMDRAW_FLAG_FIXED_SCREEN_SIZE | APP_IMDRAW_FLAG_UPPERMOST_LAYER,
+     UINT32_MAX, /* Invalid pick_id */
      pos,
      (float[]){0.05f, 0.05f, 0.05f},
      (float[]){0.f, 0.f, 0.f},
@@ -604,6 +607,7 @@ edit_draw_model_instance_selection
     APP(imdraw_parallelepiped
       (selection->ctxt->app,
        APP_IMDRAW_FLAG_NONE,
+       UINT32_MAX, /* Invalid pick id */
        pos,
        size,
        (float[]){0.f, 0.f, 0.f}, /* Rotation */
@@ -619,6 +623,7 @@ edit_draw_model_instance_selection
   APP(imdraw_parallelepiped
     (selection->ctxt->app,
      APP_IMDRAW_FLAG_NONE,
+     UINT32_MAX, /* Invalid pick id */
      pivot,
      size,
      (float[]){0.f, 0.f, 0.f}, /* Rotation */

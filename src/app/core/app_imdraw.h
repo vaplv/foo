@@ -8,8 +8,9 @@ struct app;
 struct app_view;
 
 enum app_imdraw_flag {
-  APP_IMDRAW_FLAG_UPPERMOST_LAYER = BIT(0),
-  APP_IMDRAW_FLAG_FIXED_SCREEN_SIZE = BIT(1),
+  APP_IMDRAW_FLAG_UPPERMOST_LAYER = BIT(0), /* Draw above the world */
+  APP_IMDRAW_FLAG_FIXED_SCREEN_SIZE = BIT(1), /* Fix the screen space size */
+  APP_IMDRAW_FLAG_PICKING = BIT(2), /* Enable picking support */
   APP_IMDRAW_FLAG_NONE = 0
 };
 
@@ -22,7 +23,8 @@ enum app_im_vector_marker {
 APP_API enum app_error
 app_imdraw_parallelepiped
   (struct app* app,
-   int flag,
+   const int flag, /* combination of app_imdraw_flag */
+   const uint32_t pick_id,
    const float pos[3],
    const float size[3],
    const float rotation[3],
@@ -32,7 +34,8 @@ app_imdraw_parallelepiped
 APP_API enum app_error
 app_imdraw_ellipse
   (struct app* app,
-   int flag,
+   const int flag, /* combination of app_imdraw_flag */
+   const uint32_t pick_id,
    const float pos[3],
    const float size[2],
    const float rotation[3],
@@ -41,7 +44,8 @@ app_imdraw_ellipse
 APP_API enum app_error
 app_imdraw_grid
   (struct app* app,
-   int flag,
+   const int flag, /* combination of app_imdraw_flag */
+   const uint32_t pick_id,
    const float pos[3],
    const float size[2],
    const float rotation[3],
@@ -55,9 +59,10 @@ app_imdraw_grid
 APP_API enum app_error
 app_imdraw_vector
   (struct app* app,
-   int flag,
-   enum app_im_vector_marker start_marker,
-   enum app_im_vector_marker end_marker,
+   const int flag, /* combination of app_imdraw_flag */
+   const uint32_t pick_id,
+   const enum app_im_vector_marker start_marker,
+   const enum app_im_vector_marker end_marker,
    const float start[3],
    const float end[3],
    const float color[4]);

@@ -25,7 +25,8 @@ struct rdr_imdraw_command {
   struct list_node node;
   enum rdr_imdraw_type type;
   unsigned int viewport[4]; /* { x, y, width, height } */
-  int flag;
+  int flag; /* Combination of rdr_imdraw_flag */
+  uint32_t pick_id;
   union {
     struct rdr_im_circle {
       float transform[16]; /* column major */
