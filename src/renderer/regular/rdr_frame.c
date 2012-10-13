@@ -206,7 +206,8 @@ static enum rdr_error
 imdraw_parallelepiped
   (struct rdr_frame* frame,
    const struct rdr_view* rview,
-   int flag,
+   const int flag,
+   const uint32_t pick_id,
    const struct aosf44* trans,
    const float solid_color[4],
    const float wire_color[4])
@@ -226,6 +227,7 @@ imdraw_parallelepiped
 
   cmd->type = RDR_IMDRAW_PARALLELEPIPED;
   cmd->flag = flag;
+  cmd->pick_id = pick_id;
   setup_imdraw_command_viewport(cmd, rview);
   memcpy(cmd->data.parallelepiped.transform, tmp, sizeof(tmp));
   if(solid_color) {
@@ -251,7 +253,8 @@ static enum rdr_error
 imdraw_circle
   (struct rdr_frame* frame,
    const struct rdr_view* rview,
-   int flag,
+   const int flag,
+   const uint32_t pick_id,
    const struct aosf44* trans,
    const float wire_color[4])
 {
@@ -271,6 +274,7 @@ imdraw_circle
 
   cmd->type = RDR_IMDRAW_CIRCLE;
   cmd->flag = flag;
+  cmd->pick_id = pick_id;
   setup_imdraw_command_viewport(cmd, rview);
   memcpy(cmd->data.circle.transform, tmp, sizeof(tmp));
   memcpy(cmd->data.circle.color, wire_color, 4 * sizeof(float));
@@ -287,10 +291,11 @@ static enum rdr_error
 imdraw_vector
   (struct rdr_frame* frame,
    const struct rdr_view* rview,
-   int flag,
+   const int flag,
+   const uint32_t pick_id,
    const struct aosf44* trans,
-   enum rdr_im_vector_marker start_marker,
-   enum rdr_im_vector_marker end_marker,
+   const enum rdr_im_vector_marker start_marker,
+   const enum rdr_im_vector_marker end_marker,
    const float vec[3],
    const float color[3])
 {
@@ -309,6 +314,7 @@ imdraw_vector
 
   cmd->type = RDR_IMDRAW_VECTOR;
   cmd->flag = flag;
+  cmd->pick_id = pick_id;
   setup_imdraw_command_viewport(cmd, rview);
   memcpy(cmd->data.vector.transform, tmp, sizeof(tmp));
   memcpy(cmd->data.vector.vector, vec, 3 * sizeof(float));
@@ -327,7 +333,8 @@ static enum rdr_error
 imdraw_grid
   (struct rdr_frame* frame,
    const struct rdr_view* rview,
-   int flag,
+   const int flag,
+   const uint32_t pick_id,
    const struct aosf44* trans,
    const unsigned int ndiv[2],
    const unsigned int nsubdiv[2],
@@ -351,6 +358,8 @@ imdraw_grid
   }
   compute_imdraw_transform(frame, flag, rview, trans, tmp);
   cmd->type = RDR_IMDRAW_GRID;
+  cmd->flag = flag;
+  cmd->pick_id = pick_id;
   setup_imdraw_command_viewport(cmd, rview);
   memcpy(cmd->data.grid.transform, tmp, sizeof(tmp));
   memcpy(cmd->data.grid.desc.ndiv, ndiv, 2 * sizeof(unsigned int));
@@ -524,7 +533,8 @@ enum rdr_error
 rdr_frame_imdraw_parallelepiped
   (struct rdr_frame* frame,
    const struct rdr_view* rview,
-   int flag,
+   const int flag,
+   const uint32_t pick_id,
    const float pos[3],
    const float size[3],
    const float rotation[3],
@@ -540,7 +550,7 @@ rdr_frame_imdraw_parallelepiped
   }
   compute_transform(&transform, pos, size, rotation);
   rdr_err = imdraw_parallelepiped
-    (frame, rview, flag, &transform, solid_color, wire_color);
+    (frame, rview, flag, pick_id, &transform, solid_color, wire_color);
   if(rdr_err != RDR_NO_ERROR)
     goto error;
 
@@ -554,7 +564,8 @@ enum rdr_error
 rdr_frame_imdraw_transformed_parallelepiped
   (struct rdr_frame* frame,
    const struct rdr_view* rview,
-   int flag,
+   const int flag,
+   const uint32_t pick_id,
    const float mat[16],
    const float solid_color[4],
    const float wire_color[4])
@@ -578,7 +589,7 @@ rdr_frame_imdraw_transformed_parallelepiped
     transform.c3 = vf4_set(mat[12], mat[13], mat[14], mat[15]);
   }
   rdr_err = imdraw_parallelepiped
-    (frame, rview, flag, &transform, solid_color, wire_color);
+    (frame, rview, flag, pick_id, &transform, solid_color, wire_color);
   if(rdr_err != RDR_NO_ERROR)
     goto error;
 
@@ -592,7 +603,8 @@ enum rdr_error
 rdr_frame_imdraw_ellipse
   (struct rdr_frame* frame,
    const struct rdr_view* rview,
-   int flag,
+   const int flag,
+   const uint32_t pick_id,
    const float pos[3],
    const float size[3],
    const float rotation[3],
@@ -605,7 +617,7 @@ rdr_frame_imdraw_ellipse
     return RDR_INVALID_ARGUMENT;
   compute_transform
     (&transform, pos, (float[]){size[0], size[1], 1.f}, rotation);
-  rdr_err = imdraw_circle(frame, rview, flag, &transform, color);
+  rdr_err = imdraw_circle(frame, rview, flag, pick_id, &transform, color);
   return rdr_err;
 }
 
@@ -613,9 +625,10 @@ enum rdr_error
 rdr_frame_imdraw_vector
   (struct rdr_frame* frame,
    const struct rdr_view* rview,
-   int flag,
-   enum rdr_im_vector_marker start_marker,
-   enum rdr_im_vector_marker end_marker,
+   const int flag,
+   const uint32_t pick_id,
+   const enum rdr_im_vector_marker start_marker,
+   const enum rdr_im_vector_marker end_marker,
    const float start[3],
    const float end[3],
    const float color[3])
@@ -635,7 +648,15 @@ rdr_frame_imdraw_vector
   transform.c2 = vf4_set(0.f, 0.f, 1.f, 0.f);
   transform.c3 = vf4_set(start[0], start[1], start[2], 1.f);
   rdr_err = imdraw_vector
-    (frame, rview, flag, &transform, start_marker, end_marker, vec, color);
+    (frame,
+     rview,
+     flag,
+     pick_id,
+     &transform,
+     start_marker,
+     end_marker,
+     vec,
+     color);
   return rdr_err;
 }
 
@@ -643,7 +664,8 @@ enum rdr_error
 rdr_frame_imdraw_grid
   (struct rdr_frame* frame,
    const struct rdr_view* rview,
-   int flag,
+   const int flag,
+   const uint32_t pick_id,
    const float pos[3],
    const float size[2],
    const float rotation[3],
@@ -677,6 +699,7 @@ rdr_frame_imdraw_grid
     (frame,
      rview,
      flag,
+     pick_id,
      &transform,
      ndiv,
      nsubdiv,
@@ -825,7 +848,8 @@ rdr_flush_frame(struct rdr_frame* frame)
     RDR(world_ref_put(show_pick_cmd->world));
   }
   /* Flush im draw commands. */
-  RDR(flush_imdraw_command_buffer(frame->imdraw.cmdbuf));
+  RDR(execute_imdraw_command_buffer
+    (frame->imdraw.cmdbuf, RDR_IMDRAW_EXEC_FLAG_FLUSH));
   /* Flush draw terminal commands. */
   for(cmd_id = 0; cmd_id < frame->draw_term_cmd_id; ++cmd_id) {
     struct draw_term_command* draw_cmd = frame->draw_term_cmd_list + cmd_id;

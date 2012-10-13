@@ -66,7 +66,8 @@ RDR_API enum rdr_error
 rdr_frame_imdraw_parallelepiped
   (struct rdr_frame* frame,
    const struct rdr_view* view,
-   int flag,
+   const int flag,
+   const uint32_t pick_id,
    const float pos[3],
    const float size[3],
    const float rotation[3],
@@ -77,7 +78,8 @@ RDR_API enum rdr_error
 rdr_frame_imdraw_transformed_parallelepiped
   (struct rdr_frame* frame,
    const struct rdr_view* view,
-   int flag,
+   const int flag,
+   const uint32_t pick_id,
    const float transform[16],
    const float solid_color[4], /* May be NULL <=> No solid parallelepiped. */
    const float wire_color[4]); /* May be NULL <=> No wire parallelepiped. */
@@ -86,7 +88,8 @@ RDR_API enum rdr_error
 rdr_frame_imdraw_ellipse
   (struct rdr_frame* frame,
    const struct rdr_view* view,
-   int flag,
+   const int flag,
+   const uint32_t pick_id,
    const float pos[3],
    const float size[2],
    const float rotation[3],
@@ -96,7 +99,8 @@ RDR_API enum rdr_error
 rdr_frame_imdraw_grid
   (struct rdr_frame* frame,
    const struct rdr_view* view,
-   int flag,
+   const int flag,
+   const uint32_t pick_id,
    const float pos[3],
    const float size[2],
    const float rotation[3],
@@ -111,9 +115,10 @@ RDR_API enum rdr_error
 rdr_frame_imdraw_vector
   (struct rdr_frame* frame,
    const struct rdr_view* view,
-   int flag,
-   enum rdr_im_vector_marker start_marker,
-   enum rdr_im_vector_marker end_marker,
+   const int flag,
+   const uint32_t pick_id,
+   const enum rdr_im_vector_marker start_marker,
+   const enum rdr_im_vector_marker end_marker,
    const float start[3],
    const float end[3],
    const float color[3]);

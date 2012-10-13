@@ -25,6 +25,7 @@ app_to_rdr_imdraw_flag(int app_flag)
     flag |= (-((app_flag & CONCAT(APP_, f)) != 0)) & CONCAT(RDR_, f)
   SETUP_FLAG(IMDRAW_FLAG_UPPERMOST_LAYER);
   SETUP_FLAG(IMDRAW_FLAG_FIXED_SCREEN_SIZE);
+  SETUP_FLAG(IMDRAW_FLAG_PICKING);
   #undef SETUP_FLAG
   return flag;
 }
@@ -102,6 +103,7 @@ app_imdraw_parallelepiped
     (app->rdr.frame,
      &render_view,
      app_to_rdr_imdraw_flag(flag),
+     pick_id,
      pos,
      size,
      rotation,
@@ -141,6 +143,7 @@ app_imdraw_ellipse
     (app->rdr.frame,
      &render_view,
      app_to_rdr_imdraw_flag(flag),
+     pick_id,
      pos,
      size,
      rotation,
@@ -194,6 +197,7 @@ app_imdraw_grid
     (app->rdr.frame,
      &render_view,
      app_to_rdr_imdraw_flag(flag),
+     pick_id,
      pos,
      size,
      rotation,
@@ -238,6 +242,7 @@ app_imdraw_vector
     (app->rdr.frame,
      &render_view,
      app_to_rdr_imdraw_flag(flag),
+     pick_id,
      app_to_rdr_im_vector_marker(start_marker),
      app_to_rdr_im_vector_marker(end_marker),
      start,

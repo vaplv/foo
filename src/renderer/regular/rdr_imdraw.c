@@ -460,9 +460,10 @@ invoke_imdraw_grid
 }
 
 static void
-flush_command_list
+execute_command_list
   (struct rdr_imdraw_command_buffer* cmdbuf,
-   struct list_node* cmdlist)
+   struct list_node* cmdlist,
+   const int flag) /* Combination of imdraw exec flags */
 {
   struct rb_viewport_desc viewport_desc;
   struct list_node* node = NULL;
@@ -472,6 +473,8 @@ flush_command_list
 
   viewport_desc.min_depth = 0.f;
   viewport_desc.max_depth = 1.f;
+
+  STATIC_ASSERT(0, TODO_Take_into_account_the_IMDRAW_EXEC_FLAG_PICKING_flag);
 
   LIST_FOR_EACH_SAFE(node, tmp, cmdlist) {
     struct rdr_imdraw_command* cmd = CONTAINER_OF
@@ -502,7 +505,8 @@ flush_command_list
         break;
       default: assert(0); break;
     }
-    list_move_tail(node, &cmdbuf->free_command_list);
+    if((flag & RDR_IMDRAW_EXEC_FLAG_FLUSH) != 0)
+      list_move_tail(node, &cmdbuf->free_command_list);
   }
   RBI(&cmdbuf->sys->rb, bind_program(cmdbuf->sys->ctxt, NULL));
 }
@@ -799,12 +803,14 @@ rdr_emit_imdraw_command
 }
 
 enum rdr_error
-rdr_flush_imdraw_command_buffer(struct rdr_imdraw_command_buffer* cmdbuf)
+rdr_execute_imdraw_command_buffer
+  (struct rdr_imdraw_command_buffer* cmdbuf,
+   const int flag)
 {
   if(UNLIKELY(cmdbuf == NULL))
     return RDR_INVALID_ARGUMENT;
 
-  flush_command_list(cmdbuf, &cmdbuf->emit_command_list);
+  execute_command_list(cmdbuf, &cmdbuf->emit_command_list, flag);
   if(!is_list_empty(&cmdbuf->emit_uppermost_command_list)) {
     const struct rb_depth_stencil_desc depth_stencil_desc = {
       .enable_depth_test = 1,
@@ -818,7 +824,7 @@ rdr_flush_imdraw_command_buffer(struct rdr_imdraw_command_buffer* cmdbuf)
       (cmdbuf->sys->ctxt, &depth_stencil_desc));
     RBI(&cmdbuf->sys->rb, clear
       (cmdbuf->sys->ctxt, RB_CLEAR_DEPTH_BIT, NULL, 1.f, 0x00));
-    flush_command_list(cmdbuf, &cmdbuf->emit_uppermost_command_list);
+    execute_command_list(cmdbuf, &cmdbuf->emit_uppermost_command_list, flag);
   }
   return RDR_NO_ERROR;
 }

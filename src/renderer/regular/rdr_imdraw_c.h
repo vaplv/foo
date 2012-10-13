@@ -17,6 +17,12 @@ enum rdr_imdraw_type {
   RDR_NB_IMDRAW_TYPES
 };
 
+enum rdr_imdraw_exec_flag {
+  RDR_IMDRAW_EXEC_FLAG_FLUSH = BIT(0), /* Clear the command buffer */
+  RDR_IMDRAW_EXEC_FLAG_PICKING = BIT(1), /* Draw pick_id */
+  RDR_IMDRAW_EXEC_FLAG_NONE = 0,
+};
+
 /* All im commands have the same size in memory. Consequently some memory space
  * is lost but this simplify the im command buffer implementation. Today, there
  * is no specific reason to create a huge command but if it become necessary
@@ -104,8 +110,9 @@ rdr_emit_imdraw_command
    struct rdr_imdraw_command* cmd);
 
 LOCAL_SYM enum rdr_error
-rdr_flush_imdraw_command_buffer
-  (struct rdr_imdraw_command_buffer* cmdbuf);
+rdr_execute_imdraw_command_buffer
+  (struct rdr_imdraw_command_buffer* cmdbuf,
+   const int flag); /* combination of imdraw exec flags */
 
 #endif /* RDR_IMDRAW_C_H */
 
