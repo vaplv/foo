@@ -19,32 +19,41 @@ struct rdr_imdraw_command_buffer {
 
 /******************************************************************************
  *
- * Embedded shader.
+ * Embedded common shader.
  *
  ******************************************************************************/
-static const char* imdraw3d_vs_source =
-  "#version 330\n"
-  "uniform mat4x4 transform;\n"
-  "uniform vec4 color;\n"
-  "layout(location = 0) in vec3 pos;\n"
-  "flat out vec4 im_color;\n"
-  "void main()\n"
-  "{\n"
-  " im_color = color;\n"
-  " gl_Position = transform * vec4(pos, 1.f);\n"
-  "}\n";
+#define IMDRAW3D_VS_SOURCE(color_type) \
+  "#version 330\n" \
+  "uniform mat4x4 transform;\n" \
+  "uniform " STR(color_type) " color;\n" \
+  "layout(location = 0) in vec3 pos;\n" \
+  "flat out " STR(color_type) " im_color;\n" \
+  "void main()\n" \
+  "{\n" \
+  " im_color = color;\n" \
+  " gl_Position = transform * vec4(pos, 1.f);\n" \
+  "}\n"
 
-static const char* imdraw2d_vs_source =
-  "#version 330\n"
-  "uniform mat4x4 transform;\n"
-  "uniform vec4 color;\n"
-  "layout(location = 0) in vec2 pos;\n"
-  "flat out vec4 im_color;\n"
-  "void main()\n"
-  "{\n"
-  " im_color = color;\n"
-  " gl_Position = transform * vec4(pos, vec2(0.f, 1.f));\n"
-  "}\n";
+#define IMDRAW2D_VS_SOURCE(color_type) \
+  "#version 330\n" \
+  "uniform mat4x4 transform;\n" \
+  "uniform " STR(color_type) " color;\n" \
+  "layout(location = 0) in vec2 pos;\n" \
+  "flat out " STR(color_type) " im_color;\n" \
+  "void main()\n" \
+  "{\n" \
+  " im_color = color;\n" \
+  " gl_Position = transform * vec4(pos, vec2(0.f, 1.f));\n" \
+  "}\n"
+
+#define IMDRAW_FS_SOURCE(color_type) \
+  "#version 330\n" \
+  "flat in " STR(color_type) " im_color;\n" \
+  "out " STR(color_type) " color;\n" \
+  "void main()\n" \
+  "{\n" \
+  " color = im_color;\n" \
+  "}\n"
 
 static const char* imdraw2d_color_vs_source =
   "#version 330\n"
@@ -58,15 +67,13 @@ static const char* imdraw2d_color_vs_source =
   " gl_Position = transform * vec4(pos, vec2(0.f, 1.f));\n"
   "}\n";
 
-static const char* imdraw_fs_source =
-  "#version 330\n"
-  "flat in vec4 im_color;\n"
-  "out vec4 color;\n"
-  "void main()\n"
-  "{\n"
-  " color = im_color;\n"
-  "}\n";
+static const char* imdraw2d_vs_source = IMDRAW2D_VS_SOURCE(vec4);
+static const char* imdraw3d_vs_source = IMDRAW3D_VS_SOURCE(vec4);
+static const char* imdraw_fs_source = IMDRAW_FS_SOURCE(vec4);
 
+static const char* imdraw2d_picking_vs_source = IMDRAW2D_VS_SOURCE(uint);
+static const char* imdraw3d_picking_vs_source = IMDRAW3D_VS_SOURCE(uint);
+static const char* imdraw_picking_fs_source = IMDRAW_FS_SOURCE(uint);
 
 /******************************************************************************
  *
@@ -76,17 +83,33 @@ static const char* imdraw_fs_source =
 static void
 invoke_imdraw_parallelepiped
   (struct rdr_system* sys,
-   struct rdr_imdraw_command* cmd)
+   struct rdr_imdraw_command* cmd,
+   const int exec_flag)
 {
   assert(sys && cmd && cmd->type == RDR_IMDRAW_PARALLELEPIPED);
 
-  RBI(&sys->rb, bind_program(sys->ctxt, sys->im.draw3d.shading_program));
-  RBI(&sys->rb, uniform_data
-    (sys->im.draw3d.transform, 1, cmd->data.parallelepiped.transform));
+  if(exec_flag & RDR_IMDRAW_EXEC_FLAG_PICKING) {
+    if(cmd->pick_id == UINT32_MAX)
+      return;
+
+    RBI(&sys->rb, bind_program
+      (sys->ctxt, sys->im.draw3d_picking.shading_program));
+    RBI(&sys->rb, uniform_data
+      (sys->im.draw3d_picking.transform, 1,cmd->data.parallelepiped.transform));
+  } else {
+    RBI(&sys->rb, bind_program(sys->ctxt, sys->im.draw3d.shading_program));
+    RBI(&sys->rb, uniform_data
+      (sys->im.draw3d.transform, 1, cmd->data.parallelepiped.transform));
+  }
 
   if(cmd->data.parallelepiped.solid_color[3] > 0.f) {
-    RBI(&sys->rb, uniform_data
-      (sys->im.draw3d.color, 1, cmd->data.parallelepiped.solid_color));
+    if(exec_flag & RDR_IMDRAW_EXEC_FLAG_PICKING) {
+      RBI(&sys->rb, uniform_data
+        (sys->im.draw3d_picking.color, 1, &cmd->pick_id));
+    } else {
+      RBI(&sys->rb, uniform_data
+        (sys->im.draw3d.color, 1, cmd->data.parallelepiped.solid_color));
+    }
 
     if(cmd->data.parallelepiped.solid_color[3] >= 1.f) {
       RBU(draw_geometry(&sys->rbu.solid_parallelepiped));
@@ -129,24 +152,42 @@ invoke_imdraw_parallelepiped
     }
   }
   if(cmd->data.parallelepiped.wire_color[3] > 0.f) {
-    RBI(&sys->rb, uniform_data
-      (sys->im.draw3d.color, 1, cmd->data.parallelepiped.wire_color));
+    if(exec_flag & RDR_IMDRAW_EXEC_FLAG_PICKING) {
+      RBI(&sys->rb, uniform_data
+        (sys->im.draw3d_picking.color, 1, &cmd->pick_id));
+    } else {
+      RBI(&sys->rb, uniform_data
+        (sys->im.draw3d.color, 1, cmd->data.parallelepiped.wire_color));
+    }
     RBU(draw_geometry(&sys->rbu.wire_parallelepiped));
   }
-
 }
 
 static void
-invoke_imdraw_circle(struct rdr_system* sys, struct rdr_imdraw_command* cmd)
+invoke_imdraw_circle
+  (struct rdr_system* sys,
+   struct rdr_imdraw_command* cmd,
+   const int exec_flag)
 {
   assert(sys && cmd && cmd->type == RDR_IMDRAW_CIRCLE);
 
-  RBI(&sys->rb, bind_program(sys->ctxt, sys->im.draw2d.shading_program));
-  RBI(&sys->rb, uniform_data
-    (sys->im.draw2d.transform, 1, cmd->data.circle.transform));
-  RBI(&sys->rb, uniform_data
-    (sys->im.draw2d.color, 1, cmd->data.circle.color));
-  RBU(draw_geometry(&sys->rbu.circle));
+  if(exec_flag & RDR_IMDRAW_EXEC_FLAG_PICKING) {
+    if(cmd->pick_id != UINT32_MAX) { /* UINT32_MAX <=> no pick_id */
+      RBI(&sys->rb, bind_program
+        (sys->ctxt, sys->im.draw2d_picking.shading_program));
+      RBI(&sys->rb, uniform_data
+        (sys->im.draw2d_picking.transform, 1, cmd->data.circle.transform));
+      RBI(&sys->rb, uniform_data
+        (sys->im.draw2d_picking.color, 1, &cmd->pick_id));
+    }
+  } else {
+    RBI(&sys->rb, bind_program(sys->ctxt, sys->im.draw2d.shading_program));
+    RBI(&sys->rb, uniform_data
+      (sys->im.draw2d.transform, 1, cmd->data.circle.transform));
+    RBI(&sys->rb, uniform_data
+      (sys->im.draw2d.color, 1, cmd->data.circle.color));
+    RBU(draw_geometry(&sys->rbu.circle));
+  }
 }
 
 /* Return the length of the im vector */
@@ -206,17 +247,34 @@ setup_im_vector_matrix(struct rdr_imdraw_command* cmd, struct aosf44* mat)
 }
 
 static void
-invoke_imdraw_vector(struct rdr_system* sys, struct rdr_imdraw_command* cmd)
+invoke_imdraw_vector
+  (struct rdr_system* sys,
+   struct rdr_imdraw_command* cmd,
+   const int exec_flag)
 {
   struct aosf44 transform;
   struct aosf44 f44;
+  struct rb_uniform* transform_uniform = NULL;
   ALIGN(16) float array[16];
   vf4_t len = setup_im_vector_matrix(cmd, &transform);
 
-  RBI(&sys->rb, bind_program(sys->ctxt, sys->im.draw3d.shading_program));
-  RBI(&sys->rb, uniform_data
-    (sys->im.draw3d.color, 1, cmd->data.vector.color));
-    RBI(&sys->rb, bind_vertex_array(sys->ctxt, sys->im.line.vertex_array));
+  if(exec_flag & RDR_IMDRAW_EXEC_FLAG_PICKING) {
+    if(cmd->pick_id == UINT32_MAX)
+      return;
+
+    RBI(&sys->rb, bind_program
+      (sys->ctxt, sys->im.draw3d_picking.shading_program));
+    RBI(&sys->rb, uniform_data
+      (sys->im.draw3d_picking.color, 1, &cmd->pick_id));
+
+    transform_uniform = sys->im.draw3d_picking.transform;
+  } else {
+    RBI(&sys->rb, bind_program(sys->ctxt, sys->im.draw3d.shading_program));
+    RBI(&sys->rb, uniform_data
+      (sys->im.draw3d.color, 1, cmd->data.vector.color));
+    transform_uniform = sys->im.draw3d.transform;
+  }
+  RBI(&sys->rb, bind_vertex_array(sys->ctxt, sys->im.line.vertex_array));
 
   /* Stretch the line to the correct size by scaling the matrix by the vector
    * length */
@@ -225,7 +283,7 @@ invoke_imdraw_vector(struct rdr_system* sys, struct rdr_imdraw_command* cmd)
   f44.c2 = vf4_mul(transform.c2, len);
   f44.c3 = transform.c3;
   aosf44_store(array, &f44);
-  RBI(&sys->rb, uniform_data(sys->im.draw3d.transform, 1, array));
+  RBI(&sys->rb, uniform_data(transform_uniform, 1, array));
   RBI(&sys->rb, draw(sys->ctxt, RB_LINES, 2));
 
   #define DRAW_MARKER(marker) \
@@ -265,7 +323,7 @@ invoke_imdraw_vector(struct rdr_system* sys, struct rdr_imdraw_command* cmd)
        * by the vector length. */
       f44.c3 = vf4_madd(f44.c1, len, f44.c3);
       aosf44_store(array, &f44);
-      RBI(&sys->rb, uniform_data(sys->im.draw3d.transform, 1, array));
+      RBI(&sys->rb, uniform_data(transform_uniform, 1, array));
       DRAW_MARKER(cmd->data.vector.end_marker);
       f44.c3 = saved_c3;
     }
@@ -274,7 +332,7 @@ invoke_imdraw_vector(struct rdr_system* sys, struct rdr_imdraw_command* cmd)
       f44.c1 = vf4_minus(f44.c1);
       f44.c2 = vf4_minus(f44.c2);
       aosf44_store(array, &f44);
-      RBI(&sys->rb, uniform_data(sys->im.draw3d.transform, 1, array));
+      RBI(&sys->rb, uniform_data(transform_uniform, 1, array));
       DRAW_MARKER(cmd->data.vector.start_marker);
     }
   }
@@ -444,18 +502,32 @@ build_im_grid(struct rdr_system* sys, const struct rdr_imdraw_command* cmd)
 static void
 invoke_imdraw_grid
   (struct rdr_system* sys,
-   struct rdr_imdraw_command* cmd)
+   struct rdr_imdraw_command* cmd,
+   const int exec_flag)
 {
   assert(sys && cmd && cmd->type == RDR_IMDRAW_GRID);
 
   build_im_grid(sys, cmd);
   if(sys->im.grid.nvertices != 0) {
-    RBI(&sys->rb, bind_program
-      (sys->ctxt, sys->im.draw2d_color.shading_program));
-    RBI(&sys->rb, uniform_data
-      (sys->im.draw2d_color.transform, 1, cmd->data.grid.transform));
-    RBI(&sys->rb, bind_vertex_array(sys->ctxt, sys->im.grid.vertex_array));
-    RBI(&sys->rb, draw(sys->ctxt, RB_LINES, sys->im.grid.nvertices));
+    if(exec_flag & RDR_IMDRAW_EXEC_FLAG_PICKING) {
+      if(cmd->pick_id != UINT32_MAX) {
+        RBI(&sys->rb, bind_program
+          (sys->ctxt, sys->im.draw2d_picking.shading_program));
+        RBI(&sys->rb, uniform_data
+          (sys->im.draw2d_picking.transform, 1, cmd->data.grid.transform));
+        RBI(&sys->rb, uniform_data
+          (sys->im.draw2d_picking.color, 1, &cmd->pick_id));
+        RBI(&sys->rb, bind_vertex_array(sys->ctxt, sys->im.grid.vertex_array));
+        RBI(&sys->rb, draw(sys->ctxt, RB_LINES, sys->im.grid.nvertices));
+      }
+    } else {
+      RBI(&sys->rb, bind_program
+        (sys->ctxt, sys->im.draw2d_color.shading_program));
+      RBI(&sys->rb, uniform_data
+        (sys->im.draw2d_color.transform, 1, cmd->data.grid.transform));
+      RBI(&sys->rb, bind_vertex_array(sys->ctxt, sys->im.grid.vertex_array));
+      RBI(&sys->rb, draw(sys->ctxt, RB_LINES, sys->im.grid.nvertices));
+    }
   }
 }
 
@@ -463,7 +535,7 @@ static void
 execute_command_list
   (struct rdr_imdraw_command_buffer* cmdbuf,
    struct list_node* cmdlist,
-   const int flag) /* Combination of imdraw exec flags */
+   const int exec_flag) /* Combination of imdraw exec flags */
 {
   struct rb_viewport_desc viewport_desc;
   struct list_node* node = NULL;
@@ -473,8 +545,6 @@ execute_command_list
 
   viewport_desc.min_depth = 0.f;
   viewport_desc.max_depth = 1.f;
-
-  STATIC_ASSERT(0, TODO_Take_into_account_the_IMDRAW_EXEC_FLAG_PICKING_flag);
 
   LIST_FOR_EACH_SAFE(node, tmp, cmdlist) {
     struct rdr_imdraw_command* cmd = CONTAINER_OF
@@ -492,20 +562,20 @@ execute_command_list
     }
     switch(cmd->type) {
       case RDR_IMDRAW_CIRCLE:
-        invoke_imdraw_circle(cmdbuf->sys, cmd);
+        invoke_imdraw_circle(cmdbuf->sys, cmd, exec_flag);
         break;
       case RDR_IMDRAW_GRID:
-        invoke_imdraw_grid(cmdbuf->sys, cmd);
+        invoke_imdraw_grid(cmdbuf->sys, cmd, exec_flag);
         break;
       case RDR_IMDRAW_PARALLELEPIPED:
-        invoke_imdraw_parallelepiped(cmdbuf->sys, cmd);
+        invoke_imdraw_parallelepiped(cmdbuf->sys, cmd, exec_flag);
         break;
       case RDR_IMDRAW_VECTOR:
-        invoke_imdraw_vector(cmdbuf->sys, cmd);
+        invoke_imdraw_vector(cmdbuf->sys, cmd, exec_flag);
         break;
       default: assert(0); break;
     }
-    if((flag & RDR_IMDRAW_EXEC_FLAG_FLUSH) != 0)
+    if((exec_flag & RDR_IMDRAW_EXEC_FLAG_FLUSH) != 0)
       list_move_tail(node, &cmdbuf->free_command_list);
   }
   RBI(&cmdbuf->sys->rb, bind_program(cmdbuf->sys->ctxt, NULL));
@@ -652,9 +722,23 @@ rdr_init_im_rendering(struct rdr_system* sys)
   init_im_draw
     (&sys->rb,
      sys->ctxt,
+     &sys->im.draw2d_picking,
+     imdraw2d_picking_vs_source,
+     imdraw_picking_fs_source,
+     IM_DRAW_HAS_COLOR_UNIFORM);
+  init_im_draw
+    (&sys->rb,
+     sys->ctxt,
      &sys->im.draw3d,
      imdraw3d_vs_source,
      imdraw_fs_source,
+     IM_DRAW_HAS_COLOR_UNIFORM);
+  init_im_draw
+    (&sys->rb,
+     sys->ctxt,
+     &sys->im.draw3d_picking,
+     imdraw3d_picking_vs_source,
+     imdraw_picking_fs_source,
      IM_DRAW_HAS_COLOR_UNIFORM);
   init_im_draw
     (&sys->rb,
@@ -675,7 +759,9 @@ rdr_shutdown_im_rendering(struct rdr_system* sys)
   if(UNLIKELY(sys==NULL))
     return RDR_INVALID_ARGUMENT;
   release_im_draw(&sys->rb, &sys->im.draw2d);
+  release_im_draw(&sys->rb, &sys->im.draw2d_picking);
   release_im_draw(&sys->rb, &sys->im.draw3d);
+  release_im_draw(&sys->rb, &sys->im.draw3d_picking);
   release_im_draw(&sys->rb, &sys->im.draw2d_color);
   release_im_grid(&sys->rb, &sys->im.grid);
   release_im_line(&sys->rb, &sys->im.line);

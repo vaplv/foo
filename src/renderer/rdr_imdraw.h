@@ -6,7 +6,6 @@
 enum rdr_imdraw_flag {
   RDR_IMDRAW_FLAG_UPPERMOST_LAYER = BIT(0), /* Draw above the world */
   RDR_IMDRAW_FLAG_FIXED_SCREEN_SIZE = BIT(1), /* Fix the screen space size */
-  RDR_IMDRAW_FLAG_PICKING = BIT(2), /* Enable picking support */
   RDR_IMDRAW_FLAG_NONE = 0
 };
 

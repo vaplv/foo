@@ -31,7 +31,7 @@ struct rdr_system {
       struct rb_program* shading_program;
       struct rb_uniform* transform;
       struct rb_uniform* color;
-    } draw2d, draw3d, draw2d_color;
+    } draw2d, draw3d, draw2d_color, draw2d_picking, draw3d_picking;
     struct im_grid {
       struct rdr_im_grid_desc desc;
       struct rb_buffer* vertex_buffer;

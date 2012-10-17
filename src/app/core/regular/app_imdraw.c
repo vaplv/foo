@@ -25,7 +25,6 @@ app_to_rdr_imdraw_flag(int app_flag)
     flag |= (-((app_flag & CONCAT(APP_, f)) != 0)) & CONCAT(RDR_, f)
   SETUP_FLAG(IMDRAW_FLAG_UPPERMOST_LAYER);
   SETUP_FLAG(IMDRAW_FLAG_FIXED_SCREEN_SIZE);
-  SETUP_FLAG(IMDRAW_FLAG_PICKING);
   #undef SETUP_FLAG
   return flag;
 }
