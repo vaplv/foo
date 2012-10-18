@@ -23,6 +23,7 @@
 #define MAX_IMDRAW_COMMANDS 512
 #define MAX_PICK_COMMANDS 4
 #define MAX_SHOW_PICK_COMMANDS 1
+#define MAX_PICK_IMDRAW_COMMANDS 1
 
 struct draw_term_command {
   struct rdr_term* term;
@@ -36,6 +37,11 @@ ALIGN(16) struct draw_world_command {
 ALIGN(16) struct pick_command {
   struct rdr_view view;
   struct rdr_world* world;
+  unsigned int pos[2];
+  unsigned int size[2];
+};
+
+ALIGN(16) struct pick_imdraw_command {
   unsigned int pos[2];
   unsigned int size[2];
 };
@@ -62,11 +68,13 @@ ALIGN(16) struct rdr_frame {
   struct draw_term_command draw_term_cmd_list[MAX_DRAW_TERM_COMMANDS];
   struct draw_world_command draw_world_cmd_list[MAX_DRAW_WORLD_COMMANDS];
   struct pick_command pick_cmd_list[MAX_PICK_COMMANDS];
+  struct pick_imdraw_command pick_imdraw_cmd_list[MAX_PICK_IMDRAW_COMMANDS];
   struct show_pick_command show_pick_cmd_list[MAX_SHOW_PICK_COMMANDS];
-  size_t draw_term_cmd_id;
-  size_t draw_world_cmd_id;
-  size_t show_pick_cmd_id;
-  size_t pick_cmd_id;
+  uint8_t draw_term_cmd_id;
+  uint8_t draw_world_cmd_id;
+  uint8_t show_pick_cmd_id;
+  uint8_t pick_cmd_id;
+  uint8_t pick_imdraw_cmd_id;
   /* Miscellaneous */
   struct rdr_picking* picking;
   struct imdraw imdraw; /* im draw system. */
@@ -738,6 +746,27 @@ rdr_frame_pick_model_instance
 }
 
 enum rdr_error
+rdr_frame_pick_imdraw
+  (struct rdr_frame* frame,
+   const unsigned int pos[2],
+   const unsigned int size[2])
+{
+  struct pick_imdraw_command* pick_imdraw_cmd = NULL;
+
+  if(UNLIKELY(!frame || !pos || !size))
+    return RDR_INVALID_ARGUMENT;
+  if(frame->pick_imdraw_cmd_id >= MAX_PICK_IMDRAW_COMMANDS)
+    return RDR_MEMORY_ERROR;
+
+  pick_imdraw_cmd = frame->pick_imdraw_cmd_list + frame->pick_imdraw_cmd_id;
+  ++frame->pick_imdraw_cmd_id;
+
+  memcpy(pick_imdraw_cmd->pos, pos, sizeof(unsigned int) * 2);
+  memcpy(pick_imdraw_cmd->size, size, sizeof(unsigned int) * 2);
+  return RDR_NO_ERROR;
+}
+
+enum rdr_error
 rdr_frame_poll_picking
   (struct rdr_frame* frame,
    size_t *count,
@@ -828,6 +857,17 @@ rdr_flush_frame(struct rdr_frame* frame)
        pick_cmd->size));
     RDR(world_ref_put(pick_cmd->world));
   }
+  /* Flush pick imdraw commands. */
+  for(cmd_id = 0; cmd_id < frame->pick_imdraw_cmd_id; ++cmd_id) {
+    struct pick_imdraw_command* pick_imdraw_cmd =
+      frame->pick_imdraw_cmd_list + cmd_id;
+    RDR(pick_imdraw
+      (frame->sys,
+       frame->picking,
+       frame->imdraw.cmdbuf,
+       pick_imdraw_cmd->pos,
+       pick_imdraw_cmd->size));
+  }
   /* Flush draw world commands. */
   for(cmd_id = 0; cmd_id < frame->draw_world_cmd_id; ++cmd_id) {
     struct draw_world_command* draw_cmd = frame->draw_world_cmd_list + cmd_id;
@@ -862,6 +902,7 @@ rdr_flush_frame(struct rdr_frame* frame)
   frame->draw_world_cmd_id = 0;
   frame->draw_term_cmd_id = 0;
   frame->pick_cmd_id = 0;
+  frame->pick_imdraw_cmd_id = 0;
   frame->show_pick_cmd_id = 0;
 
 exit:

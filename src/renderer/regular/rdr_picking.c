@@ -1,6 +1,7 @@
 #include "renderer/regular/rdr_attrib_c.h"
 #include "renderer/regular/rdr_draw_desc.h"
 #include "renderer/regular/rdr_error_c.h"
+#include "renderer/regular/rdr_imdraw_c.h"
 #include "renderer/regular/rdr_picking.h"
 #include "renderer/regular/rdr_system_c.h"
 #include "renderer/regular/rdr_uniform.h"
@@ -130,7 +131,7 @@ draw_picked_world
   };
   struct rdr_draw_desc draw_desc;
   struct rdr_view pick_view;
-    memset(&draw_desc, 0, sizeof(struct rdr_draw_desc));
+  memset(&draw_desc, 0, sizeof(struct rdr_draw_desc));
 
   assert(sys && picking && world && view);
 
@@ -160,6 +161,35 @@ draw_picked_world
   return RDR_NO_ERROR;
 }
 
+static enum rdr_error
+draw_picked_imdraw
+  (struct rdr_system* sys,
+   struct rdr_picking* picking,
+   struct rdr_imdraw_command_buffer* cmdbuf)
+{
+  const struct rb_clear_framebuffer_color_desc clear_desc = {
+    .index = 0,
+    .val = { .rgba_ui32 = { UINT32_MAX, UINT32_MAX, UINT32_MAX, UINT32_MAX } }
+  };
+
+  assert(sys && picking);
+
+  /* Draw the world into the picking buffer. */
+  RBI(&sys->rb, clear_framebuffer_render_targets
+    (picking->framebuffer.buffer,
+     RB_CLEAR_COLOR_BIT | RB_CLEAR_DEPTH_BIT,
+     1, &clear_desc, 1.f, 0));
+
+  RBI(&sys->rb, bind_framebuffer(sys->ctxt, picking->framebuffer.buffer));
+  RBI(&sys->rb, bind_program(sys->ctxt, picking->shading.program));
+  RDR(execute_imdraw_command_buffer(cmdbuf, RDR_IMDRAW_EXEC_FLAG_PICKING));
+  RBI(&sys->rb, bind_framebuffer(sys->ctxt, NULL));
+  RBI(&sys->rb, bind_program(sys->ctxt, NULL));
+
+  return RDR_NO_ERROR;
+
+}
+
 static FINLINE void
 result_swap_buffer(struct result* result)
 {
@@ -179,7 +209,7 @@ static enum rdr_error
 read_back_picking_buffer
   (struct rdr_system* sys,
    struct rdr_picking* picking,
-   const struct rdr_view* view,
+   const struct rdr_view* view, /* May be NULL */
    const unsigned int pos[2],
    const unsigned int size[2])
 {
@@ -192,14 +222,22 @@ read_back_picking_buffer
   unsigned int blit_pos1[2] = {0, 0};
   unsigned int blit_size[2] = {0, 0};
 
-  assert(sys && picking && view && pos && size);
+  assert(sys && picking && pos && size);
 
-  /* Compute the viewport to pick spcae scale factor. */
-  scale[0] = (float)picking->desc.width / (float)(view->width - view->x);
-  scale[1] = (float)picking->desc.height / (float)(view->height - view->y);
-  /* Compute the pick position in pick space. */
-  pick_pos[0] = pos[0] - view->x;
-  pick_pos[1] = pos[1] - view->y;
+  if(view == NULL) {
+    scale[0] = 1.f;
+    scale[1] = 1.f;
+    pick_pos[0] = pos[0];
+    pick_pos[1] = pos[1];
+  } else {
+    /* Compute the viewport to pick spcae scale factor. */
+    scale[0] = (float)picking->desc.width / (float)(view->width - view->x);
+    scale[1] = (float)picking->desc.height / (float)(view->height - view->y);
+    /* Compute the pick position in pick space. */
+    pick_pos[0] = pos[0] - view->x;
+    pick_pos[1] = pos[1] - view->y;
+  }
+
   /* Defint the blit rectangle in pick space. */
   blit_pos0[0] = pick_pos[0] * scale[0];
   blit_pos0[1] = pick_pos[1] * scale[1];
@@ -580,6 +618,37 @@ rdr_pick
     goto error;
 
   rdr_err = read_back_picking_buffer(sys, picking, view, pos, size);
+  if(rdr_err != RDR_NO_ERROR)
+    goto error;
+
+exit:
+  return rdr_err;
+error:
+  if(sys && picking) {
+    SL(clear_vector(result_get_buffer(&picking->result)));
+  }
+  goto exit;
+}
+
+enum rdr_error
+rdr_pick_imdraw
+  (struct rdr_system* sys,
+   struct rdr_picking* picking,
+   struct rdr_imdraw_command_buffer* cmdbuf,
+   const unsigned int pos[2],
+   const unsigned int size[2])
+{
+  enum rdr_error rdr_err = RDR_NO_ERROR;
+
+  if(UNLIKELY(!sys || !picking || !pos || !size)) {
+    rdr_err = RDR_INVALID_ARGUMENT;
+    goto error;
+  }
+  rdr_err = draw_picked_imdraw(sys, picking, cmdbuf);
+  if(rdr_err != RDR_NO_ERROR)
+    goto error;
+
+  rdr_err = read_back_picking_buffer(sys, picking, NULL, pos, size);
   if(rdr_err != RDR_NO_ERROR)
     goto error;
 

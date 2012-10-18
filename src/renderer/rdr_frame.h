@@ -133,9 +133,14 @@ rdr_frame_pick_model_instance
   (struct rdr_frame* frame,
    struct rdr_world* world,
    const struct rdr_view* view,
-   const unsigned int pos[2], /* In pixels. */
-   const unsigned int size[2]); /* In pixels. */
+   const unsigned int pos[2], /* In pixels */
+   const unsigned int size[2]); /* In pixels */
 
+RDR_API enum rdr_error
+rdr_frame_pick_imdraw
+  (struct rdr_frame* frame,
+   const unsigned int pos[2], /* In pixels */
+   const unsigned int size[2]); /* In pixels */
 
 RDR_API enum rdr_error
 rdr_frame_poll_picking
