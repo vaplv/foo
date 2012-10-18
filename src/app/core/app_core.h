@@ -131,6 +131,13 @@ app_is_term_enabled
   (struct app* app,
    bool* is_enabled);
 
+/* Invoke picking on actually enqueud imdraw commands */
+APP_API enum app_error
+app_pick_imdraw
+  (struct app* app,
+   const unsigned int pos[2],
+   const unsigned int size[2]);
+
 /* Retrieve the picked id of the main world */
 APP_API enum app_error
 app_poll_picking

@@ -18,7 +18,7 @@
 
 enum { PICK_UNIFORM_MVP, PICK_UNIFORM_MDL_ID, NB_PICK_UNIFORMS };
 
-#define NB_RESULT_BUFFERS 2
+#define NB_RESULT_BUFFERS 2 /* Use double buffering */
 
 struct rdr_picking {
   struct rdr_picking_desc desc;

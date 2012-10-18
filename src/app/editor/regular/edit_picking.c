@@ -18,7 +18,6 @@ edit_process_picking(struct edit_context* ctxt)
     goto error;
   }
   
-  /* Process picking */
   APP(poll_picking(ctxt->app, &nb_pick_ids, &pick_id_list));
   if(nb_pick_ids) {
     struct app_world* world = NULL;
