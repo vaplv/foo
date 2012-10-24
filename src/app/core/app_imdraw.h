@@ -67,5 +67,12 @@ app_imdraw_vector
    const float end[3],
    const float color[4]);
 
+/* Invoke picking on actually enqueud imdraw commands */
+APP_API enum app_error
+app_imdraw_pick
+  (struct app* app,
+   const unsigned int pos[2],
+   const unsigned int size[2]);
+
 #endif /* APP_IMDRAW_H */
 

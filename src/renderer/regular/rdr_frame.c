@@ -767,6 +767,26 @@ rdr_frame_pick_imdraw
 }
 
 enum rdr_error
+rdr_frame_clear_picking(struct rdr_frame* frame)
+{
+  enum rdr_error rdr_err = RDR_NO_ERROR;
+
+  if(UNLIKELY(!frame)) {
+    rdr_err =  RDR_INVALID_ARGUMENT;
+    goto error;
+  }
+
+  rdr_err = rdr_pick_clear(frame->sys, frame->picking);
+  if(rdr_err != RDR_NO_ERROR)
+    goto error;
+
+exit:
+  return rdr_err;
+error:
+  goto exit;
+}
+
+enum rdr_error
 rdr_frame_poll_picking
   (struct rdr_frame* frame,
    size_t *count,
@@ -848,7 +868,7 @@ rdr_flush_frame(struct rdr_frame* frame)
   /* Flush pick commands. */
   for(cmd_id = 0; cmd_id < frame->pick_cmd_id; ++cmd_id) {
     struct pick_command* pick_cmd = frame->pick_cmd_list + cmd_id;
-    RDR(pick
+    RDR(pick_world
       (frame->sys,
        frame->picking,
        pick_cmd->world,

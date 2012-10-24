@@ -65,6 +65,12 @@ setup_picking(struct app_world* world)
     LIST_FOR_EACH(node, &world->instance_list) {
       struct app_model_instance* instance =
         CONTAINER_OF(node, struct app_model_instance, world_node);
+
+      if(pick_id > APP_PICK_ID_MAX) {
+        app_err = APP_OVERFLOW_ERROR;
+        goto error;
+      }
+      pick_id = APP_PICK(pick_id, APP_PICK_GROUP_WORLD);
       APP(set_model_instance_pick_id(instance, pick_id));
 
       sl_err = sl_hash_table_insert(world->picking_htbl, &pick_id, &instance);

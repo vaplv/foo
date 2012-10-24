@@ -125,10 +125,6 @@ draw_picked_world
    struct rdr_world* world,
    const struct rdr_view* view)
 {
-  const struct rb_clear_framebuffer_color_desc clear_desc = {
-    .index = 0,
-    .val = { .rgba_ui32 = { UINT32_MAX, UINT32_MAX, UINT32_MAX, UINT32_MAX } }
-  };
   struct rdr_draw_desc draw_desc;
   struct rdr_view pick_view;
   memset(&draw_desc, 0, sizeof(struct rdr_draw_desc));
@@ -147,11 +143,6 @@ draw_picked_world
   draw_desc.bind_flag = RDR_BIND_ATTRIB_POSITION;
 
   /* Draw the world into the picking buffer. */
-  RBI(&sys->rb, clear_framebuffer_render_targets
-    (picking->framebuffer.buffer,
-     RB_CLEAR_COLOR_BIT | RB_CLEAR_DEPTH_BIT,
-     1, &clear_desc, 1.f, 0));
-
   RBI(&sys->rb, bind_framebuffer(sys->ctxt, picking->framebuffer.buffer));
   RBI(&sys->rb, bind_program(sys->ctxt, picking->shading.program));
   RDR(draw_world(world, &pick_view, &draw_desc));
@@ -167,27 +158,13 @@ draw_picked_imdraw
    struct rdr_picking* picking,
    struct rdr_imdraw_command_buffer* cmdbuf)
 {
-  const struct rb_clear_framebuffer_color_desc clear_desc = {
-    .index = 0,
-    .val = { .rgba_ui32 = { UINT32_MAX, UINT32_MAX, UINT32_MAX, UINT32_MAX } }
-  };
-
   assert(sys && picking);
-
-  /* Draw the world into the picking buffer. */
-  RBI(&sys->rb, clear_framebuffer_render_targets
-    (picking->framebuffer.buffer,
-     RB_CLEAR_COLOR_BIT | RB_CLEAR_DEPTH_BIT,
-     1, &clear_desc, 1.f, 0));
-
   RBI(&sys->rb, bind_framebuffer(sys->ctxt, picking->framebuffer.buffer));
   RBI(&sys->rb, bind_program(sys->ctxt, picking->shading.program));
   RDR(execute_imdraw_command_buffer(cmdbuf, RDR_IMDRAW_EXEC_FLAG_PICKING));
   RBI(&sys->rb, bind_framebuffer(sys->ctxt, NULL));
   RBI(&sys->rb, bind_program(sys->ctxt, NULL));
-
   return RDR_NO_ERROR;
-
 }
 
 static FINLINE void
@@ -250,7 +227,6 @@ read_back_picking_buffer
 
   /* Read back pick content. */
   pick_id_list = result_get_buffer(&picking->result);
-  SL(clear_vector(pick_id_list));
   SL(vector_push_back_n
     (pick_id_list,
      blit_size[0] * blit_size[1],
@@ -596,7 +572,35 @@ rdr_free_picking(struct rdr_system* sys, struct rdr_picking* picking)
 }
 
 enum rdr_error
-rdr_pick
+rdr_pick_clear(struct rdr_system* sys, struct rdr_picking* picking)
+{
+  const struct rb_clear_framebuffer_color_desc clear_desc = {
+    .index = 0,
+    .val = { .rgba_ui32 = { UINT32_MAX, UINT32_MAX, UINT32_MAX, UINT32_MAX } }
+  };
+  enum rdr_error rdr_err = RDR_NO_ERROR;
+
+  if(UNLIKELY(!sys || !picking)) {
+    rdr_err = RDR_INVALID_ARGUMENT;
+    goto error;
+  }
+
+  /* Clear currently bound result buffer */
+  SL(clear_vector(result_get_buffer(&picking->result)));
+  /* Clear picking framebuffer */
+  RBI(&sys->rb, clear_framebuffer_render_targets
+    (picking->framebuffer.buffer,
+     RB_CLEAR_COLOR_BIT | RB_CLEAR_DEPTH_BIT,
+     1, &clear_desc, 1.f, 0));
+
+exit:
+  return rdr_err;
+error:
+  goto exit;
+}
+
+enum rdr_error
+rdr_pick_world
   (struct rdr_system* sys,
    struct rdr_picking* picking,
    struct rdr_world* world,
@@ -624,9 +628,6 @@ rdr_pick
 exit:
   return rdr_err;
 error:
-  if(sys && picking) {
-    SL(clear_vector(result_get_buffer(&picking->result)));
-  }
   goto exit;
 }
 
@@ -655,9 +656,6 @@ rdr_pick_imdraw
 exit:
   return rdr_err;
 error:
-  if(sys && picking) {
-    SL(clear_vector(result_get_buffer(&picking->result)));
-  }
   goto exit;
 }
 

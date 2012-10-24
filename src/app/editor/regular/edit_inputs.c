@@ -1,5 +1,6 @@
 #include "app/core/app.h"
 #include "app/core/app_cvar.h"
+#include "app/core/app_imdraw.h"
 #include "app/core/app_view.h"
 #include "app/core/app_world.h"
 #include "app/editor/regular/edit_context_c.h"
@@ -32,9 +33,15 @@ invoke_picking(struct edit_context* ctxt)
   APP(get_main_world(ctxt->app, &world));
   APP(get_main_view(ctxt->app, &view));
   WM(get_mouse_position(wm, &x, &y));
+
+  APP(clear_picking(ctxt->app));
   APP(world_pick
     (world,
      view,
+     (const unsigned int[]){x, y},
+     (const unsigned int[]){1, 1}));
+  APP(imdraw_pick
+    (ctxt->app, 
      (const unsigned int[]){x, y},
      (const unsigned int[]){1, 1}));
 }
@@ -176,7 +183,7 @@ mouse_wheel_clbk(int pos, void* data)
     ctxt->states.mouse_wheel = pos;
     ctxt->inputs.updated = true;
 
-    /* With a sensitivity of 1 the camera zoom of 10 WORLD_UNIT per wheel pos. */
+    /* With a sensitivity of 1 the camera zoom of 10 WORLD_UNIT per wheel pos */
     ctxt->inputs.view_translation[2] += zoom * 10 * WORLD_UNIT * sensitivity;
   }
 }

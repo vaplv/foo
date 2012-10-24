@@ -81,7 +81,7 @@ enum app_error
 app_imdraw_parallelepiped
   (struct app* app,
    const int flag,
-   const uint32_t pick_id,
+   const uint32_t in_pick_id,
    const float pos[3],
    const float size[3],
    const float rotation[3],
@@ -89,6 +89,9 @@ app_imdraw_parallelepiped
    const float wire_color[4])
 {
   struct rdr_view render_view;
+  const uint32_t pick_id = in_pick_id >= APP_PICK_ID_MAX 
+    ? APP_PICK_NONE 
+    : APP_PICK(in_pick_id, APP_PICK_GROUP_IMDRAW);
   enum app_error app_err = APP_NO_ERROR;
   enum rdr_error rdr_err = RDR_NO_ERROR;
   memset(&render_view, 0, sizeof(render_view));
@@ -122,13 +125,16 @@ enum app_error
 app_imdraw_ellipse
   (struct app* app,
    const int flag,
-   const uint32_t pick_id,
+   const uint32_t in_pick_id,
    const float pos[3],
    const float size[2],
    const float rotation[3],
    const float color[4])
 {
   struct rdr_view render_view;
+  const uint32_t pick_id = in_pick_id >= APP_PICK_ID_MAX 
+    ? APP_PICK_NONE 
+    : APP_PICK(in_pick_id, APP_PICK_GROUP_IMDRAW);
   enum app_error app_err = APP_NO_ERROR;
   enum rdr_error rdr_err = RDR_NO_ERROR;
   memset(&render_view, 0, sizeof(render_view));
@@ -161,7 +167,7 @@ enum app_error
 app_imdraw_grid
   (struct app* app,
    const int flag,
-   const uint32_t pick_id,
+   const uint32_t in_pick_id,
    const float pos[3],
    const float size[2],
    const float rotation[3],
@@ -173,6 +179,9 @@ app_imdraw_grid
    const float haxis_color[3])
 {
   struct rdr_view render_view;
+  const uint32_t pick_id = in_pick_id >= APP_PICK_ID_MAX 
+    ? APP_PICK_NONE 
+    : APP_PICK(in_pick_id, APP_PICK_GROUP_IMDRAW);
   enum app_error app_err = APP_NO_ERROR;
   enum rdr_error rdr_err = RDR_NO_ERROR;
   memset(&render_view, 0, sizeof(render_view));
@@ -220,7 +229,7 @@ enum app_error
 app_imdraw_vector
   (struct app* app,
    const int flag,
-   const uint32_t pick_id,
+   const uint32_t in_pick_id,
    const enum app_im_vector_marker start_marker,
    const enum app_im_vector_marker end_marker,
    const float start[3],
@@ -228,6 +237,9 @@ app_imdraw_vector
    const float color[3])
 {
   struct rdr_view render_view;
+  const uint32_t pick_id = in_pick_id >= APP_PICK_ID_MAX 
+    ? APP_PICK_NONE 
+    : APP_PICK(in_pick_id, APP_PICK_GROUP_IMDRAW);
   enum app_error app_err = APP_NO_ERROR;
   enum rdr_error rdr_err = RDR_NO_ERROR;
   memset(&render_view, 0, sizeof(render_view));
@@ -247,6 +259,30 @@ app_imdraw_vector
      start,
      end,
      color);
+  if(rdr_err != RDR_NO_ERROR) {
+    app_err = rdr_to_app_error(rdr_err);
+    goto error;
+  }
+exit:
+  return app_err;
+error:
+  goto exit;
+}
+
+enum app_error
+app_imdraw_pick
+  (struct app* app,
+   const unsigned int pos[2],
+   const unsigned int size[2])
+{
+  enum app_error app_err = APP_NO_ERROR;
+  enum rdr_error rdr_err = RDR_NO_ERROR;
+
+  if(UNLIKELY(!app || !pos || !size)) {
+    app_err = APP_INVALID_ARGUMENT;
+    goto error;
+  }
+  rdr_err = rdr_frame_pick_imdraw(app->rdr.frame, pos, size);
   if(rdr_err != RDR_NO_ERROR) {
     app_err = rdr_to_app_error(rdr_err);
     goto error;

@@ -243,7 +243,7 @@ dispatch_uniform_data
    const struct aosf44* transform,
    const struct aosf44* view_matrix,
    const struct aosf44* proj_matrix,
-   const size_t pick_id)
+   const uint32_t pick_id)
 {
   struct aosf44 tmp_mat44;
   ALIGN(16) float mat[16];
@@ -260,13 +260,6 @@ dispatch_uniform_data
     do { \
       if(0 != func) { \
         rdr_err = RDR_DRIVER_ERROR; \
-        goto error; \
-      } \
-    } while(0)
-  #define CHECK_PICK_ID_UNFORM(id) \
-    do { \
-      if(id > UINT32_MAX) { \
-        rdr_err = RDR_OVERFLOW_ERROR; \
         goto error; \
       } \
     } while(0)
@@ -297,9 +290,7 @@ dispatch_uniform_data
           CALL(sys->rb.uniform_data(uniform_list[i].uniform, 1, mat));
           break;
         case RDR_PICK_ID_UNIFORM:
-          CHECK_PICK_ID_UNFORM(pick_id);
-          CALL(sys->rb.uniform_data
-            (uniform_list[i].uniform, 1, (uint32_t[]){(uint32_t)pick_id}));
+          CALL(sys->rb.uniform_data(uniform_list[i].uniform, 1, &pick_id));
           break;
         case RDR_REGULAR_UNIFORM: /* nothing */ break;
         default: assert(false); break;
@@ -334,8 +325,7 @@ dispatch_uniform_data
           memcpy(data, mat, sizeof(mat));
           break;
         case RDR_PICK_ID_UNIFORM:
-          CHECK_PICK_ID_UNFORM(pick_id);
-          memcpy(data, (uint32_t[]){(uint32_t)pick_id}, sizeof(uint32_t));
+          memcpy(data, &pick_id, sizeof(uint32_t));
           break;
         case RDR_REGULAR_UNIFORM: /* nothing */ break;
         default: assert(false); break;

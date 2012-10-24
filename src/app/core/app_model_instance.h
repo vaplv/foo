@@ -111,11 +111,6 @@ app_get_model_instance_obb /* OBB <=> Object Bounding Box. */
    float extend_z[3]);
 
 APP_API enum app_error
-app_set_model_instance_pick_id
-  (struct app_model_instance* instance,
-   const uint32_t pick_id);
-
-APP_API enum app_error
 app_get_model_instance_list_begin
   (struct app* app,
    struct app_model_instance_it* it,

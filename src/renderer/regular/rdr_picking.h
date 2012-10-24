@@ -27,7 +27,12 @@ rdr_free_picking
    struct rdr_picking* picking);
 
 LOCAL_SYM enum rdr_error
-rdr_pick
+rdr_pick_clear
+  (struct rdr_system* sys,
+   struct rdr_picking* picking);
+
+LOCAL_SYM enum rdr_error
+rdr_pick_world
   (struct rdr_system* sys,
    struct rdr_picking* picking,
    struct rdr_world* world,

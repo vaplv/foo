@@ -1071,23 +1071,22 @@ app_is_term_enabled(struct app* app, bool* is_enabled)
 }
 
 enum app_error
-app_pick_imdraw
-  (struct app* app,
-   const unsigned int pos[2],
-   const unsigned int size[2])
+app_clear_picking(struct app* app)
 {
   enum app_error app_err = APP_NO_ERROR;
   enum rdr_error rdr_err = RDR_NO_ERROR;
 
-  if(UNLIKELY(!app || !pos || !size)) {
+  if(UNLIKELY(!app)) {
     app_err = APP_INVALID_ARGUMENT;
     goto error;
   }
-  rdr_err = rdr_frame_pick_imdraw(app->rdr.frame, pos, size);
+
+  rdr_err = rdr_frame_clear_picking(app->rdr.frame);
   if(rdr_err != RDR_NO_ERROR) {
     app_err = rdr_to_app_error(rdr_err);
     goto error;
   }
+
 exit:
   return app_err;
 error:
@@ -1098,7 +1097,7 @@ enum app_error
 app_poll_picking
   (struct app* app,
    size_t* count,
-   const uint32_t* model_instance_id_list[])
+   const app_pick_t* model_instance_id_list[])
 {
   enum rdr_error rdr_err = RDR_NO_ERROR;
   if(UNLIKELY(!app || !count || !model_instance_id_list))

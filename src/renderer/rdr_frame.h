@@ -143,6 +143,10 @@ rdr_frame_pick_imdraw
    const unsigned int size[2]); /* In pixels */
 
 RDR_API enum rdr_error
+rdr_frame_clear_picking
+  (struct rdr_frame* frame);
+
+RDR_API enum rdr_error
 rdr_frame_poll_picking
   (struct rdr_frame* frame,
    size_t* count,

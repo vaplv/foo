@@ -46,5 +46,10 @@ LOCAL_SYM struct app_model_instance*
 app_object_to_model_instance
   (struct app_object* obj);
 
+LOCAL_SYM enum app_error
+app_set_model_instance_pick_id
+  (struct app_model_instance* instance,
+   const uint32_t pick_id);
+
 #endif /* APP_MODEL_INSTANCE_C_H. */
 

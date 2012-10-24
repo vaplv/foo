@@ -36,6 +36,9 @@ app_error_string(enum app_error err)
     case APP_NO_ERROR:
       out_str = "no error";
       break;
+    case APP_OVERFLOW_ERROR:
+      out_str = "overflow error";
+      break;
     case APP_RENDER_DRIVER_ERROR:
       out_str = "render driver error";
       break;
@@ -69,7 +72,7 @@ sl_to_app_error(enum sl_error err)
       app_err = APP_MEMORY_ERROR;
       break;
     case SL_OVERFLOW_ERROR:
-      app_err = APP_INTERNAL_ERROR;
+      app_err = APP_OVERFLOW_ERROR;
       break;
     case SL_NO_ERROR:
       app_err = APP_NO_ERROR;

@@ -72,6 +72,7 @@ wm_create_device
   }
   glfwOpenWindowHint(GLFW_VERSION_MAJOR, 3);
   glfwOpenWindowHint(GLFW_VERSION_MINOR, 3);
+  glfwOpenWindowHint(GLFW_WINDOW_NO_RESIZE, GL_TRUE);
 
   err = wm_init_inputs(device);
   if(err != WM_NO_ERROR)

@@ -1,6 +1,7 @@
 #ifndef APP_CORE_H
 #define APP_CORE_H
 
+#include "app/core/app_pick_id.h"
 #include "app/core/app_error.h"
 #include <stdbool.h>
 #include <stddef.h>
@@ -131,20 +132,16 @@ app_is_term_enabled
   (struct app* app,
    bool* is_enabled);
 
-/* Invoke picking on actually enqueud imdraw commands */
 APP_API enum app_error
-app_pick_imdraw
-  (struct app* app,
-   const unsigned int pos[2],
-   const unsigned int size[2]);
+app_clear_picking
+  (struct app* app);
 
 /* Retrieve the picked id of the main world */
 APP_API enum app_error
 app_poll_picking
   (struct app* app,
    size_t* count,
-   const uint32_t* model_instance_id_list[]);
-
+   const app_pick_t* model_instance_id_list[]);
 
 #endif /* APP_CORE_H */
 
