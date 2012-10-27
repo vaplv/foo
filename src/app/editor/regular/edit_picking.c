@@ -6,6 +6,17 @@
 #include "app/editor/regular/edit_picking.h"
 #include "app/editor/edit_model_instance_selection.h"
 
+/*******************************************************************************
+ *
+ * Helper functions
+ *
+ ******************************************************************************/
+
+/*******************************************************************************
+ *
+ * Picking functions
+ *
+ ******************************************************************************/
 enum edit_error
 edit_process_picking(struct edit_context* ctxt)
 {
@@ -71,3 +82,4 @@ exit:
 error:
   goto exit;
 }
+

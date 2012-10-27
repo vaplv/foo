@@ -5,13 +5,6 @@
 #include "app/editor/edit_error.h"
 #include <stdbool.h>
 
-#ifndef NDEBUG
-  #include <assert.h>
-  #define EDIT(func) assert(EDIT_NO_ERROR == edit_##func)
-#else
-  #define EDIT(func) edit_##func
-#endif /* NDEBUG */
-
 struct app;
 struct edit_context;
 struct mem_allocator;

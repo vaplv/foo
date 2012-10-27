@@ -37,7 +37,7 @@ release_context(struct ref* ref)
     EDIT(regular_model_instance_selection_ref_put(ctxt->instance_selection));
 
   EDIT(release_inputs(ctxt));
-  EDIT(release_cvars(ctxt));
+  EDIT(release_cvars(ctxt->app, &ctxt->cvars));
   EDIT(release_move_commands(ctxt));
   EDIT(release_object_management_commands(ctxt));
   EDIT(release_load_save_commands(ctxt));
@@ -81,7 +81,7 @@ edit_create_context
   #define CALL(func) if(EDIT_NO_ERROR != (edit_err = func)) goto error
   CALL(edit_regular_create_model_instance_selection
     (ctxt, &ctxt->instance_selection));
-  CALL(edit_setup_cvars(ctxt));
+  CALL(edit_setup_cvars(ctxt->app, &ctxt->cvars));
   CALL(edit_setup_move_commands(ctxt));
   CALL(edit_setup_object_management_commands(ctxt));
   CALL(edit_setup_load_save_commands(ctxt));

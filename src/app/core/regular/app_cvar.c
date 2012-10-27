@@ -131,7 +131,7 @@ release_builtin_cvars(struct app* app)
     APP(get_cvar(app, STR(name), &cvar)); \
     if(cvar != NULL) { \
       APP(del_cvar(app, STR(name))); \
-    } \
+    }
 
   #include "app/core/regular/app_cvars_decl.h"
 
@@ -377,11 +377,12 @@ app_shutdown_cvar_system(struct app* app)
     goto error;
   }
 
-  app_err = release_builtin_cvars(app);
-  if(app_err != APP_NO_ERROR)
-    goto error;
-
   if(app->cvar_system.map) {
+
+    app_err = release_builtin_cvars(app);
+    if(app_err != APP_NO_ERROR)
+      goto error;
+
     SL(flat_map_key_buffer
        (app->cvar_system.map, &len, NULL, NULL, (void**)&name_list));
     SL(flat_map_data_buffer
