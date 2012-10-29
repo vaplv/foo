@@ -82,6 +82,8 @@ key_clbk(enum wm_key key, enum wm_state state, void* data)
         break;
       case WM_KEY_P:
         inputs->context.entity_transform_flag = EDIT_TRANSFORM_NONE;
+      case WM_KEY_LCTRL:
+      case WM_KEY_RCTRL:
         inputs->context.in_selection = true;
         break;
       default: /* Do nothing */ break;
