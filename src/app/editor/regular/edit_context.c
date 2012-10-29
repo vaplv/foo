@@ -35,9 +35,12 @@ release_context(struct ref* ref)
 
   if(ctxt->instance_selection)
     EDIT(regular_model_instance_selection_ref_put(ctxt->instance_selection));
+  if(ctxt->inputs)
+    EDIT(inputs_ref_put(ctxt->inputs));
 
-  EDIT(release_inputs(ctxt));
   EDIT(release_cvars(ctxt->app, &ctxt->cvars));
+
+  /* Release edit builtin commands */
   EDIT(release_move_commands(ctxt));
   EDIT(release_object_management_commands(ctxt));
   EDIT(release_load_save_commands(ctxt));
@@ -81,6 +84,7 @@ edit_create_context
   #define CALL(func) if(EDIT_NO_ERROR != (edit_err = func)) goto error
   CALL(edit_regular_create_model_instance_selection
     (ctxt, &ctxt->instance_selection));
+  CALL(edit_create_inputs(ctxt->app, ctxt->allocator, &ctxt->inputs));
   CALL(edit_setup_cvars(ctxt->app, &ctxt->cvars));
   CALL(edit_setup_move_commands(ctxt));
   CALL(edit_setup_object_management_commands(ctxt));
@@ -158,13 +162,22 @@ edit_run(struct edit_context* ctxt)
   /* Process inputs. */
   if(ctxt->process_inputs) {
     struct app_view* view = NULL;
+    struct aosf44 view_transform;
+    const struct edit_inputs_config_desc inputs_cfg_desc = {
+      .mouse_sensitivity = ctxt->cvars.mouse_sensitivity->value.real
+    };
 
-    edit_err = edit_process_inputs(ctxt);
-    if(edit_err != EDIT_NO_ERROR)
+    edit_err = edit_inputs_config_set(ctxt->inputs, &inputs_cfg_desc);
+    if(UNLIKELY(edit_err != EDIT_NO_ERROR))
       goto error;
 
+    edit_err = edit_inputs_flush_commands(ctxt->inputs);
+    if(UNLIKELY(edit_err != EDIT_NO_ERROR))
+      goto error;
+
+    EDIT(inputs_get_view_transform(ctxt->inputs, &view_transform));
     APP(get_main_view(ctxt->app, &view));
-    APP(raw_view_transform(view, &ctxt->view.transform));
+    APP(raw_view_transform(view, &view_transform));
   }
 
   edit_err = edit_process_picking(ctxt);
@@ -186,15 +199,12 @@ edit_enable_inputs(struct edit_context* ctxt, bool is_enable)
      edit_err = EDIT_INVALID_ARGUMENT;
      goto error;
   }
-
   if(ctxt->process_inputs != is_enable) {
     if(is_enable) {
-      edit_err = edit_init_inputs(ctxt);
+      EDIT(inputs_enable(ctxt->inputs));
     } else {
-      edit_err = edit_release_inputs(ctxt);
+      EDIT(inputs_disable(ctxt->inputs));
     }
-    if(edit_err != EDIT_NO_ERROR)
-      goto error;
     ctxt->process_inputs = is_enable;
   }
 exit:

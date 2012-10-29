@@ -17,18 +17,13 @@ struct edit_model_instance_selection;
 struct mem_allocator;
 
 ALIGN(16) struct edit_context {
-  struct view {
-    struct aosf44 transform;
-  } view;
   struct ref ref;
   struct app* app;
   struct mem_allocator* allocator;
   struct edit_model_instance_selection* instance_selection;
-  bool process_inputs; /* Define if the input events are intercepted */
-
-  struct edit_inputs inputs;
-  struct edit_states states; /* States of the context */
+  struct edit_inputs* inputs;
   struct edit_cvars cvars; 
+  bool process_inputs; /* Define if the input events are intercepted  */
 };
 
 

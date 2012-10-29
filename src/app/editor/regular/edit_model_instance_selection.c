@@ -86,7 +86,7 @@ release_regular_model_instance_selection(struct ref* ref)
   MEM_FREE(selection->ctxt->allocator, selection);
 }
 
-static void
+/*static void
 draw_tool(struct edit_context* ctxt, float pos[3])
 {
   const float size = 0.2f;
@@ -116,7 +116,7 @@ draw_tool(struct edit_context* ctxt, float pos[3])
     EDIT(draw_pivot
       (ctxt, pos, 0.05f, ctxt->cvars.pivot_color->value.real3));
   }
-}
+} */
 
 static void
 release_model_instance_selection(struct ref* ref)
@@ -561,7 +561,7 @@ edit_draw_model_instance_selection
      (float[]){0.f, 0.f, 0.f, 0.f}, /* Solid color */
      (float[]){0.75f, 0.75f, 0.75f, 1.f})); /* Wire color */
 
-  draw_tool(selection->ctxt, pivot);
+//  draw_tool(selection->ctxt, pivot);
 
 exit:
   return edit_err;

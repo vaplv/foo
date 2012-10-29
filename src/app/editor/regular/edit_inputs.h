@@ -18,35 +18,54 @@ enum edit_transform_flag {
   EDIT_TRANSFORM_TRANSLATE = BIT(2)
 };
 
-/* List of states of the context */
-struct edit_states {
-  enum edit_transform_space transform_space;
-  int entity_transform_flag; /* combination of edit_transform_flag */
-  int view_transform_flag; /* combination of edit_transform_flag */
-  int mouse_cursor[2];
-  int mouse_wheel;
-  bool in_selection; /* Define if selection mode is enabled */
+struct edit_inputs_config_desc {
+  float mouse_sensitivity;
 };
 
-struct edit_inputs {
-  float view_translation[3];
-  float view_rotation[3];
-  bool updated;
-};
-
-struct edit_context;
+struct aosf44;
+struct edit_inputs;
+struct mem_allocator;
 
 LOCAL_SYM enum edit_error
-edit_init_inputs
-  (struct edit_context* ctxt);
+edit_create_inputs
+  (struct app* app,
+   struct mem_allocator* allocator,
+   struct edit_inputs** input);
 
 LOCAL_SYM enum edit_error
-edit_release_inputs
-  (struct edit_context* ctxt);
+edit_inputs_ref_get
+  (struct edit_inputs* input);
 
 LOCAL_SYM enum edit_error
-edit_process_inputs
-  (struct edit_context* ctxt);
+edit_inputs_ref_put
+  (struct edit_inputs* input);
+
+LOCAL_SYM enum edit_error
+edit_inputs_enable
+  (struct edit_inputs* input);
+ 
+LOCAL_SYM enum edit_error
+edit_inputs_disable
+  (struct edit_inputs* input);
+
+LOCAL_SYM enum edit_error
+edit_inputs_flush_commands
+  (struct edit_inputs* input);
+
+LOCAL_SYM enum edit_error
+edit_inputs_config_set
+  (struct edit_inputs* input,
+   const struct edit_inputs_config_desc* desc);
+
+LOCAL_SYM enum edit_error
+edit_inputs_config_get
+  (struct edit_inputs* input,
+   struct edit_inputs_config_desc* desc);
+
+LOCAL_SYM enum edit_error
+edit_inputs_get_view_transform
+  (struct edit_inputs* input,
+   struct aosf44* view_transform);
 
 #endif /* EDIT_INPUTS_H */
 
