@@ -101,7 +101,34 @@ draw_tools(struct edit_context* ctxt)
       (ctxt, pivot_pos, 0.05f, ctxt->cvars.pivot_color->value.real3));
   }
 }
-  
+
+static void
+process_inputs(struct edit_context* ctxt)
+{
+  bool is_enabled = false;
+  assert(ctxt);
+
+  EDIT(inputs_is_enabled(ctxt->inputs, &is_enabled));
+  if(is_enabled) {
+    struct app_view* view = NULL;
+    struct aosf44 view_transform;
+    struct edit_inputs_config_desc inputs_cfg;
+
+    /* Update inputs configuration */
+    EDIT(inputs_get_config(ctxt->inputs, &inputs_cfg));
+    inputs_cfg.mouse_sensitivity = ctxt->cvars.mouse_sensitivity->value.real;
+    EDIT(inputs_set_config(ctxt->inputs, &inputs_cfg));
+
+    /* Process inputs commands */
+    EDIT(inputs_flush_commands(ctxt->inputs));
+
+    /* Update main view */
+    EDIT(inputs_get_view_transform(ctxt->inputs, &view_transform));
+    APP(get_main_view(ctxt->app, &view));
+    APP(raw_view_transform(view, &view_transform));
+  }
+}
+
 static void
 release_context(struct ref* ref)
 {
@@ -213,26 +240,7 @@ edit_run(struct edit_context* ctxt)
   draw_selection(ctxt);
   draw_tools(ctxt);
 
-  /* Process inputs. */
-  if(ctxt->process_inputs) {
-    struct app_view* view = NULL;
-    struct aosf44 view_transform;
-    const struct edit_inputs_config_desc inputs_cfg_desc = {
-      .mouse_sensitivity = ctxt->cvars.mouse_sensitivity->value.real
-    };
-
-    edit_err = edit_inputs_config_set(ctxt->inputs, &inputs_cfg_desc);
-    if(UNLIKELY(edit_err != EDIT_NO_ERROR))
-      goto error;
-
-    edit_err = edit_inputs_flush_commands(ctxt->inputs);
-    if(UNLIKELY(edit_err != EDIT_NO_ERROR))
-      goto error;
-
-    EDIT(inputs_get_view_transform(ctxt->inputs, &view_transform));
-    APP(get_main_view(ctxt->app, &view));
-    APP(raw_view_transform(view, &view_transform));
-  }
+  process_inputs(ctxt);
 
   edit_err = edit_process_picking(ctxt);
   if(edit_err != EDIT_NO_ERROR)
@@ -247,23 +255,15 @@ error:
 EXPORT_SYM enum edit_error
 edit_enable_inputs(struct edit_context* ctxt, bool is_enable)
 {
-  enum edit_error edit_err = EDIT_NO_ERROR;
+  if(UNLIKELY(!ctxt))
+     return EDIT_INVALID_ARGUMENT;
 
-  if(UNLIKELY(!ctxt)) {
-     edit_err = EDIT_INVALID_ARGUMENT;
-     goto error;
+  if(is_enable) {
+    EDIT(inputs_enable(ctxt->inputs));
+  } else {
+    EDIT(inputs_disable(ctxt->inputs));
   }
-  if(ctxt->process_inputs != is_enable) {
-    if(is_enable) {
-      EDIT(inputs_enable(ctxt->inputs));
-    } else {
-      EDIT(inputs_disable(ctxt->inputs));
-    }
-    ctxt->process_inputs = is_enable;
-  }
-exit:
-  return edit_err;
-error:
-  goto exit;
+
+  return EDIT_NO_ERROR;
 }
 

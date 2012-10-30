@@ -23,7 +23,6 @@ ALIGN(16) struct edit_context {
   struct edit_model_instance_selection* instance_selection;
   struct edit_inputs* inputs;
   struct edit_cvars cvars; 
-  bool process_inputs; /* Define if the input events are intercepted  */
 };
 
 

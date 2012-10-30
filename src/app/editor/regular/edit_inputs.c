@@ -43,6 +43,7 @@ struct edit_inputs {
   struct app* app;
   struct mem_allocator* allocator;
   struct ref ref;
+  bool is_enabled;
 };
 
 #define WORLD_UNIT 1
@@ -312,13 +313,12 @@ enum edit_error
 edit_inputs_enable(struct edit_inputs* inputs)
 {
   struct wm_device* wm = NULL;
-  enum edit_error edit_err = EDIT_NO_ERROR;
-  enum wm_error wm_err = WM_NO_ERROR;
 
-  if(UNLIKELY(!inputs)) {
-    edit_err = EDIT_INVALID_ARGUMENT;
-    goto error;
-  }
+  if(UNLIKELY(!inputs))
+    return EDIT_INVALID_ARGUMENT;
+
+  if(inputs->is_enabled == true)
+    return EDIT_NO_ERROR;
 
   APP(get_window_manager_device(inputs->app, &wm));
 
@@ -328,11 +328,7 @@ edit_inputs_enable(struct edit_inputs* inputs)
       WM(is_##name##_callback_attached \
          (wm, name##_clbk, inputs, &is_##name##_clbk_attached)); \
       if(!is_##name##_clbk_attached) { \
-        wm_err = wm_attach_##name##_callback(wm, name##_clbk, inputs); \
-        if(UNLIKELY(wm_err != WM_NO_ERROR)) { \
-          edit_err = wm_to_edit_error(wm_err); \
-          goto error; \
-        } \
+        WM(attach_##name##_callback(wm, name##_clbk, inputs)); \
       } \
     } while(0)
   ATTACH_CLBK(key);
@@ -346,23 +342,21 @@ edit_inputs_enable(struct edit_inputs* inputs)
   WM(get_mouse_position
     (wm, inputs->context.mouse.cursor + 0, inputs->context.mouse.cursor + 1));
 
-exit:
-  return edit_err;
-error:
-  goto exit;
+  inputs->is_enabled = true;
+
+  return EDIT_NO_ERROR;
 }
 
 enum edit_error
 edit_inputs_disable(struct edit_inputs* inputs)
 {
-struct wm_device* wm = NULL;
-  enum edit_error edit_err = EDIT_NO_ERROR;
-  enum wm_error wm_err = WM_NO_ERROR;
+  struct wm_device* wm = NULL;
 
-  if(UNLIKELY(!inputs)) {
-    edit_err = EDIT_INVALID_ARGUMENT;
-    goto error;
-  }
+  if(UNLIKELY(!inputs))
+    return EDIT_INVALID_ARGUMENT;
+
+  if(inputs->is_enabled == false)
+    return EDIT_NO_ERROR;
 
   APP(get_window_manager_device(inputs->app, &wm));
 
@@ -372,11 +366,7 @@ struct wm_device* wm = NULL;
       WM(is_##name##_callback_attached \
          (wm, name##_clbk, inputs, &is_##name##_clbk_attached)); \
       if(is_##name##_clbk_attached) { \
-        wm_err = wm_detach_##name##_callback(wm, name##_clbk, inputs); \
-        if(UNLIKELY(wm_err != WM_NO_ERROR)) { \
-          edit_err = wm_to_edit_error(wm_err); \
-          goto error; \
-        } \
+        WM(detach_##name##_callback(wm, name##_clbk, inputs)); \
       } \
     } while(0)
   DETACH_CLBK(key);
@@ -385,10 +375,18 @@ struct wm_device* wm = NULL;
   DETACH_CLBK(mouse_wheel);
   #undef DETACH_CLBK
 
-exit:
-  return edit_err;
-error:
-  goto exit;
+  inputs->is_enabled = false;
+
+  return EDIT_NO_ERROR;
+}
+
+enum edit_error
+edit_inputs_is_enabled(struct edit_inputs* inputs, bool* is_enabled)
+{
+  if(UNLIKELY(!inputs || !is_enabled))
+    return EDIT_INVALID_ARGUMENT;
+  *is_enabled = inputs->is_enabled;
+  return EDIT_NO_ERROR;
 }
 
 enum edit_error
@@ -452,7 +450,7 @@ edit_inputs_flush_commands(struct edit_inputs* inputs)
 }
 
 enum edit_error
-edit_inputs_config_set
+edit_inputs_set_config
   (struct edit_inputs* input,
    const struct edit_inputs_config_desc* desc)
 {
@@ -463,7 +461,7 @@ edit_inputs_config_set
 }
 
 enum edit_error
-edit_inputs_config_get
+edit_inputs_get_config
   (struct edit_inputs* input,
    struct edit_inputs_config_desc* desc)
 {

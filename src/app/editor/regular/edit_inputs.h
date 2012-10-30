@@ -47,18 +47,23 @@ edit_inputs_enable
 LOCAL_SYM enum edit_error
 edit_inputs_disable
   (struct edit_inputs* input);
+ 
+LOCAL_SYM enum edit_error
+edit_inputs_is_enabled
+  (struct edit_inputs* input,
+   bool* is_enabled);
 
 LOCAL_SYM enum edit_error
 edit_inputs_flush_commands
   (struct edit_inputs* input);
 
 LOCAL_SYM enum edit_error
-edit_inputs_config_set
+edit_inputs_set_config
   (struct edit_inputs* input,
    const struct edit_inputs_config_desc* desc);
 
 LOCAL_SYM enum edit_error
-edit_inputs_config_get
+edit_inputs_get_config
   (struct edit_inputs* input,
    struct edit_inputs_config_desc* desc);
 
