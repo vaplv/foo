@@ -5,7 +5,6 @@
 #include "app/editor/regular/edit_context_c.h"
 #include "app/editor/regular/edit_error_c.h"
 #include "app/editor/regular/edit_model_instance_selection_c.h"
-#include "app/editor/regular/edit_tools.h"
 #include "app/editor/edit_context.h"
 #include "app/editor/edit_model_instance_selection.h"
 #include "maths/simd/aosf33.h"
@@ -85,38 +84,6 @@ release_regular_model_instance_selection(struct ref* ref)
   }
   MEM_FREE(selection->ctxt->allocator, selection);
 }
-
-/*static void
-draw_tool(struct edit_context* ctxt, float pos[3])
-{
-  const float size = 0.2f;
-
-  if(ctxt->states.entity_transform_flag & EDIT_TRANSFORM_SCALE) {
-    EDIT(draw_scale_tool
-      (ctxt, pos, size,
-       (float[]){1.f, 0.f, 0.f},
-       (float[]){0.f, 1.f, 0.f},
-       (float[]){0.f, 0.f, 1.f}));
-  }
-  if(ctxt->states.entity_transform_flag & EDIT_TRANSFORM_TRANSLATE) {
-    EDIT(draw_translate_tool
-      (ctxt, pos, size,
-       (float[]){1.f, 0.f, 0.f},
-       (float[]){0.f, 1.f, 0.f},
-       (float[]){0.f, 0.f, 1.f}));
-  }
-  if(ctxt->states.entity_transform_flag & EDIT_TRANSFORM_ROTATE) {
-    EDIT(draw_rotate_tool
-      (ctxt, pos, size,
-       (float[]){1.f, 0.f, 0.f},
-       (float[]){0.f, 1.f, 0.f},
-       (float[]){0.f, 0.f, 1.f}));
-  }
-  if(ctxt->states.entity_transform_flag == EDIT_TRANSFORM_NONE) {
-    EDIT(draw_pivot
-      (ctxt, pos, 0.05f, ctxt->cvars.pivot_color->value.real3));
-  }
-} */
 
 static void
 release_model_instance_selection(struct ref* ref)
@@ -560,8 +527,6 @@ edit_draw_model_instance_selection
      (float[]){0.f, 0.f, 0.f}, /* Rotation */
      (float[]){0.f, 0.f, 0.f, 0.f}, /* Solid color */
      (float[]){0.75f, 0.75f, 0.75f, 1.f})); /* Wire color */
-
-//  draw_tool(selection->ctxt, pivot);
 
 exit:
   return edit_err;

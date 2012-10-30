@@ -47,7 +47,7 @@ struct edit_inputs {
 
 #define WORLD_UNIT 1
 
-static void 
+static void
 invoke_picking(struct edit_inputs* inputs);
 
 /*******************************************************************************
@@ -481,5 +481,16 @@ edit_inputs_get_view_transform
   if(UNLIKELY(!input || !view_transform))
     return EDIT_INVALID_ARGUMENT;
   *view_transform = input->context.view_transform;
+  return EDIT_NO_ERROR;
+}
+
+enum edit_error
+edit_inputs_get_entity_transform_flag
+  (struct edit_inputs* input,
+   int* entity_transform_flag)
+{
+  if(UNLIKELY(!input || !entity_transform_flag))
+    return EDIT_INVALID_ARGUMENT;
+  *entity_transform_flag = input->context.entity_transform_flag;
   return EDIT_NO_ERROR;
 }

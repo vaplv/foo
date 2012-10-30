@@ -11,6 +11,7 @@
 #include "app/editor/regular/edit_move_commands.h"
 #include "app/editor/regular/edit_object_management_commands.h"
 #include "app/editor/regular/edit_picking.h"
+#include "app/editor/regular/edit_tools.h"
 #include "app/editor/edit_context.h"
 #include "app/editor/edit_model_instance_selection.h"
 #include "sys/math.h"
@@ -24,6 +25,83 @@
  * Helper functions.
  *
  ******************************************************************************/
+static inline void
+draw_selection(struct edit_context* ctxt)
+{
+  assert(ctxt);
+  if(true == ctxt->cvars.show_selection->value.boolean) {
+    EDIT(draw_model_instance_selection(ctxt->instance_selection));
+  }
+}
+
+static inline void
+draw_grid(struct edit_context* ctxt)
+{
+  assert(ctxt);
+  if(true == ctxt->cvars.show_grid->value.boolean) {
+    APP(imdraw_grid
+      (ctxt->app,
+       APP_IMDRAW_FLAG_NONE,
+       UINT32_MAX, /* invalid pick_id */
+       (float[]){0.f, 0.f, 0.f}, /* pos */
+       (float[]){
+          ctxt->cvars.grid_size->value.real,
+          ctxt->cvars.grid_size->value.real
+       },
+       (float[]){PI * 0.5f, 0.f, 0.f}, /* rotation */
+       (unsigned int[]){ /* ndiv */
+          ctxt->cvars.grid_ndiv->value.integer,
+          ctxt->cvars.grid_ndiv->value.integer
+       },
+       (unsigned int[]){ /* nsubdiv */
+          ctxt->cvars.grid_nsubdiv->value.integer,
+          ctxt->cvars.grid_nsubdiv->value.integer
+       },
+       (float[]){0.25f, 0.25f, 0.25f}, /* color */
+       (float[]){0.15f, 0.15f, 0.15f}, /* subcolor */
+       (float[]){0.f, 0.f, 1.f}, /* vaxis_color */
+       (float[]){1.f, 0.f, 0.f}));  /* haxis_color */
+  }
+}
+
+static void
+draw_tools(struct edit_context* ctxt)
+{
+  const float size = 0.2f;
+  int transform_flag = EDIT_TRANSFORM_NONE;
+  float pivot_pos[3] = {0.f, 0.f, 0.f};
+  assert(ctxt);
+
+  EDIT(inputs_get_entity_transform_flag(ctxt->inputs, &transform_flag));
+  EDIT(get_model_instance_selection_pivot(ctxt->instance_selection, pivot_pos));
+
+  if(transform_flag & EDIT_TRANSFORM_SCALE) {
+    EDIT(draw_scale_tool
+      (ctxt, pivot_pos, size,
+       (float[]){1.f, 0.f, 0.f},
+       (float[]){0.f, 1.f, 0.f},
+       (float[]){0.f, 0.f, 1.f}));
+  }
+  if(transform_flag & EDIT_TRANSFORM_TRANSLATE) {
+    EDIT(draw_translate_tool
+      (ctxt, pivot_pos, size,
+       (float[]){1.f, 0.f, 0.f},
+       (float[]){0.f, 1.f, 0.f},
+       (float[]){0.f, 0.f, 1.f}));
+  }
+  if(transform_flag & EDIT_TRANSFORM_ROTATE) {
+    EDIT(draw_rotate_tool
+      (ctxt, pivot_pos, size,
+       (float[]){1.f, 0.f, 0.f},
+       (float[]){0.f, 1.f, 0.f},
+       (float[]){0.f, 0.f, 1.f}));
+  }
+  if(transform_flag == EDIT_TRANSFORM_NONE) {
+    EDIT(draw_pivot
+      (ctxt, pivot_pos, 0.05f, ctxt->cvars.pivot_color->value.real3));
+  }
+}
+  
 static void
 release_context(struct ref* ref)
 {
@@ -131,33 +209,9 @@ edit_run(struct edit_context* ctxt)
     goto error;
   }
 
-  /* Draw im geometries. */
-  if(true == ctxt->cvars.show_selection->value.boolean)
-    EDIT(draw_model_instance_selection(ctxt->instance_selection));
-  if(true == ctxt->cvars.show_grid->value.boolean) {
-    APP(imdraw_grid
-      (ctxt->app,
-       APP_IMDRAW_FLAG_NONE,
-       UINT32_MAX, /* invalid pick_id */
-       (float[]){0.f, 0.f, 0.f}, /* pos */
-       (float[]){
-          ctxt->cvars.grid_size->value.real,
-          ctxt->cvars.grid_size->value.real
-       },
-       (float[]){PI * 0.5f, 0.f, 0.f}, /* rotation */
-       (unsigned int[]){ /* ndiv */
-          ctxt->cvars.grid_ndiv->value.integer,
-          ctxt->cvars.grid_ndiv->value.integer
-       },
-       (unsigned int[]){ /* nsubdiv */
-          ctxt->cvars.grid_nsubdiv->value.integer,
-          ctxt->cvars.grid_nsubdiv->value.integer
-       },
-       (float[]){0.25f, 0.25f, 0.25f}, /* color */
-       (float[]){0.15f, 0.15f, 0.15f}, /* subcolor */
-       (float[]){0.f, 0.f, 1.f}, /* vaxis_color */
-       (float[]){1.f, 0.f, 0.f}));  /* haxis_color */
-  }
+  draw_grid(ctxt);
+  draw_selection(ctxt);
+  draw_tools(ctxt);
 
   /* Process inputs. */
   if(ctxt->process_inputs) {

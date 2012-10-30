@@ -67,5 +67,10 @@ edit_inputs_get_view_transform
   (struct edit_inputs* input,
    struct aosf44* view_transform);
 
+LOCAL_SYM enum edit_error
+edit_inputs_get_entity_transform_flag
+  (struct edit_inputs* input,
+   int* entity_transform_flag); /* Combination of edit_transform_flag */
+
 #endif /* EDIT_INPUTS_H */
 
