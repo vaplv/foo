@@ -22,18 +22,17 @@ struct edit_picking {
  *
  ******************************************************************************/
 static size_t
-hash_ptr(const void* ptr)
+hash_uint32(const void* ptr)
 {
-  const void* p = *(const void**)ptr;
-  return sl_hash(p, sizeof(const void*));
+  return sl_hash(ptr, sizeof(uint32_t));
 }
 
 static bool
-eq_ptr(const void* key0, const void* key1)
+eq_uint32(const void* key0, const void* key1)
 {
-  const void* ptr0 = *(const void**)key0;
-  const void* ptr1 = *(const void**)key1;
-  return ptr0 == ptr1;
+  const uint32_t a = *(const uint32_t*)key0;
+  const uint32_t b = *(const uint32_t*)key1;
+  return a == b;
 }
 
 static void
@@ -83,12 +82,12 @@ edit_create_picking
   picking->allocator = allocator;
 
   sl_err = sl_create_hash_table
-    (sizeof(struct edit_picking*),
-     ALIGNOF(struct edit_picking*),
-     sizeof(struct edit_picking*),
-     ALIGNOF(struct edit_picking*),
-     hash_ptr,
-     eq_ptr,
+    (sizeof(uint32_t),
+     ALIGNOF(uint32_t),
+     sizeof(uint32_t),
+     ALIGNOF(uint32_t),
+     hash_uint32,
+     eq_uint32,
      allocator,
      &picking->picked_instances_htbl);
   if(sl_err != SL_NO_ERROR) {
@@ -151,6 +150,8 @@ edit_process_picking(struct edit_picking* picking)
     goto error;
   }
 
+  SL(hash_table_clear(picking->picked_instances_htbl));
+
   #define CALL(func) if(EDIT_NO_ERROR != (edit_err = func)) goto error
   for(i = 0; i < nb_picks; ++i) {
     struct app_model_instance* instance = NULL;
@@ -168,18 +169,31 @@ edit_process_picking(struct edit_picking* picking)
           CALL(edit_clear_model_instance_selection(picking->instance_selection));
         }
       } else {
+
         app_err = app_world_picked_model_instance
           (world, pick_list[i], &instance);
         if(app_err != APP_NO_ERROR) {
           edit_err = app_to_edit_error(app_err);
           goto error;
         }
+
         CALL(edit_is_model_instance_selected
           (picking->instance_selection, instance, &is_selected));
-        if(is_selected) {
-          CALL(edit_unselect_model_instance
-            (picking->instance_selection,instance));
+
+        if(is_selected == true) {
+          void* data = NULL;
+
+          /* If the instance is already selected and is not registered into the
+           * picked_instance_htbl then this instance was previously selected and
+           * thus we unselect it. */
+          SL(hash_table_find(picking->picked_instances_htbl, &pick_id, &data));
+          if(data == NULL) {
+            CALL(edit_unselect_model_instance
+              (picking->instance_selection,instance));
+          }
         } else {
+          SL(hash_table_insert
+             (picking->picked_instances_htbl, &pick_id, &pick_id));
           CALL(edit_select_model_instance
             (picking->instance_selection, instance));
         }
