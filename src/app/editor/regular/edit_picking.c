@@ -35,6 +35,66 @@ eq_uint32(const void* key0, const void* key1)
   return a == b;
 }
 
+static enum edit_error
+pick_imdraw(struct edit_picking* picking, uint32_t pick_id)
+{
+  /* TODO */
+  (void)pick_id;
+  (void)picking;
+  assert(picking);
+  return EDIT_NO_ERROR;
+}
+
+static enum edit_error
+pick_world
+  (struct edit_picking* picking,
+   struct app_world* world, 
+   uint32_t pick_id)
+{
+  struct app_model_instance* instance = NULL;
+  enum app_error app_err = APP_NO_ERROR;
+  enum edit_error edit_err = EDIT_NO_ERROR;
+  bool is_selected = false;
+
+  assert(picking && world);
+
+  app_err = app_world_picked_model_instance(world, pick_id, &instance);
+  if(app_err != APP_NO_ERROR) {
+    edit_err = app_to_edit_error(app_err);
+    goto error;
+  }
+
+  edit_err = edit_is_model_instance_selected
+    (picking->instance_selection, instance, &is_selected);
+  if(edit_err != EDIT_NO_ERROR)
+    goto error;
+
+  if(is_selected == true) {
+    void* data = NULL;
+
+    /* If the instance is already selected and is not registered into the
+     * picked_instance_htbl then this instance was previously selected and
+     * thus we unselect it. */
+    SL(hash_table_find(picking->picked_instances_htbl, &pick_id, &data));
+    if(data == NULL) {
+      edit_err = edit_unselect_model_instance
+        (picking->instance_selection, instance);
+      if(edit_err != EDIT_NO_ERROR)
+        goto error;
+    }
+  } else {
+    SL(hash_table_insert(picking->picked_instances_htbl, &pick_id, &pick_id));
+    edit_err =edit_select_model_instance(picking->instance_selection, instance);
+    if(edit_err != EDIT_NO_ERROR)
+      goto error;
+  }
+
+exit:
+  return edit_err;
+error:
+  goto exit;
+}
+ 
 static void
 release_picking(struct ref* ref)
 {
@@ -152,55 +212,29 @@ edit_process_picking(struct edit_picking* picking)
 
   SL(hash_table_clear(picking->picked_instances_htbl));
 
-  #define CALL(func) if(EDIT_NO_ERROR != (edit_err = func)) goto error
   for(i = 0; i < nb_picks; ++i) {
-    struct app_model_instance* instance = NULL;
     const uint32_t pick_id = APP_PICK_ID_GET(pick_list[i]);
     const enum app_pick_group pick_group = APP_PICK_GROUP_GET(pick_list[i]);
-    bool is_selected = false;
 
-    if(pick_group == APP_PICK_GROUP_IMDRAW) {
-      /* TODO */
-      printf("--%d\n", pick_id);
-
-    } else if(pick_group == APP_PICK_GROUP_WORLD) {
-      if(pick_id >= APP_PICK_ID_MAX) {
+    switch(pick_group) {
+      case APP_PICK_GROUP_IMDRAW:
+        edit_err = pick_imdraw(picking, pick_id);
+        break;
+      case APP_PICK_GROUP_WORLD:
+        edit_err = pick_world(picking, world, pick_id);
+        break;
+      case APP_PICK_GROUP_NONE:
         if(nb_picks == 1) {
-          CALL(edit_clear_model_instance_selection(picking->instance_selection));
+          edit_err = edit_clear_model_instance_selection
+            (picking->instance_selection);
         }
-      } else {
-
-        app_err = app_world_picked_model_instance
-          (world, pick_list[i], &instance);
-        if(app_err != APP_NO_ERROR) {
-          edit_err = app_to_edit_error(app_err);
-          goto error;
-        }
-
-        CALL(edit_is_model_instance_selected
-          (picking->instance_selection, instance, &is_selected));
-
-        if(is_selected == true) {
-          void* data = NULL;
-
-          /* If the instance is already selected and is not registered into the
-           * picked_instance_htbl then this instance was previously selected and
-           * thus we unselect it. */
-          SL(hash_table_find(picking->picked_instances_htbl, &pick_id, &data));
-          if(data == NULL) {
-            CALL(edit_unselect_model_instance
-              (picking->instance_selection,instance));
-          }
-        } else {
-          SL(hash_table_insert
-             (picking->picked_instances_htbl, &pick_id, &pick_id));
-          CALL(edit_select_model_instance
-            (picking->instance_selection, instance));
-        }
-      }
+        break;
+      default: assert(0); break; /* Unreachable code */
     }
+
+    if(edit_err != EDIT_NO_ERROR)
+      goto error;
   }
-  #undef CALL
 
 exit:
   return edit_err;
