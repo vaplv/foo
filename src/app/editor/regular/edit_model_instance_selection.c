@@ -4,7 +4,6 @@
 #include "app/core/app_model_instance.h"
 #include "app/editor/regular/edit_context_c.h"
 #include "app/editor/regular/edit_error_c.h"
-#include "app/editor/regular/edit_model_instance_selection_c.h"
 #include "app/editor/edit_context.h"
 #include "app/editor/edit_model_instance_selection.h"
 #include "maths/simd/aosf33.h"
@@ -22,8 +21,9 @@
 
 struct edit_model_instance_selection {
   struct ref ref;
-  struct edit_context* ctxt;
+  struct app* app;
   struct sl_hash_table* instance_htbl;
+  struct mem_allocator* allocator;
 };
 
 /*******************************************************************************
@@ -58,8 +58,9 @@ on_destroy_model_instance(struct app_model_instance* instance, void*data)
 }
 
 static void
-release_regular_model_instance_selection(struct ref* ref)
+release_model_instance_selection(struct ref* ref)
 {
+  struct app* app = NULL;
   struct edit_model_instance_selection* selection = NULL;
   bool is_clbk_attached = false;
   assert(ref);
@@ -70,32 +71,22 @@ release_regular_model_instance_selection(struct ref* ref)
     SL(free_hash_table(selection->instance_htbl));
   }
   APP(is_callback_attached
-    (selection->ctxt->app,
+    (selection->app,
      APP_SIGNAL_DESTROY_MODEL_INSTANCE,
      APP_CALLBACK(on_destroy_model_instance),
      selection,
      &is_clbk_attached));
   if(is_clbk_attached) {
     APP(detach_callback
-      (selection->ctxt->app,
+      (selection->app,
        APP_SIGNAL_DESTROY_MODEL_INSTANCE,
        APP_CALLBACK(on_destroy_model_instance),
        selection));
   }
-  MEM_FREE(selection->ctxt->allocator, selection);
-}
 
-static void
-release_model_instance_selection(struct ref* ref)
-{
-  struct edit_context* ctxt = NULL;
-  struct edit_model_instance_selection* selection = NULL;
-  assert(ref);
-
-  selection = CONTAINER_OF(ref, struct edit_model_instance_selection, ref);
-  ctxt = selection->ctxt;
-  release_regular_model_instance_selection(ref);
-  EDIT(context_ref_put(ctxt));
+  app = selection->app;
+  MEM_FREE(selection->allocator, selection);
+  APP(ref_put(app));
 }
 
 /*******************************************************************************
@@ -108,12 +99,59 @@ edit_create_model_instance_selection
   (struct edit_context* ctxt,
    struct edit_model_instance_selection** out_selection)
 {
+  struct edit_model_instance_selection* selection = NULL;
+  enum app_error app_err = APP_NO_ERROR;
   enum edit_error edit_err = EDIT_NO_ERROR;
+  enum sl_error sl_err = SL_NO_ERROR;
 
-  edit_err = edit_regular_create_model_instance_selection(ctxt, out_selection);
-  if(edit_err == EDIT_NO_ERROR)
-    EDIT(context_ref_get(ctxt));
+  if(UNLIKELY(!ctxt || !out_selection)) {
+    edit_err = EDIT_INVALID_ARGUMENT;
+    goto error;
+  }
+  selection = MEM_CALLOC
+    (ctxt->allocator, 1, sizeof(struct edit_model_instance_selection));
+  if(!selection) {
+    edit_err = EDIT_MEMORY_ERROR;
+    goto error;
+  }
+  ref_init(&selection->ref);
+  APP(ref_get(ctxt->app));
+  selection->app = ctxt->app;
+  selection->allocator = ctxt->allocator;
+
+  sl_err = sl_create_hash_table
+    (sizeof(struct app_model_instance*),
+     ALIGNOF(struct app_model_instance*),
+     sizeof(struct app_model_instance*),
+     ALIGNOF(struct app_model_instance*),
+     hash_ptr,
+     eq_ptr,
+     selection->allocator,
+     &selection->instance_htbl);
+  if(sl_err != SL_NO_ERROR) {
+    edit_err = sl_to_edit_error(sl_err);
+    goto error;
+  }
+  app_err = app_attach_callback
+    (selection->app,
+     APP_SIGNAL_DESTROY_MODEL_INSTANCE,
+     APP_CALLBACK(on_destroy_model_instance),
+     selection);
+  if(app_err != APP_NO_ERROR) {
+    edit_err = app_to_edit_error(app_err);
+    goto error;
+  }
+
+exit:
+  if(out_selection)
+    *out_selection = selection;
   return edit_err;
+error:
+  if(selection) {
+    EDIT(model_instance_selection_ref_put(selection));
+    selection = NULL;
+  }
+  goto exit;
 }
 
 EXPORT_SYM enum edit_error
@@ -153,7 +191,7 @@ edit_select_model_instance
   if(ptr != NULL) {
     const char* instance_name = NULL;
     APP(model_instance_name(instance, &instance_name));
-    APP(log(selection->ctxt->app, APP_LOG_INFO,
+    APP(log(selection->app, APP_LOG_INFO,
       "the instance `%s' is already selected\n", instance_name));
   } else {
     sl_err = sl_hash_table_insert
@@ -187,7 +225,7 @@ edit_unselect_model_instance
   if(!selected_instance) {
     const char* name = NULL;
     APP(model_instance_name(instance, &name));
-    APP(log(selection->ctxt->app, APP_LOG_ERROR,
+    APP(log(selection->app, APP_LOG_ERROR,
       "the instance `%s' is not selected\n", name));
     edit_err = EDIT_INVALID_ARGUMENT;
     goto error;
@@ -503,7 +541,7 @@ edit_draw_model_instance_selection
       + 1.f; /* epsilon avoiding Z fight if the selected inst is an AABB */
     }
     APP(imdraw_parallelepiped
-      (selection->ctxt->app,
+      (selection->app,
        APP_IMDRAW_FLAG_NONE,
        APP_PICK_ID_MAX,
        pos,
@@ -519,7 +557,7 @@ edit_draw_model_instance_selection
     size[i] = selection_max_bound[i] - selection_min_bound[i];
   }
   APP(imdraw_parallelepiped
-    (selection->ctxt->app,
+    (selection->app,
      APP_IMDRAW_FLAG_NONE,
      APP_PICK_ID_MAX,
      pivot,
@@ -533,77 +571,3 @@ exit:
 error:
   goto exit;
 }
-
-/*******************************************************************************
- *
- * Private model selection functions.
- *
- ******************************************************************************/
-enum edit_error
-edit_regular_create_model_instance_selection
-  (struct edit_context* ctxt,
-   struct edit_model_instance_selection** out_selection)
-{
-  struct edit_model_instance_selection* selection = NULL;
-  enum app_error app_err = APP_NO_ERROR;
-  enum edit_error edit_err = EDIT_NO_ERROR;
-  enum sl_error sl_err = SL_NO_ERROR;
-
-  if(UNLIKELY(!ctxt || !out_selection)) {
-    edit_err = EDIT_INVALID_ARGUMENT;
-    goto error;
-  }
-  selection = MEM_CALLOC
-    (ctxt->allocator, 1, sizeof(struct edit_model_instance_selection));
-  if(!selection) {
-    edit_err = EDIT_MEMORY_ERROR;
-    goto error;
-  }
-  ref_init(&selection->ref);
-  selection->ctxt = ctxt;
-
-  sl_err = sl_create_hash_table
-    (sizeof(struct app_model_instance*),
-     ALIGNOF(struct app_model_instance*),
-     sizeof(struct app_model_instance*),
-     ALIGNOF(struct app_model_instance*),
-     hash_ptr,
-     eq_ptr,
-     selection->ctxt->allocator,
-     &selection->instance_htbl);
-  if(sl_err != SL_NO_ERROR) {
-    edit_err = sl_to_edit_error(sl_err);
-    goto error;
-  }
-  app_err = app_attach_callback
-    (selection->ctxt->app,
-     APP_SIGNAL_DESTROY_MODEL_INSTANCE,
-     APP_CALLBACK(on_destroy_model_instance),
-     selection);
-  if(app_err != APP_NO_ERROR) {
-    edit_err = app_to_edit_error(app_err);
-    goto error;
-  }
-
-exit:
-  if(out_selection)
-    *out_selection = selection;
-  return edit_err;
-error:
-  if(selection) {
-    EDIT(regular_model_instance_selection_ref_put(selection));
-    selection = NULL;
-  }
-  goto exit;
-}
-
-enum edit_error
-edit_regular_model_instance_selection_ref_put
-  (struct edit_model_instance_selection* selection)
-{
-  if(UNLIKELY(!selection))
-    return EDIT_INVALID_ARGUMENT;
-  ref_put(&selection->ref, release_regular_model_instance_selection);
-  return EDIT_NO_ERROR;
-}
-

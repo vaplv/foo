@@ -7,7 +7,6 @@
 #include "app/editor/regular/edit_error_c.h"
 #include "app/editor/regular/edit_inputs.h"
 #include "app/editor/regular/edit_load_save_commands.h"
-#include "app/editor/regular/edit_model_instance_selection_c.h"
 #include "app/editor/regular/edit_move_commands.h"
 #include "app/editor/regular/edit_object_management_commands.h"
 #include "app/editor/regular/edit_picking.h"
@@ -139,9 +138,11 @@ release_context(struct ref* ref)
   ctxt = CONTAINER_OF(ref, struct edit_context, ref);
 
   if(ctxt->instance_selection)
-    EDIT(regular_model_instance_selection_ref_put(ctxt->instance_selection));
+    EDIT(model_instance_selection_ref_put(ctxt->instance_selection));
   if(ctxt->inputs)
     EDIT(inputs_ref_put(ctxt->inputs));
+  if(ctxt->picking)
+    EDIT(picking_ref_put(ctxt->picking));
 
   EDIT(release_cvars(ctxt->app, &ctxt->cvars));
 
@@ -187,8 +188,10 @@ edit_create_context
   ctxt->app = app;
 
   #define CALL(func) if(EDIT_NO_ERROR != (edit_err = func)) goto error
-  CALL(edit_regular_create_model_instance_selection
+  CALL(edit_create_model_instance_selection
     (ctxt, &ctxt->instance_selection));
+  CALL(edit_create_picking
+    (app, ctxt->instance_selection, ctxt->allocator, &ctxt->picking));
   CALL(edit_create_inputs(ctxt->app, ctxt->allocator, &ctxt->inputs));
   CALL(edit_setup_cvars(ctxt->app, &ctxt->cvars));
   CALL(edit_setup_move_commands(ctxt));
@@ -242,7 +245,7 @@ edit_run(struct edit_context* ctxt)
 
   process_inputs(ctxt);
 
-  edit_err = edit_process_picking(ctxt);
+  edit_err = edit_process_picking(ctxt->picking);
   if(edit_err != EDIT_NO_ERROR)
     goto error;
 

@@ -1,10 +1,53 @@
 #include "app/core/app.h"
 #include "app/core/app_core.h"
 #include "app/core/app_world.h"
-#include "app/editor/regular/edit_context_c.h"
 #include "app/editor/regular/edit_error_c.h"
 #include "app/editor/regular/edit_picking.h"
 #include "app/editor/edit_model_instance_selection.h"
+#include "stdlib/sl_hash_table.h"
+#include "sys/mem_allocator.h"
+#include "sys/ref_count.h"
+
+struct edit_picking {
+  struct ref ref;
+  struct app* app;
+  struct edit_model_instance_selection* instance_selection;
+  struct mem_allocator* allocator;
+  struct sl_hash_table* picked_instances_htbl;
+};
+
+/*******************************************************************************
+ *
+ * Helper functions
+ *
+ ******************************************************************************/
+static size_t
+hash_ptr(const void* ptr)
+{
+  const void* p = *(const void**)ptr;
+  return sl_hash(p, sizeof(const void*));
+}
+
+static bool
+eq_ptr(const void* key0, const void* key1)
+{
+  const void* ptr0 = *(const void**)key0;
+  const void* ptr1 = *(const void**)key1;
+  return ptr0 == ptr1;
+}
+
+static void
+release_picking(struct ref* ref)
+{
+  struct edit_picking* picking = NULL;
+  assert(ref);
+
+  picking = CONTAINER_OF(ref, struct edit_picking, ref);
+  EDIT(model_instance_selection_ref_put(picking->instance_selection));
+  APP(ref_put(picking->app));
+  SL(free_hash_table(picking->picked_instances_htbl));
+  MEM_FREE(picking->allocator, picking);
+}
 
 /*******************************************************************************
  *
@@ -12,64 +55,138 @@
  *
  ******************************************************************************/
 enum edit_error
-edit_process_picking(struct edit_context* ctxt)
+edit_create_picking
+  (struct app* app,
+   struct edit_model_instance_selection* instance_selection,
+   struct mem_allocator* allocator,
+   struct edit_picking** out_picking)
 {
-  const app_pick_t* pick_list = NULL;
-  size_t nb_picks = 0;
+  struct edit_picking* picking = NULL;
   enum edit_error edit_err = EDIT_NO_ERROR;
+  enum sl_error sl_err = SL_NO_ERROR;
 
-  if(UNLIKELY(!ctxt)) {
+  if(UNLIKELY(!app || !instance_selection || !allocator || !out_picking)) {
     edit_err = EDIT_INVALID_ARGUMENT;
     goto error;
   }
-  
-  APP(poll_picking(ctxt->app, &nb_picks, &pick_list));
-  if(nb_picks) {
-    struct app_world* world = NULL;
-    size_t i = 0;
-    enum app_error app_err = APP_NO_ERROR;
 
-    app_err = app_get_main_world(ctxt->app, &world);
-    if(app_err != APP_NO_ERROR) {
-      edit_err = app_to_edit_error(app_err);
-      goto error;
-    }
-    #define CALL(func) if(EDIT_NO_ERROR != (edit_err = func)) goto error
-    for(i = 0; i < nb_picks; ++i) {
-      struct app_model_instance* instance = NULL;
-      const uint32_t pick_id = APP_PICK_ID_GET(pick_list[i]);
-      const enum app_pick_group pick_group = APP_PICK_GROUP_GET(pick_list[i]);
-      bool is_selected = false;
+  picking = MEM_CALLOC(allocator, 1, sizeof(struct edit_picking));
+  if(!picking) {
+    edit_err = EDIT_MEMORY_ERROR;
+    goto error;
+  }
+  ref_init(&picking->ref);
+  APP(ref_get(app));
+  picking->app = app;
+  EDIT(model_instance_selection_ref_get(instance_selection));
+  picking->instance_selection = instance_selection;
+  picking->allocator = allocator;
 
-      if(pick_group == APP_PICK_GROUP_IMDRAW) {
-        printf("--%d\n", pick_id);
-      } else if(pick_group == APP_PICK_GROUP_WORLD) {
+  sl_err = sl_create_hash_table
+    (sizeof(struct edit_picking*),
+     ALIGNOF(struct edit_picking*),
+     sizeof(struct edit_picking*),
+     ALIGNOF(struct edit_picking*),
+     hash_ptr,
+     eq_ptr,
+     allocator,
+     &picking->picked_instances_htbl);
+  if(sl_err != SL_NO_ERROR) {
+    edit_err = sl_to_edit_error(sl_err);
+    goto error;
+  }
 
-        if(pick_id >= APP_PICK_ID_MAX) {
-          if(nb_picks == 1) {
-            CALL(edit_clear_model_instance_selection(ctxt->instance_selection));
-          }
+exit:
+  if(out_picking)
+    *out_picking = picking;
+  return edit_err;
+error:
+  if(picking) {
+    EDIT(picking_ref_put(picking));
+    picking = NULL;
+  }
+  goto exit;
+}
+
+enum edit_error
+edit_picking_ref_get(struct edit_picking* picking)
+{
+  if(UNLIKELY(!picking))
+    return EDIT_INVALID_ARGUMENT;
+  ref_get(&picking->ref);
+  return EDIT_NO_ERROR;
+}
+
+enum edit_error
+edit_picking_ref_put(struct edit_picking* picking)
+{
+  if(UNLIKELY(!picking))
+    return EDIT_INVALID_ARGUMENT;
+  ref_put(&picking->ref, release_picking);
+  return EDIT_NO_ERROR;
+}
+
+enum edit_error
+edit_process_picking(struct edit_picking* picking)
+{
+  struct app_world* world = NULL;
+  const app_pick_t* pick_list = NULL;
+  size_t nb_picks = 0;
+  size_t i = 0;
+  enum app_error app_err = APP_NO_ERROR;
+  enum edit_error edit_err = EDIT_NO_ERROR;
+
+  if(UNLIKELY(!picking)) {
+    edit_err = EDIT_INVALID_ARGUMENT;
+    goto error;
+  }
+
+  APP(poll_picking(picking->app, &nb_picks, &pick_list));
+  if(nb_picks == 0)
+    goto exit;
+
+  app_err = app_get_main_world(picking->app, &world);
+  if(app_err != APP_NO_ERROR) {
+    edit_err = app_to_edit_error(app_err);
+    goto error;
+  }
+
+  #define CALL(func) if(EDIT_NO_ERROR != (edit_err = func)) goto error
+  for(i = 0; i < nb_picks; ++i) {
+    struct app_model_instance* instance = NULL;
+    const uint32_t pick_id = APP_PICK_ID_GET(pick_list[i]);
+    const enum app_pick_group pick_group = APP_PICK_GROUP_GET(pick_list[i]);
+    bool is_selected = false;
+
+    if(pick_group == APP_PICK_GROUP_IMDRAW) {
+      /* TODO */
+      printf("--%d\n", pick_id);
+
+    } else if(pick_group == APP_PICK_GROUP_WORLD) {
+      if(pick_id >= APP_PICK_ID_MAX) {
+        if(nb_picks == 1) {
+          CALL(edit_clear_model_instance_selection(picking->instance_selection));
+        }
+      } else {
+        app_err = app_world_picked_model_instance
+          (world, pick_list[i], &instance);
+        if(app_err != APP_NO_ERROR) {
+          edit_err = app_to_edit_error(app_err);
+          goto error;
+        }
+        CALL(edit_is_model_instance_selected
+          (picking->instance_selection, instance, &is_selected));
+        if(is_selected) {
+          CALL(edit_unselect_model_instance
+            (picking->instance_selection,instance));
         } else {
-          app_err = app_world_picked_model_instance
-            (world, pick_list[i], &instance);
-          if(app_err != APP_NO_ERROR) {
-            edit_err = app_to_edit_error(app_err);
-            goto error;
-          }
-          CALL(edit_is_model_instance_selected
-            (ctxt->instance_selection, instance, &is_selected));
-          if(is_selected) {
-            CALL(edit_unselect_model_instance
-              (ctxt->instance_selection,instance));
-          } else {
-            CALL(edit_select_model_instance
-              (ctxt->instance_selection, instance));
-          }
+          CALL(edit_select_model_instance
+            (picking->instance_selection, instance));
         }
       }
     }
-    #undef CALL
   }
+  #undef CALL
 
 exit:
   return edit_err;
