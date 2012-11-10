@@ -4,7 +4,7 @@
 #include "app/editor/edit_error.h"
 #include "sys/sys.h"
 
-struct edit_context;
+struct app;
 
 enum
 {
@@ -27,14 +27,14 @@ enum
 
 LOCAL_SYM enum edit_error
 edit_draw_pivot
-  (struct edit_context* ctxt,
+  (struct app* app,
    const float pos[3],
    const float size,
    const float color[3]);
 
 LOCAL_SYM enum edit_error
 edit_draw_rotate_tool
-  (struct edit_context* ctxt,
+  (struct app* app,
    const float pos[3],
    const float size,
    const float color_x[3],
@@ -43,7 +43,7 @@ edit_draw_rotate_tool
 
 LOCAL_SYM enum edit_error
 edit_draw_scale_tool
-  (struct edit_context* ctxt,
+  (struct app* app,
    const float pos[3],
    const float size,
    const float color_x[3],
@@ -52,7 +52,7 @@ edit_draw_scale_tool
 
 LOCAL_SYM enum edit_error
 edit_draw_translate_tool
-  (struct edit_context* ctxt,
+  (struct app* app,
    const float pos[3],
    const float size,
    const float color_x[3],

@@ -76,28 +76,28 @@ draw_tools(struct edit_context* ctxt)
 
   if(transform_flag & EDIT_TRANSFORM_SCALE) {
     EDIT(draw_scale_tool
-      (ctxt, pivot_pos, size,
+      (ctxt->app, pivot_pos, size,
        (float[]){1.f, 0.f, 0.f},
        (float[]){0.f, 1.f, 0.f},
        (float[]){0.f, 0.f, 1.f}));
   }
   if(transform_flag & EDIT_TRANSFORM_TRANSLATE) {
     EDIT(draw_translate_tool
-      (ctxt, pivot_pos, size,
+      (ctxt->app, pivot_pos, size,
        (float[]){1.f, 0.f, 0.f},
        (float[]){0.f, 1.f, 0.f},
        (float[]){0.f, 0.f, 1.f}));
   }
   if(transform_flag & EDIT_TRANSFORM_ROTATE) {
     EDIT(draw_rotate_tool
-      (ctxt, pivot_pos, size,
+      (ctxt->app, pivot_pos, size,
        (float[]){1.f, 0.f, 0.f},
        (float[]){0.f, 1.f, 0.f},
        (float[]){0.f, 0.f, 1.f}));
   }
   if(transform_flag == EDIT_TRANSFORM_NONE) {
     EDIT(draw_pivot
-      (ctxt, pivot_pos, 0.05f, ctxt->cvars.pivot_color->value.real3));
+      (ctxt->app, pivot_pos, 0.05f, ctxt->cvars.pivot_color->value.real3));
   }
 }
 
@@ -190,9 +190,14 @@ edit_create_context
   #define CALL(func) if(EDIT_NO_ERROR != (edit_err = func)) goto error
   CALL(edit_create_model_instance_selection
     (ctxt, &ctxt->instance_selection));
-  CALL(edit_create_picking
-    (app, ctxt->instance_selection, ctxt->allocator, &ctxt->picking));
   CALL(edit_create_inputs(ctxt->app, ctxt->allocator, &ctxt->inputs));
+  CALL(edit_create_picking
+    (app,
+     ctxt->inputs,
+     ctxt->instance_selection,
+     ctxt->allocator,
+     &ctxt->picking));
+
   CALL(edit_setup_cvars(ctxt->app, &ctxt->cvars));
   CALL(edit_setup_move_commands(ctxt));
   CALL(edit_setup_object_management_commands(ctxt));

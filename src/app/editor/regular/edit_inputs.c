@@ -492,3 +492,4 @@ edit_inputs_get_entity_transform_flag
   *entity_transform_flag = input->context.entity_transform_flag;
   return EDIT_NO_ERROR;
 }
+

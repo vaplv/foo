@@ -1,6 +1,5 @@
 #include "app/core/app_imdraw.h"
 #include "app/core/app_pick_id.h"
-#include "app/editor/regular/edit_context_c.h"
 #include "app/editor/regular/edit_tools.h"
 #include "sys/math.h"
 
@@ -11,7 +10,7 @@
  ******************************************************************************/
 static void
 draw_basis_circles
-  (struct edit_context* ctxt,
+  (struct app* app,
    const float pos[3],
    const float size,
    const float col_x[3],
@@ -21,11 +20,11 @@ draw_basis_circles
    const uint32_t pick_id_y,
    const uint32_t pick_id_z)
 {
-  assert(ctxt && pos);
+  assert(app && pos);
 
   #define DRAW_CIRCLE(pitch, yaw, roll, color, pick) \
     APP(imdraw_ellipse \
-      (ctxt->app, \
+      (app, \
        APP_IMDRAW_FLAG_UPPERMOST_LAYER | APP_IMDRAW_FLAG_FIXED_SCREEN_SIZE, \
        pick, \
        pos, \
@@ -42,7 +41,7 @@ draw_basis_circles
 
 static void
 draw_basis
-  (struct edit_context* ctxt,
+  (struct app* app,
    const float pos[3],
    const float size,
    const enum app_im_vector_marker end_marker,
@@ -54,11 +53,11 @@ draw_basis
    const uint32_t pick_id_y,
    const uint32_t pick_id_z)
 {
-  assert(ctxt && pos);
+  assert(app && pos);
 
   #define DRAW_VECTOR(end, color, pick)  \
    APP(imdraw_vector \
-      (ctxt->app, \
+      (app, \
        APP_IMDRAW_FLAG_FIXED_SCREEN_SIZE | APP_IMDRAW_FLAG_UPPERMOST_LAYER, \
        pick, \
        APP_IM_VECTOR_MARKER_NONE, \
@@ -77,7 +76,7 @@ draw_basis
   #undef DRAW_VECTOR
 
   APP(imdraw_parallelepiped
-    (ctxt->app,
+    (app,
      APP_IMDRAW_FLAG_FIXED_SCREEN_SIZE | APP_IMDRAW_FLAG_UPPERMOST_LAYER,
      pick_origin,
      pos,
@@ -95,13 +94,13 @@ draw_basis
  ******************************************************************************/
 enum edit_error
 edit_draw_pivot
-  (struct edit_context* ctxt,
+  (struct app* app,
    const float pos[3],
    const float size,
    const float color[3])
 {
   draw_basis_circles
-    (ctxt,
+    (app,
      pos,
      size,
      color,
@@ -115,7 +114,7 @@ edit_draw_pivot
 
 enum edit_error
 edit_draw_rotate_tool
-  (struct edit_context* ctxt,
+  (struct app* app,
    const float pos[3],
    const float size,
    const float color_x[3],
@@ -123,7 +122,7 @@ edit_draw_rotate_tool
    const float color_z[3])
 {
   draw_basis_circles
-    (ctxt,
+    (app,
      pos,
      size,
      color_x,
@@ -137,7 +136,7 @@ edit_draw_rotate_tool
 
 enum edit_error
 edit_draw_scale_tool
-  (struct edit_context* ctxt,
+  (struct app* app,
    const float pos[3],
    const float size,
    const float color_x[3],
@@ -145,7 +144,7 @@ edit_draw_scale_tool
    const float color_z[3])
 {
   draw_basis
-    (ctxt,
+    (app,
      pos,
      size,
      APP_IM_VECTOR_CUBE_MARKER,
@@ -161,7 +160,7 @@ edit_draw_scale_tool
 
 enum edit_error
 edit_draw_translate_tool
-   (struct edit_context* ctxt,
+   (struct app* app,
    const float pos[3],
    const float size,
    const float color_x[3],
@@ -169,7 +168,7 @@ edit_draw_translate_tool
    const float color_z[3])
 {
   draw_basis
-    (ctxt,
+    (app,
      pos,
      size,
      APP_IM_VECTOR_CONE_MARKER,
