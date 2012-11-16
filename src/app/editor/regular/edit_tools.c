@@ -2,6 +2,7 @@
 #include "app/core/app_pick_id.h"
 #include "app/editor/regular/edit_tools.h"
 #include "sys/math.h"
+#include <assert.h>
 
 /*******************************************************************************
  *
@@ -85,7 +86,6 @@ draw_basis
      (float[]){1.f, 1.f, 0.f, 0.5f},
      (float[]){1.f, 1.f, 0.f, 1.f}));
 }
-
 
 /*******************************************************************************
  *
