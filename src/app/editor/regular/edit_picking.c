@@ -2,7 +2,7 @@
 #include "app/core/app_core.h"
 #include "app/core/app_world.h"
 #include "app/editor/regular/edit_error_c.h"
-#include "app/editor/regular/edit_inputs.h"
+#include "app/editor/regular/edit_imgui.h"
 #include "app/editor/regular/edit_picking.h"
 #include "app/editor/edit_model_instance_selection.h"
 #include "stdlib/sl_hash_table.h"
@@ -13,7 +13,7 @@ struct edit_picking {
   struct ref ref;
   struct app* app;
   struct edit_model_instance_selection* instance_selection;
-  struct edit_inputs* inputs;
+  struct edit_imgui* imgui;
   struct mem_allocator* allocator;
   struct sl_hash_table* picked_instances_htbl;
 };
@@ -40,10 +40,9 @@ eq_uint32(const void* key0, const void* key1)
 static enum edit_error
 pick_imdraw(struct edit_picking* picking, uint32_t pick_id)
 {
-  /* TODO */
-  (void)pick_id;
-  (void)picking;
-  assert(picking);
+  if(!picking)
+    return EDIT_INVALID_ARGUMENT;
+  EDIT(imgui_enable_item(picking->imgui, pick_id));
   return EDIT_NO_ERROR;
 }
 
@@ -104,7 +103,7 @@ release_picking(struct ref* ref)
   assert(ref);
 
   picking = CONTAINER_OF(ref, struct edit_picking, ref);
-  EDIT(inputs_ref_put(picking->inputs));
+  EDIT(imgui_ref_put(picking->imgui));
   EDIT(model_instance_selection_ref_put(picking->instance_selection));
   APP(ref_put(picking->app));
   SL(free_hash_table(picking->picked_instances_htbl));
@@ -119,7 +118,7 @@ release_picking(struct ref* ref)
 enum edit_error
 edit_create_picking
   (struct app* app,
-   struct edit_inputs* inputs,
+   struct edit_imgui* imgui,
    struct edit_model_instance_selection* instance_selection,
    struct mem_allocator* allocator,
    struct edit_picking** out_picking)
@@ -141,8 +140,8 @@ edit_create_picking
   ref_init(&picking->ref);
   APP(ref_get(app));
   picking->app = app;
-  EDIT(inputs_ref_get(inputs));
-  picking->inputs = inputs;
+  EDIT(imgui_ref_get(imgui));
+  picking->imgui = imgui;
   EDIT(model_instance_selection_ref_get(instance_selection));
   picking->instance_selection = instance_selection;
   picking->allocator = allocator;

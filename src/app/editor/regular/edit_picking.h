@@ -11,7 +11,7 @@ struct edit_picking;
 LOCAL_SYM enum edit_error
 edit_create_picking
   (struct app* app,
-   struct edit_inputs* inputs,
+   struct edit_imgui* imgui,
    struct edit_model_instance_selection* instance_selection,
    struct mem_allocator* allocator,
    struct edit_picking** picking);

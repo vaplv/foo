@@ -94,5 +94,7 @@
   #define SYS_API IMPORT_SYM
 #endif
 
+#define COUNTER __COUNTER__
+
 #endif /* SYS_H */
 

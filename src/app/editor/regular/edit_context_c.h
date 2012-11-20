@@ -22,6 +22,7 @@ ALIGN(16) struct edit_context {
   struct mem_allocator* allocator;
   struct edit_inputs* inputs;
   struct edit_model_instance_selection* instance_selection;
+  struct edit_imgui* imgui;
   struct edit_picking* picking;
 
   struct edit_cvars cvars; 

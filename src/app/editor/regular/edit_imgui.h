@@ -4,7 +4,7 @@
 #include "app/editor/edit_error.h"
 #include "sys/sys.h"
 
-#define EDIT_IMGUI_ID __COUNTER__
+#define EDIT_IMGUI_ID COUNTER
 
 struct app;
 struct mem_allocator;
@@ -22,6 +22,11 @@ edit_imgui_ref_get
 
 LOCAL_SYM enum edit_error
 edit_imgui_ref_put
+  (struct edit_imgui* imgui);
+
+/* Synchronise the imgui state with the window manager inputs */
+LOCAL_SYM enum edit_error
+edit_imgui_sync_state
   (struct edit_imgui* imgui);
 
 LOCAL_SYM enum edit_error

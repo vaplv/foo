@@ -12,16 +12,26 @@
 #include "window_manager/wm.h"
 #include "window_manager/wm_input.h"
 
-struct imitem {
-  bool is_enabled;
+#define IMGUI_ITEM_NULL UINT32_MAX
+
+struct imgui_item {
   int val;
+};
+
+struct imgui_state {
+  int mouse_x;
+  int mouse_y;
+  int mouse_z;
+  enum wm_state mouse_button;
 };
 
 struct edit_imgui {
   struct app* app;
   struct mem_allocator* allocator;
-  struct sl_hash_table* imitem_htbl;
+  struct sl_hash_table* item_htbl;
   struct ref ref;
+  struct imgui_state state;
+  uint32_t enabled_item;
 };
 
 /*******************************************************************************
@@ -119,14 +129,41 @@ draw_basis
      (float[]){1.f, 1.f, 0.f, 1.f}));
 }
 
+static int
+setup_item
+  (struct sl_hash_table* item_htbl,
+   const uint32_t item_id,
+   const int item_val_new,
+   const bool invoke)
+{
+  struct imgui_item* item = NULL;
+  int item_val = 0;
+
+  SL(hash_table_find(item_htbl, &item_id, (void**)&item));
+  if(invoke) {
+    if(item != NULL) {
+      item_val = item->val;
+      item->val = item_val_new;
+    } else {
+      const struct imgui_item item_new = { .val = item_val_new };
+      SL(hash_table_insert(item_htbl, &item_id, &item_new));
+      item_val = item_val_new;
+    }
+  } else if(item != NULL) {
+    SL(hash_table_erase(item_htbl, &item_id, NULL));
+    item_val = item_val_new;
+  }
+  return item_val;
+}
+
 static void
 release_imgui(struct ref* ref)
 {
   struct edit_imgui* imgui = NULL;
   imgui = CONTAINER_OF(ref, struct edit_imgui, ref);
 
-  if(imgui->imitem_htbl)
-    SL(free_hash_table(imgui->imitem_htbl));
+  if(imgui->item_htbl)
+    SL(free_hash_table(imgui->item_htbl));
   if(imgui->app)
     APP(ref_put(imgui->app));
 
@@ -162,16 +199,17 @@ edit_create_imgui
   imgui->allocator = allocator;
   APP(ref_get(app));
   imgui->app = app;
+  imgui->enabled_item = IMGUI_ITEM_NULL;
 
   sl_err = sl_create_hash_table
     (sizeof(uint32_t),
      ALIGNOF(uint32_t),
-     sizeof(struct imitem),
-     ALIGNOF(struct imitem),
+     sizeof(struct imgui_item),
+     ALIGNOF(struct imgui_item),
      hash_key,
      eq_key,
      allocator,
-     &imgui->imitem_htbl);
+     &imgui->item_htbl);
   if(sl_err != SL_NO_ERROR) {
     edit_err = sl_to_edit_error(sl_err);
     goto error;
@@ -208,19 +246,26 @@ edit_imgui_ref_put(struct edit_imgui* imgui)
 }
 
 enum edit_error
-edit_imgui_enable_item(struct edit_imgui* imgui, const uint32_t id)
+edit_imgui_sync_state(struct edit_imgui* imgui)
 {
-  struct imitem* imitem = NULL;
   struct wm_device* wm = NULL;
 
-  if(!imgui || id >= APP_PICK_ID_MAX)
+  if(UNLIKELY(!imgui))
     return EDIT_INVALID_ARGUMENT;
 
-  /* APP(get_window_manager_device(imgui->app, &wm));
-  WM(get_mouse_position(wm, &x, &y));
-  WM(get_mouse_wheel(wm, &z));
-   TODO 
-   */
+  APP(get_window_manager_device(imgui->app, &wm));
+  WM(get_mouse_position(wm, &imgui->state.mouse_x, &imgui->state.mouse_y));
+  WM(get_mouse_wheel(wm, &imgui->state.mouse_z));
+  WM(get_mouse_button_state(wm, WM_MOUSE_BUTTON_0, &imgui->state.mouse_button));
+  return EDIT_NO_ERROR;
+}
+
+enum edit_error
+edit_imgui_enable_item(struct edit_imgui* imgui, const uint32_t id)
+{
+  if(!imgui || id == IMGUI_ITEM_NULL)
+    return EDIT_INVALID_ARGUMENT;
+  imgui->enabled_item = id;
   return EDIT_NO_ERROR;
 }
 
@@ -235,12 +280,13 @@ edit_imgui_scale_tool
    const float color_z[3],
    int scale[3])
 {
-  struct imitem* imitem = NULL;
   struct wm_device* wm = NULL;
   int x = 0, y = 0, z = 0;
+  uint32_t id_scale_xyz = 0;
   uint32_t id_scale_x = 0;
   uint32_t id_scale_y = 0;
   uint32_t id_scale_z = 0;
+  bool mouse_pressed = false;
 
   if(UNLIKELY
   (  !imgui
@@ -260,9 +306,10 @@ edit_imgui_scale_tool
   WM(get_mouse_wheel(wm, &z));
 
   /* Invoke scale tool rendering */
-  id_scale_x = id + 0;
-  id_scale_y = id + 1;
-  id_scale_z = id + 2;
+  id_scale_xyz = id + 0;
+  id_scale_x = id + 1;
+  id_scale_y = id + 2;
+  id_scale_z = id + 3;
   draw_basis
     (imgui->app,
      pos,
@@ -271,27 +318,32 @@ edit_imgui_scale_tool
      color_x,
      color_y,
      color_z,
-     APP_PICK_ID_MAX,
+     id_scale_xyz,
      id_scale_x,
      id_scale_y,
      id_scale_z);
 
-  /* Retrieve the scale values */
-  SL(hash_table_find(imgui->imitem_htbl, &id_scale_x, (void**)&imitem));
-  if(imitem != NULL && imitem->is_enabled) {
-    scale[0] = x - imitem->val;
-    imitem->val = x;
+  mouse_pressed = imgui->state.mouse_button == WM_PRESS;
+
+  if(imgui->enabled_item == id_scale_x || imgui->enabled_item == id_scale_xyz) {
+    const int val = setup_item
+      (imgui->item_htbl, id_scale_x, imgui->state.mouse_x, mouse_pressed);
+    scale[0] = imgui->state.mouse_x - val;
   }
-  SL(hash_table_find(imgui->imitem_htbl, &id_scale_y, (void**)&imitem));
-  if(imitem != NULL && imitem->is_enabled) {
-    scale[1] = y - imitem->val;
-    imitem->val = y;
+  if(imgui->enabled_item == id_scale_y || imgui->enabled_item == id_scale_xyz) {
+    const int val = setup_item
+      (imgui->item_htbl, id_scale_y, imgui->state.mouse_y, mouse_pressed);
+    scale[1] = imgui->state.mouse_y - val;
   }
-  SL(hash_table_find(imgui->imitem_htbl, &id_scale_z, (void**)&imitem));
-  if(imitem != NULL && imitem->is_enabled) {
-    scale[2] = z - imitem->val;
-    imitem->val = z;
+  if(imgui->enabled_item == id_scale_z || imgui->enabled_item == id_scale_xyz) {
+    const int val = setup_item
+      (imgui->item_htbl, id_scale_z, imgui->state.mouse_z, mouse_pressed);
+    scale[2] = imgui->state.mouse_z - val;
   }
+
+  if(mouse_pressed == false)
+    imgui->enabled_item = IMGUI_ITEM_NULL;
+
   return EDIT_NO_ERROR;
 }
 

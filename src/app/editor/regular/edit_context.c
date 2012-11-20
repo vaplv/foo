@@ -5,6 +5,7 @@
 #include "app/editor/regular/edit_context_c.h"
 #include "app/editor/regular/edit_cvars.h"
 #include "app/editor/regular/edit_error_c.h"
+#include "app/editor/regular/edit_imgui.h"
 #include "app/editor/regular/edit_inputs.h"
 #include "app/editor/regular/edit_load_save_commands.h"
 #include "app/editor/regular/edit_move_commands.h"
@@ -75,11 +76,21 @@ draw_tools(struct edit_context* ctxt)
   EDIT(get_model_instance_selection_pivot(ctxt->instance_selection, pivot_pos));
 
   if(transform_flag & EDIT_TRANSFORM_SCALE) {
-    EDIT(draw_scale_tool
+    int val[3] = { 0, 0, 0 };
+    EDIT(imgui_scale_tool
+      (ctxt->imgui, EDIT_IMGUI_ID, pivot_pos, size,
+       (float[]){1.f, 0.f, 0.f},
+       (float[]){0.f, 1.f, 0.f},
+       (float[]){0.f, 0.f, 1.f},
+       val));
+    if(val[0] || val[1] || val[2]) {
+      printf("%d %d %d\n", val[0], val[1], val[2]);
+    }
+/*    EDIT(draw_scale_tool
       (ctxt->app, pivot_pos, size,
        (float[]){1.f, 0.f, 0.f},
        (float[]){0.f, 1.f, 0.f},
-       (float[]){0.f, 0.f, 1.f}));
+       (float[]){0.f, 0.f, 1.f})); */
   }
   if(transform_flag & EDIT_TRANSFORM_TRANSLATE) {
     EDIT(draw_translate_tool
@@ -139,6 +150,8 @@ release_context(struct ref* ref)
 
   if(ctxt->instance_selection)
     EDIT(model_instance_selection_ref_put(ctxt->instance_selection));
+  if(ctxt->imgui)
+    EDIT(imgui_ref_put(ctxt->imgui));
   if(ctxt->inputs)
     EDIT(inputs_ref_put(ctxt->inputs));
   if(ctxt->picking)
@@ -191,9 +204,10 @@ edit_create_context
   CALL(edit_create_model_instance_selection
     (ctxt, &ctxt->instance_selection));
   CALL(edit_create_inputs(ctxt->app, ctxt->allocator, &ctxt->inputs));
+  CALL(edit_create_imgui(ctxt->app, ctxt->allocator, &ctxt->imgui));
   CALL(edit_create_picking
     (app,
-     ctxt->inputs,
+     ctxt->imgui,
      ctxt->instance_selection,
      ctxt->allocator,
      &ctxt->picking));
@@ -244,11 +258,13 @@ edit_run(struct edit_context* ctxt)
     goto error;
   }
 
+  EDIT(imgui_sync_state(ctxt->imgui));
+
+  process_inputs(ctxt);
+
   draw_grid(ctxt);
   draw_selection(ctxt);
   draw_tools(ctxt);
-
-  process_inputs(ctxt);
 
   edit_err = edit_process_picking(ctxt->picking);
   if(edit_err != EDIT_NO_ERROR)
