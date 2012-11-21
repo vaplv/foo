@@ -5,6 +5,8 @@
 #include "sys/sys.h"
 
 struct app;
+struct edit_imgui;
+struct edit_model_instance_selection;
 
 enum
 {
@@ -24,6 +26,11 @@ enum
   EDIT_PICK_ID_TRANSLATE_Y = EDIT_PICK_ID_TRANSLATE | BIT(4),
   EDIT_PICK_ID_TRANSLATE_Z = EDIT_PICK_ID_TRANSLATE | BIT(5)
 };
+
+LOCAL_SYM enum edit_error
+edit_scale_tool
+  (struct edit_imgui* imgui,
+   struct edit_model_instance_selection* selection);
 
 LOCAL_SYM enum edit_error
 edit_draw_pivot

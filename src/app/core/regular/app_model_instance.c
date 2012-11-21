@@ -476,6 +476,7 @@ app_transform_model_instances
     }
   } else {
     for(i = 0; i < nb_instances; ++i) {
+
       struct app_model_instance* instance = instance_list[i];
       struct rdr_model_instance** render_instance_list = NULL;
       size_t nb_render_instances = 0;

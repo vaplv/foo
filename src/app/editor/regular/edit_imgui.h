@@ -24,9 +24,9 @@ LOCAL_SYM enum edit_error
 edit_imgui_ref_put
   (struct edit_imgui* imgui);
 
-/* Synchronise the imgui state with the window manager inputs */
+/* Synchronise the imgui state with inputs */
 LOCAL_SYM enum edit_error
-edit_imgui_sync_state
+edit_imgui_sync
   (struct edit_imgui* imgui);
 
 LOCAL_SYM enum edit_error

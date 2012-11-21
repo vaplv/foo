@@ -34,8 +34,7 @@ struct edit_model_instance_selection {
 static size_t
 hash_ptr(const void* ptr)
 {
-  const void* p = *(const void**)ptr;
-  return sl_hash(p, sizeof(const void*));
+  return sl_hash(ptr, sizeof(const void*));
 }
 
 static bool
@@ -194,6 +193,7 @@ edit_select_model_instance
     APP(log(selection->app, APP_LOG_INFO,
       "the instance `%s' is already selected\n", instance_name));
   } else {
+    printf("pouet\n");
     sl_err = sl_hash_table_insert
       (selection->instance_htbl, &instance, &instance);
     if(sl_err != SL_NO_ERROR) {

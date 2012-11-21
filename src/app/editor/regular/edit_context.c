@@ -76,21 +76,7 @@ draw_tools(struct edit_context* ctxt)
   EDIT(get_model_instance_selection_pivot(ctxt->instance_selection, pivot_pos));
 
   if(transform_flag & EDIT_TRANSFORM_SCALE) {
-    int val[3] = { 0, 0, 0 };
-    EDIT(imgui_scale_tool
-      (ctxt->imgui, EDIT_IMGUI_ID, pivot_pos, size,
-       (float[]){1.f, 0.f, 0.f},
-       (float[]){0.f, 1.f, 0.f},
-       (float[]){0.f, 0.f, 1.f},
-       val));
-    if(val[0] || val[1] || val[2]) {
-      printf("%d %d %d\n", val[0], val[1], val[2]);
-    }
-/*    EDIT(draw_scale_tool
-      (ctxt->app, pivot_pos, size,
-       (float[]){1.f, 0.f, 0.f},
-       (float[]){0.f, 1.f, 0.f},
-       (float[]){0.f, 0.f, 1.f})); */
+    EDIT(scale_tool(ctxt->imgui, ctxt->instance_selection));
   }
   if(transform_flag & EDIT_TRANSFORM_TRANSLATE) {
     EDIT(draw_translate_tool
@@ -258,7 +244,7 @@ edit_run(struct edit_context* ctxt)
     goto error;
   }
 
-  EDIT(imgui_sync_state(ctxt->imgui));
+  EDIT(imgui_sync(ctxt->imgui));
 
   process_inputs(ctxt);
 

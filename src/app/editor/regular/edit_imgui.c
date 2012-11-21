@@ -246,7 +246,7 @@ edit_imgui_ref_put(struct edit_imgui* imgui)
 }
 
 enum edit_error
-edit_imgui_sync_state(struct edit_imgui* imgui)
+edit_imgui_sync(struct edit_imgui* imgui)
 {
   struct wm_device* wm = NULL;
 
@@ -280,30 +280,17 @@ edit_imgui_scale_tool
    const float color_z[3],
    int scale[3])
 {
-  struct wm_device* wm = NULL;
-  int x = 0, y = 0, z = 0;
   uint32_t id_scale_xyz = 0;
   uint32_t id_scale_x = 0;
   uint32_t id_scale_y = 0;
   uint32_t id_scale_z = 0;
   bool mouse_pressed = false;
 
-  if(UNLIKELY
-  (  !imgui
-  || !pos
-  || !color_x
-  || !color_y
-  || !color_z
-  || !scale))
+  if(UNLIKELY(!imgui || !pos || !color_x || !color_y || !color_z || !scale))
     return EDIT_INVALID_ARGUMENT;
 
   if(UNLIKELY(id + 2 > APP_PICK_ID_MAX))
     return EDIT_MEMORY_ERROR;
-
-  /* Retrieve the mouse position */
-  APP(get_window_manager_device(imgui->app, &wm));
-  WM(get_mouse_position(wm, &x, &y));
-  WM(get_mouse_wheel(wm, &z));
 
   /* Invoke scale tool rendering */
   id_scale_xyz = id + 0;
@@ -347,3 +334,4 @@ edit_imgui_scale_tool
   return EDIT_NO_ERROR;
 }
 
+#undef IMGUI_ITEM_NULL
