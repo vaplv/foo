@@ -76,5 +76,10 @@ app_get_view_projection
    float* znear, /* May be NULL. */
    float* zfar); /* May be NULL. */
 
+APP_API enum app_error
+app_get_view_proj_matrix
+  (struct app_view* view,
+   struct aosf44* view_proj);
+
 #endif /* APP_VIEW_H */
 

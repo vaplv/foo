@@ -33,6 +33,11 @@ edit_scale_tool
    struct edit_model_instance_selection* selection);
 
 LOCAL_SYM enum edit_error
+edit_translate_tool
+  (struct edit_imgui* imgui,
+   struct edit_model_instance_selection* selection);
+
+LOCAL_SYM enum edit_error
 edit_draw_pivot
   (struct app* app,
    const float pos[3],

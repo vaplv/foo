@@ -2,20 +2,24 @@
 #include "app/core/app_core.h"
 #include "app/core/app_error.h"
 #include "app/core/app_imdraw.h"
+#include "app/core/app_view.h"
 #include "app/editor/regular/edit_error_c.h"
 #include "app/editor/regular/edit_imgui.h"
 #include "app/editor/edit.h"
+#include "maths/simd/aosf44.h"
 #include "stdlib/sl_hash_table.h"
 #include "sys/ref_count.h"
 #include "sys/math.h"
 #include "sys/mem_allocator.h"
 #include "window_manager/wm.h"
 #include "window_manager/wm_input.h"
+#include <string.h>
 
 #define IMGUI_ITEM_NULL UINT32_MAX
 
-struct imgui_item {
-  int val;
+struct imgui_item_data {
+  uint16_t x;
+  uint16_t y;
 };
 
 struct imgui_state {
@@ -130,30 +134,41 @@ draw_basis
 }
 
 static int
-setup_item
+setup_tool_item
   (struct sl_hash_table* item_htbl,
+   const struct aosf44* view_proj,
+   const vf4_t axis,
    const uint32_t item_id,
-   const int item_val_new,
+   const struct imgui_item_data* data,
    const bool invoke)
 {
-  struct imgui_item* item = NULL;
-  int item_val = 0;
+  struct imgui_item_data* item = NULL;
+  int result = 0;
+
+  assert(item_htbl && view_proj && data);
 
   SL(hash_table_find(item_htbl, &item_id, (void**)&item));
-  if(invoke) {
+  if(invoke == false) {
     if(item != NULL) {
-      item_val = item->val;
-      item->val = item_val_new;
-    } else {
-      const struct imgui_item item_new = { .val = item_val_new };
-      SL(hash_table_insert(item_htbl, &item_id, &item_new));
-      item_val = item_val_new;
+      SL(hash_table_erase(item_htbl, &item_id, NULL));
     }
-  } else if(item != NULL) {
-    SL(hash_table_erase(item_htbl, &item_id, NULL));
-    item_val = item_val_new;
+  } else {
+    if(item == NULL) {
+      SL(hash_table_insert(item_htbl, &item_id, data));
+    } else {
+      const vf4_t vec3_axis = aosf44_mulf4(view_proj, axis);
+      const vf4_t vec2_axis = vf4_xycw(vec3_axis, vf4_zero());
+      const vf4_t vec2 = vf4_set(data->x - item->x, item->y - data->y, 0.f,0.f);
+      const vf4_t u = vf4_dot2(vec2_axis, vec2);
+      const vf4_t vec2_item = vf4_mul(vf4_normalize2(vec2_axis), u);
+      const vf4_t len = vf4_len2(vec2_item);
+      const vf4_t sign = vf4_dot2(vec2_item, vec2_axis);
+
+      result = vf4_x(vf4_sel(len, vf4_minus(len), vf4_lt(sign, vf4_zero())));
+      *item = *data;
+    }
   }
-  return item_val;
+  return result;
 }
 
 static void
@@ -204,8 +219,8 @@ edit_create_imgui
   sl_err = sl_create_hash_table
     (sizeof(uint32_t),
      ALIGNOF(uint32_t),
-     sizeof(struct imgui_item),
-     ALIGNOF(struct imgui_item),
+     sizeof(struct imgui_item_data),
+     ALIGNOF(struct imgui_item_data),
      hash_key,
      eq_key,
      allocator,
@@ -280,11 +295,15 @@ edit_imgui_scale_tool
    const float color_z[3],
    int scale[3])
 {
+  struct aosf44 view_proj;
+  struct imgui_item_data new_data;
+  struct app_view* view = NULL;
   uint32_t id_scale_xyz = 0;
   uint32_t id_scale_x = 0;
   uint32_t id_scale_y = 0;
   uint32_t id_scale_z = 0;
   bool mouse_pressed = false;
+  memset(&new_data, 0, sizeof(struct imgui_item_data));
 
   if(UNLIKELY(!imgui || !pos || !color_x || !color_y || !color_z || !scale))
     return EDIT_INVALID_ARGUMENT;
@@ -310,27 +329,139 @@ edit_imgui_scale_tool
      id_scale_y,
      id_scale_z);
 
+  if(imgui->enabled_item != id_scale_xyz
+  && imgui->enabled_item != id_scale_x 
+  && imgui->enabled_item != id_scale_y
+  && imgui->enabled_item != id_scale_z) 
+    return EDIT_NO_ERROR;
+
   mouse_pressed = imgui->state.mouse_button == WM_PRESS;
+  new_data.x = imgui->state.mouse_x;
+  new_data.y = imgui->state.mouse_y;
+
+  APP(get_main_view(imgui->app, &view));
+  APP(get_view_proj_matrix(view, &view_proj));
 
   if(imgui->enabled_item == id_scale_x || imgui->enabled_item == id_scale_xyz) {
-    const int val = setup_item
-      (imgui->item_htbl, id_scale_x, imgui->state.mouse_x, mouse_pressed);
-    scale[0] = imgui->state.mouse_x - val;
+    scale[0] = setup_tool_item
+      (imgui->item_htbl, 
+       &view_proj,
+       vf4_set(1.f, 0.f, 0.f, 0.f),
+       id_scale_x, 
+       &new_data,
+       mouse_pressed);
   }
   if(imgui->enabled_item == id_scale_y || imgui->enabled_item == id_scale_xyz) {
-    const int val = setup_item
-      (imgui->item_htbl, id_scale_y, imgui->state.mouse_y, mouse_pressed);
-    scale[1] = imgui->state.mouse_y - val;
+    scale[1] = setup_tool_item
+      (imgui->item_htbl, 
+       &view_proj,
+       vf4_set(0.f, 1.f, 0.f, 0.f),
+       id_scale_y, 
+       &new_data,
+       mouse_pressed);
   }
   if(imgui->enabled_item == id_scale_z || imgui->enabled_item == id_scale_xyz) {
-    const int val = setup_item
-      (imgui->item_htbl, id_scale_z, imgui->state.mouse_z, mouse_pressed);
-    scale[2] = imgui->state.mouse_z - val;
+    scale[2] = setup_tool_item
+      (imgui->item_htbl, 
+       &view_proj,
+       vf4_set(0.f, 0.f, 1.f, 0.f),
+       id_scale_z, 
+       &new_data,
+       mouse_pressed);
   }
-
-  if(mouse_pressed == false)
+  if(mouse_pressed == false) {
     imgui->enabled_item = IMGUI_ITEM_NULL;
+  }
+  return EDIT_NO_ERROR;
+}
 
+enum edit_error
+edit_imgui_translate_tool
+  (struct edit_imgui* imgui,
+   const uint32_t id,
+   const float pos[3],
+   const float size,
+   const float color_x[3],
+   const float color_y[3],
+   const float color_z[3],
+   int translate[3])
+{
+  struct aosf44 view_proj;
+  struct imgui_item_data new_data;
+  struct app_view* view = NULL;
+  uint32_t id_trans_xyz = 0;
+  uint32_t id_trans_x = 0;
+  uint32_t id_trans_y = 0;
+  uint32_t id_trans_z = 0;
+  bool mouse_pressed = false;
+
+  if(UNLIKELY(!imgui || !pos || !color_x || !color_y || !color_z || !translate))
+    return EDIT_INVALID_ARGUMENT;
+
+  if(UNLIKELY(id + 2 > APP_PICK_ID_MAX))
+    return EDIT_MEMORY_ERROR;
+
+  /* Invoke scale tool rendering */
+  id_trans_xyz = id + 0;
+  id_trans_x = id + 1;
+  id_trans_y = id + 2;
+  id_trans_z = id + 3;
+  draw_basis
+    (imgui->app,
+     pos,
+     size,
+     APP_IM_VECTOR_CONE_MARKER,
+     color_x,
+     color_y,
+     color_z,
+     id_trans_xyz,
+     id_trans_x,
+     id_trans_y,
+     id_trans_z);
+
+  if(imgui->enabled_item != id_trans_xyz
+  && imgui->enabled_item != id_trans_x 
+  && imgui->enabled_item != id_trans_y
+  && imgui->enabled_item != id_trans_z) 
+    return EDIT_NO_ERROR;
+
+  mouse_pressed = imgui->state.mouse_button == WM_PRESS;
+  new_data.x = imgui->state.mouse_x;
+  new_data.y = imgui->state.mouse_y;
+
+  APP(get_main_view(imgui->app, &view));
+  APP(get_view_proj_matrix(view, &view_proj));
+
+  if(imgui->enabled_item == id_trans_x || imgui->enabled_item == id_trans_xyz) {
+    translate[0] = setup_tool_item
+      (imgui->item_htbl, 
+       &view_proj,
+       vf4_set(1.f, 0.f, 0.f, 0.f),
+       id_trans_x, 
+       &new_data,
+       mouse_pressed);
+  }
+  if(imgui->enabled_item == id_trans_y || imgui->enabled_item == id_trans_xyz) {
+    translate[1] = setup_tool_item
+      (imgui->item_htbl, 
+       &view_proj,
+       vf4_set(0.f, 1.f, 0.f, 0.f),
+       id_trans_y, 
+       &new_data,
+       mouse_pressed);
+  }
+  if(imgui->enabled_item == id_trans_z || imgui->enabled_item == id_trans_xyz) {
+    translate[2] = setup_tool_item
+      (imgui->item_htbl, 
+       &view_proj,
+       vf4_set(0.f, 0.f, 1.f, 0.f),
+       id_trans_z, 
+       &new_data,
+       mouse_pressed);
+  }
+  if(mouse_pressed == false) {
+    imgui->enabled_item = IMGUI_ITEM_NULL;
+  }
   return EDIT_NO_ERROR;
 }
 

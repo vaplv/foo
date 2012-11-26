@@ -102,7 +102,7 @@ edit_scale_tool
 {
   const float scale_factor = 0.01f;
   float pivot_pos[3] = {0.f, 0.f, 0.f};
-  float fval[3] = { 0.f, 0.f, 0.f };
+  float fval[3] = { 1.f, 1.f, 1.f };
   int ival[3] = { 0, 0, 0 };
 
   if(UNLIKELY(!imgui || !selection))
@@ -120,12 +120,49 @@ edit_scale_tool
   if(!ival[0] && !ival[1] && !ival[2])
     return EDIT_NO_ERROR;
 
-  fval[0] = MAX(1.f + ival[0] * scale_factor, 1.e-6f);
-  fval[1] = MAX(1.f + ival[1] * scale_factor, 1.e-6f);
-  fval[2] = MAX(1.f + ival[2] * scale_factor, 1.e-6f);
+  fval[0] = ival[0] * scale_factor;
+  fval[1] = ival[1] * scale_factor;
+  fval[2] = ival[2] * scale_factor;
+  fval[0] = fval[0] < 0 ? 1.f / (1.f - fval[0]) : 1.f + fval[0];
+  fval[1] = fval[1] < 0 ? 1.f / (1.f - fval[1]) : 1.f + fval[1];
+  fval[2] = fval[2] < 0 ? 1.f / (1.f - fval[2]) : 1.f + fval[2];
+
   EDIT(scale_model_instance_selection(selection, true, fval));
   return EDIT_NO_ERROR;
 }
+
+enum edit_error
+edit_translate_tool
+  (struct edit_imgui* imgui,
+   struct edit_model_instance_selection* selection)
+{
+  const float translate_factor = 0.1f;
+  float pivot_pos[3] = {0.f, 0.f, 0.f};
+  float fval[3] = { 0.f, 0.f, 0.f };
+  int ival[3] = { 0, 0, 0 };
+
+  if(UNLIKELY(!imgui || !selection))
+    return EDIT_INVALID_ARGUMENT;
+
+  EDIT(get_model_instance_selection_pivot(selection, pivot_pos));
+
+  EDIT(imgui_translate_tool
+    (imgui, EDIT_IMGUI_ID, pivot_pos, 0.2f /* size */,
+     (float[]){1.f, 0.f, 0.f},
+     (float[]){0.f, 1.f, 0.f},
+     (float[]){0.f, 0.f, 1.f},
+     ival));
+
+  if(!ival[0] && !ival[1] && !ival[2])
+    return EDIT_NO_ERROR;
+
+  fval[0] = ival[0] * translate_factor;
+  fval[1] = ival[1] * translate_factor;
+  fval[2] = ival[2] * translate_factor;
+  EDIT(translate_model_instance_selection(selection, fval));
+  return EDIT_NO_ERROR;
+}
+
 
 enum edit_error
 edit_draw_pivot

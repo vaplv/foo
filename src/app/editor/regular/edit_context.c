@@ -79,11 +79,7 @@ draw_tools(struct edit_context* ctxt)
     EDIT(scale_tool(ctxt->imgui, ctxt->instance_selection));
   }
   if(transform_flag & EDIT_TRANSFORM_TRANSLATE) {
-    EDIT(draw_translate_tool
-      (ctxt->app, pivot_pos, size,
-       (float[]){1.f, 0.f, 0.f},
-       (float[]){0.f, 1.f, 0.f},
-       (float[]){0.f, 0.f, 1.f}));
+    EDIT(translate_tool(ctxt->imgui, ctxt->instance_selection));
   }
   if(transform_flag & EDIT_TRANSFORM_ROTATE) {
     EDIT(draw_rotate_tool
@@ -249,8 +245,8 @@ edit_run(struct edit_context* ctxt)
   process_inputs(ctxt);
 
   draw_grid(ctxt);
-  draw_selection(ctxt);
   draw_tools(ctxt);
+  draw_selection(ctxt);
 
   edit_err = edit_process_picking(ctxt->picking);
   if(edit_err != EDIT_NO_ERROR)

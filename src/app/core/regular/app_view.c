@@ -15,6 +15,29 @@
  * Helper functions.
  *
  ******************************************************************************/
+static FINLINE void 
+compute_projection_matrix
+  (const float fov_x,
+   const float proj_ratio,
+   const float znear,
+   const float zfar, 
+   struct aosf44* proj)
+{
+  float fov_y = 0.f;
+  float f = 0.f;
+  float rcp_zrange = 0.f;
+  assert(proj);
+
+  fov_y = fov_x / proj_ratio;
+  f = cosf(fov_y*0.5f) / sinf(fov_y*0.5f);
+  rcp_zrange = 1.f / (znear - zfar);
+
+  proj->c0 = vf4_set(f / proj_ratio, 0.f, 0.f, 0.f);
+  proj->c1 = vf4_set(0.f, f, 0.f, 0.f);
+  proj->c2 = vf4_set(0.f, 0.f, (zfar + znear)*rcp_zrange, -1.f);
+  proj->c3 = vf4_set(0.f, 0.f, (2.f*zfar*znear)*rcp_zrange, 0.f);
+}
+
 static void
 release_view(struct ref* ref)
 {
@@ -254,6 +277,20 @@ app_get_view_projection
   if(zfar)
     *zfar = view->zfar;
 
+  return APP_NO_ERROR;
+}
+
+enum app_error
+app_get_view_proj_matrix(struct app_view* view, struct aosf44* view_proj)
+{
+  struct aosf44 proj;
+
+  if(!view || !view_proj)
+    return APP_INVALID_ARGUMENT;
+
+  compute_projection_matrix
+    (view->fov_x, view->ratio, view->znear, view->zfar, &proj);
+  aosf44_mulf44(view_proj, &proj, &view->transform);
   return APP_NO_ERROR;
 }
 

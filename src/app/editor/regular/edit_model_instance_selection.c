@@ -193,7 +193,6 @@ edit_select_model_instance
     APP(log(selection->app, APP_LOG_INFO,
       "the instance `%s' is already selected\n", instance_name));
   } else {
-    printf("pouet\n");
     sl_err = sl_hash_table_insert
       (selection->instance_htbl, &instance, &instance);
     if(sl_err != SL_NO_ERROR) {
