@@ -293,29 +293,99 @@ edit_imgui_scale_tool
    const float color_x[3],
    const float color_y[3],
    const float color_z[3],
-   int scale[3])
+   float scale[3])
 {
-  struct aosf44 view_proj;
-  struct imgui_item_data new_data;
-  struct app_view* view = NULL;
   uint32_t id_scale_xyz = 0;
   uint32_t id_scale_x = 0;
   uint32_t id_scale_y = 0;
   uint32_t id_scale_z = 0;
-  bool mouse_pressed = false;
-  memset(&new_data, 0, sizeof(struct imgui_item_data));
 
-  if(UNLIKELY(!imgui || !pos || !color_x || !color_y || !color_z || !scale))
+    if(UNLIKELY(!imgui || !pos || !color_x || !color_y || !color_z || !scale))
     return EDIT_INVALID_ARGUMENT;
 
   if(UNLIKELY(id + 2 > APP_PICK_ID_MAX))
     return EDIT_MEMORY_ERROR;
 
-  /* Invoke scale tool rendering */
+  scale[0] = scale[1] = scale[2] = 1.f;
+
   id_scale_xyz = id + 0;
   id_scale_x = id + 1;
   id_scale_y = id + 2;
   id_scale_z = id + 3;
+
+  if(imgui->enabled_item == id_scale_xyz
+  || imgui->enabled_item == id_scale_x 
+  || imgui->enabled_item == id_scale_y
+  || imgui->enabled_item == id_scale_z) {
+    struct aosf44 transform;
+    struct imgui_item_data new_data;
+    struct app_view* view = NULL;
+    const float scale_factor = 0.01f;
+    bool mouse_pressed = false;
+    memset(&new_data, 0, sizeof(struct imgui_item_data));
+
+    mouse_pressed = imgui->state.mouse_button == WM_PRESS;
+    new_data.x = imgui->state.mouse_x;
+    new_data.y = imgui->state.mouse_y;
+
+    if(imgui->enabled_item != id_scale_xyz) {
+      APP(get_main_view(imgui->app, &view));
+      APP(get_view_proj_matrix(view, &transform));
+    } else {
+      aosf44_identity(&transform);
+    }
+
+    if(imgui->enabled_item == id_scale_x) {
+      scale[0] = setup_tool_item
+        (imgui->item_htbl, 
+         &transform,
+         vf4_set(1.f, 0.f, 0.f, 0.f),
+         id_scale_x, 
+         &new_data,
+         mouse_pressed);
+      scale[0] = scale[0] * scale_factor;
+      scale[0] = scale[0] < 0 ? 1.f / (1.f - scale[0]) : 1.f + scale[0];
+    }
+    if(imgui->enabled_item == id_scale_y) {
+      scale[1] = setup_tool_item
+        (imgui->item_htbl, 
+         &transform,
+         vf4_set(0.f, 1.f, 0.f, 0.f),
+         id_scale_y, 
+         &new_data,
+         mouse_pressed);
+      scale[1] = scale[1] * scale_factor;
+      scale[1] = scale[1] < 0 ? 1.f / (1.f - scale[1]) : 1.f + scale[1];
+    }
+    if(imgui->enabled_item == id_scale_z) {
+      scale[2] = setup_tool_item
+        (imgui->item_htbl, 
+         &transform,
+         vf4_set(0.f, 0.f, 1.f, 0.f),
+         id_scale_z, 
+         &new_data,
+         mouse_pressed);
+      scale[2] = scale[2] * scale_factor;
+      scale[2] = scale[2] < 0 ? 1.f / (1.f - scale[2]) : 1.f + scale[2];
+    }
+    if(imgui->enabled_item == id_scale_xyz) {
+      float scale_xyz = setup_tool_item
+        (imgui->item_htbl, 
+         &transform,
+         vf4_normalize3(vf4_set(1.f, 1.f, 0.f, 0.f)),
+         id_scale_xyz, 
+         &new_data,
+         mouse_pressed);
+      scale_xyz = scale_xyz * scale_factor;
+      scale_xyz = scale_xyz < 0 ? 1.f / (1.f - scale_xyz) : 1.f + scale_xyz;
+      scale[0] = scale[1] = scale[2] = scale_xyz;
+    }
+    if(mouse_pressed == false) {
+      imgui->enabled_item = IMGUI_ITEM_NULL;
+    }
+  }
+
+  /* Invoke scale tool rendering */
   draw_basis
     (imgui->app,
      pos,
@@ -329,49 +399,6 @@ edit_imgui_scale_tool
      id_scale_y,
      id_scale_z);
 
-  if(imgui->enabled_item != id_scale_xyz
-  && imgui->enabled_item != id_scale_x 
-  && imgui->enabled_item != id_scale_y
-  && imgui->enabled_item != id_scale_z) 
-    return EDIT_NO_ERROR;
-
-  mouse_pressed = imgui->state.mouse_button == WM_PRESS;
-  new_data.x = imgui->state.mouse_x;
-  new_data.y = imgui->state.mouse_y;
-
-  APP(get_main_view(imgui->app, &view));
-  APP(get_view_proj_matrix(view, &view_proj));
-
-  if(imgui->enabled_item == id_scale_x || imgui->enabled_item == id_scale_xyz) {
-    scale[0] = setup_tool_item
-      (imgui->item_htbl, 
-       &view_proj,
-       vf4_set(1.f, 0.f, 0.f, 0.f),
-       id_scale_x, 
-       &new_data,
-       mouse_pressed);
-  }
-  if(imgui->enabled_item == id_scale_y || imgui->enabled_item == id_scale_xyz) {
-    scale[1] = setup_tool_item
-      (imgui->item_htbl, 
-       &view_proj,
-       vf4_set(0.f, 1.f, 0.f, 0.f),
-       id_scale_y, 
-       &new_data,
-       mouse_pressed);
-  }
-  if(imgui->enabled_item == id_scale_z || imgui->enabled_item == id_scale_xyz) {
-    scale[2] = setup_tool_item
-      (imgui->item_htbl, 
-       &view_proj,
-       vf4_set(0.f, 0.f, 1.f, 0.f),
-       id_scale_z, 
-       &new_data,
-       mouse_pressed);
-  }
-  if(mouse_pressed == false) {
-    imgui->enabled_item = IMGUI_ITEM_NULL;
-  }
   return EDIT_NO_ERROR;
 }
 
@@ -384,16 +411,12 @@ edit_imgui_translate_tool
    const float color_x[3],
    const float color_y[3],
    const float color_z[3],
-   int translate[3])
+   float translate[3])
 {
-  struct aosf44 view_proj;
-  struct imgui_item_data new_data;
-  struct app_view* view = NULL;
   uint32_t id_trans_xyz = 0;
   uint32_t id_trans_x = 0;
   uint32_t id_trans_y = 0;
   uint32_t id_trans_z = 0;
-  bool mouse_pressed = false;
 
   if(UNLIKELY(!imgui || !pos || !color_x || !color_y || !color_z || !translate))
     return EDIT_INVALID_ARGUMENT;
@@ -401,14 +424,70 @@ edit_imgui_translate_tool
   if(UNLIKELY(id + 2 > APP_PICK_ID_MAX))
     return EDIT_MEMORY_ERROR;
 
-  /* Invoke scale tool rendering */
+  translate[0] = translate[1] = translate[2] = 0.f;
+
   id_trans_xyz = id + 0;
   id_trans_x = id + 1;
   id_trans_y = id + 2;
   id_trans_z = id + 3;
+ 
+  if(imgui->enabled_item == id_trans_xyz
+  || imgui->enabled_item == id_trans_x 
+  || imgui->enabled_item == id_trans_y
+  || imgui->enabled_item == id_trans_z) {
+    struct aosf44 view_proj;
+    struct imgui_item_data new_data;
+    struct app_view* view = NULL;
+    const float translate_factor = 0.1f;
+    bool mouse_pressed = false;
+    memset(&new_data, 0, sizeof(struct imgui_item_data));
+
+    mouse_pressed = imgui->state.mouse_button == WM_PRESS;
+    new_data.x = imgui->state.mouse_x;
+    new_data.y = imgui->state.mouse_y;
+
+    APP(get_main_view(imgui->app, &view));
+    APP(get_view_proj_matrix(view, &view_proj));
+
+    if(imgui->enabled_item==id_trans_x || imgui->enabled_item==id_trans_xyz) {
+      translate[0] = setup_tool_item
+        (imgui->item_htbl, 
+         &view_proj,
+         vf4_set(1.f, 0.f, 0.f, 0.f),
+         id_trans_x, 
+         &new_data,
+         mouse_pressed);
+      translate[0] *= translate_factor;
+    }
+    if(imgui->enabled_item==id_trans_y || imgui->enabled_item==id_trans_xyz) {
+      translate[1] = setup_tool_item
+        (imgui->item_htbl, 
+         &view_proj,
+         vf4_set(0.f, 1.f, 0.f, 0.f),
+         id_trans_y, 
+         &new_data,
+         mouse_pressed);
+      translate[1] *= translate_factor;
+    }
+    if(imgui->enabled_item==id_trans_z || imgui->enabled_item==id_trans_xyz) {
+      translate[2] = setup_tool_item
+        (imgui->item_htbl, 
+         &view_proj,
+         vf4_set(0.f, 0.f, 1.f, 0.f),
+         id_trans_z, 
+         &new_data,
+         mouse_pressed);
+      translate[2] *= translate_factor;
+    }
+    if(mouse_pressed == false) {
+      imgui->enabled_item = IMGUI_ITEM_NULL;
+    }
+  }
+
+  /* Invoke translate tool rendering */
   draw_basis
     (imgui->app,
-     pos,
+     (float[]){pos[0]+translate[0], pos[1]+translate[1], pos[2]+translate[2]},
      size,
      APP_IM_VECTOR_CONE_MARKER,
      color_x,
@@ -419,49 +498,6 @@ edit_imgui_translate_tool
      id_trans_y,
      id_trans_z);
 
-  if(imgui->enabled_item != id_trans_xyz
-  && imgui->enabled_item != id_trans_x 
-  && imgui->enabled_item != id_trans_y
-  && imgui->enabled_item != id_trans_z) 
-    return EDIT_NO_ERROR;
-
-  mouse_pressed = imgui->state.mouse_button == WM_PRESS;
-  new_data.x = imgui->state.mouse_x;
-  new_data.y = imgui->state.mouse_y;
-
-  APP(get_main_view(imgui->app, &view));
-  APP(get_view_proj_matrix(view, &view_proj));
-
-  if(imgui->enabled_item == id_trans_x || imgui->enabled_item == id_trans_xyz) {
-    translate[0] = setup_tool_item
-      (imgui->item_htbl, 
-       &view_proj,
-       vf4_set(1.f, 0.f, 0.f, 0.f),
-       id_trans_x, 
-       &new_data,
-       mouse_pressed);
-  }
-  if(imgui->enabled_item == id_trans_y || imgui->enabled_item == id_trans_xyz) {
-    translate[1] = setup_tool_item
-      (imgui->item_htbl, 
-       &view_proj,
-       vf4_set(0.f, 1.f, 0.f, 0.f),
-       id_trans_y, 
-       &new_data,
-       mouse_pressed);
-  }
-  if(imgui->enabled_item == id_trans_z || imgui->enabled_item == id_trans_xyz) {
-    translate[2] = setup_tool_item
-      (imgui->item_htbl, 
-       &view_proj,
-       vf4_set(0.f, 0.f, 1.f, 0.f),
-       id_trans_z, 
-       &new_data,
-       mouse_pressed);
-  }
-  if(mouse_pressed == false) {
-    imgui->enabled_item = IMGUI_ITEM_NULL;
-  }
   return EDIT_NO_ERROR;
 }
 

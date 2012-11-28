@@ -210,7 +210,6 @@ main(int argc, char** argv)
       fprintf(stderr, "Error processing app input events.\n");
       goto error;
     }
-
     game_err = game_run(app_main.game, &keep_game_running);
     if(game_err != GAME_NO_ERROR) {
       fprintf(stderr, "Error running the game.\n");

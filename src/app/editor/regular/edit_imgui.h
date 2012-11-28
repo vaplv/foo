@@ -54,7 +54,7 @@ edit_imgui_scale_tool
    const float color_x[3],
    const float color_y[3],
    const float color_z[3],
-   int scale[3]);
+   float scale[3]);
 
 LOCAL_SYM enum edit_error
 edit_imgui_translate_tool
@@ -65,7 +65,7 @@ edit_imgui_translate_tool
    const float color_x[3],
    const float color_y[3],
    const float color_z[3],
-   int translation[3]);
+   float translation[3]);
 
 #endif /* EDIT_IMGUI_H */
 
