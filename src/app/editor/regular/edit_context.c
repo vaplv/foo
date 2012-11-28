@@ -82,11 +82,7 @@ draw_tools(struct edit_context* ctxt)
     EDIT(translate_tool(ctxt->imgui, ctxt->instance_selection));
   }
   if(transform_flag & EDIT_TRANSFORM_ROTATE) {
-    EDIT(draw_rotate_tool
-      (ctxt->app, pivot_pos, size,
-       (float[]){1.f, 0.f, 0.f},
-       (float[]){0.f, 1.f, 0.f},
-       (float[]){0.f, 0.f, 1.f}));
+    EDIT(rotate_tool(ctxt->imgui, ctxt->instance_selection));
   }
   if(transform_flag == EDIT_TRANSFORM_NONE) {
     EDIT(draw_pivot

@@ -151,6 +151,33 @@ edit_translate_tool
   return EDIT_NO_ERROR;
 }
 
+enum edit_error
+edit_rotate_tool
+  (struct edit_imgui* imgui,
+   struct edit_model_instance_selection* selection)
+{
+  const float size = 0.2f;
+  float pivot_pos[3] = {0.f, 0.f, 0.f};
+  float val[3] = { 0, 0, 0 };
+
+  if(UNLIKELY(!imgui || !selection))
+    return EDIT_INVALID_ARGUMENT;
+
+  EDIT(get_model_instance_selection_pivot(selection, pivot_pos));
+
+  EDIT(imgui_rotate_tool
+    (imgui, EDIT_IMGUI_ID, pivot_pos, size,
+     (float[]){1.f, 0.f, 0.f},
+     (float[]){0.f, 1.f, 0.f},
+     (float[]){0.f, 0.f, 1.f},
+     val));
+
+  if(!val[0] && !val[1] && !val[2])
+    return EDIT_NO_ERROR;
+
+  EDIT(rotate_model_instance_selection(selection, true, val));
+  return EDIT_NO_ERROR;
+}
 
 enum edit_error
 edit_draw_pivot

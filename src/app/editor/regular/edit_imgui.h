@@ -43,7 +43,7 @@ edit_imgui_rotate_tool
    const float color_x[3],
    const float color_y[3],
    const float color_z[3],
-   int rotation[3]);
+   float rotation[3]);
 
 LOCAL_SYM enum edit_error
 edit_imgui_scale_tool
