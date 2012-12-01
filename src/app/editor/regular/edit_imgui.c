@@ -314,13 +314,13 @@ edit_imgui_rotate_tool
   id_rot_z = id + 3;
 
   if(imgui->enabled_item == id_rot_xyz
-  || imgui->enabled_item == id_rot_x 
+  || imgui->enabled_item == id_rot_x
   || imgui->enabled_item == id_rot_y
   || imgui->enabled_item == id_rot_z) {
     struct aosf44 view_proj;
     struct imgui_item_data new_data;
     struct app_view* view = NULL;
-    const float rotate_factor = 0.1f;
+    const float rotate_factor = 0.01f;
     bool mouse_pressed = false;
     memset(&new_data, 0, sizeof(struct imgui_item_data));
 
@@ -333,30 +333,30 @@ edit_imgui_rotate_tool
 
     if(imgui->enabled_item==id_rot_x || imgui->enabled_item==id_rot_xyz) {
       rotate[0] = setup_tool_item
-        (imgui->item_htbl, 
+        (imgui->item_htbl,
          &view_proj,
-         vf4_set(0.f, 0.f, 1.f, 0.f),
-         id_rot_x, 
+         vf4_set(0.f, 1.f, 0.f, 0.f),
+         id_rot_x,
          &new_data,
          mouse_pressed);
       rotate[0] *= rotate_factor;
     }
     if(imgui->enabled_item==id_rot_y || imgui->enabled_item==id_rot_xyz) {
       rotate[1] = setup_tool_item
-        (imgui->item_htbl, 
+        (imgui->item_htbl,
          &view_proj,
-         vf4_set(1.f, 0.f, 0.f, 0.f),
-         id_rot_y, 
+         vf4_set(0.f, 0.f, 1.f, 0.f),
+         id_rot_y,
          &new_data,
          mouse_pressed);
       rotate[1] *= rotate_factor;
     }
     if(imgui->enabled_item==id_rot_z || imgui->enabled_item==id_rot_xyz) {
       rotate[2] = setup_tool_item
-        (imgui->item_htbl, 
+        (imgui->item_htbl,
          &view_proj,
-         vf4_set(0.f, 1.f, 0.f, 0.f),
-         id_rot_z, 
+         vf4_set(1.f, 0.f, 0.f, 0.f),
+         id_rot_z,
          &new_data,
          mouse_pressed);
       rotate[2] *= rotate_factor;
@@ -370,13 +370,13 @@ edit_imgui_rotate_tool
   draw_basis_circles
     (imgui->app, pos, size,
      color_y, color_z, color_x,
-     id_rot_y, id_rot_z, id_rot_x);
+     APP_PICK_NONE, APP_PICK_NONE, APP_PICK_NONE);
   draw_basis
     (imgui->app, pos, size,
      APP_IM_VECTOR_CUBE_MARKER,
      color_y, color_z, color_x,
      id_rot_xyz, id_rot_y, id_rot_z, id_rot_x);
- 
+
   return EDIT_NO_ERROR;
 
 }
@@ -411,7 +411,7 @@ edit_imgui_scale_tool
   id_scale_z = id + 3;
 
   if(imgui->enabled_item == id_scale_xyz
-  || imgui->enabled_item == id_scale_x 
+  || imgui->enabled_item == id_scale_x
   || imgui->enabled_item == id_scale_y
   || imgui->enabled_item == id_scale_z) {
     struct aosf44 transform;
@@ -434,10 +434,10 @@ edit_imgui_scale_tool
 
     if(imgui->enabled_item == id_scale_x) {
       scale[0] = setup_tool_item
-        (imgui->item_htbl, 
+        (imgui->item_htbl,
          &transform,
          vf4_set(1.f, 0.f, 0.f, 0.f),
-         id_scale_x, 
+         id_scale_x,
          &new_data,
          mouse_pressed);
       scale[0] = scale[0] * scale_factor;
@@ -445,10 +445,10 @@ edit_imgui_scale_tool
     }
     if(imgui->enabled_item == id_scale_y) {
       scale[1] = setup_tool_item
-        (imgui->item_htbl, 
+        (imgui->item_htbl,
          &transform,
          vf4_set(0.f, 1.f, 0.f, 0.f),
-         id_scale_y, 
+         id_scale_y,
          &new_data,
          mouse_pressed);
       scale[1] = scale[1] * scale_factor;
@@ -456,10 +456,10 @@ edit_imgui_scale_tool
     }
     if(imgui->enabled_item == id_scale_z) {
       scale[2] = setup_tool_item
-        (imgui->item_htbl, 
+        (imgui->item_htbl,
          &transform,
          vf4_set(0.f, 0.f, 1.f, 0.f),
-         id_scale_z, 
+         id_scale_z,
          &new_data,
          mouse_pressed);
       scale[2] = scale[2] * scale_factor;
@@ -467,10 +467,10 @@ edit_imgui_scale_tool
     }
     if(imgui->enabled_item == id_scale_xyz) {
       float scale_xyz = setup_tool_item
-        (imgui->item_htbl, 
+        (imgui->item_htbl,
          &transform,
          vf4_normalize3(vf4_set(1.f, 1.f, 0.f, 0.f)),
-         id_scale_xyz, 
+         id_scale_xyz,
          &new_data,
          mouse_pressed);
       scale_xyz = scale_xyz * scale_factor;
@@ -520,9 +520,9 @@ edit_imgui_translate_tool
   id_trans_x = id + 1;
   id_trans_y = id + 2;
   id_trans_z = id + 3;
- 
+
   if(imgui->enabled_item == id_trans_xyz
-  || imgui->enabled_item == id_trans_x 
+  || imgui->enabled_item == id_trans_x
   || imgui->enabled_item == id_trans_y
   || imgui->enabled_item == id_trans_z) {
     struct aosf44 view_proj;
@@ -541,30 +541,30 @@ edit_imgui_translate_tool
 
     if(imgui->enabled_item==id_trans_x || imgui->enabled_item==id_trans_xyz) {
       translate[0] = setup_tool_item
-        (imgui->item_htbl, 
+        (imgui->item_htbl,
          &view_proj,
          vf4_set(1.f, 0.f, 0.f, 0.f),
-         id_trans_x, 
+         id_trans_x,
          &new_data,
          mouse_pressed);
       translate[0] *= translate_factor;
     }
     if(imgui->enabled_item==id_trans_y || imgui->enabled_item==id_trans_xyz) {
       translate[1] = setup_tool_item
-        (imgui->item_htbl, 
+        (imgui->item_htbl,
          &view_proj,
          vf4_set(0.f, 1.f, 0.f, 0.f),
-         id_trans_y, 
+         id_trans_y,
          &new_data,
          mouse_pressed);
       translate[1] *= translate_factor;
     }
     if(imgui->enabled_item==id_trans_z || imgui->enabled_item==id_trans_xyz) {
       translate[2] = setup_tool_item
-        (imgui->item_htbl, 
+        (imgui->item_htbl,
          &view_proj,
          vf4_set(0.f, 0.f, 1.f, 0.f),
-         id_trans_z, 
+         id_trans_z,
          &new_data,
          mouse_pressed);
       translate[2] *= translate_factor;

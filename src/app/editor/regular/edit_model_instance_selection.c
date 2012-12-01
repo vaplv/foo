@@ -546,7 +546,7 @@ edit_draw_model_instance_selection
        pos,
        size,
        (float[]){0.f, 0.f, 0.f}, /* Rotation */
-       (float[]){0.75f, 0.75f, 0.0f, 0.15f}, /* Solid color */
+       (float[]){0.75f, 0.75f, 0.0f, 0.10f}, /* Solid color */
        (float[]){1.f, 1.f, 0.f, 1.f})); /* Wire color */
     SL(hash_table_it_next(&it, &is_end_reached));
   } while(is_end_reached == false);
