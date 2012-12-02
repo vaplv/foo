@@ -20,6 +20,11 @@ enum app_im_vector_marker {
   APP_IM_VECTOR_MARKER_NONE
 };
 
+enum app_im_stroke_style {
+  APP_IM_STROKE_STYLE_PLAIN,
+  APP_IM_STROKE_STYLE_NONE
+};
+
 APP_API enum app_error
 app_imdraw_parallelepiped
   (struct app* app,
@@ -63,6 +68,7 @@ app_imdraw_vector
    const uint32_t pick_id,
    const enum app_im_vector_marker start_marker,
    const enum app_im_vector_marker end_marker,
+   const enum app_im_stroke_style stroke_style,
    const float start[3],
    const float end[3],
    const float color[4]);

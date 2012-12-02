@@ -274,17 +274,20 @@ invoke_imdraw_vector
       (sys->im.draw3d.color, 1, cmd->data.vector.color));
     transform_uniform = sys->im.draw3d.transform;
   }
-  RBI(&sys->rb, bind_vertex_array(sys->ctxt, sys->im.line.vertex_array));
+  /* TODO take into account the stroke style!!! */
+  if( cmd->data.vector.stroke_style == RDR_IM_STROKE_STYLE_PLAIN ) {
+    RBI(&sys->rb, bind_vertex_array(sys->ctxt, sys->im.line.vertex_array));
 
-  /* Stretch the line to the correct size by scaling the matrix by the vector
-   * length */
-  f44.c0 = vf4_mul(transform.c0, len);
-  f44.c1 = vf4_mul(transform.c1, len);
-  f44.c2 = vf4_mul(transform.c2, len);
-  f44.c3 = transform.c3;
-  aosf44_store(array, &f44);
-  RBI(&sys->rb, uniform_data(transform_uniform, 1, array));
-  RBI(&sys->rb, draw(sys->ctxt, RB_LINES, 2));
+    /* Stretch the line to the correct size by scaling the matrix by the vector
+     * length */
+    f44.c0 = vf4_mul(transform.c0, len);
+    f44.c1 = vf4_mul(transform.c1, len);
+    f44.c2 = vf4_mul(transform.c2, len);
+    f44.c3 = transform.c3;
+    aosf44_store(array, &f44);
+    RBI(&sys->rb, uniform_data(transform_uniform, 1, array));
+    RBI(&sys->rb, draw(sys->ctxt, RB_LINES, 2));
+  }
 
   #define DRAW_MARKER(marker) \
     do { \

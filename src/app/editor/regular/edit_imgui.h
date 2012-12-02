@@ -38,6 +38,7 @@ LOCAL_SYM enum edit_error
 edit_imgui_rotate_tool
   (struct edit_imgui* imgui,
    const uint32_t id,
+   const float sensitivity,
    const float pos[3],
    const float size,
    const float color_x[3],
@@ -49,6 +50,7 @@ LOCAL_SYM enum edit_error
 edit_imgui_scale_tool
   (struct edit_imgui* imgui,
    const uint32_t id,
+   const float sensitivity,
    const float pos[3],
    const float size,
    const float color_x[3],
@@ -60,6 +62,7 @@ LOCAL_SYM enum edit_error
 edit_imgui_translate_tool
   (struct edit_imgui* imgui,
    const uint32_t id,
+   const float sensitivity,
    const float pos[3],
    const float size,
    const float color_x[3],

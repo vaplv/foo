@@ -51,6 +51,25 @@ app_to_rdr_im_vector_marker(enum app_im_vector_marker marker)
   return rmarker;
 }
 
+static enum rdr_im_stroke_style
+app_to_rdr_im_stroke_style(enum app_im_stroke_style style)
+{
+  enum rdr_im_stroke_style rstyle = RDR_IM_STROKE_STYLE_NONE;
+
+  switch(style) {
+    case APP_IM_STROKE_STYLE_PLAIN:
+      rstyle = RDR_IM_STROKE_STYLE_PLAIN;
+      break;
+    case APP_IM_STROKE_STYLE_NONE:
+      rstyle = RDR_IM_STROKE_STYLE_NONE;
+      break;
+    default:
+      assert(0);
+      break;
+  }
+  return rstyle;
+}
+
 static FINLINE void
 setup_render_view(struct app* app, struct rdr_view* render_view)
 {
@@ -89,8 +108,8 @@ app_imdraw_parallelepiped
    const float wire_color[4])
 {
   struct rdr_view render_view;
-  const uint32_t pick_id = in_pick_id >= APP_PICK_ID_MAX 
-    ? APP_PICK_NONE 
+  const uint32_t pick_id = in_pick_id >= APP_PICK_ID_MAX
+    ? APP_PICK_NONE
     : APP_PICK(in_pick_id, APP_PICK_GROUP_IMDRAW);
   enum app_error app_err = APP_NO_ERROR;
   enum rdr_error rdr_err = RDR_NO_ERROR;
@@ -132,8 +151,8 @@ app_imdraw_ellipse
    const float color[4])
 {
   struct rdr_view render_view;
-  const uint32_t pick_id = in_pick_id >= APP_PICK_ID_MAX 
-    ? APP_PICK_NONE 
+  const uint32_t pick_id = in_pick_id >= APP_PICK_ID_MAX
+    ? APP_PICK_NONE
     : APP_PICK(in_pick_id, APP_PICK_GROUP_IMDRAW);
   enum app_error app_err = APP_NO_ERROR;
   enum rdr_error rdr_err = RDR_NO_ERROR;
@@ -179,8 +198,8 @@ app_imdraw_grid
    const float haxis_color[3])
 {
   struct rdr_view render_view;
-  const uint32_t pick_id = in_pick_id >= APP_PICK_ID_MAX 
-    ? APP_PICK_NONE 
+  const uint32_t pick_id = in_pick_id >= APP_PICK_ID_MAX
+    ? APP_PICK_NONE
     : APP_PICK(in_pick_id, APP_PICK_GROUP_IMDRAW);
   enum app_error app_err = APP_NO_ERROR;
   enum rdr_error rdr_err = RDR_NO_ERROR;
@@ -232,13 +251,14 @@ app_imdraw_vector
    const uint32_t in_pick_id,
    const enum app_im_vector_marker start_marker,
    const enum app_im_vector_marker end_marker,
+   const enum app_im_stroke_style stroke_style,
    const float start[3],
    const float end[3],
    const float color[3])
 {
   struct rdr_view render_view;
-  const uint32_t pick_id = in_pick_id >= APP_PICK_ID_MAX 
-    ? APP_PICK_NONE 
+  const uint32_t pick_id = in_pick_id >= APP_PICK_ID_MAX
+    ? APP_PICK_NONE
     : APP_PICK(in_pick_id, APP_PICK_GROUP_IMDRAW);
   enum app_error app_err = APP_NO_ERROR;
   enum rdr_error rdr_err = RDR_NO_ERROR;
@@ -256,6 +276,7 @@ app_imdraw_vector
      pick_id,
      app_to_rdr_im_vector_marker(start_marker),
      app_to_rdr_im_vector_marker(end_marker),
+     app_to_rdr_im_stroke_style(stroke_style),
      start,
      end,
      color);

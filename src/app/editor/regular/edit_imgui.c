@@ -92,6 +92,7 @@ draw_basis
    const float pos[3],
    const float size,
    const enum app_im_vector_marker end_marker,
+   const enum app_im_stroke_style stroke_style,
    const float col_x[3],
    const float col_y[3],
    const float col_z[3],
@@ -109,6 +110,7 @@ draw_basis
        pick, \
        APP_IM_VECTOR_MARKER_NONE, \
        end_marker, \
+       stroke_style, \
        pos, \
        end, \
        color))
@@ -288,6 +290,7 @@ enum edit_error
 edit_imgui_rotate_tool
   (struct edit_imgui* imgui,
    const uint32_t id,
+   const float sensitivity,
    const float pos[3],
    const float size,
    const float color_x[3],
@@ -320,7 +323,6 @@ edit_imgui_rotate_tool
     struct aosf44 view_proj;
     struct imgui_item_data new_data;
     struct app_view* view = NULL;
-    const float rotate_factor = 0.01f;
     bool mouse_pressed = false;
     memset(&new_data, 0, sizeof(struct imgui_item_data));
 
@@ -339,7 +341,7 @@ edit_imgui_rotate_tool
          id_rot_x,
          &new_data,
          mouse_pressed);
-      rotate[0] *= rotate_factor;
+      rotate[0] *= sensitivity;
     }
     if(imgui->enabled_item==id_rot_y || imgui->enabled_item==id_rot_xyz) {
       rotate[1] = setup_tool_item
@@ -349,7 +351,7 @@ edit_imgui_rotate_tool
          id_rot_y,
          &new_data,
          mouse_pressed);
-      rotate[1] *= rotate_factor;
+      rotate[1] *= sensitivity;
     }
     if(imgui->enabled_item==id_rot_z || imgui->enabled_item==id_rot_xyz) {
       rotate[2] = setup_tool_item
@@ -359,7 +361,7 @@ edit_imgui_rotate_tool
          id_rot_z,
          &new_data,
          mouse_pressed);
-      rotate[2] *= rotate_factor;
+      rotate[2] *= sensitivity;
     }
     if(mouse_pressed == false) {
       imgui->enabled_item = IMGUI_ITEM_NULL;
@@ -374,17 +376,17 @@ edit_imgui_rotate_tool
   draw_basis
     (imgui->app, pos, size,
      APP_IM_VECTOR_CUBE_MARKER,
+     APP_IM_STROKE_STYLE_NONE,
      color_y, color_z, color_x,
      id_rot_xyz, id_rot_y, id_rot_z, id_rot_x);
-
   return EDIT_NO_ERROR;
-
 }
 
 enum edit_error
 edit_imgui_scale_tool
   (struct edit_imgui* imgui,
    const uint32_t id,
+   const float sensitivity,
    const float pos[3],
    const float size,
    const float color_x[3],
@@ -417,7 +419,6 @@ edit_imgui_scale_tool
     struct aosf44 transform;
     struct imgui_item_data new_data;
     struct app_view* view = NULL;
-    const float scale_factor = 0.01f;
     bool mouse_pressed = false;
     memset(&new_data, 0, sizeof(struct imgui_item_data));
 
@@ -440,7 +441,7 @@ edit_imgui_scale_tool
          id_scale_x,
          &new_data,
          mouse_pressed);
-      scale[0] = scale[0] * scale_factor;
+      scale[0] *= sensitivity;
       scale[0] = scale[0] < 0 ? 1.f / (1.f - scale[0]) : 1.f + scale[0];
     }
     if(imgui->enabled_item == id_scale_y) {
@@ -451,7 +452,7 @@ edit_imgui_scale_tool
          id_scale_y,
          &new_data,
          mouse_pressed);
-      scale[1] = scale[1] * scale_factor;
+      scale[1] *= sensitivity;
       scale[1] = scale[1] < 0 ? 1.f / (1.f - scale[1]) : 1.f + scale[1];
     }
     if(imgui->enabled_item == id_scale_z) {
@@ -462,7 +463,7 @@ edit_imgui_scale_tool
          id_scale_z,
          &new_data,
          mouse_pressed);
-      scale[2] = scale[2] * scale_factor;
+      scale[2] *= sensitivity;
       scale[2] = scale[2] < 0 ? 1.f / (1.f - scale[2]) : 1.f + scale[2];
     }
     if(imgui->enabled_item == id_scale_xyz) {
@@ -473,7 +474,7 @@ edit_imgui_scale_tool
          id_scale_xyz,
          &new_data,
          mouse_pressed);
-      scale_xyz = scale_xyz * scale_factor;
+      scale_xyz *= sensitivity;
       scale_xyz = scale_xyz < 0 ? 1.f / (1.f - scale_xyz) : 1.f + scale_xyz;
       scale[0] = scale[1] = scale[2] = scale_xyz;
     }
@@ -486,6 +487,7 @@ edit_imgui_scale_tool
   draw_basis
     (imgui->app, pos, size,
      APP_IM_VECTOR_CUBE_MARKER,
+     APP_IM_STROKE_STYLE_PLAIN,
      color_x, color_y, color_z,
      id_scale_xyz, id_scale_x, id_scale_y, id_scale_z);
 
@@ -496,6 +498,7 @@ enum edit_error
 edit_imgui_translate_tool
   (struct edit_imgui* imgui,
    const uint32_t id,
+   const float sensitivity,
    const float pos[3],
    const float size,
    const float color_x[3],
@@ -528,7 +531,6 @@ edit_imgui_translate_tool
     struct aosf44 view_proj;
     struct imgui_item_data new_data;
     struct app_view* view = NULL;
-    const float translate_factor = 0.1f;
     bool mouse_pressed = false;
     memset(&new_data, 0, sizeof(struct imgui_item_data));
 
@@ -547,7 +549,7 @@ edit_imgui_translate_tool
          id_trans_x,
          &new_data,
          mouse_pressed);
-      translate[0] *= translate_factor;
+      translate[0] *= sensitivity;
     }
     if(imgui->enabled_item==id_trans_y || imgui->enabled_item==id_trans_xyz) {
       translate[1] = setup_tool_item
@@ -557,7 +559,7 @@ edit_imgui_translate_tool
          id_trans_y,
          &new_data,
          mouse_pressed);
-      translate[1] *= translate_factor;
+      translate[1] *= sensitivity;
     }
     if(imgui->enabled_item==id_trans_z || imgui->enabled_item==id_trans_xyz) {
       translate[2] = setup_tool_item
@@ -567,7 +569,7 @@ edit_imgui_translate_tool
          id_trans_z,
          &new_data,
          mouse_pressed);
-      translate[2] *= translate_factor;
+      translate[2] *= sensitivity;
     }
     if(mouse_pressed == false) {
       imgui->enabled_item = IMGUI_ITEM_NULL;
@@ -580,6 +582,7 @@ edit_imgui_translate_tool
      (float[]){pos[0]+translate[0], pos[1]+translate[1], pos[2]+translate[2]},
      size,
      APP_IM_VECTOR_CONE_MARKER,
+     APP_IM_STROKE_STYLE_PLAIN,
      color_x, color_y, color_z,
      id_trans_xyz, id_trans_x, id_trans_y, id_trans_z);
 

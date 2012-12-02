@@ -304,6 +304,7 @@ imdraw_vector
    const struct aosf44* trans,
    const enum rdr_im_vector_marker start_marker,
    const enum rdr_im_vector_marker end_marker,
+   const enum rdr_im_stroke_style stroke_style,
    const float vec[3],
    const float color[3])
 {
@@ -329,6 +330,7 @@ imdraw_vector
   memcpy(cmd->data.vector.color, color, 3 * sizeof(float));
   cmd->data.vector.start_marker = start_marker;
   cmd->data.vector.end_marker = end_marker;
+  cmd->data.vector.stroke_style = stroke_style;
   RDR(emit_imdraw_command(frame->imdraw.cmdbuf, cmd));
 exit:
   return rdr_err;
@@ -637,6 +639,7 @@ rdr_frame_imdraw_vector
    const uint32_t pick_id,
    const enum rdr_im_vector_marker start_marker,
    const enum rdr_im_vector_marker end_marker,
+   const enum rdr_im_stroke_style stroke_style,
    const float start[3],
    const float end[3],
    const float color[3])
@@ -663,6 +666,7 @@ rdr_frame_imdraw_vector
      &transform,
      start_marker,
      end_marker,
+     stroke_style,
      vec,
      color);
   return rdr_err;

@@ -14,6 +14,11 @@ enum rdr_im_vector_marker {
   RDR_IM_VECTOR_CONE_MARKER,
   RDR_IM_VECTOR_MARKER_NONE
 };
+   
+enum rdr_im_stroke_style {
+  RDR_IM_STROKE_STYLE_PLAIN,
+  RDR_IM_STROKE_STYLE_NONE
+};
 
 #endif /* RDR_IMDRAW_H */
 

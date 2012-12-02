@@ -119,6 +119,7 @@ rdr_frame_imdraw_vector
    const uint32_t pick_id,
    const enum rdr_im_vector_marker start_marker,
    const enum rdr_im_vector_marker end_marker,
+   const enum rdr_im_stroke_style stroke_style,
    const float start[3],
    const float end[3],
    const float color[3]);

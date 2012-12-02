@@ -44,6 +44,7 @@ struct rdr_imdraw_command {
       float color[3];/*RGB */
       enum rdr_im_vector_marker start_marker;
       enum rdr_im_vector_marker end_marker;
+      enum rdr_im_stroke_style stroke_style;
     } vector;
     struct rdr_im_grid {
       float transform[16]; /* column major */

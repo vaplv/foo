@@ -65,9 +65,8 @@ draw_grid(struct edit_context* ctxt)
 }
 
 static void
-draw_tools(struct edit_context* ctxt)
+process_tools(struct edit_context* ctxt)
 {
-  const float size = 0.2f;
   int transform_flag = EDIT_TRANSFORM_NONE;
   float pivot_pos[3] = {0.f, 0.f, 0.f};
   assert(ctxt);
@@ -76,13 +75,22 @@ draw_tools(struct edit_context* ctxt)
   EDIT(get_model_instance_selection_pivot(ctxt->instance_selection, pivot_pos));
 
   if(transform_flag & EDIT_TRANSFORM_SCALE) {
-    EDIT(scale_tool(ctxt->imgui, ctxt->instance_selection));
+    EDIT(scale_tool
+      (ctxt->imgui,
+       ctxt->instance_selection,
+       ctxt->cvars.scale_sensitivity->value.real));
   }
   if(transform_flag & EDIT_TRANSFORM_TRANSLATE) {
-    EDIT(translate_tool(ctxt->imgui, ctxt->instance_selection));
+    EDIT(translate_tool
+      (ctxt->imgui,
+       ctxt->instance_selection,
+       ctxt->cvars.translate_sensitivity->value.real));
   }
   if(transform_flag & EDIT_TRANSFORM_ROTATE) {
-    EDIT(rotate_tool(ctxt->imgui, ctxt->instance_selection));
+    EDIT(rotate_tool
+      (ctxt->imgui,
+       ctxt->instance_selection,
+       ctxt->cvars.rotate_sensitivity->value.real));
   }
   if(transform_flag == EDIT_TRANSFORM_NONE) {
     EDIT(draw_pivot
@@ -239,9 +247,9 @@ edit_run(struct edit_context* ctxt)
   EDIT(imgui_sync(ctxt->imgui));
 
   process_inputs(ctxt);
+  process_tools(ctxt);
 
   draw_grid(ctxt);
-  draw_tools(ctxt);
   draw_selection(ctxt);
 
   edit_err = edit_process_picking(ctxt->picking);

@@ -32,10 +32,22 @@ EDIT_CVAR
    APP_CVAR_STRING_DESC(NULL, NULL))
 
 EDIT_CVAR
+  (rotate_sensitivity,
+   APP_CVAR_FLOAT_DESC(0.008f, 0.f, 1.f))
+
+EDIT_CVAR
+  (scale_sensitivity,
+   APP_CVAR_FLOAT_DESC(0.005f, 0.f, 1.f))
+
+EDIT_CVAR
   (show_grid,
    APP_CVAR_BOOL_DESC(true))
 
 EDIT_CVAR
   (show_selection,
    APP_CVAR_BOOL_DESC(true))
+
+EDIT_CVAR
+  (translate_sensitivity,
+   APP_CVAR_FLOAT_DESC(0.2f, 0.f, 10.f))
 
