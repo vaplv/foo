@@ -19,6 +19,7 @@ struct edit_inputs {
   struct edit_inputs_context {
     struct aosf44 view_transform; /* Must be aligned on 16 Bytes */
     enum edit_transform_space transform_space;
+    enum edit_selection_mode selection_mode;
     int entity_transform_flag; /* combination of edit_transform_flag */
     int view_transform_flag; /* combination of edit_transform_flag */
 
@@ -27,8 +28,6 @@ struct edit_inputs {
       int cursor[2];
       int wheel;
     } mouse;
-
-    bool in_selection; /* Define if selection mode is enabled */
   } context;
 
   struct edit_inputs_commands {
@@ -36,13 +35,10 @@ struct edit_inputs {
     float view_rotate[3];
   } commands;
 
-  struct config {
-    float mouse_sensitivity;
-  } config;
-
   struct app* app;
   struct mem_allocator* allocator;
   struct ref ref;
+  float mouse_sensitivity;
   bool is_enabled;
 };
 
@@ -66,7 +62,9 @@ key_clbk(enum wm_key key, enum wm_state state, void* data)
     switch(key) {
       case WM_KEY_LCTRL:
       case WM_KEY_RCTRL:
-        inputs->context.in_selection = false;
+      case WM_KEY_LALT:
+      case WM_KEY_RALT:
+        inputs->context.selection_mode = EDIT_SELECTION_MODE_NEW;
         break;
       default: /* Do nothing */ break;
     }
@@ -85,7 +83,11 @@ key_clbk(enum wm_key key, enum wm_state state, void* data)
         inputs->context.entity_transform_flag = EDIT_TRANSFORM_NONE;
       case WM_KEY_LCTRL:
       case WM_KEY_RCTRL:
-        inputs->context.in_selection = true;
+        inputs->context.selection_mode = EDIT_SELECTION_MODE_XOR;
+        break;
+      case WM_KEY_LALT:
+      case WM_KEY_RALT:
+        inputs->context.selection_mode = EDIT_SELECTION_MODE_NONE;
         break;
       default: /* Do nothing */ break;
     }
@@ -108,7 +110,7 @@ mouse_motion_clbk(int x, int y, void* data)
     inputs->context.mouse.cursor[1] = y;
   } else {
     struct wm_window_desc win_desc;
-    const float sensitivity = inputs->config.mouse_sensitivity;
+    const float sensitivity = inputs->mouse_sensitivity;
     float rcp_win_size[2] = { 0.f, 0.f };
     float motion[2] = { 0.f, 0.f };
 
@@ -147,7 +149,7 @@ mouse_button_clbk(enum wm_mouse_button button, enum wm_state state, void* data)
   struct edit_inputs* inputs = data;
   assert(data);
 
-  if(inputs->context.in_selection == true) {
+  if(inputs->context.selection_mode != EDIT_SELECTION_MODE_NONE) {
     if(state == WM_PRESS) {
       switch(button) {
         case WM_MOUSE_BUTTON_0:
@@ -183,7 +185,10 @@ mouse_wheel_clbk(int pos, void* data)
   int zoom = 0;
   assert(data);
 
-  sensitivity = inputs->config.mouse_sensitivity;
+  if(inputs->context.selection_mode != EDIT_SELECTION_MODE_NONE)
+    return;
+
+  sensitivity = inputs->mouse_sensitivity;
   zoom = pos - inputs->context.mouse.wheel;
   if(zoom != 0) {
     inputs->context.mouse.wheel = pos;
@@ -236,6 +241,64 @@ release_inputs(struct ref* ref)
   MEM_FREE(inputs->allocator, inputs);
 }
 
+static void
+flush_commands(struct edit_inputs* inputs)
+{
+  assert(inputs);
+
+  /* Flush view_translate command */
+  if(inputs->commands.view_translate[0] != 0.f
+  || inputs->commands.view_translate[1] != 0.f
+  || inputs->commands.view_translate[2] != 0.f) {
+    /* Locally translate the camera. */
+    inputs->context.view_transform.c3 = vf4_add
+      (inputs->context.view_transform.c3,
+       vf4_set
+       (inputs->commands.view_translate[0],
+        inputs->commands.view_translate[1],
+        inputs->commands.view_translate[2],
+        0.f));
+  }
+
+  /* Flush view_rotate command */
+  if(inputs->commands.view_rotate[0] != 0.f
+  || inputs->commands.view_rotate[1] != 0.f
+  || inputs->commands.view_rotate[2] != 0.f) {
+    struct aosf33 pitch_roll_rot, yaw_rot, rot, inv_rot;
+    vf4_t view_pos;
+
+    /* Negate the rotation angle around the Y axis if the up vector of the view
+     * transform point downward. */
+    if(vf4_y(inputs->context.view_transform.c1) < 0.f) {
+      inputs->commands.view_rotate[1] = -inputs->commands.view_rotate[1];
+    }
+    /* Compute rotations matrices. */
+    aosf33_yaw_rotation(&yaw_rot, inputs->commands.view_rotate[1]);
+    aosf33_rotation
+      (&pitch_roll_rot,
+       inputs->commands.view_rotate[0], 0.f, inputs->commands.view_rotate[2]);
+    /* Retrieve the position of the camera in world space. */
+    rot.c0 = inputs->context.view_transform.c0;
+    rot.c1 = inputs->context.view_transform.c1;
+    rot.c2 = inputs->context.view_transform.c2;
+    aosf33_inverse(&inv_rot, &rot);
+    view_pos = aosf33_mulf3(&inv_rot, inputs->context.view_transform.c3);
+    /* Compute the new rotation matrix. */
+    aosf33_mulf33(&rot, &pitch_roll_rot, &rot);
+    aosf33_mulf33(&rot, &rot, &yaw_rot);
+    inputs->context.view_transform.c0 = rot.c0;
+    inputs->context.view_transform.c1 = rot.c1;
+    inputs->context.view_transform.c2 = rot.c2;
+    /* Set the view position with respect to the new rotation matrix. */
+    view_pos = aosf33_mulf3(&rot, view_pos);
+    inputs->context.view_transform.c3 = vf4_xyzd(view_pos, vf4_set1(1.f));
+  }
+
+  /* Reset commands. */
+  memset(&inputs->commands, 0, sizeof(struct edit_inputs_commands));
+}
+
+
 /*******************************************************************************
  *
  * Input functions
@@ -273,7 +336,7 @@ edit_create_inputs
   inputs->context.view_transform = *f44;
 
   /* Default mouse sensitivity */
-  inputs->config.mouse_sensitivity = 1.f;
+  inputs->mouse_sensitivity = 1.f;
 
   /* Take the owner ship onto the app */
   APP(ref_get(app));
@@ -381,115 +444,36 @@ edit_inputs_disable(struct edit_inputs* inputs)
 }
 
 enum edit_error
-edit_inputs_is_enabled(struct edit_inputs* inputs, bool* is_enabled)
-{
-  if(UNLIKELY(!inputs || !is_enabled))
-    return EDIT_INVALID_ARGUMENT;
-  *is_enabled = inputs->is_enabled;
-  return EDIT_NO_ERROR;
-}
-
-enum edit_error
-edit_inputs_flush_commands(struct edit_inputs* inputs)
-{
-  if(UNLIKELY(!inputs))
-    return EDIT_INVALID_ARGUMENT;
-
-  /* Flush view_translate command */
-  if(inputs->commands.view_translate[0] != 0.f
-  || inputs->commands.view_translate[1] != 0.f
-  || inputs->commands.view_translate[2] != 0.f) {
-    /* Locally translate the camera. */
-    inputs->context.view_transform.c3 = vf4_add
-      (inputs->context.view_transform.c3,
-       vf4_set
-       (inputs->commands.view_translate[0],
-        inputs->commands.view_translate[1],
-        inputs->commands.view_translate[2],
-        0.f));
-  }
-
-  /* Flush view_rotate command */
-  if(inputs->commands.view_rotate[0] != 0.f
-  || inputs->commands.view_rotate[1] != 0.f
-  || inputs->commands.view_rotate[2] != 0.f) {
-    struct aosf33 pitch_roll_rot, yaw_rot, rot, inv_rot;
-    vf4_t view_pos;
-
-    /* Negate the rotation angle around the Y axis if the up vector of the view
-     * transform point downward. */
-    if(vf4_y(inputs->context.view_transform.c1) < 0.f) {
-      inputs->commands.view_rotate[1] = -inputs->commands.view_rotate[1];
-    }
-    /* Compute rotations matrices. */
-    aosf33_yaw_rotation(&yaw_rot, inputs->commands.view_rotate[1]);
-    aosf33_rotation
-      (&pitch_roll_rot,
-       inputs->commands.view_rotate[0], 0.f, inputs->commands.view_rotate[2]);
-    /* Retrieve the position of the camera in world space. */
-    rot.c0 = inputs->context.view_transform.c0;
-    rot.c1 = inputs->context.view_transform.c1;
-    rot.c2 = inputs->context.view_transform.c2;
-    aosf33_inverse(&inv_rot, &rot);
-    view_pos = aosf33_mulf3(&inv_rot, inputs->context.view_transform.c3);
-    /* Compute the new rotation matrix. */
-    aosf33_mulf33(&rot, &pitch_roll_rot, &rot);
-    aosf33_mulf33(&rot, &rot, &yaw_rot);
-    inputs->context.view_transform.c0 = rot.c0;
-    inputs->context.view_transform.c1 = rot.c1;
-    inputs->context.view_transform.c2 = rot.c2;
-    /* Set the view position with respect to the new rotation matrix. */
-    view_pos = aosf33_mulf3(&rot, view_pos);
-    inputs->context.view_transform.c3 = vf4_xyzd(view_pos, vf4_set1(1.f));
-  }
-
-  /* Reset commands. */
-  memset(&inputs->commands, 0, sizeof(struct edit_inputs_commands));
-
-  return EDIT_NO_ERROR;
-}
-
-enum edit_error
-edit_inputs_set_config
+edit_inputs_set_mouse_sensitivity
   (struct edit_inputs* input,
-   const struct edit_inputs_config_desc* desc)
+   const float sensitivity)
 {
-  if(UNLIKELY(!input || !desc))
+  if(UNLIKELY(!input))
     return EDIT_INVALID_ARGUMENT;
-  input->config.mouse_sensitivity = desc->mouse_sensitivity;
+  input->mouse_sensitivity = sensitivity;
   return EDIT_NO_ERROR;
 }
 
 enum edit_error
-edit_inputs_get_config
-  (struct edit_inputs* input,
-   struct edit_inputs_config_desc* desc)
+edit_inputs_flush(struct edit_inputs* input)
 {
-  if(UNLIKELY(!input || !desc))
+  if(UNLIKELY(!input))
     return EDIT_INVALID_ARGUMENT;
-  desc->mouse_sensitivity = input->config.mouse_sensitivity;
+  flush_commands(input);
   return EDIT_NO_ERROR;
 }
 
 enum edit_error
-edit_inputs_get_view_transform
-  (struct edit_inputs* input,
-   struct aosf44* view_transform)
+edit_inputs_get_state
+  (const struct edit_inputs* input,
+   struct edit_inputs_state* state)
 {
-  if(UNLIKELY(!input || !view_transform))
+  if(UNLIKELY(!input || !state))
     return EDIT_INVALID_ARGUMENT;
-  *view_transform = input->context.view_transform;
-  return EDIT_NO_ERROR;
-}
-
-enum edit_error
-edit_inputs_get_entity_transform_flag
-  (struct edit_inputs* input,
-   int* entity_transform_flag)
-{
-  if(UNLIKELY(!input || !entity_transform_flag))
-    return EDIT_INVALID_ARGUMENT;
-  *entity_transform_flag = input->context.entity_transform_flag;
+  state->view_transform = input->context.view_transform;
+  state->selection_mode = input->context.selection_mode;
+  state->entity_transform_flag = input->context.entity_transform_flag;
+  state->is_enabled = input->is_enabled;
   return EDIT_NO_ERROR;
 }
 

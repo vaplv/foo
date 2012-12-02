@@ -65,63 +65,50 @@ draw_grid(struct edit_context* ctxt)
 }
 
 static void
-process_tools(struct edit_context* ctxt)
+process_tools
+  (struct edit_context* ctxt,
+   const struct edit_inputs_state* input_state)
 {
-  int transform_flag = EDIT_TRANSFORM_NONE;
   float pivot_pos[3] = {0.f, 0.f, 0.f};
-  assert(ctxt);
+  assert(ctxt && input_state);
 
-  EDIT(inputs_get_entity_transform_flag(ctxt->inputs, &transform_flag));
   EDIT(get_model_instance_selection_pivot(ctxt->instance_selection, pivot_pos));
 
-  if(transform_flag & EDIT_TRANSFORM_SCALE) {
+  if(input_state->entity_transform_flag & EDIT_TRANSFORM_SCALE) {
     EDIT(scale_tool
       (ctxt->imgui,
        ctxt->instance_selection,
        ctxt->cvars.scale_sensitivity->value.real));
   }
-  if(transform_flag & EDIT_TRANSFORM_TRANSLATE) {
+  if(input_state->entity_transform_flag & EDIT_TRANSFORM_TRANSLATE) {
     EDIT(translate_tool
       (ctxt->imgui,
        ctxt->instance_selection,
        ctxt->cvars.translate_sensitivity->value.real));
   }
-  if(transform_flag & EDIT_TRANSFORM_ROTATE) {
+  if(input_state->entity_transform_flag & EDIT_TRANSFORM_ROTATE) {
     EDIT(rotate_tool
       (ctxt->imgui,
        ctxt->instance_selection,
        ctxt->cvars.rotate_sensitivity->value.real));
   }
-  if(transform_flag == EDIT_TRANSFORM_NONE) {
+  if(input_state->entity_transform_flag == EDIT_TRANSFORM_NONE) {
     EDIT(draw_pivot
       (ctxt->app, pivot_pos, 0.05f, ctxt->cvars.pivot_color->value.real3));
   }
 }
 
 static void
-process_inputs(struct edit_context* ctxt)
+update_main_view
+  (struct app* app,
+   const struct edit_inputs_state* input_state)
 {
-  bool is_enabled = false;
-  assert(ctxt);
+  assert(app && input_state);
 
-  EDIT(inputs_is_enabled(ctxt->inputs, &is_enabled));
-  if(is_enabled) {
+  if(input_state->is_enabled) {
     struct app_view* view = NULL;
-    struct aosf44 view_transform;
-    struct edit_inputs_config_desc inputs_cfg;
-
-    /* Update inputs configuration */
-    EDIT(inputs_get_config(ctxt->inputs, &inputs_cfg));
-    inputs_cfg.mouse_sensitivity = ctxt->cvars.mouse_sensitivity->value.real;
-    EDIT(inputs_set_config(ctxt->inputs, &inputs_cfg));
-
-    /* Process inputs commands */
-    EDIT(inputs_flush_commands(ctxt->inputs));
-
-    /* Update main view */
-    EDIT(inputs_get_view_transform(ctxt->inputs, &view_transform));
-    APP(get_main_view(ctxt->app, &view));
-    APP(raw_view_transform(view, &view_transform));
+    APP(get_main_view(app, &view));
+    APP(raw_view_transform(view, &input_state->view_transform));
   }
 }
 
@@ -238,21 +225,27 @@ EXPORT_SYM enum edit_error
 edit_run(struct edit_context* ctxt)
 {
   enum edit_error edit_err = EDIT_NO_ERROR;
+  struct edit_inputs_state input_state;
+  float mouse_sensitivity = 1.f;
 
   if(UNLIKELY(!ctxt)) {
     edit_err = EDIT_INVALID_ARGUMENT;
     goto error;
   }
+  mouse_sensitivity = ctxt->cvars.mouse_sensitivity->value.real;
 
+  EDIT(inputs_set_mouse_sensitivity(ctxt->inputs, mouse_sensitivity));
+  EDIT(inputs_flush(ctxt->inputs));
+  EDIT(inputs_get_state(ctxt->inputs, &input_state));
   EDIT(imgui_sync(ctxt->imgui));
 
-  process_inputs(ctxt);
-  process_tools(ctxt);
+  update_main_view(ctxt->app, &input_state);
+  process_tools(ctxt, &input_state);
 
   draw_grid(ctxt);
   draw_selection(ctxt);
 
-  edit_err = edit_process_picking(ctxt->picking);
+  edit_err = edit_process_picking(ctxt->picking, input_state.selection_mode);
   if(edit_err != EDIT_NO_ERROR)
     goto error;
 
@@ -273,7 +266,6 @@ edit_enable_inputs(struct edit_context* ctxt, bool is_enable)
   } else {
     EDIT(inputs_disable(ctxt->inputs));
   }
-
   return EDIT_NO_ERROR;
 }
 

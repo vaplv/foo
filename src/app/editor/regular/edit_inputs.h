@@ -2,6 +2,7 @@
 #define EDIT_INPUTS_H
 
 #include "app/editor/edit_error.h"
+#include "maths/simd/aosf44.h"
 #include "sys/sys.h"
 #include <stdbool.h>
 
@@ -18,8 +19,17 @@ enum edit_transform_flag {
   EDIT_TRANSFORM_TRANSLATE = BIT(2)
 };
 
-struct edit_inputs_config_desc {
-  float mouse_sensitivity;
+enum edit_selection_mode {
+  EDIT_SELECTION_MODE_NEW,
+  EDIT_SELECTION_MODE_NONE,
+  EDIT_SELECTION_MODE_XOR
+};
+
+struct edit_inputs_state {
+  struct aosf44 view_transform;
+  enum edit_selection_mode selection_mode;
+  int entity_transform_flag; /* Combination of edit_transform_flag */
+  bool is_enabled;
 };
 
 struct aosf44;
@@ -58,24 +68,18 @@ edit_inputs_flush_commands
   (struct edit_inputs* input);
 
 LOCAL_SYM enum edit_error
-edit_inputs_set_config
+edit_inputs_set_mouse_sensitivity
   (struct edit_inputs* input,
-   const struct edit_inputs_config_desc* desc);
+   const float sensitivity);
 
 LOCAL_SYM enum edit_error
-edit_inputs_get_config
-  (struct edit_inputs* input,
-   struct edit_inputs_config_desc* desc);
+edit_inputs_flush
+  (struct edit_inputs* input);
 
 LOCAL_SYM enum edit_error
-edit_inputs_get_view_transform
-  (struct edit_inputs* input,
-   struct aosf44* view_transform);
-
-LOCAL_SYM enum edit_error
-edit_inputs_get_entity_transform_flag
-  (struct edit_inputs* input,
-   int* entity_transform_flag); /* Combination of edit_transform_flag */
-
+edit_inputs_get_state
+  (const struct edit_inputs* input,
+   struct edit_inputs_state* state);
+ 
 #endif /* EDIT_INPUTS_H */
 

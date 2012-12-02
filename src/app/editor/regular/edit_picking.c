@@ -49,7 +49,7 @@ pick_imdraw(struct edit_picking* picking, uint32_t pick_id)
 static enum edit_error
 pick_world
   (struct edit_picking* picking,
-   struct app_world* world, 
+   struct app_world* world,
    uint32_t pick_id)
 {
   struct app_model_instance* instance = NULL;
@@ -95,7 +95,7 @@ exit:
 error:
   goto exit;
 }
- 
+
 static void
 release_picking(struct ref* ref)
 {
@@ -191,7 +191,9 @@ edit_picking_ref_put(struct edit_picking* picking)
 }
 
 enum edit_error
-edit_process_picking(struct edit_picking* picking)
+edit_process_picking
+  (struct edit_picking* picking,
+   const enum edit_selection_mode selection_mode)
 {
   struct app_world* world = NULL;
   const app_pick_t* pick_list = NULL;

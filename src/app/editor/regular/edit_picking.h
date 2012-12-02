@@ -1,6 +1,7 @@
 #ifndef EDIT_PICKING_H
 #define EDIT_PICKING_H
 
+#include "app/editor/regular/edit_inputs.h"
 #include "app/editor/edit_error.h"
 #include "sys/sys.h"
 
@@ -26,7 +27,8 @@ edit_picking_ref_put
 
 LOCAL_SYM enum edit_error
 edit_process_picking
-  (struct edit_picking* ctxt);
+  (struct edit_picking* ctxt,
+   const enum edit_selection_mode selection_mode);
 
 #endif /* EDIT_PICKING_H */
 

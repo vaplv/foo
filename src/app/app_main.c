@@ -95,9 +95,6 @@ main_key_clbk(enum wm_key key, enum wm_state state, void* data)
 
   switch(key) {
     case WM_KEY_F1:
-      *mode = (-(*mode != EDIT_MODE)) & EDIT_MODE;
-      break;
-    case WM_KEY_F2:
       *mode = (-(*mode != GAME_MODE)) & GAME_MODE;
       break;
     case WM_KEY_SQUARE:
@@ -106,6 +103,9 @@ main_key_clbk(enum wm_key key, enum wm_state state, void* data)
     default:
       /* Do nothing */
       break;
+  }
+  if(*mode == MODE_NONE) {
+    *mode = EDIT_MODE;
   }
 }
 
