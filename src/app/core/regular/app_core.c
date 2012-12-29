@@ -636,7 +636,7 @@ init(struct app* app, const char* graphic_driver)
         goto error; \
       } \
     } while(0)
-  CALL(init_window_manager(&app->wm), "error initializing, window manager\n");
+  CALL(init_window_manager(&app->wm), "error initializing window manager\n");
   CALL(init_renderer(app, graphic_driver), "error initializing renderer\n");
   CALL(init_resources(&app->rsrc), "error initializing resource module\n");
   CALL(init_common(app), "");

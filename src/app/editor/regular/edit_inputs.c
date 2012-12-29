@@ -16,7 +16,7 @@
 #include <string.h>
 
 struct edit_inputs {
-  struct edit_inputs_context {
+  struct ALIGN(16) edit_inputs_context {
     struct aosf44 view_transform; /* Must be aligned on 16 Bytes */
     enum edit_transform_space transform_space;
     enum edit_selection_mode selection_mode;

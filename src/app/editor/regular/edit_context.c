@@ -37,31 +37,43 @@ draw_selection(struct edit_context* ctxt)
 static inline void
 draw_grid(struct edit_context* ctxt)
 {
+  const float position[3] = { 0.f, 0.f, 0.f };
+  const float rotation[3] = { PI * 0.5f, 0.f, 0.f };
+  const float color[3] = { 0.25f, 0.25f, 0.25f };
+  const float subcolor[3] = { 0.15f, 0.15f, 0.15f };
+  const float vaxis_color[3] = { 0.f, 0.f, 1.f };
+  const float haxis_color[3] = { 1.f, 0.f, 0.f };
+  const float size[2] = {
+    ctxt->cvars.grid_size->value.real,
+    ctxt->cvars.grid_size->value.real
+  };
+  const unsigned int ndiv[2] = {
+    ctxt->cvars.grid_ndiv->value.integer,
+    ctxt->cvars.grid_ndiv->value.integer
+  };
+  const unsigned int nsubdiv[2] = {
+     ctxt->cvars.grid_nsubdiv->value.integer,
+     ctxt->cvars.grid_nsubdiv->value.integer
+  };
+
   assert(ctxt);
-  if(true == ctxt->cvars.show_grid->value.boolean) {
-    APP(imdraw_grid
-      (ctxt->app,
-       APP_IMDRAW_FLAG_NONE,
-       UINT32_MAX, /* invalid pick_id */
-       (float[]){0.f, 0.f, 0.f}, /* pos */
-       (float[]){
-          ctxt->cvars.grid_size->value.real,
-          ctxt->cvars.grid_size->value.real
-       },
-       (float[]){PI * 0.5f, 0.f, 0.f}, /* rotation */
-       (unsigned int[]){ /* ndiv */
-          ctxt->cvars.grid_ndiv->value.integer,
-          ctxt->cvars.grid_ndiv->value.integer
-       },
-       (unsigned int[]){ /* nsubdiv */
-          ctxt->cvars.grid_nsubdiv->value.integer,
-          ctxt->cvars.grid_nsubdiv->value.integer
-       },
-       (float[]){0.25f, 0.25f, 0.25f}, /* color */
-       (float[]){0.15f, 0.15f, 0.15f}, /* subcolor */
-       (float[]){0.f, 0.f, 1.f}, /* vaxis_color */
-       (float[]){1.f, 0.f, 0.f}));  /* haxis_color */
-  }
+
+  if(false == ctxt->cvars.show_grid->value.boolean)
+    return;
+
+  APP(imdraw_grid
+    (ctxt->app,
+      APP_IMDRAW_FLAG_NONE,
+      UINT32_MAX, /* invalid pick_id */
+      position,
+      size,
+      rotation,
+      ndiv,
+      nsubdiv,
+      color,
+      subcolor,
+      vaxis_color,
+      haxis_color));
 }
 
 static void

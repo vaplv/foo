@@ -50,42 +50,62 @@ static enum edit_error
 pick_world
   (struct edit_picking* picking,
    struct app_world* world,
-   uint32_t pick_id)
+   const uint32_t pick_id,
+   const enum edit_selection_mode selection_mode)
 {
-  struct app_model_instance* instance = NULL;
+  struct app_model_instance* inst = NULL;
   enum app_error app_err = APP_NO_ERROR;
   enum edit_error edit_err = EDIT_NO_ERROR;
-  bool is_selected = false;
 
   assert(picking && world);
 
-  app_err = app_world_picked_model_instance(world, pick_id, &instance);
+  if(selection_mode == EDIT_SELECTION_MODE_NONE)
+    goto exit;
+
+  app_err = app_world_picked_model_instance(world, pick_id, &inst);
   if(app_err != APP_NO_ERROR) {
     edit_err = app_to_edit_error(app_err);
     goto error;
   }
 
-  edit_err = edit_is_model_instance_selected
-    (picking->instance_selection, instance, &is_selected);
-  if(edit_err != EDIT_NO_ERROR)
-    goto error;
+  if(selection_mode == EDIT_SELECTION_MODE_XOR) {
+    bool is_selected = false;
 
-  if(is_selected == true) {
-    void* data = NULL;
+    edit_err = edit_is_model_instance_selected
+      (picking->instance_selection, inst, &is_selected);
+    if(edit_err != EDIT_NO_ERROR)
+      goto error;
 
-    /* If the instance is already selected and is not registered into the
-     * picked_instance_htbl then this instance was previously selected and
-     * thus we unselect it. */
-    SL(hash_table_find(picking->picked_instances_htbl, &pick_id, &data));
-    if(data == NULL) {
-      edit_err = edit_unselect_model_instance
-        (picking->instance_selection, instance);
+    if(is_selected == true) {
+      void* data = NULL;
+      /* If the instance was already selected and is not registered into the
+       * picked_instance_htbl then this instance was previously selected and
+       * thus we unselect it. */
+      SL(hash_table_find(picking->picked_instances_htbl, &pick_id, &data));
+      if(data == NULL) {
+        edit_err = edit_unselect_model_instance
+          (picking->instance_selection, inst);
+        if(edit_err != EDIT_NO_ERROR)
+          goto error;
+      } 
+    } else {
+      /* If the instance was not already selected add it to the selection */
+      const enum sl_error sl_err = sl_hash_table_insert
+        (picking->picked_instances_htbl, &pick_id, &pick_id);
+      if(sl_err != SL_NO_ERROR) {
+        edit_err = sl_to_edit_error(sl_err);
+        goto error;
+      }
+      edit_err = edit_select_model_instance
+        (picking->instance_selection, inst);
       if(edit_err != EDIT_NO_ERROR)
         goto error;
     }
-  } else {
-    SL(hash_table_insert(picking->picked_instances_htbl, &pick_id, &pick_id));
-    edit_err =edit_select_model_instance(picking->instance_selection, instance);
+  } 
+
+  if(selection_mode == EDIT_SELECTION_MODE_NEW) {
+    EDIT(clear_model_instance_selection(picking->instance_selection));
+    edit_err = edit_select_model_instance(picking->instance_selection, inst);
     if(edit_err != EDIT_NO_ERROR)
       goto error;
   }
@@ -198,6 +218,7 @@ edit_process_picking
   struct app_world* world = NULL;
   const app_pick_t* pick_list = NULL;
   size_t nb_picks = 0;
+  size_t nb_picks_none = 0;
   size_t i = 0;
   enum app_error app_err = APP_NO_ERROR;
   enum edit_error edit_err = EDIT_NO_ERROR;
@@ -228,19 +249,21 @@ edit_process_picking
         edit_err = pick_imdraw(picking, pick_id);
         break;
       case APP_PICK_GROUP_WORLD:
-        edit_err = pick_world(picking, world, pick_id);
+        edit_err = pick_world(picking, world, pick_id, selection_mode);
         break;
       case APP_PICK_GROUP_NONE:
-        if(nb_picks == 1) {
-          edit_err = edit_clear_model_instance_selection
-            (picking->instance_selection);
-        }
+        ++nb_picks_none;
         break;
       default: assert(0); break; /* Unreachable code */
     }
 
     if(edit_err != EDIT_NO_ERROR)
       goto error;
+  }
+
+  if(nb_picks == nb_picks_none) {
+    edit_err = edit_clear_model_instance_selection
+      (picking->instance_selection);
   }
 
 exit:
