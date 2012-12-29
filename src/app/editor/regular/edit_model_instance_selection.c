@@ -522,32 +522,51 @@ edit_draw_model_instance_selection
     goto exit;
 
   do {
+    const struct aosf44* raw_transform = NULL;
+    struct aosf44 f44;
+    vf4_t f4;
+    ALIGN(16) float transform[16];
     float pos[3] = { 0.f, 0.f, 0.f };
-    float min_bound[3] = {0.f, 0.f, 0.f};
-    float max_bound[3] = {0.f, 0.f, 0.f};
+    float obb_x[3] = { 0.f, 0.f, 0.f };
+    float obb_y[3] = { 0.f, 0.f, 0.f };
+    float obb_z[3] = { 0.f, 0.f, 0.f };
+    float min_bound[3] = { 0.f, 0.f, 0.f };
+    float max_bound[3] = { 0.f, 0.f, 0.f };
     const struct app_model_instance* instance =
       *(struct app_model_instance**)it.pair.data;
 
-    APP(get_model_instance_aabb(instance, min_bound, max_bound));
+    APP(get_model_instance_obb(instance, pos, obb_x, obb_y, obb_z));
+    APP(get_raw_model_instance_transform(instance, &raw_transform));
 
-    for(i = 0; i < 3; ++i) {
-      selection_max_bound[i] = MAX(selection_max_bound[i], max_bound[i]);
-      selection_min_bound[i] = MIN(selection_min_bound[i], min_bound[i]);
-      pos[i] = (min_bound[i] + max_bound[i]) * 0.5f;
-      size[i] =
-        max_bound[i]
-      - min_bound[i]
-      + 1.f; /* epsilon avoiding Z fight if the selected inst is an AABB */
-    }
-    APP(imdraw_parallelepiped
+    /* Compute the transformation of the imdraw parallelepiped */
+    f4 = vf4_048C
+      (vf4_len3(vf4_set(obb_x[0], obb_x[1], obb_x[2], 0.f)),
+       vf4_len3(vf4_set(obb_y[0], obb_y[1], obb_y[2], 0.f)),
+       vf4_len3(vf4_set(obb_z[0], obb_z[1], obb_z[2], 0.f)),
+       vf4_zero());
+    f4 = vf4_mul(f4, vf4_set1(2.f));
+    f44.c0 = vf4_mul(raw_transform->c0, vf4_xxxx(f4));
+    f44.c1 = vf4_mul(raw_transform->c1, vf4_yyyy(f4));
+    f44.c2 = vf4_mul(raw_transform->c2, vf4_zzzz(f4));
+    f44.c3 = vf4_set(pos[0], pos[1], pos[2], 1.f);
+    aosf44_store(transform, &f44);
+
+    /* Draw the transformed obb parallelepiped */
+    APP(imdraw_transformed_parallelepiped
       (selection->app,
        APP_IMDRAW_FLAG_NONE,
        APP_PICK_ID_MAX,
-       pos,
-       size,
-       (float[]){0.f, 0.f, 0.f}, /* Rotation */
+       transform,
        (float[]){0.75f, 0.75f, 0.0f, 0.10f}, /* Solid color */
        (float[]){1.f, 1.f, 0.f, 1.f})); /* Wire color */
+
+    /* Update the bounds of the selection AABB */
+    APP(get_model_instance_aabb(instance, min_bound, max_bound));
+    for(i = 0; i < 3; ++i) {
+      selection_max_bound[i] = MAX(selection_max_bound[i], max_bound[i]);
+      selection_min_bound[i] = MIN(selection_min_bound[i], min_bound[i]);
+    }
+
     SL(hash_table_it_next(&it, &is_end_reached));
   } while(is_end_reached == false);
 
@@ -570,3 +589,4 @@ exit:
 error:
   goto exit;
 }
+

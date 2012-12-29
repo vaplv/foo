@@ -141,6 +141,38 @@ error:
 }
 
 enum app_error
+app_imdraw_transformed_parallelepiped
+  (struct app* app,
+   const int flag,
+   const uint32_t in_pick_id,
+   const float transform[16],
+   const float solid_color[4],
+   const float wire_color[4])
+{
+  struct rdr_view render_view;
+  const uint32_t pick_id = in_pick_id >= APP_PICK_ID_MAX
+    ? APP_PICK_NONE
+    : APP_PICK(in_pick_id, APP_PICK_GROUP_IMDRAW);
+  enum rdr_error rdr_err = RDR_NO_ERROR;
+  memset(&render_view, 0, sizeof(render_view));
+
+  if(UNLIKELY(!app))
+    return APP_INVALID_ARGUMENT;
+
+  setup_render_view(app, &render_view);
+  rdr_err = rdr_frame_imdraw_transformed_parallelepiped
+    (app->rdr.frame,
+     &render_view,
+     app_to_rdr_imdraw_flag(flag),
+     pick_id,
+     transform,
+     solid_color,
+     wire_color);
+
+  return rdr_to_app_error(rdr_err);
+}
+
+enum app_error
 app_imdraw_ellipse
   (struct app* app,
    const int flag,

@@ -37,6 +37,15 @@ app_imdraw_parallelepiped
    const float wire_color[4]); /* May be NULL <=> No wire parallelepiped. */
 
 APP_API enum app_error
+app_imdraw_transformed_parallelepiped
+  (struct app* app,
+   const int flag, /* combination of app_imdraw_flag */
+   const uint32_t pick_id,
+   const float mat[16],
+   const float solid_color[4], /* May be NULL <=> No solid parallelepiped. */
+   const float wire_color[4]); /* May be NULL <=> No wire parallelepiped. */
+
+APP_API enum app_error
 app_imdraw_ellipse
   (struct app* app,
    const int flag, /* combination of app_imdraw_flag */
